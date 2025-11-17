@@ -1,18 +1,15 @@
 // App.jsx
 import { BrowserRouter } from "react-router-dom";
-import MainRouter from "./routes";
+import MainRouter from "./routes/index.jsx";
 // components
-import NotistackProvider from "./components/NotistackProvider";
-import { AuthProvider } from "./contexts/JWTContext";
+import ThemeProvider from "./components/ThemeProvider";
 
 export default function App() {
   return (
-        <AuthProvider>
+    <ThemeProvider>
         <BrowserRouter>
-          <NotistackProvider>
-            <MainRouter />
-          </NotistackProvider>
+          <MainRouter />
         </BrowserRouter>
-        </AuthProvider>
+    </ThemeProvider>
   );
 }
