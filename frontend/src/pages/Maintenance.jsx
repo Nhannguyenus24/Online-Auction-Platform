@@ -1,32 +1,13 @@
-import { Box, Container, Typography, LinearProgress, Chip, Stack, Card } from '@mui/material';
+import { Box, Container, Typography, Chip, Stack, Card } from '@mui/material';
 import { motion } from 'framer-motion';
 import BuildIcon from '@mui/icons-material/Build';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import UpdateIcon from '@mui/icons-material/Update';
-import { useState, useEffect } from 'react';
 
 const MotionBox = motion(Box);
 const MotionCard = motion(Card);
 
 export default function Maintenance() {
-  const [progress, setProgress] = useState(0);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setProgress((oldProgress) => {
-        if (oldProgress === 100) {
-          return 0;
-        }
-        const diff = Math.random() * 10;
-        return Math.min(oldProgress + diff, 100);
-      });
-    }, 500);
-
-    return () => {
-      clearInterval(timer);
-    };
-  }, []);
 
   const maintenanceUpdates = [
     {
@@ -34,12 +15,6 @@ export default function Maintenance() {
       title: 'System Upgrade',
       description: 'Upgrading to latest server infrastructure',
       status: 'In Progress',
-    },
-    {
-      icon: <CheckCircleOutlineIcon sx={{ color: 'success.main' }} />,
-      title: 'Database Optimization',
-      description: 'Improving performance and reliability',
-      status: 'Completed',
     },
     {
       icon: <UpdateIcon sx={{ color: 'primary.main' }} />,
@@ -155,39 +130,6 @@ export default function Maintenance() {
             </Stack>
           </MotionBox>
 
-          {/* Progress Bar */}
-          <MotionBox
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            sx={{ width: '100%', maxWidth: 500, mb: 6 }}
-          >
-            <Box sx={{ mb: 1 }}>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                Maintenance Progress
-              </Typography>
-              <LinearProgress
-                variant="determinate"
-                value={progress}
-                sx={{
-                  height: 8,
-                  borderRadius: 5,
-                  bgcolor: 'grey.200',
-                  '& .MuiLinearProgress-bar': {
-                    borderRadius: 5,
-                  },
-                }}
-              />
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{ mt: 0.5, display: 'block' }}
-              >
-                {Math.round(progress)}% Complete
-              </Typography>
-            </Box>
-          </MotionBox>
-
           {/* Maintenance Updates */}
           <MotionBox
             initial={{ opacity: 0, y: 20 }}
@@ -229,15 +171,14 @@ export default function Maintenance() {
                   <Chip
                     label={update.status}
                     size="small"
-                    color={update.status === 'Completed' ? 'success' : 'primary'}
-                    variant={update.status === 'Completed' ? 'filled' : 'outlined'}
+                    color={'primary'}
+                    variant={'outlined'}
                   />
                 </MotionCard>
               ))}
             </Stack>
           </MotionBox>
 
-          {/* Contact Information */}
           <MotionBox
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -263,13 +204,13 @@ export default function Maintenance() {
                   <Typography variant="body2" sx={{ fontWeight: 600 }}>
                     Email:
                   </Typography>
-                  <Typography variant="body2">support@auction-platform.com</Typography>
+                  <Typography variant="body2">ntnhan223@clc.fitus.edu.vn</Typography>
                 </Box>
                 <Box>
                   <Typography variant="body2" sx={{ fontWeight: 600 }}>
                     Phone:
                   </Typography>
-                  <Typography variant="body2">+1 (555) 123-4567</Typography>
+                  <Typography variant="body2">+84 (888) 33-4107</Typography>
                 </Box>
               </Stack>
             </Card>
