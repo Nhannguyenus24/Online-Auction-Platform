@@ -17,12 +17,15 @@ export default function Router() {
     {
       path: "*",
       children: [
+        { path: "login", element: <Login /> },
+        { path: "forgot-password", element: <ForgotPassword /> },
+        { path: "register", element: <Register /> },
+        { path: "reset-password", element: <ResetPassword /> },
         { path: "about", element: <AboutUs /> },
         { path: "maintenance", element: <Maintenance /> },
         { path: "500", element: <Page500 /> },
         { path: "404", element: <Page404 /> },
         { path: "*", element: <Navigate to="/404" replace /> },
-        { path: "reset-password", element: <ResetPassword /> },
       ],
     },
   ]);
@@ -30,9 +33,10 @@ export default function Router() {
 
 
 // AUTHENTICATION
-const Login = Loadable(lazy(() => import("../pages/authentication/Login")));
-const ForgotPassword = Loadable(lazy(() => import("../pages/authentication/ForgotPassword")));
-const ResetPassword = Loadable(lazy(() => import("../pages/authentication/ResetPassword")));
+const Login = Loadable(lazy(() => import("../pages/authentication/Login.jsx")));
+const ForgotPassword = Loadable(lazy(() => import("../pages/authentication/ForgotPassword.jsx")));
+const ResetPassword = Loadable(lazy(() => import("../pages/authentication/ResetPassword.jsx")));
+const Register = Loadable(lazy(() => import("../pages/authentication/Register.jsx")));
 
 // MAINLAYOUT
 // const MainLayout = Loadable(lazy(() => import("../layout/MainLayout")));
