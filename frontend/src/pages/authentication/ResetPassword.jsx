@@ -42,11 +42,13 @@ const resetSchema = yup.object({
     .required("Confirm your password."),
 });
 
+const defaultValues = {
+  password: "",
+  confirmPassword: "",
+};
+
 const ResetPassword = () => {
-  const [formValues, setFormValues] = useState({
-    password: "",
-    confirmPassword: "",
-  });
+  const [formValues, setFormValues] = useState(defaultValues);
   const [formErrors, setFormErrors] = useState({});
   const [showPassword, setShowPassword] = useState({
     password: false,
@@ -95,12 +97,10 @@ const ResetPassword = () => {
   };
 
   const handleChange = async (event) => {
-    const { name, value } = event.target;
-    setFormValues((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-    await validateField(name, value);
+    const { name, value, checked, type } = event.target;
+    const nextValue = type === "checkbox" ? checked : value;
+    setFormValues((prev) => ({ ...prev, [name]: nextValue }));
+    await validateField(name, nextValue);
   };
 
   const handleSubmit = async (event) => {
@@ -124,9 +124,9 @@ const ResetPassword = () => {
       icon={<LockReset color="primary" fontSize="large" />}
       footerLinks={[{ label: "Back to login", to: "/login" }]}
     >
-      <Stack component="form" spacing={3} onSubmit={handleSubmit}>
+      <Stack component="form" spacing={2.5} onSubmit={handleSubmit}>
         {status === "success" && (
-          <Alert severity="success">
+          <Alert severity="success" sx={{ py: 1 }}>
             Password updated. You can now sign in with the new credentials.
           </Alert>
         )}
@@ -189,7 +189,7 @@ const ResetPassword = () => {
 
         <List dense disablePadding>
           {requirements.map((req) => (
-            <ListItem key={req.label} sx={{ py: 0.5 }}>
+            <ListItem key={req.label} sx={{ py: 0.25 }}>
               <ListItemIcon sx={{ minWidth: 32 }}>
                 {meetsRequirement[req.label] ? (
                   <CheckCircle color="success" fontSize="small" />
@@ -197,7 +197,10 @@ const ResetPassword = () => {
                   <RadioButtonUnchecked color="disabled" fontSize="small" />
                 )}
               </ListItemIcon>
-              <ListItemText primary={req.label} />
+              <ListItemText 
+                primary={req.label}
+                primaryTypographyProps={{ variant: "body2", sx: { fontSize: "0.8rem" } }}
+              />
             </ListItem>
           ))}
         </List>

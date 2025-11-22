@@ -34,14 +34,16 @@ const heroHighlights = [
 
 const AuthLayout = ({ title, subtitle, icon, footerLinks = [], children }) => (
   <Box
-    minHeight="100vh"
     sx={{
+      minHeight: { xs: "100vh" },
+      height: { md: "100vh" },
       background: "linear-gradient(135deg, #f8fbff 0%, #f2f4f7 100%)",
       display: "flex",
       alignItems: "stretch",
       justifyContent: "center",
       px: { xs: 2, md: 6 },
-      py: { xs: 4, md: 6 },
+      py: { xs: 4, md: 3 },
+      overflow: { md: "hidden" },
     }}
   >
     <Grid
@@ -53,6 +55,7 @@ const AuthLayout = ({ title, subtitle, icon, footerLinks = [], children }) => (
         borderRadius: 4,
         overflow: "hidden",
         boxShadow: "0 25px 70px rgba(15, 23, 42, 0.12)",
+        height: { md: "100%" },
       }}
     >
       <Grid
@@ -63,6 +66,7 @@ const AuthLayout = ({ title, subtitle, icon, footerLinks = [], children }) => (
           background: "linear-gradient(135deg, #0d5c63 0%, #0b3d4a 100%)",
           color: "white",
           p: 6,
+          overflow: { md: "hidden" },
         }}
       >
         <Stack spacing={4} justifyContent="space-between">
@@ -125,10 +129,11 @@ const AuthLayout = ({ title, subtitle, icon, footerLinks = [], children }) => (
         size={{ xs: 12, md: 6 }}
         sx={{
           bgcolor: "background.default",
-          p: { xs: 3, sm: 5 },
+          p: { xs: 3, sm: 3 },
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          overflow: { md: "hidden" },
         }}
       >
         <Paper
@@ -136,18 +141,18 @@ const AuthLayout = ({ title, subtitle, icon, footerLinks = [], children }) => (
           sx={{
             width: "100%",
             maxWidth: 460,
-            p: { xs: 0, sm: 2 },
+            p: { xs: 0, sm: 1 },
             bgcolor: "transparent",
           }}
         >
-          <Stack spacing={1.5} mb={4}>
+          <Stack spacing={1} mb={2.5}>
             <Stack direction="row" spacing={1.5} alignItems="center">
               {icon}
               <Typography variant="overline" color="text.secondary">
                 Access Portal
               </Typography>
             </Stack>
-            <Typography variant="h4" fontWeight={600}>
+            <Typography variant="h5" fontWeight={600}>
               {title}
             </Typography>
             <Typography variant="body2" color="text.secondary">
@@ -159,7 +164,7 @@ const AuthLayout = ({ title, subtitle, icon, footerLinks = [], children }) => (
 
           {!!footerLinks.length && (
             <Stack
-              mt={4}
+              mt={2.5}
               direction={{ xs: "column", sm: "row" }}
               spacing={1.5}
               justifyContent="space-between"
