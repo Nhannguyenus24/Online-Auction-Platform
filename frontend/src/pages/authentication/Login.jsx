@@ -10,12 +10,10 @@ import {
   InputAdornment,
   Stack,
   TextField,
-  Typography,
 } from "@mui/material";
 import {
   Gavel,
   Google,
-  Security,
   Visibility,
   VisibilityOff,
 } from "@mui/icons-material";
@@ -106,9 +104,9 @@ const Login = () => {
         { label: "Create account", to: "/register" },
       ]}
     >
-      <Stack component="form" spacing={3} onSubmit={handleSubmit}>
+      <Stack component="form" spacing={2.5} onSubmit={handleSubmit}>
         {status === "success" && (
-          <Alert severity="success">
+          <Alert severity="success" sx={{ py: 1 }}>
             Sign-in successful. Redirecting to dashboard…
           </Alert>
         )}
@@ -175,22 +173,6 @@ const Login = () => {
           <Button startIcon={<Google />} variant="outlined" fullWidth>
             Google
           </Button>
-        </Stack>
-
-        <Stack
-          direction="row"
-          spacing={1.5}
-          alignItems="center"
-          sx={{
-            p: 2,
-            borderRadius: 2,
-            bgcolor: "grey.50",
-          }}
-        >
-          <Security color="primary" />
-          <Typography variant="body2">
-            Protected by adaptive fraud monitoring and TLS 1.3 encryption.
-          </Typography>
         </Stack>
       </Stack>
     </AuthLayout>

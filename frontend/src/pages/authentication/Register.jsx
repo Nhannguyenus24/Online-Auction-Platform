@@ -136,14 +136,14 @@ const Register = () => {
         { label: "Already have an account? Sign in", to: "/login" },
       ]}
     >
-      <Stack component="form" spacing={3} onSubmit={handleSubmit}>
+      <Stack component="form" spacing={1.5} onSubmit={handleSubmit}>
         {status === "success" && (
-          <Alert severity="success">
-            Registration successful. Check your email to confirm ownership.
+          <Alert severity="success" sx={{ py: 0.25, mb: 0 }}>
+            Check your email to confirm ownership.
           </Alert>
         )}
 
-        <Grid container spacing={2}>
+        <Grid container spacing={1}>
           <Grid size={{ xs: 12, sm: 6 }}>
             <TextField
               label="First name"
@@ -152,6 +152,7 @@ const Register = () => {
               onChange={handleChange}
               required
               fullWidth
+              size="small"
               error={Boolean(formErrors.firstName)}
               helperText={formErrors.firstName}
             />
@@ -164,6 +165,7 @@ const Register = () => {
               onChange={handleChange}
               required
               fullWidth
+              size="small"
               error={Boolean(formErrors.lastName)}
               helperText={formErrors.lastName}
             />
@@ -178,6 +180,7 @@ const Register = () => {
           onChange={handleChange}
           required
           fullWidth
+          size="small"
           error={Boolean(formErrors.email)}
           helperText={formErrors.email}
         />
@@ -190,17 +193,18 @@ const Register = () => {
           onChange={handleChange}
           required
           fullWidth
+          size="small"
           error={Boolean(formErrors.password)}
           helperText={formErrors.password}
         />
 
-        <Stack spacing={1}>
+        <Stack spacing={0.25}>
           <LinearProgress
             variant="determinate"
             value={strength}
-            sx={{ height: 8, borderRadius: 1 }}
+            sx={{ height: 4, borderRadius: 1 }}
           />
-          <Typography variant="caption" color="text.secondary">
+          <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.65rem", lineHeight: 1.2 }}>
             Use at least 8 characters with letters and numbers.
           </Typography>
         </Stack>
@@ -213,6 +217,7 @@ const Register = () => {
           onChange={handleChange}
           required
           fullWidth
+          size="small"
           error={Boolean(formErrors.confirmPassword)}
           helperText={formErrors.confirmPassword}
         />
@@ -226,17 +231,18 @@ const Register = () => {
             />
           }
           label={
-            <Typography variant="body2">
+            <Typography variant="caption" sx={{ fontSize: "0.75rem", lineHeight: 1.3 }}>
               I agree to the{" "}
-              <Button size="small" sx={{ px: 0 }} variant="text">
+              <Button size="small" sx={{ px: 0, fontSize: "0.75rem", py: 0, minWidth: "auto" }} variant="text">
                 Terms of Service
               </Button>{" "}
               and compliance policy.
             </Typography>
           }
+          sx={{ alignItems: "center", mt: -0.5 }}
         />
         {formErrors.acceptTerms && (
-          <Typography variant="caption" color="error">
+          <Typography variant="caption" color="error" sx={{ mt: -0.5, mb: 0.5 }}>
             {formErrors.acceptTerms}
           </Typography>
         )}
@@ -244,18 +250,18 @@ const Register = () => {
         <Button
           type="submit"
           variant="contained"
-          size="large"
+          size="medium"
           disabled={submitting}
         >
           {submitting ? "Creating account..." : "Create account"}
         </Button>
 
-        <Divider>or continue with</Divider>
+        <Divider sx={{ my: 0.5 }}>or continue with</Divider>
 
         <Button
           startIcon={<Google />}
           variant="outlined"
-          size="large"
+          size="medium"
           fullWidth
           onClick={handleGoogleSignup}
           disabled={submitting}

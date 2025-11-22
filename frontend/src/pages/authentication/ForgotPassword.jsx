@@ -18,26 +18,56 @@ const forgotSchema = yup.object({
     .required("Email is required."),
 });
 
+const defaultValues = {
+  email: "",
+};
+
 const ForgotPassword = () => {
-  const [email, setEmail] = useState("");
-  const [error, setError] = useState("");
+  const [formValues, setFormValues] = useState(defaultValues);
+  const [formErrors, setFormErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState(null);
 
-  const validateEmail = async (value) => {
+  const validateField = async (field, valueOverride) => {
+    if (!forgotSchema.fields[field]) return;
     try {
-      await forgotSchema.validate({ email: value });
-      setError("");
+      await forgotSchema.validateAt(field, {
+        ...formValues,
+        [field]: valueOverride ?? formValues[field],
+      });
+      setFormErrors((prev) => ({ ...prev, [field]: "" }));
+    } catch (error) {
+      setFormErrors((prev) => ({ ...prev, [field]: error.message }));
+    }
+  };
+
+  const validateForm = async () => {
+    try {
+      await forgotSchema.validate(formValues, { abortEarly: false });
+      setFormErrors({});
       return true;
-    } catch (err) {
-      setError(err.message);
+    } catch (error) {
+      const formattedErrors = error.inner.reduce((acc, current) => {
+        if (current.path && !acc[current.path]) {
+          acc[current.path] = current.message;
+        }
+        return acc;
+      }, {});
+      setFormErrors((prev) => ({ ...prev, ...formattedErrors }));
       return false;
     }
   };
 
+  const handleChange = async (event) => {
+    const { name, value, checked, type } = event.target;
+    const nextValue = type === "checkbox" ? checked : value;
+    setFormValues((prev) => ({ ...prev, [name]: nextValue }));
+    await validateField(name, nextValue);
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
-    const isValid = await validateEmail(email);
+    const isValid = await validateForm();
     if (!isValid) return;
 
     setSubmitting(true);
@@ -47,12 +77,6 @@ const ForgotPassword = () => {
       setSubmitting(false);
       setStatus("sent");
     }, 1200);
-  };
-
-  const handleChange = async (event) => {
-    const nextValue = event.target.value;
-    setEmail(nextValue);
-    await validateEmail(nextValue);
   };
 
   return (
@@ -65,22 +89,23 @@ const ForgotPassword = () => {
         { label: "Create a new account", to: "/register" },
       ]}
     >
-      <Stack component="form" spacing={3} onSubmit={handleSubmit}>
+      <Stack component="form" spacing={2.5} onSubmit={handleSubmit}>
         {status === "sent" && (
-          <Alert severity="success">
-            We emailed a reset link to {email}. It expires in 15 minutes.
+          <Alert severity="success" sx={{ py: 1 }}>
+            We emailed a reset link to {formValues.email}. It expires in 15 minutes.
           </Alert>
         )}
 
         <TextField
           label="Email address"
+          name="email"
           type="email"
-          value={email}
+          value={formValues.email}
           onChange={handleChange}
           required
           fullWidth
-          error={Boolean(error)}
-          helperText={error}
+          error={Boolean(formErrors.email)}
+          helperText={formErrors.email}
         />
 
         <Button
@@ -94,7 +119,7 @@ const ForgotPassword = () => {
 
         <Box
           sx={{
-            p: 2.5,
+            p: 2,
             borderRadius: 2,
             border: "1px dashed",
             borderColor: "divider",
