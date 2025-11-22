@@ -28,6 +28,15 @@ export default function Router() {
         { path: "*", element: <Navigate to="/404" replace /> },
       ],
     },
+    {
+      path: "/admin",
+      children: [
+        { path: "dashboard", element: <AdminLayout><DashboardAdmin /></AdminLayout> },
+        { path: "users", element: <AdminLayout><UserManagementPage /></AdminLayout> },
+        { path: "categories", element: <AdminLayout><CategoryManagementPage /></AdminLayout> },
+        { path: "products", element: <AdminLayout><ProductManagementPage /></AdminLayout> },
+      ],
+    }
   ]);
 }
 
@@ -39,7 +48,14 @@ const ResetPassword = Loadable(lazy(() => import("../pages/authentication/ResetP
 const Register = Loadable(lazy(() => import("../pages/authentication/Register.jsx")));
 
 // MAINLAYOUT
-// const MainLayout = Loadable(lazy(() => import("../layout/MainLayout")));
+const AdminLayout = Loadable(lazy(() => import("../layouts/AdminLayout.jsx")));
+
+//ADMIN
+
+const DashboardAdmin = Loadable(lazy(() => import("../pages/admin/DashBoardPage.jsx")));
+const UserManagementPage = Loadable(lazy(() => import("../pages/admin/UserManagementPage.jsx")));
+const CategoryManagementPage = Loadable(lazy(() => import("../pages/admin/CategoryManagementPage.jsx")));
+const ProductManagementPage = Loadable(lazy(() => import("../pages/admin/ProductManagementPage.jsx")));
 
 // OTHERS
 const Page500 = Loadable(lazy(() => import("../pages/Page500")));
