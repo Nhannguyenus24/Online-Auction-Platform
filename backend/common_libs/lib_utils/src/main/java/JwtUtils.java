@@ -21,6 +21,10 @@ public class JwtUtils {
         return "123";
     }
 
+    public String getUserRole(String accessToken){
+        return "123";
+    }
+
     // public Payload getPayLoad(String accessToken){
 
     // }
