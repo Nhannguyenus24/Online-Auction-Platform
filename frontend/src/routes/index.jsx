@@ -25,6 +25,7 @@ export default function Router() {
         { path: "maintenance", element: <Maintenance /> },
         { path: "500", element: <Page500 /> },
         { path: "404", element: <Page404 /> },
+        { path: "product/:id", element: <ProductDetailPage /> },
         { path: "*", element: <Navigate to="/404" replace /> },
       ],
     },
@@ -62,3 +63,4 @@ const Page500 = Loadable(lazy(() => import("../pages/Page500")));
 const Page404 = Loadable(lazy(() => import("../pages/Page404")));
 const AboutUs = Loadable(lazy(() => import("../pages/AboutUs")));
 const Maintenance = Loadable(lazy(() => import("../pages/Maintenance")));
+const ProductDetailPage = Loadable(lazy(() => import("../pages/ProductDetailPage.jsx")));
