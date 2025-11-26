@@ -273,611 +273,996 @@ function ProductDetailPage() {
 
   return (
     <Page title="Product Detail">
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        {/* Breadcrumb */}
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Home / {mockProduct.category.name} / {mockProduct.title}
-        </Typography>
+      <Box sx={{ bgcolor: 'grey.50', minHeight: '100vh' }}>
+        <Container maxWidth="xl" sx={{ py: 4 }}>
+          {/* Breadcrumb */}
+          <Box sx={{ 
+            bgcolor: 'white', 
+            px: 3, 
+            py: 1.5, 
+            borderRadius: 2, 
+            mb: 3,
+            boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+          }}>
+            <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <span style={{ cursor: 'pointer', color: '#1976d2' }}>Home</span>
+              <span>/</span>
+              <span style={{ cursor: 'pointer', color: '#1976d2' }}>{mockProduct.category.name}</span>
+              <span>/</span>
+              <span>{mockProduct.title.substring(0, 50)}...</span>
+            </Typography>
+          </Box>
 
-        <Grid container spacing={3}>
-          {/* Left: Images - 50% width */}
-          <Grid item xs={12} md={6}>
-            <Card elevation={2}>
-              <Box sx={{ position: 'relative', width: '100%', paddingTop: '75%', overflow: 'hidden' }}>
-                <CardMedia
-                  component="img"
-                  image={mockProduct.additionalImages[selectedImage]}
-                  alt={mockProduct.title}
-                  sx={{ 
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'contain',
-                    bgcolor: 'grey.100'
-                  }}
-                />
-                
-                {/* Image Navigation */}
-                <IconButton
-                  sx={{
-                    position: 'absolute',
-                    left: 16,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    bgcolor: 'rgba(0,0,0,0.5)',
-                    color: 'white',
-                    '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' },
-                  }}
-                  onClick={handlePreviousImage}
-                >
-                  <ChevronLeft />
-                </IconButton>
-                <IconButton
-                  sx={{
-                    position: 'absolute',
-                    right: 16,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    bgcolor: 'rgba(0,0,0,0.5)',
-                    color: 'white',
-                    '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' },
-                  }}
-                  onClick={handleNextImage}
-                >
-                  <ChevronRight />
-                </IconButton>
-
-                {/* Status Badge */}
-                <Chip
-                  label={mockProduct.status}
-                  color="success"
-                  sx={{ position: 'absolute', top: 16, right: 16 }}
-                />
-              </Box>
-
-              {/* Thumbnail Images */}
-              <Box sx={{ display: 'flex', gap: 1.5, p: 2, overflowX: 'auto', justifyContent: 'center' }}>
-                {mockProduct.additionalImages.map((img, index) => (
-                  <Box
-                    key={index}
+          <Grid container spacing={3}>
+            {/* Left: Images - 55% width */}
+            <Grid item xs={12} md={7}>
+              <Card elevation={0} sx={{ 
+                borderRadius: 3, 
+                overflow: 'hidden',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                border: '1px solid',
+                borderColor: 'grey.200'
+              }}>
+                <Box sx={{ 
+                  position: 'relative', 
+                  width: '100%', 
+                  paddingTop: '75%', 
+                  overflow: 'hidden',
+                  bgcolor: '#fafafa'
+                }}>
+                  <CardMedia
                     component="img"
-                    src={img}
-                    alt={`Thumbnail ${index + 1}`}
-                    sx={{
-                      width: 100,
-                      height: 100,
-                      objectFit: 'cover',
-                      cursor: 'pointer',
-                      border: 2,
-                      borderColor: selectedImage === index ? 'primary.main' : 'grey.300',
-                      borderRadius: 2,
-                      opacity: selectedImage === index ? 1 : 0.6,
-                      transition: 'all 0.3s',
-                      '&:hover': { 
-                        opacity: 1,
-                        transform: 'scale(1.05)',
-                      },
+                    image={mockProduct.additionalImages[selectedImage]}
+                    alt={mockProduct.title}
+                    sx={{ 
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'contain',
+                      p: 3
                     }}
-                    onClick={() => setSelectedImage(index)}
                   />
-                ))}
-              </Box>
-            </Card>
-          </Grid>
-
-          {/* Right: Product Info - 50% width */}
-          <Grid item xs={12} md={6}>
-            <Stack spacing={3}>
-              {/* Title and Price Card */}
-              <Card elevation={2} sx={{ p: 3 }}>
-                <Typography variant="h4" fontWeight="bold" gutterBottom>
-                  {mockProduct.title}
-                </Typography>
-
-                {/* Price Section */}
-                <Box sx={{ my: 3, bgcolor: 'primary.lighter', p: 3, borderRadius: 2 }}>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    Current Price
-                  </Typography>
-                  <Typography variant="h2" color="primary" fontWeight="bold" sx={{ mb: 2 }}>
-                    {formatPrice(mockProduct.currentPrice)}
-                  </Typography>
                   
-                  {mockProduct.buyNowPrice && (
-                    <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 1, p: 2, bgcolor: 'white', borderRadius: 1 }}>
-                      <ShoppingCart fontSize="small" color="action" />
-                      <Typography variant="body1" color="text.secondary">
-                        Buy Now: <strong style={{ color: 'green' }}>{formatPrice(mockProduct.buyNowPrice)}</strong>
-                      </Typography>
-                    </Box>
-                  )}
+                  {/* Image Navigation */}
+                  <IconButton
+                    sx={{
+                      position: 'absolute',
+                      left: 16,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      bgcolor: 'white',
+                      boxShadow: 2,
+                      '&:hover': { 
+                        bgcolor: 'white',
+                        transform: 'translateY(-50%) scale(1.1)',
+                      },
+                      transition: 'all 0.2s'
+                    }}
+                    onClick={handlePreviousImage}
+                  >
+                    <ChevronLeft />
+                  </IconButton>
+                  <IconButton
+                    sx={{
+                      position: 'absolute',
+                      right: 16,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      bgcolor: 'white',
+                      boxShadow: 2,
+                      '&:hover': { 
+                        bgcolor: 'white',
+                        transform: 'translateY(-50%) scale(1.1)',
+                      },
+                      transition: 'all 0.2s'
+                    }}
+                    onClick={handleNextImage}
+                  >
+                    <ChevronRight />
+                  </IconButton>
+
+                  {/* Status Badge */}
+                  <Chip
+                    label={mockProduct.status}
+                    color="success"
+                    sx={{ 
+                      position: 'absolute', 
+                      top: 20, 
+                      right: 20,
+                      fontWeight: 'bold',
+                      boxShadow: 2
+                    }}
+                  />
+
+                  {/* Image Counter */}
+                  <Box sx={{
+                    position: 'absolute',
+                    bottom: 20,
+                    right: 20,
+                    bgcolor: 'rgba(0,0,0,0.7)',
+                    color: 'white',
+                    px: 2,
+                    py: 0.5,
+                    borderRadius: 2,
+                    fontSize: '0.875rem'
+                  }}>
+                    {selectedImage + 1} / {mockProduct.additionalImages.length}
+                  </Box>
                 </Box>
 
-                {/* Stats */}
-                <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-                  <Box sx={{ flex: 1, textAlign: 'center', bgcolor: 'success.lighter', p: 2.5, borderRadius: 2 }}>
-                    <Typography variant="h3" color="success.main" fontWeight="bold">
-                      {mockProduct.bidCount}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" fontWeight="medium">
-                      Total Bids
-                    </Typography>
-                  </Box>
-                  <Box sx={{ flex: 1, textAlign: 'center', bgcolor: 'warning.lighter', p: 2.5, borderRadius: 2 }}>
-                    <Typography variant="h3" color="warning.main" fontWeight="bold">
-                      {mockProduct.watchCount}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" fontWeight="medium">
-                      Watchers
-                    </Typography>
-                  </Box>
+                {/* Thumbnail Images */}
+                <Box sx={{ 
+                  display: 'flex', 
+                  gap: 1, 
+                  p: 2, 
+                  overflowX: 'auto',
+                  bgcolor: 'white',
+                  '&::-webkit-scrollbar': {
+                    height: 8,
+                  },
+                  '&::-webkit-scrollbar-thumb': {
+                    bgcolor: 'grey.300',
+                    borderRadius: 2,
+                  }
+                }}>
+                  {mockProduct.additionalImages.map((img, index) => (
+                    <Box
+                      key={index}
+                      component="img"
+                      src={img}
+                      alt={`Thumbnail ${index + 1}`}
+                      sx={{
+                        width: 80,
+                        height: 80,
+                        minWidth: 80,
+                        objectFit: 'cover',
+                        cursor: 'pointer',
+                        border: 2,
+                        borderColor: selectedImage === index ? 'primary.main' : 'transparent',
+                        borderRadius: 2,
+                        opacity: selectedImage === index ? 1 : 0.5,
+                        transition: 'all 0.3s',
+                        '&:hover': { 
+                          opacity: 1,
+                          borderColor: 'primary.light',
+                        },
+                      }}
+                      onClick={() => setSelectedImage(index)}
+                    />
+                  ))}
                 </Box>
+              </Card>
 
-                <Divider sx={{ my: 2 }} />
-
-                {/* Description Section */}
-                <Box>
-                  <Typography variant="h6" gutterBottom fontWeight="bold">
-                    Description
+              {/* Description Section - Moved below image */}
+              <Card elevation={0} sx={{ 
+                mt: 2, 
+                borderRadius: 3,
+                boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                border: '1px solid',
+                borderColor: 'grey.200'
+              }}>
+                <Box sx={{ p: 3 }}>
+                  <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    Product Description
                   </Typography>
+                  <Divider sx={{ mb: 2 }} />
                   <Box
                     dangerouslySetInnerHTML={{ __html: mockProduct.description }}
                     sx={{
-                      maxHeight: 200,
-                      overflowY: 'auto',
-                      pr: 1,
-                      '& h3': { fontSize: '1.1rem', mt: 1, mb: 0.5 },
-                      '& h4': { fontSize: '1rem', mt: 1, mb: 0.5 },
-                      '& ul': { pl: 2, fontSize: '0.875rem' },
-                      '& p': { mb: 0.5, fontSize: '0.875rem' },
-                      '& li': { mb: 0.25 },
+                      '& h3': { fontSize: '1.1rem', fontWeight: 'bold', mt: 2, mb: 1, color: 'text.primary' },
+                      '& h4': { fontSize: '1rem', fontWeight: '600', mt: 1.5, mb: 1, color: 'text.secondary' },
+                      '& ul': { pl: 3, my: 1 },
+                      '& p': { mb: 1, lineHeight: 1.7, color: 'text.secondary' },
+                      '& li': { mb: 0.5, lineHeight: 1.6 },
                     }}
                   />
                 </Box>
               </Card>
+            </Grid>
 
-              {/* Time Card */}
-              <Card elevation={2} sx={{ p: 3, bgcolor: 'error.lighter' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                  <AccessTime color="error" fontSize="large" />
-                  <Box>
-                    <Typography variant="body2" color="text.secondary">
-                      Time Left
-                    </Typography>
-                    <Typography variant="h5" color="error" fontWeight="bold">
-                      {getTimeLeft(mockProduct.endTime)}
-                    </Typography>
+            {/* Right: Product Info - 45% width */}
+            <Grid item xs={12} md={5}>
+              <Stack spacing={2}>
+                {/* Title Card */}
+                <Card elevation={0} sx={{ 
+                  p: 3, 
+                  borderRadius: 3,
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                  border: '1px solid',
+                  borderColor: 'grey.200'
+                }}>
+                  <Typography variant="h4" fontWeight="bold" gutterBottom sx={{ lineHeight: 1.3 }}>
+                    {mockProduct.title}
+                  </Typography>
+                  
+                  <Box sx={{ display: 'flex', gap: 1, mt: 2, flexWrap: 'wrap' }}>
+                    <Chip 
+                      label={mockProduct.category.name} 
+                      size="small" 
+                      sx={{ fontWeight: 'medium' }}
+                    />
+                    <Chip 
+                      icon={<Gavel fontSize="small" />}
+                      label={`${mockProduct.bidCount} bids`} 
+                      size="small" 
+                      color="primary"
+                      sx={{ fontWeight: 'medium' }}
+                    />
+                    <Chip 
+                      icon={<Favorite fontSize="small" />}
+                      label={`${mockProduct.watchCount} watching`} 
+                      size="small" 
+                      color="secondary"
+                      sx={{ fontWeight: 'medium' }}
+                    />
                   </Box>
-                </Box>
-                <Divider sx={{ my: 1.5 }} />
-                <Typography variant="body2" color="text.secondary">
-                  Posted: {getRelativeTime(mockProduct.postedTime)}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Ends: {mockProduct.endTime.toLocaleString('vi-VN')}
-                </Typography>
-              </Card>
+                </Card>
 
-              {/* Seller & Bidder Info Card */}
-              <Card elevation={2} sx={{ p: 3 }}>
-                <Stack spacing={2.5}>
-                  <Box>
-                    <Typography variant="body2" color="text.secondary" fontWeight="bold" gutterBottom>
-                      SELLER
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Avatar src={mockProduct.seller.avatar} sx={{ width: 56, height: 56 }} />
-                      <Box>
-                        <Typography variant="body1" fontWeight="bold">
-                          {mockProduct.seller.name}
+                {/* Price & Time Card - Gradient Background */}
+                <Card elevation={0} sx={{ 
+                  borderRadius: 3,
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white',
+                  overflow: 'hidden',
+                  position: 'relative',
+                  boxShadow: '0 8px 24px rgba(102, 126, 234, 0.4)'
+                }}>
+                  <Box sx={{ 
+                    position: 'absolute',
+                    top: -20,
+                    right: -20,
+                    width: 150,
+                    height: 150,
+                    borderRadius: '50%',
+                    bgcolor: 'rgba(255,255,255,0.1)'
+                  }} />
+                  <CardContent sx={{ p: 3, position: 'relative' }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant="body2" sx={{ opacity: 0.9, fontWeight: 'medium' }}>
+                          Current Bid
                         </Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Typography variant="body2" color="warning.main" fontWeight="bold">
-                            ★ {mockProduct.seller.rating}
+                        <Typography variant="h3" fontWeight="bold" sx={{ mt: 0.5 }}>
+                          {formatPrice(mockProduct.currentPrice)}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ 
+                        bgcolor: 'rgba(255,255,255,0.2)', 
+                        px: 2, 
+                        py: 1, 
+                        borderRadius: 2,
+                        backdropFilter: 'blur(10px)'
+                      }}>
+                        <Typography variant="caption" sx={{ display: 'block', opacity: 0.9 }}>
+                          Starting Price
+                        </Typography>
+                        <Typography variant="body2" fontWeight="bold">
+                          {formatPrice(mockProduct.startingPrice)}
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    <Divider sx={{ borderColor: 'rgba(255,255,255,0.2)', my: 2 }} />
+
+                    {mockProduct.buyNowPrice && (
+                      <Box sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 1.5,
+                        bgcolor: 'rgba(255,255,255,0.15)',
+                        p: 2,
+                        borderRadius: 2,
+                        mb: 2,
+                        backdropFilter: 'blur(10px)'
+                      }}>
+                        <ShoppingCart sx={{ fontSize: 28 }} />
+                        <Box>
+                          <Typography variant="caption" sx={{ opacity: 0.9, display: 'block' }}>
+                            Buy It Now Price
                           </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            ({mockProduct.seller.ratingCount} ratings)
+                          <Typography variant="h6" fontWeight="bold">
+                            {formatPrice(mockProduct.buyNowPrice)}
                           </Typography>
                         </Box>
                       </Box>
-                    </Box>
-                  </Box>
+                    )}
 
-                  <Divider />
-
-                  <Box>
-                    <Typography variant="body2" color="text.secondary" fontWeight="bold" gutterBottom>
-                      CURRENT HIGHEST BIDDER
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Avatar sx={{ width: 56, height: 56, bgcolor: 'primary.main' }}>
-                        <Person />
-                      </Avatar>
-                      <Box>
-                        <Typography variant="body1" fontWeight="bold">
-                          {mockProduct.currentBidder.name}
+                    <Box sx={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: 1.5,
+                      bgcolor: 'rgba(255,255,255,0.15)',
+                      p: 2,
+                      borderRadius: 2,
+                      backdropFilter: 'blur(10px)'
+                    }}>
+                      <AccessTime sx={{ fontSize: 28 }} />
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant="caption" sx={{ opacity: 0.9, display: 'block' }}>
+                          Time Remaining
                         </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {mockProduct.currentBidder.bidCount} bids placed
+                        <Typography variant="h6" fontWeight="bold">
+                          {getTimeLeft(mockProduct.endTime)}
                         </Typography>
                       </Box>
                     </Box>
-                  </Box>
-                </Stack>
-              </Card>
 
-              {/* Action Buttons */}
-              {isLoggedIn ? (
-                <Stack spacing={2}>
-                  <Button
-                    variant="contained"
-                    size="large"
-                    startIcon={<Gavel />}
-                    onClick={handlePlaceBid}
-                    fullWidth
-                    sx={{ py: 1.5, fontSize: '1.1rem' }}
-                  >
-                    Place Bid
-                  </Button>
+                    <Typography variant="caption" sx={{ display: 'block', mt: 2, opacity: 0.8 }}>
+                      Ends: {mockProduct.endTime.toLocaleString('vi-VN', { 
+                        dateStyle: 'medium', 
+                        timeStyle: 'short' 
+                      })}
+                    </Typography>
+                  </CardContent>
+                </Card>
 
-                  {mockProduct.buyNowPrice && (
-                    <Button
-                      variant="outlined"
-                      size="large"
-                      startIcon={<ShoppingCart />}
-                      fullWidth
-                      sx={{ py: 1.5 }}
-                    >
-                      Buy Now - {formatPrice(mockProduct.buyNowPrice)}
-                    </Button>
-                  )}
+                {/* Seller & Current Bidder Card */}
+                <Card elevation={0} sx={{ 
+                  borderRadius: 3,
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                  border: '1px solid',
+                  borderColor: 'grey.200'
+                }}>
+                  <CardContent sx={{ p: 3 }}>
+                    <Stack spacing={2.5}>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" fontWeight="bold" sx={{ letterSpacing: 1 }}>
+                          SELLER
+                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1.5 }}>
+                          <Avatar 
+                            src={mockProduct.seller.avatar} 
+                            sx={{ 
+                              width: 56, 
+                              height: 56,
+                              border: '3px solid',
+                              borderColor: 'primary.light'
+                            }} 
+                          />
+                          <Box sx={{ flex: 1 }}>
+                            <Typography variant="body1" fontWeight="bold">
+                              {mockProduct.seller.name}
+                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                {[1,2,3,4,5].map((star) => (
+                                  <Typography key={star} sx={{ color: star <= Math.floor(mockProduct.seller.rating) ? '#FFA500' : '#ddd', fontSize: '1rem' }}>
+                                    ★
+                                  </Typography>
+                                ))}
+                              </Box>
+                              <Typography variant="body2" color="text.secondary">
+                                ({mockProduct.seller.ratingCount})
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </Box>
+                      </Box>
 
-                  <Stack direction="row" spacing={1}>
-                    <Button
-                      variant="outlined"
-                      startIcon={isWatchlisted ? <Favorite /> : <FavoriteBorder />}
-                      onClick={handleToggleWatchlist}
-                      fullWidth
-                      color={isWatchlisted ? 'error' : 'inherit'}
-                    >
-                      {isWatchlisted ? 'Watchlisted' : 'Watchlist'}
-                    </Button>
-                    <IconButton 
-                      variant="outlined" 
-                      sx={{ 
-                        border: 1, 
-                        borderColor: 'divider',
-                        '&:hover': { bgcolor: 'action.hover' }
-                      }}
-                    >
-                      <Share />
-                    </IconButton>
-                  </Stack>
-                </Stack>
-              ) : (
-                <Card elevation={2} sx={{ bgcolor: 'info.lighter' }}>
-                  <CardContent>
-                    <Alert severity="info" sx={{ mb: 2 }}>
-                      Please login to place bids and interact with this auction
-                    </Alert>
+                      <Divider />
+
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" fontWeight="bold" sx={{ letterSpacing: 1 }}>
+                          LEADING BIDDER
+                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1.5 }}>
+                          <Avatar sx={{ 
+                            width: 56, 
+                            height: 56, 
+                            bgcolor: 'success.main',
+                            fontWeight: 'bold',
+                            fontSize: '1.5rem'
+                          }}>
+                            🏆
+                          </Avatar>
+                          <Box>
+                            <Typography variant="body1" fontWeight="bold">
+                              {mockProduct.currentBidder.name}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              {mockProduct.currentBidder.bidCount} bids placed
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </Box>
+                    </Stack>
+                  </CardContent>
+                </Card>                {/* Action Buttons */}
+                {isLoggedIn ? (
+                  <Stack spacing={2}>
                     <Button
                       variant="contained"
                       size="large"
+                      startIcon={<Gavel />}
+                      onClick={handlePlaceBid}
                       fullWidth
-                      onClick={() => navigate('/login')}
-                      sx={{ py: 1.5 }}
+                      sx={{ 
+                        py: 2, 
+                        fontSize: '1.1rem',
+                        fontWeight: 'bold',
+                        borderRadius: 2.5,
+                        boxShadow: '0 4px 12px rgba(25, 118, 210, 0.4)',
+                        '&:hover': {
+                          boxShadow: '0 6px 16px rgba(25, 118, 210, 0.5)',
+                          transform: 'translateY(-2px)',
+                        },
+                        transition: 'all 0.3s'
+                      }}
                     >
-                      Login / Register to Bid
+                      Place Bid
                     </Button>
-                  </CardContent>
-                </Card>
-              )}
-            </Stack>
-          </Grid>
-        </Grid>
 
-        {/* Bid History and Q&A Section */}
-        <Grid container spacing={3} sx={{ mt: 2 }}>
-          {/* Left: Bid History - 50% */}
-          <Grid item xs={12} md={6}>
-            <Card elevation={2}>
-              <Box sx={{ p: 3, bgcolor: 'primary.lighter' }}>
-                <Typography variant="h5" fontWeight="bold">
-                  Bid History ({mockBidHistory.length})
-                </Typography>
-              </Box>
-              <CardContent>
-                <TableContainer>
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell><strong>Bidder</strong></TableCell>
-                        <TableCell align="right"><strong>Bid Amount</strong></TableCell>
-                        <TableCell align="right"><strong>Time</strong></TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {mockBidHistory.map((bid, index) => (
-                        <TableRow 
-                          key={bid.id}
-                          sx={{ 
-                            bgcolor: index === 0 ? 'success.lighter' : 'inherit',
-                            '&:hover': { bgcolor: 'action.hover' }
-                          }}
-                        >
-                          <TableCell>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                              <Avatar sx={{ width: 40, height: 40, bgcolor: 'primary.main' }}>
-                                <Person fontSize="small" />
-                              </Avatar>
-                              <Box>
-                                <Typography variant="body2" fontWeight="medium">
-                                  {bid.bidder}
-                                </Typography>
-                                {index === 0 && (
-                                  <Chip label="Highest Bid" size="small" color="success" />
+                    {mockProduct.buyNowPrice && (
+                      <Button
+                        variant="outlined"
+                        size="large"
+                        startIcon={<ShoppingCart />}
+                        fullWidth
+                        sx={{ 
+                          py: 2,
+                          borderRadius: 2.5,
+                          borderWidth: 2,
+                          fontWeight: 'bold',
+                          '&:hover': {
+                            borderWidth: 2,
+                            transform: 'translateY(-2px)',
+                          },
+                          transition: 'all 0.3s'
+                        }}
+                      >
+                        Buy Now
+                      </Button>
+                    )}
+
+                    <Stack direction="row" spacing={1}>
+                      <Button
+                        variant={isWatchlisted ? 'contained' : 'outlined'}
+                        startIcon={isWatchlisted ? <Favorite /> : <FavoriteBorder />}
+                        onClick={handleToggleWatchlist}
+                        fullWidth
+                        color={isWatchlisted ? 'error' : 'inherit'}
+                        sx={{
+                          py: 1.5,
+                          borderRadius: 2,
+                          fontWeight: 'medium',
+                          borderWidth: 2,
+                          '&:hover': {
+                            borderWidth: 2,
+                          }
+                        }}
+                      >
+                        {isWatchlisted ? 'Watchlisted' : 'Add to Watchlist'}
+                      </Button>
+                      <IconButton 
+                        sx={{ 
+                          border: 2, 
+                          borderColor: 'divider',
+                          borderRadius: 2,
+                          '&:hover': { 
+                            bgcolor: 'primary.main',
+                            color: 'white',
+                            borderColor: 'primary.main'
+                          },
+                          transition: 'all 0.3s'
+                        }}
+                      >
+                        <Share />
+                      </IconButton>
+                    </Stack>
+                  </Stack>
+                ) : (
+                  <Card elevation={0} sx={{ 
+                    border: '2px solid',
+                    borderColor: 'primary.main',
+                    borderRadius: 3,
+                    overflow: 'hidden'
+                  }}>
+                    <Box sx={{ 
+                      bgcolor: 'primary.main', 
+                      color: 'white', 
+                      p: 2, 
+                      textAlign: 'center' 
+                    }}>
+                      <Typography variant="h6" fontWeight="bold">
+                        Sign in to Start Bidding
+                      </Typography>
+                    </Box>
+                    <CardContent sx={{ p: 3 }}>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 2, textAlign: 'center' }}>
+                        Join thousands of buyers and sellers on our platform
+                      </Typography>
+                      <Button
+                        variant="contained"
+                        size="large"
+                        fullWidth
+                        onClick={() => navigate('/login')}
+                        sx={{ 
+                          py: 2,
+                          borderRadius: 2,
+                          fontWeight: 'bold',
+                          fontSize: '1.1rem'
+                        }}
+                      >
+                        Login / Register
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
+              </Stack>
+            </Grid>
+          </Grid>
+
+          {/* Bid History and Q&A Section */}
+          <Grid container spacing={3} sx={{ mt: 1 }}>
+            {/* Left: Bid History */}
+            <Grid item xs={12} md={6}>
+              <Card elevation={0} sx={{ 
+                borderRadius: 3,
+                boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                border: '1px solid',
+                borderColor: 'grey.200'
+              }}>
+                <Box sx={{ 
+                  p: 3, 
+                  background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
+                  color: 'white'
+                }}>
+                  <Typography variant="h5" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Gavel />
+                    Bid History ({mockBidHistory.length})
+                  </Typography>
+                </Box>
+                <CardContent sx={{ p: 0 }}>
+                  <TableContainer>
+                    <Table>
+                      <TableHead>
+                        <TableRow sx={{ bgcolor: 'grey.50' }}>
+                          <TableCell sx={{ fontWeight: 'bold', py: 2 }}>Bidder</TableCell>
+                          <TableCell align="right" sx={{ fontWeight: 'bold', py: 2 }}>Bid Amount</TableCell>
+                          <TableCell align="right" sx={{ fontWeight: 'bold', py: 2 }}>Time</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {mockBidHistory.map((bid, index) => (
+                          <TableRow 
+                            key={bid.id}
+                            sx={{ 
+                              bgcolor: index === 0 ? 'rgba(76, 175, 80, 0.08)' : 'inherit',
+                              '&:hover': { bgcolor: 'action.hover' },
+                              borderLeft: index === 0 ? '4px solid' : 'none',
+                              borderColor: 'success.main'
+                            }}
+                          >
+                            <TableCell sx={{ py: 2 }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                <Avatar sx={{ 
+                                  width: 40, 
+                                  height: 40, 
+                                  bgcolor: index === 0 ? 'success.main' : 'primary.main',
+                                  fontWeight: 'bold'
+                                }}>
+                                  {index === 0 ? '🏆' : <Person fontSize="small" />}
+                                </Avatar>
+                                <Box>
+                                  <Typography variant="body2" fontWeight="medium">
+                                    {bid.bidder}
+                                  </Typography>
+                                  {index === 0 && (
+                                    <Typography variant="caption" color="success.main" fontWeight="bold">
+                                      Leading Bid
+                                    </Typography>
+                                  )}
+                                </Box>
+                              </Box>
+                            </TableCell>
+                            <TableCell align="right">
+                              <Typography 
+                                fontWeight="bold" 
+                                color={index === 0 ? 'success.main' : 'inherit'}
+                                variant={index === 0 ? 'h6' : 'body2'}
+                              >
+                                {formatPrice(bid.amount)}
+                              </Typography>
+                            </TableCell>
+                            <TableCell align="right">
+                              <Typography variant="body2" color="text.secondary">
+                                {getRelativeTime(bid.time)}
+                              </Typography>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Right: Q&A Section */}
+            <Grid item xs={12} md={6}>
+              <Card elevation={0} sx={{ 
+                borderRadius: 3,
+                boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                border: '1px solid',
+                borderColor: 'grey.200'
+              }}>
+                <Box sx={{ 
+                  p: 3, 
+                  background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                  color: 'white'
+                }}>
+                  <Typography variant="h5" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <QuestionAnswer />
+                    Questions & Answers ({mockQuestions.length})
+                  </Typography>
+                </Box>
+                <CardContent sx={{ p: 3 }}>
+                  <Stack spacing={3}>
+                    {/* Ask Question Form */}
+                    <Paper elevation={0} sx={{ 
+                      p: 3, 
+                      bgcolor: 'grey.50',
+                      borderRadius: 2,
+                      border: '2px dashed',
+                      borderColor: 'grey.300'
+                    }}>
+                      <Typography variant="subtitle1" gutterBottom fontWeight="bold">
+                        Have a question?
+                      </Typography>
+                      <TextField
+                        fullWidth
+                        multiline
+                        rows={3}
+                        placeholder="Ask the seller about this item..."
+                        value={question}
+                        onChange={(e) => setQuestion(e.target.value)}
+                        sx={{ 
+                          mb: 2,
+                          '& .MuiOutlinedInput-root': {
+                            bgcolor: 'white',
+                            borderRadius: 2
+                          }
+                        }}
+                      />
+                      <Button
+                        variant="contained"
+                        startIcon={<Send />}
+                        onClick={handleAskQuestion}
+                        disabled={!question.trim()}
+                        fullWidth
+                        sx={{ 
+                          py: 1.5,
+                          borderRadius: 2,
+                          fontWeight: 'bold'
+                        }}
+                      >
+                        Submit Question
+                      </Button>
+                    </Paper>
+
+                    {/* Questions List */}
+                    <Box sx={{ maxHeight: 500, overflowY: 'auto' }}>
+                      <Stack spacing={2}>
+                        {mockQuestions.map((qa) => (
+                          <Paper key={qa.id} elevation={0} sx={{ 
+                            p: 2.5,
+                            borderRadius: 2,
+                            border: '1px solid',
+                            borderColor: 'grey.200',
+                            '&:hover': {
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                            },
+                            transition: 'all 0.3s'
+                          }}>
+                            <Box sx={{ display: 'flex', gap: 2 }}>
+                              <Avatar src={qa.bidder.avatar} sx={{ width: 40, height: 40 }} />
+                              <Box sx={{ flex: 1 }}>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                  <Typography variant="subtitle2" fontWeight="bold">
+                                    {qa.bidder.name}
+                                  </Typography>
+                                  <Typography variant="caption" color="text.secondary">
+                                    {getRelativeTime(qa.askedAt)}
+                                  </Typography>
+                                </Box>
+                                
+                                <Box sx={{ 
+                                  bgcolor: 'grey.50', 
+                                  p: 1.5, 
+                                  borderRadius: 2,
+                                  borderLeft: '3px solid',
+                                  borderColor: 'primary.main',
+                                  mb: 1.5
+                                }}>
+                                  <Typography variant="body2">
+                                    {qa.question}
+                                  </Typography>
+                                </Box>
+
+                                {qa.answer ? (
+                                  <Box sx={{ 
+                                    bgcolor: 'success.lighter', 
+                                    p: 2, 
+                                    borderRadius: 2,
+                                    borderLeft: '3px solid',
+                                    borderColor: 'success.main'
+                                  }}>
+                                    <Box sx={{ display: 'flex', gap: 1.5, mb: 1 }}>
+                                      <Avatar src={mockProduct.seller.avatar} sx={{ width: 32, height: 32 }} />
+                                      <Box sx={{ flex: 1 }}>
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            <Typography variant="subtitle2" fontWeight="bold">
+                                              {mockProduct.seller.name}
+                                            </Typography>
+                                            <Chip label="Seller" size="small" color="success" sx={{ height: 20, fontWeight: 'bold' }} />
+                                          </Box>
+                                          <Typography variant="caption" color="text.secondary">
+                                            {getRelativeTime(qa.answeredAt)}
+                                          </Typography>
+                                        </Box>
+                                        <Typography variant="body2">
+                                          {qa.answer}
+                                        </Typography>
+                                      </Box>
+                                    </Box>
+                                  </Box>
+                                ) : (
+                                  <Alert severity="info" sx={{ py: 0.5 }}>
+                                    <Typography variant="caption">
+                                      Waiting for seller's response...
+                                    </Typography>
+                                  </Alert>
                                 )}
                               </Box>
                             </Box>
-                          </TableCell>
-                          <TableCell align="right">
-                            <Typography fontWeight="bold" color={index === 0 ? 'success.main' : 'inherit'}>
-                              {formatPrice(bid.amount)}
-                            </Typography>
-                          </TableCell>
-                          <TableCell align="right">
-                            <Typography variant="body2" color="text.secondary">
-                              {getRelativeTime(bid.time)}
-                            </Typography>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </CardContent>
-            </Card>
+                          </Paper>
+                        ))}
+                      </Stack>
+                    </Box>
+                  </Stack>
+                </CardContent>
+              </Card>
+            </Grid>
           </Grid>
 
-          {/* Right: Q&A Section - 50% */}
-          <Grid item xs={12} md={6}>
-            <Card elevation={2}>
-              <Box sx={{ p: 3, bgcolor: 'secondary.lighter' }}>
+          {/* Related Products */}
+          <Box sx={{ mt: 3 }}>
+            <Card elevation={0} sx={{ 
+              borderRadius: 3,
+              boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+              border: '1px solid',
+              borderColor: 'grey.200'
+            }}>
+              <Box sx={{ 
+                p: 3, 
+                background: 'linear-gradient(135deg, #FA8BFF 0%, #2BD2FF 52%, #2BFF88 90%)',
+                color: 'white'
+              }}>
                 <Typography variant="h5" fontWeight="bold">
-                  Q&A ({mockQuestions.length})
+                  You May Also Like
+                </Typography>
+                <Typography variant="body2" sx={{ mt: 0.5, opacity: 0.9 }}>
+                  Similar items from the same category
                 </Typography>
               </Box>
-              <CardContent>
-                <Stack spacing={3}>
-                  {/* Ask Question Form */}
-                  <Paper variant="outlined" sx={{ p: 2.5, bgcolor: 'grey.50' }}>
-                    <Typography variant="h6" gutterBottom fontWeight="bold">
-                      Ask a Question
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      multiline
-                      rows={3}
-                      placeholder="Type your question here..."
-                      value={question}
-                      onChange={(e) => setQuestion(e.target.value)}
-                      sx={{ mb: 2 }}
-                    />
-                    <Button
-                      variant="contained"
-                      startIcon={<Send />}
-                      onClick={handleAskQuestion}
-                      disabled={!question.trim()}
-                      fullWidth
-                    >
-                      Submit Question
-                    </Button>
-                  </Paper>
-
-                  {/* Questions List */}
-                  <Box sx={{ maxHeight: 600, overflowY: 'auto' }}>
-                    <Stack spacing={2}>
-                      {mockQuestions.map((qa) => (
-                        <Paper key={qa.id} elevation={1} sx={{ p: 2 }}>
-                          <Box sx={{ display: 'flex', gap: 1.5 }}>
-                            <Avatar src={qa.bidder.avatar} sx={{ width: 40, height: 40 }} />
-                            <Box sx={{ flex: 1 }}>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                                <Typography variant="subtitle2" fontWeight="bold">
-                                  {qa.bidder.name}
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary">
-                                  {getRelativeTime(qa.askedAt)}
-                                </Typography>
-                              </Box>
-                              
-                              <Typography variant="body2" sx={{ mb: 1.5 }}>
-                                <QuestionAnswer fontSize="small" color="primary" sx={{ mr: 1, verticalAlign: 'middle' }} />
-                                {qa.question}
-                              </Typography>
-
-                              {qa.answer ? (
-                                <Paper sx={{ bgcolor: 'success.lighter', p: 1.5 }}>
-                                  <Box sx={{ display: 'flex', gap: 1.5 }}>
-                                    <Avatar src={mockProduct.seller.avatar} sx={{ width: 32, height: 32 }} />
-                                    <Box sx={{ flex: 1 }}>
-                                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                                        <Box>
-                                          <Typography variant="subtitle2" fontWeight="bold">
-                                            {mockProduct.seller.name}
-                                          </Typography>
-                                          <Chip label="Seller" size="small" color="success" sx={{ height: 20 }} />
-                                        </Box>
-                                        <Typography variant="caption" color="text.secondary">
-                                          {getRelativeTime(qa.answeredAt)}
-                                        </Typography>
-                                      </Box>
-                                      <Typography variant="body2">
-                                        {qa.answer}
-                                      </Typography>
-                                    </Box>
-                                  </Box>
-                                </Paper>
-                              ) : (
-                                <Alert severity="info" sx={{ py: 0.5 }}>
-                                  <Typography variant="caption">
-                                    Waiting for seller's answer...
-                                  </Typography>
-                                </Alert>
-                              )}
-                            </Box>
-                          </Box>
-                        </Paper>
-                      ))}
-                    </Stack>
-                  </Box>
-                </Stack>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-
-        {/* Related Products */}
-        <Box sx={{ mt: 4 }}>
-          <Card elevation={2}>
-            <Box sx={{ p: 3, bgcolor: 'warning.lighter' }}>
-              <Typography variant="h5" fontWeight="bold">
-                Related Products
-              </Typography>
-            </Box>
-            <CardContent>
-              <Grid container spacing={2.5}>
-                {mockRelatedProducts.map((product) => (
-                  <Grid item xs={12} sm={6} md={2.4} key={product.id}>
-                    <Card
-                      elevation={3}
-                      sx={{
-                        cursor: 'pointer',
-                        height: '100%',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        '&:hover': { 
-                          boxShadow: 6,
-                          transform: 'translateY(-4px)',
-                        },
-                        transition: 'all 0.3s',
-                      }}
-                      onClick={() => navigate(`/products/${product.id}`)}
-                    >
-                      <Box sx={{ position: 'relative' }}>
-                        <CardMedia
-                          component="img"
-                          height="180"
-                          image={product.image}
-                          alt={product.title}
-                          sx={{ objectFit: 'cover' }}
-                        />
-                        <Chip
-                          label={`${product.bidCount} bids`}
-                          size="small"
-                          color="primary"
-                          sx={{ 
-                            position: 'absolute', 
-                            top: 8, 
+              <CardContent sx={{ p: 3 }}>
+                <Grid container spacing={2}>
+                  {mockRelatedProducts.map((product) => (
+                    <Grid item xs={12} sm={6} md={4} lg={2.4} key={product.id}>
+                      <Card
+                        elevation={0}
+                        sx={{
+                          cursor: 'pointer',
+                          height: '100%',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          border: '1px solid',
+                          borderColor: 'grey.200',
+                          borderRadius: 2,
+                          overflow: 'hidden',
+                          '&:hover': { 
+                            boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                            transform: 'translateY(-4px)',
+                            borderColor: 'primary.main',
+                          },
+                          transition: 'all 0.3s',
+                        }}
+                        onClick={() => navigate(`/products/${product.id}`)}
+                      >
+                        <Box sx={{ position: 'relative', paddingTop: '100%', bgcolor: 'grey.50' }}>
+                          <CardMedia
+                            component="img"
+                            image={product.image}
+                            alt={product.title}
+                            sx={{ 
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover'
+                            }}
+                          />
+                          <Box sx={{
+                            position: 'absolute',
+                            top: 8,
                             left: 8,
-                            fontWeight: 'bold'
-                          }}
-                        />
-                      </Box>
-                      <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-                        <Typography 
-                          variant="body2" 
-                          gutterBottom
-                          sx={{
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            display: '-webkit-box',
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: 'vertical',
-                            minHeight: 40,
-                            fontWeight: 'medium'
-                          }}
-                        >
-                          {product.title}
-                        </Typography>
-                        <Typography variant="h6" color="primary" fontWeight="bold" sx={{ mt: 'auto' }}>
-                          {formatPrice(product.currentPrice)}
-                        </Typography>
-                        <Box sx={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          justifyContent: 'space-between',
-                          mt: 1,
-                          pt: 1,
-                          borderTop: 1,
-                          borderColor: 'divider'
-                        }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <AccessTime fontSize="small" color="error" />
-                            <Typography variant="caption" color="error" fontWeight="medium">
-                              {getTimeLeft(product.endTime)}
+                            bgcolor: 'rgba(255,255,255,0.95)',
+                            backdropFilter: 'blur(10px)',
+                            px: 1.5,
+                            py: 0.5,
+                            borderRadius: 1.5,
+                            boxShadow: 1
+                          }}>
+                            <Typography variant="caption" fontWeight="bold" color="primary">
+                              {product.bidCount} bids
                             </Typography>
                           </Box>
                         </Box>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                ))}
-              </Grid>
-            </CardContent>
-          </Card>
-        </Box>
+                        <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', p: 2 }}>
+                          <Typography 
+                            variant="body2" 
+                            gutterBottom
+                            sx={{
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical',
+                              minHeight: 40,
+                              fontWeight: '500',
+                              lineHeight: 1.4,
+                              mb: 1.5
+                            }}
+                          >
+                            {product.title}
+                          </Typography>
+                          <Box sx={{ mt: 'auto' }}>
+                            <Typography variant="h6" color="primary" fontWeight="bold" sx={{ mb: 1 }}>
+                              {formatPrice(product.currentPrice)}
+                            </Typography>
+                            <Box sx={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: 0.5,
+                              pt: 1,
+                              borderTop: 1,
+                              borderColor: 'divider'
+                            }}>
+                              <AccessTime sx={{ fontSize: 16, color: 'error.main' }} />
+                              <Typography variant="caption" color="error.main" fontWeight="bold">
+                                {getTimeLeft(product.endTime)}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  ))}
+                </Grid>
+              </CardContent>
+            </Card>
+          </Box>
 
-        {/* Bid Dialog */}
-        <Dialog open={openBidDialog} onClose={() => setOpenBidDialog(false)} maxWidth="sm" fullWidth>
-          <DialogTitle>Place Your Bid</DialogTitle>
-          <DialogContent>
-            <Typography variant="body2" color="text.secondary" gutterBottom>
-              Current Price: <strong>{formatPrice(mockProduct.currentPrice)}</strong>
-            </Typography>
-            <Typography variant="body2" color="text.secondary" gutterBottom>
-              Minimum Bid: <strong>{formatPrice(mockProduct.currentPrice + mockProduct.bidIncrement)}</strong>
-            </Typography>
+          {/* Bid Dialog */}
+          <Dialog 
+            open={openBidDialog} 
+            onClose={() => setOpenBidDialog(false)} 
+            maxWidth="sm" 
+            fullWidth
+            PaperProps={{
+              sx: {
+                borderRadius: 3,
+              }
+            }}
+          >
+            <DialogTitle sx={{ 
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              fontWeight: 'bold',
+              fontSize: '1.5rem'
+            }}>
+              Place Your Bid
+            </DialogTitle>
+            <DialogContent sx={{ mt: 3 }}>
+              <Box sx={{ 
+                bgcolor: 'grey.50', 
+                p: 2.5, 
+                borderRadius: 2,
+                mb: 3,
+                border: '2px solid',
+                borderColor: 'primary.light'
+              }}>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Current Highest Bid
+                </Typography>
+                <Typography variant="h4" color="primary" fontWeight="bold" gutterBottom>
+                  {formatPrice(mockProduct.currentPrice)}
+                </Typography>
+                <Divider sx={{ my: 1.5 }} />
+                <Typography variant="body2" color="text.secondary">
+                  Minimum Next Bid: <strong>{formatPrice(mockProduct.currentPrice + mockProduct.bidIncrement)}</strong>
+                </Typography>
+              </Box>
 
-            <TextField
-              fullWidth
-              label="Your Bid Amount"
-              type="number"
-              value={bidAmount}
-              onChange={(e) => setBidAmount(e.target.value)}
-              sx={{ mt: 2, mb: 2 }}
-              helperText="Enter your bid amount in VND"
-            />
+              <TextField
+                fullWidth
+                label="Your Bid Amount (VND)"
+                type="number"
+                value={bidAmount}
+                onChange={(e) => setBidAmount(e.target.value)}
+                sx={{ 
+                  mb: 3,
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2,
+                    '& input': {
+                      fontSize: '1.25rem',
+                      fontWeight: 'bold'
+                    }
+                  }
+                }}
+                helperText="Enter your bid amount"
+              />
 
-            <Typography variant="body2" gutterBottom>
-              Suggested Bids:
-            </Typography>
-            <Stack direction="row" spacing={1}>
-              {suggestedBids.map((amount, index) => (
-                <Chip
-                  key={index}
-                  label={formatPrice(amount)}
-                  onClick={() => setBidAmount(amount.toString())}
-                  clickable
-                  variant="outlined"
-                />
-              ))}
-            </Stack>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setOpenBidDialog(false)}>Cancel</Button>
-            <Button
-              onClick={handleConfirmBid}
-              variant="contained"
-              disabled={!bidAmount || parseFloat(bidAmount) < mockProduct.currentPrice + mockProduct.bidIncrement}
-            >
-              Confirm Bid
-            </Button>
-          </DialogActions>
-        </Dialog>
-      </Container>
+              <Box>
+                <Typography variant="subtitle2" gutterBottom fontWeight="bold" color="text.secondary">
+                  Quick Bid Options:
+                </Typography>
+                <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
+                  {suggestedBids.map((amount, index) => (
+                    <Chip
+                      key={index}
+                      label={formatPrice(amount)}
+                      onClick={() => setBidAmount(amount.toString())}
+                      clickable
+                      color="primary"
+                      variant={bidAmount === amount.toString() ? 'filled' : 'outlined'}
+                      sx={{
+                        fontWeight: 'bold',
+                        fontSize: '0.875rem',
+                        py: 2.5,
+                        '&:hover': {
+                          transform: 'scale(1.05)',
+                        },
+                        transition: 'all 0.2s'
+                      }}
+                    />
+                  ))}
+                </Stack>
+              </Box>
+            </DialogContent>
+            <DialogActions sx={{ p: 3, pt: 0 }}>
+              <Button 
+                onClick={() => setOpenBidDialog(false)}
+                sx={{ 
+                  px: 3,
+                  py: 1,
+                  borderRadius: 2
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleConfirmBid}
+                variant="contained"
+                disabled={!bidAmount || parseFloat(bidAmount) < mockProduct.currentPrice + mockProduct.bidIncrement}
+                sx={{
+                  px: 4,
+                  py: 1,
+                  borderRadius: 2,
+                  fontWeight: 'bold',
+                  boxShadow: 3
+                }}
+              >
+                Confirm Bid
+              </Button>
+            </DialogActions>
+          </Dialog>
+        </Container>
+      </Box>
     </Page>
   );
 }
