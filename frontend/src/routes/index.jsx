@@ -26,7 +26,7 @@ export default function Router() {
         { path: "500", element: <Page500 /> },
         { path: "404", element: <Page404 /> },
         { path: "product/:id", element: <ProductDetailPage /> },
-        { path: "category", element: <CategoryPage /> },
+        { path: "category", element: <MainLayout><CategoryPage /></MainLayout> },
         { path: "*", element: <Navigate to="/404" replace /> },
       ],
     },
@@ -51,6 +51,7 @@ const Register = Loadable(lazy(() => import("../pages/authentication/Register.js
 
 // MAINLAYOUT
 const AdminLayout = Loadable(lazy(() => import("../layouts/AdminLayout.jsx")));
+const MainLayout = Loadable(lazy(() => import("../layouts/MainLayout.jsx")));
 
 //ADMIN
 const DashboardAdmin = Loadable(lazy(() => import("../pages/admin/DashBoardPage.jsx")));
