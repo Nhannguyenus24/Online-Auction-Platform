@@ -17,28 +17,18 @@ const Footer = () => {
 
   const footerLinks = {
     company: [
-      { label: 'About Us', path: '/about' },
-      { label: 'Contact', path: '/contact' },
+      { label: 'About Us', path: '/about-us' },
       { label: 'Careers', path: '/careers' },
-      { label: 'Press', path: '/press' },
     ],
     support: [
       { label: 'Help Center', path: '/help' },
       { label: 'How to Bid', path: '/how-to-bid' },
       { label: 'Seller Guide', path: '/seller-guide' },
-      { label: 'FAQ', path: '/faq' },
     ],
     policies: [
-      { label: 'Terms of Service', path: '/terms' },
-      { label: 'Privacy Policy', path: '/privacy' },
-      { label: 'Cookie Policy', path: '/cookies' },
-      { label: 'Return Policy', path: '/returns' },
-    ],
-    categories: [
-      { label: 'Electronics', path: '/category/electronics' },
-      { label: 'Fashion', path: '/category/fashion' },
-      { label: 'Home & Living', path: '/category/home' },
-      { label: 'Collectibles', path: '/category/collectibles' },
+      { label: 'Terms of Service', path: '/terms-of-service' },
+      { label: 'Privacy Policy', path: '/privacy-policy' },
+      { label: 'Cookie Policy', path: '/cookie-policy' },
     ],
   };
 
@@ -64,7 +54,7 @@ const Footer = () => {
               </Typography>
             </Box>
             <Typography variant="body2" color="grey.400" sx={{ mb: 3, lineHeight: 1.8 }}>
-              Vietnam's leading online auction platform. Connecting buyers and sellers 
+              Vietnam's leading online auction platform. Connecting bidders and sellers 
               with thousands of high-quality products every day.
             </Typography>
             
@@ -73,19 +63,19 @@ const Footer = () => {
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                 <Email sx={{ fontSize: 20, color: 'primary.main' }} />
                 <Typography variant="body2" color="grey.400">
-                  support@auctionplatform.vn
+                  nhannguyentrong355@gmail.com
                 </Typography>
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                 <Phone sx={{ fontSize: 20, color: 'primary.main' }} />
                 <Typography variant="body2" color="grey.400">
-                  1900-1234 (8:00 - 22:00)
+                  0888334107 (8:00 - 18:00)
                 </Typography>
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                 <LocationOn sx={{ fontSize: 20, color: 'primary.main' }} />
                 <Typography variant="body2" color="grey.400">
-                  123 ABC Street, District 1, Ho Chi Minh City
+                  237 Nguyen Van Cu, District 5, Ho Chi Minh City
                 </Typography>
               </Box>
             </Stack>
@@ -157,34 +147,6 @@ const Footer = () => {
                 </Typography>
                 <Stack spacing={1.5}>
                   {footerLinks.policies.map((link) => (
-                    <Link
-                      key={link.path}
-                      component="button"
-                      variant="body2"
-                      onClick={() => navigate(link.path)}
-                      sx={{
-                        color: 'grey.400',
-                        textDecoration: 'none',
-                        textAlign: 'left',
-                        '&:hover': {
-                          color: 'primary.main',
-                        },
-                        transition: 'color 0.2s',
-                      }}
-                    >
-                      {link.label}
-                    </Link>
-                  ))}
-                </Stack>
-              </Grid>
-
-              {/* Categories */}
-              <Grid item xs={6} sm={3}>
-                <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ mb: 2 }}>
-                  Categories
-                </Typography>
-                <Stack spacing={1.5}>
-                  {footerLinks.categories.map((link) => (
                     <Link
                       key={link.path}
                       component="button"
@@ -296,12 +258,6 @@ const Footer = () => {
           </Stack>
         </Box>
 
-        {/* Additional Info */}
-        <Box sx={{ mt: 3, textAlign: 'center' }}>
-          <Typography variant="caption" color="grey.600">
-            Business License No. 0123456789 issued by Ho Chi Minh City Department of Planning and Investment on 01/01/2020
-          </Typography>
-        </Box>
       </Container>
     </Box>
   );

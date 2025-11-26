@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -237,11 +237,21 @@ const mockHighestPriceProducts = [
 const HomePage = () => {
   const navigate = useNavigate();
   const [currentBanner, setCurrentBanner] = useState(0);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Update time every second for countdown
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   // Calculate time left
   const getTimeLeft = (endTime) => {
     const end = new Date(endTime);
-    const now = new Date();
+    const now = currentTime;
     const diff = end - now;
     
     if (diff <= 0) return 'Ended';
@@ -249,10 +259,14 @@ const HomePage = () => {
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
     
-    if (days > 0) return `${days}d ${hours}h`;
-    if (hours > 0) return `${hours}h ${minutes}m`;
-    return `${minutes}m`;
+    // Pad numbers with leading zeros for consistent width
+    const pad = (num) => String(num).padStart(2, '0');
+    
+    if (days > 0) return `${days}d ${pad(hours)}h ${pad(minutes)}m`;
+    if (hours > 0) return `${pad(hours)}h ${pad(minutes)}m ${pad(seconds)}s`;
+    return `${pad(minutes)}m ${pad(seconds)}s`;
   };
 
   const handleNextBanner = () => {
@@ -383,7 +397,6 @@ const HomePage = () => {
           <Container maxWidth="xl">
             <Box
               sx={{
-                position: 'relative',
                 height: { xs: 300, md: 450 },
                 display: 'flex',
                 alignItems: 'center',
@@ -400,7 +413,6 @@ const HomePage = () => {
                   width: '100%',
                   height: '100%',
                   objectFit: 'cover',
-                  opacity: 0.3,
                 }}
               />
               <Box sx={{ position: 'relative', zIndex: 1, color: banners[currentBanner].textColor, py: 4 }}>
@@ -428,31 +440,6 @@ const HomePage = () => {
                 </Button>
               </Box>
               
-              {/* Banner Navigation */}
-              <IconButton
-                onClick={handlePrevBanner}
-                sx={{
-                  position: 'absolute',
-                  left: 20,
-                  bgcolor: 'rgba(255,255,255,0.9)',
-                  '&:hover': { bgcolor: 'white' },
-                  zIndex: 2,
-                }}
-              >
-                <ChevronLeft />
-              </IconButton>
-              <IconButton
-                onClick={handleNextBanner}
-                sx={{
-                  position: 'absolute',
-                  right: 20,
-                  bgcolor: 'rgba(255,255,255,0.9)',
-                  '&:hover': { bgcolor: 'white' },
-                  zIndex: 2,
-                }}
-              >
-                <ChevronRight />
-              </IconButton>
               
               {/* Banner Indicators */}
               <Stack
@@ -495,222 +482,353 @@ const HomePage = () => {
               Explore our diverse auction categories
             </Typography>
           </Box>
-          <Grid container spacing={3}>
-            {featuredCategories.map((category) => (
-              <Grid item xs={12} sm={6} md={3} key={category.id}>
-                <Card
-                  elevation={0}
-                  sx={{
-                    cursor: 'pointer',
-                    height: 200,
-                    position: 'relative',
-                    overflow: 'hidden',
-                    border: '1px solid',
-                    borderColor: 'grey.200',
-                    borderRadius: 3,
-                    transition: 'all 0.3s',
-                    '&:hover': {
-                      transform: 'translateY(-8px)',
-                      boxShadow: '0 12px 32px rgba(0,0,0,0.15)',
-                    },
-                  }}
-                  onClick={() => navigate(`/category/${category.id}`)}
-                >
-                  <Box
-                    component="img"
-                    src={category.image}
-                    sx={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
-                      opacity: 0.2,
-                    }}
-                  />
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100%',
-                      height: '100%',
-                      background: category.gradient,
-                      opacity: 0.9,
-                    }}
-                  />
-                  <CardContent
-                    sx={{
-                      position: 'relative',
-                      zIndex: 1,
-                      height: '100%',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      color: 'white',
-                    }}
-                  >
-                    <Typography variant="h2" sx={{ mb: 1.5 }}>
-                      {category.icon}
-                    </Typography>
-                    <Typography variant="h5" fontWeight="bold" gutterBottom>
-                      {category.name}
-                    </Typography>
-                    <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                      {category.itemCount} items
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
+<Box
+  sx={{
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: 3,              // khoảng cách giữa các card
+    width: '100%',
+  }}
+>
+  {featuredCategories.map((category) => (
+    <Box
+      key={category.id}
+      sx={{
+        flex: { xs: '1 1 100%', sm: '1 1 calc(50% - 12px)', md: '1 1 calc(20%)' },
+        height: 200,
+        position: 'relative',
+        overflow: 'hidden',
+        border: '1px solid',
+        borderColor: 'grey.200',
+        borderRadius: 3,
+        transition: 'all 0.3s',
+        cursor: 'pointer',
+        '&:hover': {
+          transform: 'translateY(-8px)',
+          boxShadow: '0 12px 32px rgba(0,0,0,0.15)',
+        },
+      }}
+      onClick={() => navigate(`/category/${category.id}`)}
+    >
+      {/* Background image */}
+      <Box
+        component="img"
+        src={category.image}
+        sx={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          opacity: 0.2,
+        }}
+      />
+
+      {/* Gradient overlay */}
+      <Box
+        sx={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          background: category.gradient,
+          opacity: 0.9,
+        }}
+      />
+
+      {/* Card content */}
+      <CardContent
+        sx={{
+          position: 'relative',
+          zIndex: 1,
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          color: 'white',
+        }}
+      >
+        <Typography variant="h2" sx={{ mb: 1.5 }}>
+          {category.icon}
+        </Typography>
+        <Typography variant="h5" fontWeight="bold" gutterBottom>
+          {category.name}
+        </Typography>
+        <Typography variant="body2" sx={{ opacity: 0.9 }}>
+          {category.itemCount} items
+        </Typography>
+      </CardContent>
+    </Box>
+  ))}
+</Box>
+
         </Container>
 
         {/* Ending Soon Products */}
         <Container maxWidth="xl" sx={{ py: 4 }}>
-          <Card elevation={0} sx={{ borderRadius: 3, boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
-            <Box sx={{ 
-              p: 3, 
-              background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-              color: 'white',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}>
+          <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <AccessTime sx={{ fontSize: 32, color: 'error.main' }} />
               <Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
-                  <AccessTime sx={{ fontSize: 32 }} />
-                  <Typography variant="h4" fontWeight="bold">
-                    Ending Soon
-                  </Typography>
-                </Box>
-                <Typography variant="body1" sx={{ opacity: 0.9 }}>
+                <Typography variant="h4" fontWeight="bold">
+                  Ending Soon
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
                   Don't miss out on these auctions
                 </Typography>
               </Box>
-              <Button
-                variant="contained"
-                endIcon={<ArrowForward />}
-                onClick={() => navigate('/category/electronics/watches')}
-                sx={{
-                  bgcolor: 'white',
-                  color: 'primary.main',
-                  fontWeight: 'bold',
-                  '&:hover': { bgcolor: 'grey.100' },
-                }}
-              >
-                View All
-              </Button>
             </Box>
-            <CardContent sx={{ p: 3 }}>
-              <Grid container spacing={3}>
-                {mockEndingSoonProducts.map((product) => (
-                  <Grid item xs={12} sm={6} md={4} lg={2.4} key={product.id}>
-                    <ProductCard product={product} />
-                  </Grid>
-                ))}
-              </Grid>
-            </CardContent>
-          </Card>
+            <Button
+              variant="outlined"
+              endIcon={<ArrowForward />}
+              onClick={() => navigate('/category/electronics/watches')}
+              sx={{ fontWeight: 'bold' }}
+            >
+              View All
+            </Button>
+          </Box>
+          <Box sx={{ 
+            bgcolor: 'white', 
+            borderRadius: 2, 
+            overflow: 'hidden',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+            border: '1px solid',
+            borderColor: 'grey.200'
+          }}>
+            <Box sx={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#f5f5f5', borderBottom: '2px solid #e0e0e0' }}>
+                    <th style={{ padding: '16px', textAlign: 'left', fontWeight: 600, fontSize: '0.875rem', color: '#666' }}>Product</th>
+                    <th style={{ padding: '16px', textAlign: 'left', fontWeight: 600, fontSize: '0.875rem', color: '#666' }}>Condition</th>
+                    <th style={{ padding: '16px', textAlign: 'right', fontWeight: 600, fontSize: '0.875rem', color: '#666' }}>Current Bid</th>
+                    <th style={{ padding: '16px', textAlign: 'center', fontWeight: 600, fontSize: '0.875rem', color: '#666' }}>Bids</th>
+                    <th style={{ padding: '16px', textAlign: 'center', fontWeight: 600, fontSize: '0.875rem', color: '#666' }}>Time Left</th>
+                    <th style={{ padding: '16px', textAlign: 'center', fontWeight: 600, fontSize: '0.875rem', color: '#666' }}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {mockEndingSoonProducts.map((product, index) => (
+                    <tr 
+                      key={product.id}
+                      style={{ 
+                        borderBottom: index < mockEndingSoonProducts.length - 1 ? '1px solid #e0e0e0' : 'none',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9f9f9'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      onClick={() => navigate(`/products/${product.id}`)}
+                    >
+                      <td style={{ padding: '16px' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <Box
+                            component="img"
+                            src={product.image}
+                            alt={product.title}
+                            sx={{
+                              width: 60,
+                              height: 60,
+                              objectFit: 'cover',
+                              borderRadius: 1,
+                              border: '1px solid',
+                              borderColor: 'grey.200'
+                            }}
+                          />
+                          <Typography variant="body2" fontWeight={500} sx={{ maxWidth: 300 }}>
+                            {product.title}
+                          </Typography>
+                        </Box>
+                      </td>
+                      <td style={{ padding: '16px' }}>
+                        <Chip 
+                          label={product.condition} 
+                          size="small" 
+                          color={product.condition === 'New' ? 'success' : 'default'}
+                          sx={{ fontWeight: 600 }}
+                        />
+                      </td>
+                      <td style={{ padding: '16px', textAlign: 'right' }}>
+                        <Typography variant="body1" fontWeight="bold" color="primary">
+                          {formatPrice(product.currentPrice)}
+                        </Typography>
+                      </td>
+                      <td style={{ padding: '16px', textAlign: 'center' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                          <LocalOffer sx={{ fontSize: 16, color: 'primary.main' }} />
+                          <Typography variant="body2" fontWeight={600}>
+                            {product.bidCount}
+                          </Typography>
+                        </Box>
+                      </td>
+                      <td style={{ padding: '16px', textAlign: 'center' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                          <AccessTime sx={{ fontSize: 16, color: 'error.main' }} />
+                          <Typography 
+                            variant="body2" 
+                            color="error.main" 
+                            fontWeight={600}
+                            sx={{ minWidth: '85px', fontVariantNumeric: 'tabular-nums' }}
+                          >
+                            {getTimeLeft(product.endTime)}
+                          </Typography>
+                        </Box>
+                      </td>
+                      <td style={{ padding: '16px', textAlign: 'center' }}>
+                        <Button 
+                          variant="contained" 
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/products/${product.id}`);
+                          }}
+                          sx={{ textTransform: 'none', fontWeight: 600 }}
+                        >
+                          Bid Now
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Box>
+          </Box>
         </Container>
 
         {/* Most Bids Products */}
         <Container maxWidth="xl" sx={{ py: 4 }}>
-          <Card elevation={0} sx={{ borderRadius: 3, boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
-            <Box sx={{ 
-              p: 3, 
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              color: 'white',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}>
+          <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Gavel sx={{ fontSize: 32, color: 'primary.main' }} />
               <Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
-                  <Gavel sx={{ fontSize: 32 }} />
-                  <Typography variant="h4" fontWeight="bold">
-                    Most Popular
-                  </Typography>
-                </Box>
-                <Typography variant="body1" sx={{ opacity: 0.9 }}>
+                <Typography variant="h4" fontWeight="bold">
+                  Most Popular
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
                   Trending auctions with the most bids
                 </Typography>
               </Box>
-              <Button
-                variant="contained"
-                endIcon={<ArrowForward />}
-                onClick={() => navigate('/category/electronics/smartphones')}
-                sx={{
-                  bgcolor: 'white',
-                  color: 'primary.main',
-                  fontWeight: 'bold',
-                  '&:hover': { bgcolor: 'grey.100' },
-                }}
-              >
-                View All
-              </Button>
             </Box>
-            <CardContent sx={{ p: 3 }}>
-              <Grid container spacing={3}>
-                {mockMostBidsProducts.map((product) => (
-                  <Grid item xs={12} sm={6} md={4} lg={2.4} key={product.id}>
-                    <ProductCard product={product} />
-                  </Grid>
-                ))}
-              </Grid>
-            </CardContent>
-          </Card>
+            <Button
+              variant="outlined"
+              endIcon={<ArrowForward />}
+              onClick={() => navigate('/category/electronics/smartphones')}
+              sx={{ fontWeight: 'bold' }}
+            >
+              View All
+            </Button>
+          </Box>
+          <Box sx={{ 
+            bgcolor: 'white', 
+            borderRadius: 2, 
+            overflow: 'hidden',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+            border: '1px solid',
+            borderColor: 'grey.200'
+          }}>
+            <Box sx={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#f5f5f5', borderBottom: '2px solid #e0e0e0' }}>
+                    <th style={{ padding: '16px', textAlign: 'left', fontWeight: 600, fontSize: '0.875rem', color: '#666' }}>Product</th>
+                    <th style={{ padding: '16px', textAlign: 'left', fontWeight: 600, fontSize: '0.875rem', color: '#666' }}>Condition</th>
+                    <th style={{ padding: '16px', textAlign: 'right', fontWeight: 600, fontSize: '0.875rem', color: '#666' }}>Current Bid</th>
+                    <th style={{ padding: '16px', textAlign: 'center', fontWeight: 600, fontSize: '0.875rem', color: '#666' }}>Bids</th>
+                    <th style={{ padding: '16px', textAlign: 'center', fontWeight: 600, fontSize: '0.875rem', color: '#666' }}>Time Left</th>
+                    <th style={{ padding: '16px', textAlign: 'center', fontWeight: 600, fontSize: '0.875rem', color: '#666' }}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {mockMostBidsProducts.map((product, index) => (
+                    <tr 
+                      key={product.id}
+                      style={{ 
+                        borderBottom: index < mockMostBidsProducts.length - 1 ? '1px solid #e0e0e0' : 'none',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9f9f9'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      onClick={() => navigate(`/products/${product.id}`)}
+                    >
+                      <td style={{ padding: '16px' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <Box
+                            component="img"
+                            src={product.image}
+                            alt={product.title}
+                            sx={{
+                              width: 60,
+                              height: 60,
+                              objectFit: 'cover',
+                              borderRadius: 1,
+                              border: '1px solid',
+                              borderColor: 'grey.200'
+                            }}
+                          />
+                          <Typography variant="body2" fontWeight={500} sx={{ maxWidth: 300 }}>
+                            {product.title}
+                          </Typography>
+                        </Box>
+                      </td>
+                      <td style={{ padding: '16px' }}>
+                        <Chip 
+                          label={product.condition} 
+                          size="small" 
+                          color={product.condition === 'New' ? 'success' : 'default'}
+                          sx={{ fontWeight: 600 }}
+                        />
+                      </td>
+                      <td style={{ padding: '16px', textAlign: 'right' }}>
+                        <Typography variant="body1" fontWeight="bold" color="primary">
+                          {formatPrice(product.currentPrice)}
+                        </Typography>
+                      </td>
+                      <td style={{ padding: '16px', textAlign: 'center' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                          <LocalOffer sx={{ fontSize: 16, color: 'primary.main' }} />
+                          <Typography variant="body2" fontWeight={600}>
+                            {product.bidCount}
+                          </Typography>
+                        </Box>
+                      </td>
+                      <td style={{ padding: '16px', textAlign: 'center' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                          <AccessTime sx={{ fontSize: 16, color: 'text.secondary' }} />
+                          <Typography 
+                            variant="body2" 
+                            color="text.secondary" 
+                            fontWeight={600}
+                            sx={{ minWidth: '85px', fontVariantNumeric: 'tabular-nums' }}
+                          >
+                            {getTimeLeft(product.endTime)}
+                          </Typography>
+                        </Box>
+                      </td>
+                      <td style={{ padding: '16px', textAlign: 'center' }}>
+                        <Button 
+                          variant="contained" 
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/products/${product.id}`);
+                          }}
+                          sx={{ textTransform: 'none', fontWeight: 600 }}
+                        >
+                          Bid Now
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Box>
+          </Box>
         </Container>
 
-        {/* Highest Price Products */}
-        <Container maxWidth="xl" sx={{ py: 4, pb: 8 }}>
-          <Card elevation={0} sx={{ borderRadius: 3, boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
-            <Box sx={{ 
-              p: 3, 
-              background: 'linear-gradient(135deg, #FA8BFF 0%, #2BD2FF 52%, #2BFF88 90%)',
-              color: 'white',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}>
-              <Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
-                  <TrendingUp sx={{ fontSize: 32 }} />
-                  <Typography variant="h4" fontWeight="bold">
-                    Premium Items
-                  </Typography>
-                </Box>
-                <Typography variant="body1" sx={{ opacity: 0.9 }}>
-                  Highest-valued items currently on auction
-                </Typography>
-              </Box>
-              <Button
-                variant="contained"
-                endIcon={<ArrowForward />}
-                onClick={() => navigate('/category/collectibles/art')}
-                sx={{
-                  bgcolor: 'white',
-                  color: 'primary.main',
-                  fontWeight: 'bold',
-                  '&:hover': { bgcolor: 'grey.100' },
-                }}
-              >
-                View All
-              </Button>
-            </Box>
-            <CardContent sx={{ p: 3 }}>
-              <Grid container spacing={3}>
-                {mockHighestPriceProducts.map((product) => (
-                  <Grid item xs={12} sm={6} md={4} lg={2.4} key={product.id}>
-                    <ProductCard product={product} />
-                  </Grid>
-                ))}
-              </Grid>
-            </CardContent>
-          </Card>
-        </Container>
       </Box>
     </Page>
   );

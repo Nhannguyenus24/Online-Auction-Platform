@@ -30,11 +30,12 @@ import {
   Logout,
   Dashboard,
   Favorite,
-  History,
   AttachMoney,
   Category,
   KeyboardArrowDown,
 } from '@mui/icons-material';
+import NotificationMenu from '../components/NotificationMenu';
+import ShoppingCartMenu from '../components/ShoppingCartMenu';
 
 const Header = () => {
   const navigate = useNavigate();
@@ -166,14 +167,6 @@ const Header = () => {
     navigate('/login');
   };
 
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND',
-      minimumFractionDigits: 0,
-    }).format(price);
-  };
-
   return (
     <AppBar 
       position="sticky" 
@@ -273,7 +266,7 @@ const Header = () => {
 
           {/* Right Side - Conditional Rendering */}
           <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
-            {!isLoggedIn ? (
+            {isLoggedIn ? (
               // Not Logged In - Show Login Button
               <Stack direction="row" spacing={1}>
                 <Button
@@ -326,7 +319,7 @@ const Header = () => {
                     }}
                   >
                     <Badge badgeContent={cartCount} color="primary">
-                      <Favorite />
+                      <ShoppingCart />
                     </Badge>
                   </IconButton>
                 )}
@@ -445,124 +438,21 @@ const Header = () => {
       </Menu>
 
       {/* Notifications Menu */}
-      <Menu
+      <NotificationMenu
         anchorEl={anchorElNotif}
         open={Boolean(anchorElNotif)}
         onClose={handleCloseNotifMenu}
-        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-        PaperProps={{
-          sx: {
-            mt: 1.5,
-            width: 360,
-            maxHeight: 400,
-            borderRadius: 2,
-            boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-          },
-        }}
-      >
-        <Box sx={{ px: 2, py: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="h6" fontWeight="bold">
-            Notifications
-          </Typography>
-          <Button size="small" sx={{ textTransform: 'none' }}>
-            Mark all read
-          </Button>
-        </Box>
-        <Divider />
-        
-        {notifications.map((notif) => (
-          <MenuItem
-            key={notif.id}
-            onClick={handleCloseNotifMenu}
-            sx={{
-              py: 1.5,
-              px: 2,
-              bgcolor: notif.read ? 'transparent' : 'primary.lighter',
-              '&:hover': { bgcolor: 'grey.100' },
-            }}
-          >
-            <Box sx={{ width: '100%' }}>
-              <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-                {notif.title}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                {notif.message}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {notif.time}
-              </Typography>
-            </Box>
-          </MenuItem>
-        ))}
-        
-        <Divider />
-        <MenuItem onClick={() => { navigate('/notifications'); handleCloseNotifMenu(); }} sx={{ justifyContent: 'center' }}>
-          <Typography variant="body2" color="primary" fontWeight="bold">
-            View All Notifications
-          </Typography>
-        </MenuItem>
-      </Menu>
+        notifications={notifications}
+      />
 
       {/* Saved Items / Cart Menu */}
-      <Menu
+      <ShoppingCartMenu
         anchorEl={anchorElCart}
         open={Boolean(anchorElCart)}
         onClose={handleCloseCartMenu}
-        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-        PaperProps={{
-          sx: {
-            mt: 1.5,
-            width: 380,
-            maxHeight: 450,
-            borderRadius: 2,
-            boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-          },
-        }}
-      >
-        <Box sx={{ px: 2, py: 1.5 }}>
-          <Typography variant="h6" fontWeight="bold">
-            Watchlist ({cartCount})
-          </Typography>
-        </Box>
-        <Divider />
-        
-        {savedItems.map((item) => (
-          <MenuItem
-            key={item.id}
-            onClick={() => { navigate(`/products/${item.id}`); handleCloseCartMenu(); }}
-            sx={{ py: 1.5, px: 2, alignItems: 'flex-start' }}
-          >
-            <Box
-              component="img"
-              src={item.image}
-              sx={{
-                width: 60,
-                height: 60,
-                borderRadius: 1,
-                objectFit: 'cover',
-                mr: 2,
-              }}
-            />
-            <Box sx={{ flexGrow: 1 }}>
-              <Typography variant="body2" fontWeight="600" gutterBottom>
-                {item.title}
-              </Typography>
-              <Typography variant="body2" color="primary" fontWeight="bold">
-                {formatPrice(item.price)}
-              </Typography>
-            </Box>
-          </MenuItem>
-        ))}
-        
-        <Divider />
-        <MenuItem onClick={() => { navigate('/bidder/watchlist'); handleCloseCartMenu(); }} sx={{ justifyContent: 'center' }}>
-          <Typography variant="body2" color="primary" fontWeight="bold">
-            View Full Watchlist
-          </Typography>
-        </MenuItem>
-      </Menu>
+        items={savedItems}
+        itemCount={cartCount}
+      />
 
       {/* Categories Menu (2-level) */}
       <Menu
