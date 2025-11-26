@@ -26,6 +26,7 @@ export default function Router() {
         { path: "500", element: <Page500 /> },
         { path: "404", element: <Page404 /> },
         { path: "product/:id", element: <ProductDetailPage /> },
+        { path: "category", element: <CategoryPage /> },
         { path: "*", element: <Navigate to="/404" replace /> },
       ],
     },
@@ -52,11 +53,15 @@ const Register = Loadable(lazy(() => import("../pages/authentication/Register.js
 const AdminLayout = Loadable(lazy(() => import("../layouts/AdminLayout.jsx")));
 
 //ADMIN
-
 const DashboardAdmin = Loadable(lazy(() => import("../pages/admin/DashBoardPage.jsx")));
 const UserManagementPage = Loadable(lazy(() => import("../pages/admin/UserManagementPage.jsx")));
 const CategoryManagementPage = Loadable(lazy(() => import("../pages/admin/CategoryManagementPage.jsx")));
 const ProductManagementPage = Loadable(lazy(() => import("../pages/admin/ProductManagementPage.jsx")));
+
+//SELLER
+
+
+//BIDDER
 
 // OTHERS
 const Page500 = Loadable(lazy(() => import("../pages/Page500")));
@@ -64,3 +69,4 @@ const Page404 = Loadable(lazy(() => import("../pages/Page404")));
 const AboutUs = Loadable(lazy(() => import("../pages/AboutUs")));
 const Maintenance = Loadable(lazy(() => import("../pages/Maintenance")));
 const ProductDetailPage = Loadable(lazy(() => import("../pages/ProductDetailPage.jsx")));
+const CategoryPage = Loadable(lazy(() => import("../pages/CategoryPage.jsx")));
