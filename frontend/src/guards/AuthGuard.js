@@ -1,53 +1,37 @@
-import PropTypes from 'prop-types';
-import { useState, useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-// hooks
-import useAuth from '../hooks/useAuth';
-// pages
-import Login from '../pages/auth/Login';
-// components
+import { useAuth } from '../hooks/useAuth';
 import LoadingScreen from '../components/LoadingScreen';
-import { getPackageStatus } from '../utils/api';
-// ----------------------------------------------------------------------
 
-AuthGuard.propTypes = {
-  children: PropTypes.node,
+// Map path prefix → required role
+const ROLE_PREFIX_MAP = {
+  '/admin': 'admin',
+  '/seller': 'seller',
+  '/bidder': 'bidder',
 };
 
 export default function AuthGuard({ children }) {
   const { isAuthenticated, isInitialized, user } = useAuth();
-  const [isActive, setIsActive] = useState(true);
   const { pathname } = useLocation();
-  const [requestedLocation, setRequestedLocation] = useState(null);
-  // useEffect(() => {
-  //   const getUserPackageStatus = async () => {
-  //     const packageStatus = await getPackageStatus();
-  //     setIsActive(packageStatus?.data?.isPackageActive  || false);
-  //   }
-  //   if (isInitialized && isAuthenticated) {
-  //     getUserPackageStatus();
-  //   }
-  // }, [isAuthenticated, isInitialized, pathname]);
-  if (!isInitialized) {
-    return <LoadingScreen />;
-  }
-  if (!isAuthenticated) {
-    if (pathname !== requestedLocation) {
-      setRequestedLocation(pathname);
-    }
-    return <Login />;
-  }
-  if (!user || !user?.roleName) {
-    return <Navigate to="/404" />;
-  }
-  // if (!(user.roleName === 'admin' || user.roleName === 'Admin') && isActive === false && pathname !== '/recruitment-packages' && pathname !== '/check-out') {
-  //   window.location.href = '/recruitment-packages';
-  //   return;
-  // }
-  if (requestedLocation && pathname !== requestedLocation) {
-    setRequestedLocation(null);
-    return <Navigate to={requestedLocation} />;
-  }
 
+  // un authenticate → show loading
+  if (!isInitialized) return <LoadingScreen />;
+
+  // un authenticate → redirect 404
+  if (!isAuthenticated) return <Navigate to="/404" replace />;
+
+  // user not exist → 404
+  if (!user || !user.roleName) return <Navigate to="/404" replace />;
+
+  // check role
+  const matchedPrefix = Object.keys(ROLE_PREFIX_MAP).find((prefix) =>
+    pathname.startsWith(prefix)
+  );
+
+  if (matchedPrefix) {
+    const requiredRole = ROLE_PREFIX_MAP[matchedPrefix];
+    if (user.roleName.toLowerCase() !== requiredRole.toLowerCase()) {
+      return <Navigate to="/404" replace />;
+    }
+  }
   return <>{children}</>;
 }
