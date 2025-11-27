@@ -1,123 +1,87 @@
-import { createContext, useEffect, useReducer } from 'react';
+// auth-context.js
+import { createContext, useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
-// utils
-import { isValidToken, setSession } from '../utils/jwt';
 import axiosInstance from '../utils/axios';
+import { setSession, getPayload } from '../utils/jwt';
+
 // ----------------------------------------------------------------------
 
-const initialState = {
+const AuthContext = createContext({
   isAuthenticated: false,
   isInitialized: false,
   user: null,
-};
-
-const handlers = {
-  INITIALIZE: (state, action) => {
-    const { isAuthenticated, user } = action.payload;
-    return {
-      ...state,
-      isAuthenticated,
-      isInitialized: true,
-      user,
-    };
-  },
-  LOGIN: (state, action) => {
-    const { user } = action.payload;
-
-    return {
-      ...state,
-      isAuthenticated: true,
-      user,
-    };
-  },
-  LOGOUT: (state) => ({
-    ...state,
-    isAuthenticated: false,
-    user: null,
-  }),
-};
-
-const reducer = (state, action) => (handlers[action.type] ? handlers[action.type](state, action) : state);
-
-const AuthContext = createContext({
-  ...initialState,
-  method: 'jwt',
-  login: () => Promise.resolve(),
-  logout: () => Promise.resolve(),
+  login: async () => {},
+  logout: async () => {},
 });
 
 // ----------------------------------------------------------------------
 
-AuthProvider.propTypes = {
-  children: PropTypes.node,
-};
+export function AuthProvider({ children }) {
+  const [user, setUser] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
 
-function AuthProvider({ children }) {
-  const [state, dispatch] = useReducer(reducer, initialState);
-
+  // ----------------------------------------------------------------------
+  // Initialize auth state on app load
   useEffect(() => {
     const initialize = async () => {
       try {
         const accessToken = window.localStorage.getItem('accessToken');
-
-        if (accessToken && isValidToken(accessToken)) {
-          setSession(accessToken);
-
-          const response = await axiosInstance.get('/account/my-account');
-          const user = response.data;
-          dispatch({
-            type: 'INITIALIZE',
-            payload: {
-              isAuthenticated: true,
-              user,
-            },
-          });
+        if (accessToken) {
+          const payload = await getPayload(accessToken);
+          if (payload) {
+            setSession(accessToken);
+            const response = await axiosInstance.get('/account/my-account');
+            setUser(response.data);
+            setIsAuthenticated(true);
+          } else {
+            setSession(null);
+            setUser(null);
+            setIsAuthenticated(false);
+          }
         } else {
-          dispatch({
-            type: 'INITIALIZE',
-            payload: {
-              isAuthenticated: false,
-              user: null,
-            },
-          });
+          setUser(null);
+          setIsAuthenticated(false);
         }
       } catch (err) {
         console.error(err);
-        dispatch({
-          type: 'INITIALIZE',
-          payload: {
-            isAuthenticated: false,
-            user: null,
-          },
-        });
+        setSession(null);
+        setUser(null);
+        setIsAuthenticated(false);
+      } finally {
+        setIsInitialized(true);
       }
     };
 
     initialize();
   }, []);
 
-  const login = async (accessToken, user) => {
+  // ----------------------------------------------------------------------
+  const login = async (accessToken, userData) => {
     if (accessToken) {
-      setSession(accessToken);
-    dispatch({
-      type: 'LOGIN',
-      payload: {
-        user,
-      },
-    });
+      const payload = await getPayload(accessToken);
+      if (payload) {
+        setSession(accessToken);
+        setUser(userData);
+        setIsAuthenticated(true);
+      } else {
+        console.warn('Access token invalid at login');
+      }
     }
   };
 
   const logout = async () => {
     setSession(null);
-    dispatch({ type: 'LOGOUT' });
+    setUser(null);
+    setIsAuthenticated(false);
   };
 
   return (
     <AuthContext.Provider
       value={{
-        ...state,
-        method: 'jwt',
+        isAuthenticated,
+        isInitialized,
+        user,
         login,
         logout,
       }}
@@ -127,4 +91,8 @@ function AuthProvider({ children }) {
   );
 }
 
-export { AuthContext, AuthProvider };
+AuthProvider.propTypes = {
+  children: PropTypes.node,
+};
+
+

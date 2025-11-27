@@ -1,31 +1,43 @@
-import jwtDecode from 'jwt-decode';
 import axiosInstance from './axios';
-//
+import { jwtVerify, importSPKI } from 'jose';
 
 // ----------------------------------------------------------------------
+const PUBLIC_KEY_PEM = process.env.REACT_APP_PUBLIC_KEY;
 
-const isValidToken = (accessToken) => {
+
+const isValidToken = async (accessToken) => {
   if (!accessToken) {
     return false;
   }
 
-  // ----------------------------------------------------------------------
+  try {
+    const publicKey = await importSPKI(PUBLIC_KEY_PEM, 'RS256');
 
-  const decoded = jwtDecode(accessToken);
-  const currentTime = Date.now() / 1000;
+    const { payload } = await jwtVerify(accessToken, publicKey);
 
-  return decoded.exp > currentTime;
+    const currentTime = Date.now() / 1000;
+    return payload.exp > currentTime;
+
+  } catch (error) {
+    console.error('Token expired or invalid:', error);
+    return false;
+  }
 };
 
-// ----------------------------------------------------------------------
+const getPayload = async (accessToken) => {
+  const publicKey = await importSPKI(PUBLIC_KEY_PEM, 'RS256');
+  const { payload } = await jwtVerify(accessToken, publicKey);
+  return payload;
+};
 
 const setSession = (accessToken) => {
   if (accessToken) {
     localStorage.setItem('accessToken', accessToken);
+    axiosInstance.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
   } else {
     localStorage.removeItem('accessToken');
     delete axiosInstance.defaults.headers.common.Authorization;
   }
 };
 
-export { isValidToken, setSession };
+export { isValidToken, setSession, getPayload };

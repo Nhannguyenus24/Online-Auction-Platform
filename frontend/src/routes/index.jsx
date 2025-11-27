@@ -2,6 +2,7 @@ import { Suspense, lazy } from "react";
 import { Navigate, useRoutes } from "react-router-dom";
 // components
 import LoadingScreen from "../components/LoadingScreen";
+import AuthGuard from "../guards/AuthGuard";
 // ----------------------------------------------------------------------
 
 const Loadable = (Component) => (props) => (
@@ -39,12 +40,13 @@ export default function Router() {
       ],
     },
     {
-      path: "/admin",
+      path: "admin",
+      element: <AuthGuard><AdminLayout /></AuthGuard>,
       children: [
-        { path: "dashboard", element: <AdminLayout><DashboardAdmin /></AdminLayout> },
-        { path: "users", element: <AdminLayout><UserManagementPage /></AdminLayout> },
-        { path: "categories", element: <AdminLayout><CategoryManagementPage /></AdminLayout> },
-        { path: "products", element: <AdminLayout><ProductManagementPage /></AdminLayout> },
+        { path: "dashboard", element: <DashboardAdmin /> },
+        { path: "users", element: <UserManagementPage /> },
+        { path: "categories", element: <CategoryManagementPage /> },
+        { path: "products", element: <ProductManagementPage /> },
       ],
     }
   ]);
