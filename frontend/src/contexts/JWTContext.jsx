@@ -95,4 +95,4 @@ AuthProvider.propTypes = {
   children: PropTypes.node,
 };
 
-
+export { AuthContext };
