@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import * as yup from "yup";
 import {
   Alert,
@@ -18,6 +19,7 @@ import {
   VisibilityOff,
 } from "@mui/icons-material";
 import AuthLayout from "../../layouts/AuthLayout";
+import { useAuth } from "../../hooks/useAuth";
 
 const loginSchema = yup.object({
   email: yup
@@ -37,11 +39,26 @@ const loginSchema = yup.object({
 const defaultValues = { email: "", password: "", remember: true };
 
 const Login = () => {
+  const navigate = useNavigate();
+  const { login, isAuthenticated, isInitialized, user } = useAuth();
   const [formValues, setFormValues] = useState(defaultValues);
   const [formErrors, setFormErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState(null);
+
+  // Redirect nếu đã đăng nhập
+  useEffect(() => {
+    if (isInitialized && isAuthenticated && user) {
+      const redirectPath =
+        user.roleName === "admin"
+          ? "/admin/dashboard"
+          : user.roleName === "seller"
+          ? "/"
+          : "/";
+      navigate(redirectPath, { replace: true });
+    }
+  }, [isInitialized, isAuthenticated, user, navigate]);
 
   const validateField = async (field, valueOverride) => {
     if (!loginSchema.fields[field]) return;
@@ -88,10 +105,63 @@ const Login = () => {
     setSubmitting(true);
     setStatus(null);
 
-    setTimeout(() => {
-      setSubmitting(false);
+    try {
+      // Mock API call - sẽ thay bằng API thật khi backend sẵn sàng
+      // Giả lập delay network
+      await new Promise((resolve) => setTimeout(resolve, 800));
+
+      // Mock response data - dựa vào email để phân biệt role (tạm thời)
+      // Trong thực tế, backend sẽ trả về user data và accessToken
+      const mockUsers = {
+        "admin@example.com": {
+          id: 1,
+          email: "admin@example.com",
+          fullName: "Admin User",
+          roleName: "admin",
+        },
+        "seller@example.com": {
+          id: 2,
+          email: "seller@example.com",
+          fullName: "Seller User",
+          roleName: "seller",
+        },
+        "bidder@example.com": {
+          id: 3,
+          email: "bidder@example.com",
+          fullName: "Bidder User",
+          roleName: "bidder",
+        },
+      };
+
+      const userData = mockUsers[formValues.email.toLowerCase()] || {
+        id: 3,
+        email: formValues.email,
+        fullName: "Bidder User",
+        roleName: "bidder",
+      };
+
+      // Mock accessToken - trong thực tế sẽ nhận từ backend
+      const mockAccessToken = `mock_token_${Date.now()}_${userData.id}`;
+
+      // Set user vào context và lưu token
+      await login(mockAccessToken, userData);
+
+      // Redirect dựa vào role
+      const redirectPath =
+        userData.roleName === "admin"
+          ? "/admin/dashboard"
+          : userData.roleName === "seller"
+          ? "/"
+          : "/";
+
       setStatus("success");
-    }, 1200);
+      // Redirect ngay lập tức, không cần delay
+      navigate(redirectPath, { replace: true });
+    } catch (error) {
+      console.error("Login error:", error);
+      setStatus("error");
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -107,7 +177,12 @@ const Login = () => {
       <Stack component="form" spacing={2.5} onSubmit={handleSubmit}>
         {status === "success" && (
           <Alert severity="success" sx={{ py: 1 }}>
-            Sign-in successful. Redirecting to dashboard…
+            Sign-in successful. Redirecting…
+          </Alert>
+        )}
+        {status === "error" && (
+          <Alert severity="error" sx={{ py: 1 }}>
+            Sign-in failed. Please check your credentials and try again.
           </Alert>
         )}
 
