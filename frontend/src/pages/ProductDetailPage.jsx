@@ -42,6 +42,8 @@ import {
   Send,
   ChevronLeft,
   ChevronRight,
+  Cancel,
+  Block,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -196,12 +198,16 @@ function ProductDetailPage() {
   const [productDescription, setProductDescription] = useState(mockProduct.description); // Use state to manage description
   const [newDescription, setNewDescription] = useState(''); // New description to append
   const [submittingDescription, setSubmittingDescription] = useState(false); // Track description submission
+  const [bidHistory, setBidHistory] = useState(mockBidHistory); // Use state to manage bid history
+  const [rejectedBids, setRejectedBids] = useState(new Set()); // Track rejected bid IDs
+  const [openRejectDialog, setOpenRejectDialog] = useState(false); // Dialog state
+  const [bidToReject, setBidToReject] = useState(null); // Bid to reject
+  const [rejectingBid, setRejectingBid] = useState(null); // Track which bid is being rejected
 
   const { user } = useAuth();
   // Check if current user is the seller/owner of this product
   // Mock: Assume user.id === 101 is the seller for this product
   const isSeller = user && user.roleName?.toLowerCase() === 'seller' && user.id === mockProduct.seller.id;
-
   const formatPrice = (price) => {
     return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
@@ -349,6 +355,43 @@ function ProductDetailPage() {
       console.error('Error submitting new description:', err);
     } finally {
       setSubmittingDescription(false);
+    }
+  };
+
+  const handleOpenRejectDialog = (bid) => {
+    setBidToReject(bid);
+    setOpenRejectDialog(true);
+  };
+
+  const handleCloseRejectDialog = () => {
+    setOpenRejectDialog(false);
+    setBidToReject(null);
+  };
+
+  const handleConfirmReject = async () => {
+    if (!bidToReject) return;
+
+    setRejectingBid(bidToReject.id);
+    try {
+      // Mock API call - replace with actual API
+      // await axiosInstance.post(`/products/${mockProduct.id}/bids/${bidToReject.id}/reject`);
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      
+      // Mark bid as rejected
+      setRejectedBids((prev) => new Set([...prev, bidToReject.id]));
+      
+      // Remove rejected bid from history (or keep it with rejected status)
+      // Option 1: Remove from list
+      // setBidHistory((prev) => prev.filter((bid) => bid.id !== bidToReject.id));
+      
+      // Option 2: Keep in list but mark as rejected (better UX)
+      // Already handled by rejectedBids Set
+      
+      handleCloseRejectDialog();
+    } catch (err) {
+      console.error('Error rejecting bid:', err);
+    } finally {
+      setRejectingBid(null);
     }
   };
 
@@ -948,7 +991,7 @@ function ProductDetailPage() {
                 }}>
                   <Typography variant="h5" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Gavel />
-                    Bid History ({mockBidHistory.length})
+                    Bid History ({bidHistory.filter((bid) => !rejectedBids.has(bid.id)).length})
                   </Typography>
                 </Box>
                 <CardContent sx={{ p: 0 }}>
@@ -959,57 +1002,89 @@ function ProductDetailPage() {
                           <TableCell sx={{ fontWeight: 'bold', py: 2 }}>Bidder</TableCell>
                           <TableCell align="right" sx={{ fontWeight: 'bold', py: 2 }}>Bid Amount</TableCell>
                           <TableCell align="right" sx={{ fontWeight: 'bold', py: 2 }}>Time</TableCell>
+                          {isSeller && (
+                            <TableCell align="center" sx={{ fontWeight: 'bold', py: 2 }}>Actions</TableCell>
+                          )}
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {mockBidHistory.map((bid, index) => (
-                          <TableRow 
-                            key={bid.id}
-                            sx={{ 
-                              bgcolor: index === 0 ? 'rgba(76, 175, 80, 0.08)' : 'inherit',
-                              '&:hover': { bgcolor: 'action.hover' },
-                              borderLeft: index === 0 ? '4px solid' : 'none',
-                              borderColor: 'success.main'
-                            }}
-                          >
-                            <TableCell sx={{ py: 2 }}>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                                <Avatar sx={{ 
-                                  width: 40, 
-                                  height: 40, 
-                                  bgcolor: index === 0 ? 'success.main' : 'primary.main',
-                                  fontWeight: 'bold'
-                                }}>
-                                  {index === 0 ? '🏆' : <Person fontSize="small" />}
-                                </Avatar>
-                                <Box>
-                                  <Typography variant="body2" fontWeight="medium">
-                                    {bid.bidder}
-                                  </Typography>
-                                  {index === 0 && (
-                                    <Typography variant="caption" color="success.main" fontWeight="bold">
-                                      Leading Bid
-                                    </Typography>
-                                  )}
-                                </Box>
-                              </Box>
-                            </TableCell>
-                            <TableCell align="right">
-                              <Typography 
-                                fontWeight="bold" 
-                                color={index === 0 ? 'success.main' : 'inherit'}
-                                variant={index === 0 ? 'h6' : 'body2'}
+                        {bidHistory
+                          .filter((bid) => !rejectedBids.has(bid.id)) // Filter out rejected bids
+                          .map((bid, index) => {
+                            const isRejecting = rejectingBid === bid.id;
+                            const isLeadingBid = index === 0; // First bid in filtered list is leading
+                            
+                            return (
+                              <TableRow 
+                                key={bid.id}
+                                sx={{ 
+                                  bgcolor: isLeadingBid 
+                                    ? 'rgba(76, 175, 80, 0.08)' 
+                                    : 'inherit',
+                                  '&:hover': { bgcolor: 'action.hover' },
+                                  borderLeft: isLeadingBid ? '4px solid' : 'none',
+                                  borderColor: 'success.main'
+                                }}
                               >
-                                {formatPrice(bid.amount)}
-                              </Typography>
-                            </TableCell>
-                            <TableCell align="right">
-                              <Typography variant="body2" color="text.secondary">
-                                {getRelativeTime(bid.time)}
-                              </Typography>
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                                <TableCell sx={{ py: 2 }}>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                    <Avatar sx={{ 
+                                      width: 40, 
+                                      height: 40, 
+                                      bgcolor: isLeadingBid 
+                                        ? 'success.main' 
+                                        : 'primary.main',
+                                      fontWeight: 'bold'
+                                    }}>
+                                      {isLeadingBid ? '🏆' : <Person fontSize="small" />}
+                                    </Avatar>
+                                    <Box>
+                                      <Typography variant="body2" fontWeight="medium">
+                                        {bid.bidder}
+                                      </Typography>
+                                      {isLeadingBid && (
+                                        <Typography variant="caption" color="success.main" fontWeight="bold">
+                                          Leading Bid
+                                        </Typography>
+                                      )}
+                                    </Box>
+                                  </Box>
+                                </TableCell>
+                                <TableCell align="right">
+                                  <Typography 
+                                    fontWeight="bold" 
+                                    color={isLeadingBid ? 'success.main' : 'inherit'}
+                                    variant={isLeadingBid ? 'h6' : 'body2'}
+                                  >
+                                    {formatPrice(bid.amount)}
+                                  </Typography>
+                                </TableCell>
+                                <TableCell align="right">
+                                  <Typography variant="body2" color="text.secondary">
+                                    {getRelativeTime(bid.time)}
+                                  </Typography>
+                                </TableCell>
+                                {isSeller && (
+                                  <TableCell align="center">
+                                    <IconButton
+                                      size="small"
+                                      color="error"
+                                      onClick={() => handleOpenRejectDialog(bid)}
+                                      disabled={isRejecting || isLeadingBid} // Cannot reject leading bid
+                                      sx={{
+                                        '&:hover': {
+                                          bgcolor: 'error.lighter',
+                                        },
+                                      }}
+                                      title={isLeadingBid ? 'Cannot reject leading bid' : 'Reject this bid'}
+                                    >
+                                      <Cancel fontSize="small" />
+                                    </IconButton>
+                                  </TableCell>
+                                )}
+                              </TableRow>
+                            );
+                          })}
                       </TableBody>
                     </Table>
                   </TableContainer>
@@ -1430,6 +1505,85 @@ function ProductDetailPage() {
                 }}
               >
                 Confirm Bid
+              </Button>
+            </DialogActions>
+          </Dialog>
+
+          {/* Reject Bid Confirmation Dialog */}
+          <Dialog
+            open={openRejectDialog}
+            onClose={handleCloseRejectDialog}
+            maxWidth="sm"
+            fullWidth
+            PaperProps={{
+              sx: {
+                borderRadius: 3,
+              }
+            }}
+          >
+            <DialogTitle sx={{ pb: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Cancel color="error" />
+                <Typography variant="h6" fontWeight="bold">
+                  Reject Bid
+                </Typography>
+              </Box>
+            </DialogTitle>
+            <DialogContent>
+              <Alert severity="warning" sx={{ mb: 2 }}>
+                <Typography variant="body2" fontWeight="bold" gutterBottom>
+                  Are you sure you want to reject this bid?
+                </Typography>
+                <Typography variant="caption">
+                  This action cannot be undone. The bidder will be notified and the bid will be removed from the auction.
+                </Typography>
+              </Alert>
+              {bidToReject && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Bidder:
+                  </Typography>
+                  <Typography variant="body1" fontWeight="medium" sx={{ mb: 2 }}>
+                    {bidToReject.bidder}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Bid Amount:
+                  </Typography>
+                  <Typography variant="h6" color="primary" fontWeight="bold" sx={{ mb: 2 }}>
+                    {formatPrice(bidToReject.amount)}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Placed:
+                  </Typography>
+                  <Typography variant="body2">
+                    {getRelativeTime(bidToReject.time)}
+                  </Typography>
+                </Box>
+              )}
+            </DialogContent>
+            <DialogActions sx={{ p: 3, pt: 0 }}>
+              <Button
+                onClick={handleCloseRejectDialog}
+                disabled={rejectingBid !== null}
+                sx={{ px: 3, py: 1, borderRadius: 2 }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleConfirmReject}
+                variant="contained"
+                color="error"
+                disabled={rejectingBid !== null}
+                startIcon={rejectingBid !== null ? <CircularProgress size={16} color="inherit" /> : <Block />}
+                sx={{
+                  px: 4,
+                  py: 1,
+                  borderRadius: 2,
+                  fontWeight: 'bold',
+                  boxShadow: 3,
+                }}
+              >
+                {rejectingBid !== null ? 'Rejecting...' : 'Reject Bid'}
               </Button>
             </DialogActions>
           </Dialog>
