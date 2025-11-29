@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as yup from 'yup';
 import {
@@ -16,11 +16,16 @@ import {
   Alert,
   Divider,
   Paper,
+  Chip,
+  IconButton,
 } from '@mui/material';
 import {
   Save,
   Cancel,
   Info,
+  AddPhotoAlternate,
+  Delete as DeleteIcon,
+  CloudUpload,
 } from '@mui/icons-material';
 import Page from '../../components/Page';
 import { formatPrice } from '../../utils/formatNumber';
@@ -52,6 +57,10 @@ const auctionSchema = yup.object({
     }),
   description: yup.string().required('Description is required').min(20, 'Description must be at least 20 characters'),
   autoExtend: yup.boolean(),
+  images: yup
+    .array()
+    .min(3, 'Please upload at least 3 images')
+    .required('At least 3 images are required'),
 });
 
 const defaultValues = {
@@ -69,6 +78,7 @@ const SellerCreateAuctionPage = () => {
   const [formErrors, setFormErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState(null);
+  const [images, setImages] = useState([]); // Array of { file: File, preview: string }
 
   const validateField = async (field, valueOverride) => {
     if (!auctionSchema.fields[field]) return;
@@ -85,7 +95,7 @@ const SellerCreateAuctionPage = () => {
 
   const validateForm = async () => {
     try {
-      await auctionSchema.validate(formValues, { abortEarly: false });
+      await auctionSchema.validate({ ...formValues, images }, { abortEarly: false });
       setFormErrors({});
       return true;
     } catch (error) {
@@ -98,6 +108,50 @@ const SellerCreateAuctionPage = () => {
       setFormErrors((prev) => ({ ...prev, ...formattedErrors }));
       return false;
     }
+  };
+
+  const handleImageUpload = (event) => {
+    const files = Array.from(event.target.files);
+    const newImages = files.map((file) => ({
+      file,
+      preview: URL.createObjectURL(file),
+      id: Date.now() + Math.random(),
+    }));
+
+    setImages((prev) => [...prev, ...newImages]);
+    
+    // Validate images count
+    if (images.length + newImages.length < 3) {
+      setFormErrors((prev) => ({
+        ...prev,
+        images: `Please upload at least ${3 - (images.length + newImages.length)} more image(s)`,
+      }));
+    } else {
+      setFormErrors((prev) => ({ ...prev, images: '' }));
+    }
+  };
+
+  const handleRemoveImage = (imageId) => {
+    setImages((prev) => {
+      const updated = prev.filter((img) => img.id !== imageId);
+      // Clean up object URLs to prevent memory leaks
+      const removed = prev.find((img) => img.id === imageId);
+      if (removed) {
+        URL.revokeObjectURL(removed.preview);
+      }
+      
+      // Validate images count
+      if (updated.length < 3) {
+        setFormErrors((prev) => ({
+          ...prev,
+          images: `Please upload at least ${3 - updated.length} more image(s)`,
+        }));
+      } else {
+        setFormErrors((prev) => ({ ...prev, images: '' }));
+      }
+      
+      return updated;
+    });
   };
 
   const handleChange = async (event) => {
@@ -115,16 +169,30 @@ const SellerCreateAuctionPage = () => {
   const handleSubmit = async (event) => {
     event.preventDefault();
     const isValid = await validateForm();
-    if (!isValid) return;
+    if (!isValid) {
+      // Scroll to first error
+      const firstErrorField = Object.keys(formErrors)[0];
+      if (firstErrorField) {
+        const element = document.querySelector(`[name="${firstErrorField}"]`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }
+      return;
+    }
 
     setSubmitting(true);
     setStatus(null);
 
     // Will be implemented with API call later
+    // Images will be sent as FormData
     setTimeout(() => {
       setSubmitting(false);
       setStatus('success');
-      console.log('Form submitted:', formValues);
+      console.log('Form submitted:', {
+        ...formValues,
+        images: images.map((img) => img.file),
+      });
       // Navigate to product detail or seller home after success
       setTimeout(() => {
         navigate('/seller/home');
@@ -135,6 +203,18 @@ const SellerCreateAuctionPage = () => {
   const handleCancel = () => {
     navigate('/seller/home');
   };
+
+  // Cleanup object URLs on unmount
+  useEffect(() => {
+    return () => {
+      images.forEach((image) => {
+        if (image.preview) {
+          URL.revokeObjectURL(image.preview);
+        }
+      });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <Page title="Create Auction - Online Auction Platform">
@@ -149,13 +229,6 @@ const SellerCreateAuctionPage = () => {
           </Typography>
         </Box>
 
-        {/* Info Alert */}
-        <Alert severity="info" icon={<Info />} sx={{ mb: 3 }}>
-          <Typography variant="body2">
-            <strong>Note:</strong> You'll need to upload at least 3 images and select a category in the next steps.
-            Images and category selection will be added in Step 2 and Step 4.
-          </Typography>
-        </Alert>
 
         <Card>
           <CardContent sx={{ p: 4 }}>
@@ -178,6 +251,156 @@ const SellerCreateAuctionPage = () => {
                 required
                 placeholder="e.g., Luxury Swiss Automatic Watch - Rose Gold"
               />
+
+              <Divider />
+
+              {/* Images Upload Section */}
+              <Box>
+                <Typography variant="h6" gutterBottom fontWeight={600}>
+                  Product Images
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Upload at least 3 images of your product. The first image will be used as the main image.
+                </Typography>
+
+                {/* Upload Area */}
+                <Box
+                  sx={{
+                    border: '2px dashed',
+                    borderColor: formErrors.images ? 'error.main' : 'grey.300',
+                    borderRadius: 2,
+                    p: 3,
+                    textAlign: 'center',
+                    bgcolor: 'grey.50',
+                    mb: 2,
+                    transition: 'all 0.3s',
+                    '&:hover': {
+                      borderColor: 'primary.main',
+                      bgcolor: 'primary.50',
+                    },
+                  }}
+                >
+                  <input
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    id="image-upload"
+                    type="file"
+                    multiple
+                    onChange={handleImageUpload}
+                  />
+                  <label htmlFor="image-upload">
+                    <Button
+                      variant="outlined"
+                      component="span"
+                      startIcon={<CloudUpload />}
+                      sx={{ mb: 1 }}
+                    >
+                      Upload Images
+                    </Button>
+                  </label>
+                  <Typography variant="body2" color="text.secondary">
+                    Click to select or drag and drop images here
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                    Supported formats: JPG, PNG, GIF (Max 5MB per image)
+                  </Typography>
+                </Box>
+
+                {/* Error Message */}
+                {formErrors.images && (
+                  <Alert severity="error" sx={{ mb: 2 }}>
+                    {formErrors.images}
+                  </Alert>
+                )}
+
+                {/* Images Preview Grid */}
+                {images.length > 0 && (
+                  <Grid container spacing={2} sx={{ mt: 1 }}>
+                    {images.map((image, index) => (
+                      <Grid item xs={6} sm={4} md={3} key={image.id}>
+                        <Box
+                          sx={{
+                            position: 'relative',
+                            paddingTop: '75%',
+                            borderRadius: 2,
+                            overflow: 'hidden',
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            bgcolor: 'grey.100',
+                          }}
+                        >
+                          <Box
+                            component="img"
+                            src={image.preview}
+                            alt={`Preview ${index + 1}`}
+                            sx={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover',
+                            }}
+                          />
+                          {index === 0 && (
+                            <Chip
+                              label="Main"
+                              size="small"
+                              color="primary"
+                              sx={{
+                                position: 'absolute',
+                                top: 8,
+                                left: 8,
+                                fontWeight: 'bold',
+                              }}
+                            />
+                          )}
+                          <IconButton
+                            onClick={() => handleRemoveImage(image.id)}
+                            sx={{
+                              position: 'absolute',
+                              top: 8,
+                              right: 8,
+                              bgcolor: 'rgba(255,255,255,0.9)',
+                              '&:hover': {
+                                bgcolor: 'error.main',
+                                color: 'white',
+                              },
+                            }}
+                            size="small"
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                          <Box
+                            sx={{
+                              position: 'absolute',
+                              bottom: 0,
+                              left: 0,
+                              right: 0,
+                              bgcolor: 'rgba(0,0,0,0.6)',
+                              color: 'white',
+                              p: 0.5,
+                            }}
+                          >
+                            <Typography variant="caption" noWrap>
+                              {image.file.name}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </Grid>
+                    ))}
+                  </Grid>
+                )}
+
+                {/* Images Count Info */}
+                <Typography
+                  variant="caption"
+                  color={images.length >= 3 ? 'success.main' : 'text.secondary'}
+                  sx={{ mt: 1, display: 'block' }}
+                >
+                  {images.length} / 3 images uploaded {images.length >= 3 && '✓'}
+                </Typography>
+              </Box>
 
               <Divider />
 
