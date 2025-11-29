@@ -211,3 +211,121 @@ export const mockGetSellerOrders = (delay = 500) => {
   });
 };
 
+// Ratings received (from winners/bidders)
+export const mockSellerRatingsReceived = [
+  {
+    id: 1,
+    fromUser: 'Bidder A',
+    fromUserId: 201,
+    rating: 1, // +1
+    comment: 'Great seller! Product exactly as described. Fast shipping and excellent communication.',
+    date: getPastDate(5),
+    productTitle: 'Vintage Rolex Submariner - 1985',
+    productId: 401,
+  },
+  {
+    id: 2,
+    fromUser: 'Bidder B',
+    fromUserId: 202,
+    rating: 1, // +1
+    comment: 'Amazing experience! Highly recommended seller.',
+    date: getPastDate(10),
+    productTitle: 'Designer Leather Handbag - Hermès Style',
+    productId: 402,
+  },
+  {
+    id: 3,
+    fromUser: 'Bidder C',
+    fromUserId: 203,
+    rating: -1, // -1
+    comment: 'Product arrived damaged. Poor packaging.',
+    date: getPastDate(15),
+    productTitle: 'Canon EOS R5 Professional Camera Body',
+    productId: 403,
+  },
+  {
+    id: 4,
+    fromUser: 'Bidder D',
+    fromUserId: 204,
+    rating: 1, // +1
+    comment: 'Perfect transaction! Will buy from again.',
+    date: getPastDate(20),
+    productTitle: 'Luxury Watch Collection',
+    productId: 404,
+  },
+];
+
+// Ratings given (to winners)
+export const mockSellerRatingsGiven = [
+  {
+    id: 1,
+    toUser: 'Bidder A',
+    toUserId: 201,
+    rating: 1, // +1
+    comment: 'Great buyer! Fast payment and smooth transaction.',
+    date: getPastDate(5),
+    productTitle: 'Vintage Rolex Submariner - 1985',
+    productId: 401,
+  },
+  {
+    id: 2,
+    toUser: 'Bidder B',
+    toUserId: 202,
+    rating: 1, // +1
+    comment: 'Excellent communication. Highly recommended!',
+    date: getPastDate(10),
+    productTitle: 'Designer Leather Handbag - Hermès Style',
+    productId: 402,
+  },
+];
+
+// Won items that need rating (completed but seller hasn't rated winner yet)
+export const mockSellerItemsNeedingRating = [
+  {
+    id: 1,
+    productId: 401,
+    title: 'Vintage Rolex Submariner - 1985',
+    image: 'https://images.unsplash.com/photo-1611652022419-a9419f74343d?w=400',
+    winnerName: 'Bidder A',
+    winnerId: 201,
+    completedDate: getPastDate(5),
+  },
+];
+
+// Mock API functions for seller ratings
+export const mockGetSellerRatingsReceived = (delay = 500) => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve({
+        success: true,
+        data: mockSellerRatingsReceived,
+        total: mockSellerRatingsReceived.length,
+      });
+    }, delay);
+  });
+};
+
+export const mockGetSellerRatingsGiven = (delay = 500) => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve({
+        success: true,
+        data: mockSellerRatingsGiven,
+        total: mockSellerRatingsGiven.length,
+      });
+    }, delay);
+  });
+};
+
+export const mockGetSellerItemsNeedingRating = (delay = 500) => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve({
+        success: true,
+        data: mockSellerItemsNeedingRating,
+        total: mockSellerItemsNeedingRating.length,
+      });
+    }, delay);
+  });
+};
+
