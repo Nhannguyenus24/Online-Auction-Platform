@@ -27,6 +27,10 @@ import {
   TableHead,
   TableRow,
   Paper,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import {
   Person,
@@ -44,6 +48,7 @@ import {
   LocalOffer,
   Visibility as VisibilityIcon,
   CheckCircle,
+  Block,
 } from '@mui/icons-material';
 import Page from '../../components/Page';
 import { formatPrice } from '../../utils/formatNumber';
@@ -97,6 +102,9 @@ const SellerProfilePage = () => {
   });
   const [ratingSubTab, setRatingSubTab] = useState(0); // 0: Received, 1: Given, 2: Rate Winners
   const [ratingForm, setRatingForm] = useState({}); // { productId: { rating: 1/-1, comment: '' } }
+  const [openCancelDialog, setOpenCancelDialog] = useState(false);
+  const [orderToCancel, setOrderToCancel] = useState(null);
+  const [cancellingOrder, setCancellingOrder] = useState(null);
 
   // Form states
   const [profileData, setProfileData] = useState(mockUserData);
@@ -139,6 +147,50 @@ const SellerProfilePage = () => {
     setProfileData(mockUserData);
     setIsEditing(false);
     setErrorMessage('');
+  };
+
+  const handleOpenCancelDialog = (order) => {
+    setOrderToCancel(order);
+    setOpenCancelDialog(true);
+  };
+
+  const handleCloseCancelDialog = () => {
+    setOpenCancelDialog(false);
+    setOrderToCancel(null);
+  };
+
+  const handleConfirmCancelOrder = async () => {
+    if (!orderToCancel) return;
+
+    setCancellingOrder(orderToCancel.id);
+    try {
+      // Mock API call - replace with actual API
+      // await axiosInstance.post(`/orders/${orderToCancel.id}/cancel`, {
+      //   reason: 'Người thắng không thanh toán'
+      // });
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // Update order status to cancelled
+      setOrders((prev) =>
+        prev.map((order) =>
+          order.id === orderToCancel.id
+            ? { ...order, status: 'cancelled' }
+            : order
+        )
+      );
+
+      // Show success message
+      setSuccessMessage(`Order ${orderToCancel.orderId} has been cancelled. The winner's rating has been automatically decreased by 1.`);
+      setTimeout(() => setSuccessMessage(''), 5000);
+
+      handleCloseCancelDialog();
+    } catch (err) {
+      console.error('Error cancelling order:', err);
+      setErrorMessage('Failed to cancel order. Please try again.');
+      setTimeout(() => setErrorMessage(''), 5000);
+    } finally {
+      setCancellingOrder(null);
+    }
   };
 
   const handleChangePassword = () => {
@@ -810,12 +862,26 @@ const SellerProfilePage = () => {
                               </Typography>
                             </TableCell>
                             <TableCell align="center">
-                              <IconButton
-                                size="small"
-                                onClick={() => navigate(`/product/${order.productId}`)}
-                              >
-                                <VisibilityIcon fontSize="small" />
-                              </IconButton>
+                              <Stack direction="row" spacing={0.5} justifyContent="center">
+                                <IconButton
+                                  size="small"
+                                  onClick={() => navigate(`/product/${order.productId}`)}
+                                  title="View Product"
+                                >
+                                  <VisibilityIcon fontSize="small" />
+                                </IconButton>
+                                {(order.status === 'pending_payment' || order.status === 'paid') && (
+                                  <IconButton
+                                    size="small"
+                                    color="error"
+                                    onClick={() => handleOpenCancelDialog(order)}
+                                    disabled={cancellingOrder === order.id}
+                                    title="Cancel Order"
+                                  >
+                                    <Block fontSize="small" />
+                                  </IconButton>
+                                )}
+                              </Stack>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -1168,6 +1234,101 @@ const SellerProfilePage = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Cancel Order Confirmation Dialog */}
+        <Dialog
+          open={openCancelDialog}
+          onClose={handleCloseCancelDialog}
+          maxWidth="sm"
+          fullWidth
+          PaperProps={{
+            sx: {
+              borderRadius: 3,
+            }
+          }}
+        >
+          <DialogTitle sx={{ pb: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Block color="error" />
+              <Typography variant="h6" fontWeight="bold">
+                Cancel Order
+              </Typography>
+            </Box>
+          </DialogTitle>
+          <DialogContent>
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              <Typography variant="body2" fontWeight="bold" gutterBottom>
+                Are you sure you want to cancel this order?
+              </Typography>
+              <Typography variant="caption">
+                This action will cancel the transaction and automatically decrease the winner's rating by 1.
+                The reason will be: "Người thắng không thanh toán" (Winner did not pay).
+              </Typography>
+            </Alert>
+            {orderToCancel && (
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Order ID:
+                </Typography>
+                <Typography variant="body1" fontWeight="medium" sx={{ mb: 2 }}>
+                  {orderToCancel.orderId}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Product:
+                </Typography>
+                <Typography variant="body1" fontWeight="medium" sx={{ mb: 2 }}>
+                  {orderToCancel.productTitle}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Buyer:
+                </Typography>
+                <Typography variant="body1" fontWeight="medium" sx={{ mb: 2 }}>
+                  {orderToCancel.buyerName}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Amount:
+                </Typography>
+                <Typography variant="h6" color="primary" fontWeight="bold" sx={{ mb: 2 }}>
+                  {formatPrice(orderToCancel.amount)}
+                </Typography>
+                <Divider sx={{ my: 2 }} />
+                <Box sx={{ bgcolor: 'grey.50', p: 2, borderRadius: 2 }}>
+                  <Typography variant="body2" fontWeight="bold" gutterBottom>
+                    Cancellation Reason:
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    "Người thắng không thanh toán"
+                  </Typography>
+                </Box>
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions sx={{ p: 3, pt: 0 }}>
+            <Button
+              onClick={handleCloseCancelDialog}
+              disabled={cancellingOrder !== null}
+              sx={{ px: 3, py: 1, borderRadius: 2 }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmCancelOrder}
+              variant="contained"
+              color="error"
+              disabled={cancellingOrder !== null}
+              startIcon={cancellingOrder !== null ? <CircularProgress size={16} color="inherit" /> : <Block />}
+              sx={{
+                px: 4,
+                py: 1,
+                borderRadius: 2,
+                fontWeight: 'bold',
+                boxShadow: 3,
+              }}
+            >
+              {cancellingOrder !== null ? 'Cancelling...' : 'Confirm Cancel'}
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Container>
     </Page>
   );
