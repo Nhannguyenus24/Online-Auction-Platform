@@ -6,7 +6,7 @@ import { setSession, getPayload } from '../utils/jwt';
 
 // ----------------------------------------------------------------------
 
-const AuthContext = createContext({
+export const AuthContext = createContext({
   isAuthenticated: false,
   isInitialized: false,
   user: null,
