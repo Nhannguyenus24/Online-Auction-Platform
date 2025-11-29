@@ -295,7 +295,7 @@ const Header = () => {
               </Stack>
             ) : (
               // Logged In - Show User Menu, Notifications, and Cart
-              <>
+              <div>
                 {/* Notifications */}
                 <IconButton
                   onClick={handleOpenNotifMenu}
@@ -346,7 +346,7 @@ const Header = () => {
                     {userName}
                   </Typography>
                 </Button>
-              </>
+              </div>
             )}
           </Box>
         </Toolbar>
@@ -397,7 +397,7 @@ const Header = () => {
         )}
         
         {userRole === 'bidder' && (
-          <>
+          <div>
             <MenuItem onClick={() => { navigate('/bidder/my-bids'); handleCloseUserMenu(); }}>
               <ListItemIcon>
                 <Gavel fontSize="small" />
@@ -410,7 +410,7 @@ const Header = () => {
               </ListItemIcon>
               <ListItemText>Watchlist</ListItemText>
             </MenuItem>
-          </>
+          </div>
         )}
         
         <MenuItem onClick={() => { navigate('/profile'); handleCloseUserMenu(); }}>
@@ -525,7 +525,7 @@ const Header = () => {
           {/* Child Categories */}
           <Box sx={{ width: 450, p: 2 }}>
             {hoveredCategory ? (
-              <>
+              <div>
                 <Typography variant="h6" fontWeight="bold" sx={{ mb: 2, px: 1 }}>
                   {categories.find((c) => c.id === hoveredCategory)?.name}
                 </Typography>
@@ -557,7 +557,7 @@ const Header = () => {
                       </Grid>
                     ))}
                 </Grid>
-              </>
+              </div>
             ) : (
               <Box
                 sx={{
