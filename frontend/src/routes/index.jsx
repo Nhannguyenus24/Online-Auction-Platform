@@ -71,6 +71,8 @@ export default function Router() {
         { path: "profile", element: <SellerProfilePage /> },
         { path: "create-auction", element: <SellerCreateAuctionPage /> },
         { path: "orders", element: <SellerOrderListPage /> },
+        { path: "chat", element: <SellerChatPage /> },
+        { path: "chat/:orderId", element: <SellerChatPage /> },
       ],
     }
   ]);
@@ -100,6 +102,7 @@ const SellerHomePage = Loadable(lazy(() => import("../pages/seller/HomePage.jsx"
 const SellerProfilePage = Loadable(lazy(() => import("../pages/seller/ProfilePage.jsx")));
 const SellerCreateAuctionPage = Loadable(lazy(() => import("../pages/seller/CreateAuctionPage.jsx")));
 const SellerOrderListPage = Loadable(lazy(() => import("../pages/seller/OrderListPage.jsx")));
+const SellerChatPage = Loadable(lazy(() => import("../pages/seller/ChatPage.jsx")));
 
 //BIDDER
 const BidderHomePage = Loadable(lazy(() => import("../pages/bidder/HomePage.jsx")));
