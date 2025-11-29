@@ -48,6 +48,30 @@ export default function Router() {
         { path: "categories", element: <CategoryManagementPage /> },
         { path: "products", element: <ProductManagementPage /> },
       ],
+    },
+    {
+      path: "bidder",
+      element: < MainLayout />,
+      children: [
+        { path: "", element: <Navigate to="/bidder/home" replace /> },
+        { path: "home", element: <BidderHomePage /> },
+        { path: "profile", element: <BidderProfilePage /> },
+        { path: "watchlist", element: <BidderWatchListPage /> },
+        { path: "auction-history", element: <BidderAuctionHistoryPage /> },
+        { path: "checkout", element: <BidderCheckoutPage /> },
+        { path: "checkout/:id", element: <BidderCheckoutPage /> },
+      ],
+    },
+    {
+      path: "seller",
+      element: <MainLayout />,
+      children: [
+        { path: "", element: <Navigate to="/seller/home" replace /> },
+        { path: "home", element: <SellerHomePage /> },
+        { path: "profile", element: <SellerProfilePage /> },
+        { path: "create-auction", element: <SellerCreateAuctionPage /> },
+        { path: "orders", element: <SellerOrderListPage /> },
+      ],
     }
   ]);
 }
@@ -70,9 +94,17 @@ const CategoryManagementPage = Loadable(lazy(() => import("../pages/admin/Catego
 const ProductManagementPage = Loadable(lazy(() => import("../pages/admin/ProductManagementPage.jsx")));
 
 //SELLER
-
+const SellerHomePage = Loadable(lazy(() => import("../pages/seller/HomePage.jsx")));
+const SellerProfilePage = Loadable(lazy(() => import("../pages/seller/ProfilePage.jsx")));
+const SellerCreateAuctionPage = Loadable(lazy(() => import("../pages/seller/CreateAuctionPage.jsx")));
+const SellerOrderListPage = Loadable(lazy(() => import("../pages/seller/OrderListPage.jsx")));
 
 //BIDDER
+const BidderHomePage = Loadable(lazy(() => import("../pages/bidder/HomePage.jsx")));
+const BidderProfilePage = Loadable(lazy(() => import("../pages/bidder/ProfilePage.jsx")));
+const BidderWatchListPage = Loadable(lazy(() => import("../pages/bidder/WatchListPage.jsx")));
+const BidderAuctionHistoryPage = Loadable(lazy(() => import("../pages/bidder/AuctionHistory.jsx")));
+const BidderCheckoutPage = Loadable(lazy(() => import("../pages/bidder/CheckoutPage.jsx")));
 
 // OTHERS
 const Page500 = Loadable(lazy(() => import("../pages/Page500")));

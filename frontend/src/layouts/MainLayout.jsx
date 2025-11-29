@@ -1,8 +1,9 @@
 import { Box } from '@mui/material';
+import { Outlet } from 'react-router-dom';
 import Header from './Header';
 import Footer from './Footer';
 
-const MainLayout = ({ children }) => {
+const MainLayout = () => {
   return (
     <Box
       sx={{
@@ -20,7 +21,7 @@ const MainLayout = ({ children }) => {
           flexDirection: 'column',
         }}
       >
-        {children}
+        <Outlet />
       </Box>
       <Footer />
     </Box>
