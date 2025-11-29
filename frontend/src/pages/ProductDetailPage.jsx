@@ -28,6 +28,7 @@ import {
   DialogActions,
   Stack,
   Alert,
+  CircularProgress,
 } from '@mui/material';
 import {
   AccessTime,
@@ -44,6 +45,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import RichTextEditor from '../components/RichTextEditor';
 import Page from '../components/Page';
 
 // Mock data - replace with API calls
@@ -191,6 +193,9 @@ function ProductDetailPage() {
   const [answerTexts, setAnswerTexts] = useState({}); // Store answers for each question
   const [submittingAnswer, setSubmittingAnswer] = useState({}); // Track which answer is being submitted
   const [questions, setQuestions] = useState(mockQuestions); // Use state to manage questions
+  const [productDescription, setProductDescription] = useState(mockProduct.description); // Use state to manage description
+  const [newDescription, setNewDescription] = useState(''); // New description to append
+  const [submittingDescription, setSubmittingDescription] = useState(false); // Track description submission
 
   const { user } = useAuth();
   // Check if current user is the seller/owner of this product
@@ -315,6 +320,35 @@ function ProductDetailPage() {
         delete updated[questionId];
         return updated;
       });
+    }
+  };
+
+  const handleNewDescriptionChange = (event) => {
+    // RichTextEditor passes event object with target.value
+    setNewDescription(event.target.value || '');
+  };
+
+  const handleSubmitNewDescription = async () => {
+    const descriptionText = newDescription.replace(/<[^>]*>/g, '').trim(); // Strip HTML to check if empty
+    if (!descriptionText) return;
+
+    setSubmittingDescription(true);
+
+    try {
+      // Mock API call - replace with actual API
+      // await axiosInstance.post(`/products/${mockProduct.id}/description/append`, { description: newDescription });
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      
+      // Append new description to existing description
+      const updatedDescription = productDescription + '\n<hr style="margin: 20px 0; border: none; border-top: 2px solid #e0e0e0;" />\n' + newDescription;
+      setProductDescription(updatedDescription);
+      
+      // Clear new description
+      setNewDescription('');
+    } catch (err) {
+      console.error('Error submitting new description:', err);
+    } finally {
+      setSubmittingDescription(false);
     }
   };
 
@@ -502,17 +536,67 @@ function ProductDetailPage() {
                   </Typography>
                   <Divider sx={{ mb: 2 }} />
                   <Box
-                    dangerouslySetInnerHTML={{ __html: mockProduct.description }}
+                    dangerouslySetInnerHTML={{ __html: productDescription }}
                     sx={{
                       '& h3': { fontSize: '1.1rem', fontWeight: 'bold', mt: 2, mb: 1, color: 'text.primary' },
                       '& h4': { fontSize: '1rem', fontWeight: '600', mt: 1.5, mb: 1, color: 'text.secondary' },
                       '& ul': { pl: 3, my: 1 },
                       '& p': { mb: 1, lineHeight: 1.7, color: 'text.secondary' },
                       '& li': { mb: 0.5, lineHeight: 1.6 },
+                      '& hr': { my: 2 },
                     }}
                   />
                 </Box>
               </Card>
+
+              {/* Add Description Section - Only for Seller */}
+              {isSeller && (
+                <Card elevation={0} sx={{ 
+                  mt: 2, 
+                  borderRadius: 3,
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                  border: '2px dashed',
+                  borderColor: 'primary.main',
+                  bgcolor: 'primary.50'
+                }}>
+                  <Box sx={{ p: 3 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                      <Typography variant="h6" fontWeight="bold" color="primary">
+                        Add More Description
+                      </Typography>
+                      <Chip label="Seller Only" size="small" color="primary" sx={{ fontWeight: 'bold' }} />
+                    </Box>
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                      <Typography variant="body2">
+                        You can add additional information to the product description. The new content will be appended to the existing description and cannot be edited or deleted later.
+                      </Typography>
+                    </Alert>
+                    <RichTextEditor
+                      value={newDescription}
+                      onChange={handleNewDescriptionChange}
+                      placeholder="Add more details about your product..."
+                      minHeight={200}
+                    />
+                    <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
+                      <Button
+                        variant="outlined"
+                        onClick={() => setNewDescription('')}
+                        disabled={submittingDescription || !newDescription.trim()}
+                      >
+                        Clear
+                      </Button>
+                      <Button
+                        variant="contained"
+                        onClick={handleSubmitNewDescription}
+                        disabled={!newDescription.replace(/<[^>]*>/g, '').trim() || submittingDescription}
+                        startIcon={submittingDescription ? <CircularProgress size={16} color="inherit" /> : <Send />}
+                      >
+                        {submittingDescription ? 'Submitting...' : 'Add Description'}
+                      </Button>
+                    </Stack>
+                  </Box>
+                </Card>
+              )}
             </Grid>
 
             {/* Right: Product Info - 45% width */}
