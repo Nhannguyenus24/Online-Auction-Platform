@@ -29,6 +29,7 @@ import {
 } from '@mui/icons-material';
 import Page from '../../components/Page';
 import RichTextEditor from '../../components/RichTextEditor';
+import CategorySelector from '../../components/CategorySelector';
 import { formatPrice } from '../../utils/formatNumber';
 
 // Validation schema
@@ -70,6 +71,8 @@ const auctionSchema = yup.object({
     .array()
     .min(3, 'Please upload at least 3 images')
     .required('At least 3 images are required'),
+  parentCategory: yup.string().required('Parent category is required'),
+  childCategory: yup.string().required('Subcategory is required'),
 });
 
 const defaultValues = {
@@ -79,6 +82,8 @@ const defaultValues = {
   buyNowPrice: '',
   description: '',
   autoExtend: false,
+  parentCategory: '',
+  childCategory: '',
 };
 
 const SellerCreateAuctionPage = () => {
@@ -260,6 +265,22 @@ const SellerCreateAuctionPage = () => {
                 required
                 placeholder="e.g., Luxury Swiss Automatic Watch - Rose Gold"
               />
+
+              <Divider />
+
+              {/* Category Selection */}
+              <Box>
+                <Typography variant="h6" gutterBottom fontWeight={600}>
+                  Product Category
+                </Typography>
+                <CategorySelector
+                  parentCategory={formValues.parentCategory}
+                  childCategory={formValues.childCategory}
+                  onChange={handleChange}
+                  error={formErrors.parentCategory || formErrors.childCategory}
+                  helperText="Select the most appropriate category for your product"
+                />
+              </Box>
 
               <Divider />
 

@@ -6,4 +6,5 @@
 export * from './watchList';
 export * from './profile';
 export * from './sellerProfile';
+export * from './categories';
 
