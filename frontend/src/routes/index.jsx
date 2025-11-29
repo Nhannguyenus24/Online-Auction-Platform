@@ -51,7 +51,7 @@ export default function Router() {
     },
     {
       path: "bidder",
-      element: < MainLayout />,
+      element: <BidderLayout />,
       children: [
         { path: "", element: <Navigate to="/bidder/home" replace /> },
         { path: "home", element: <BidderHomePage /> },
@@ -86,6 +86,7 @@ const Register = Loadable(lazy(() => import("../pages/authentication/Register.js
 // MAINLAYOUT
 const AdminLayout = Loadable(lazy(() => import("../layouts/AdminLayout.jsx")));
 const MainLayout = Loadable(lazy(() => import("../layouts/MainLayout.jsx")));
+const BidderLayout = Loadable(lazy(() => import("../layouts/BidderLayout.jsx")));
 
 //ADMIN
 const DashboardAdmin = Loadable(lazy(() => import("../pages/admin/DashBoardPage.jsx")));
