@@ -2,7 +2,7 @@ import axiosInstance from './axios';
 import { jwtVerify, importSPKI } from 'jose';
 
 // ----------------------------------------------------------------------
-const PUBLIC_KEY_PEM = import.meta.env.VITE_PUBLIC_KEY;
+const PUBLIC_KEY_PEM = process.env.REACT_APP_PUBLIC_KEY;
 
 
 const isValidToken = async (accessToken) => {

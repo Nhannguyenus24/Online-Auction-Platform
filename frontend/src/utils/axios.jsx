@@ -1,9 +1,10 @@
 import axios from 'axios';
+import { PATH_AUTH } from '../routes/paths';
 
 // ----------------------------------------------------------------------
 
 const axiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5173',
+  baseURL: process.env.REACT_APP_API_URL,
   withCredentials: true, // cookie
 });
 
