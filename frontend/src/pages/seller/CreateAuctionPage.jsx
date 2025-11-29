@@ -28,6 +28,7 @@ import {
   CloudUpload,
 } from '@mui/icons-material';
 import Page from '../../components/Page';
+import RichTextEditor from '../../components/RichTextEditor';
 import { formatPrice } from '../../utils/formatNumber';
 
 // Validation schema
@@ -55,7 +56,15 @@ const auctionSchema = yup.object({
       if (value === null || value === undefined || value === '') return true;
       return value > 0;
     }),
-  description: yup.string().required('Description is required').min(20, 'Description must be at least 20 characters'),
+  description: yup
+    .string()
+    .required('Description is required')
+    .test('min-length', 'Description must be at least 20 characters', function(value) {
+      if (!value) return false;
+      // Strip HTML tags to count actual text length
+      const textContent = value.replace(/<[^>]*>/g, '').trim();
+      return textContent.length >= 20;
+    }),
   autoExtend: yup.boolean(),
   images: yup
     .array()
@@ -483,20 +492,15 @@ const SellerCreateAuctionPage = () => {
                   Product Description
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  WYSIWYG editor will be added in Step 3. For now, use plain text.
+                  Use the rich text editor to format your product description. Minimum 20 characters of text content.
                 </Typography>
-                <TextField
-                  fullWidth
-                  label="Description"
-                  name="description"
-                  multiline
-                  rows={8}
+                <RichTextEditor
                   value={formValues.description}
                   onChange={handleChange}
                   error={!!formErrors.description}
-                  helperText={formErrors.description || 'Minimum 20 characters. Rich text editor coming in Step 3.'}
-                  required
+                  helperText={formErrors.description || 'Minimum 20 characters of text content'}
                   placeholder="Describe your product in detail..."
+                  minHeight={300}
                 />
               </Box>
 
