@@ -43,6 +43,7 @@ import {
   ChevronRight,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 import Page from '../components/Page';
 
 // Mock data - replace with API calls
@@ -187,6 +188,14 @@ function ProductDetailPage() {
   const [question, setQuestion] = useState('');
   const [openBidDialog, setOpenBidDialog] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false); // Replace with actual auth state
+  const [answerTexts, setAnswerTexts] = useState({}); // Store answers for each question
+  const [submittingAnswer, setSubmittingAnswer] = useState({}); // Track which answer is being submitted
+  const [questions, setQuestions] = useState(mockQuestions); // Use state to manage questions
+
+  const { user } = useAuth();
+  // Check if current user is the seller/owner of this product
+  // Mock: Assume user.id === 101 is the seller for this product
+  const isSeller = user && user.roleName?.toLowerCase() === 'seller' && user.id === mockProduct.seller.id;
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat('vi-VN', {
@@ -263,6 +272,50 @@ function ProductDetailPage() {
       return;
     }
     setIsWatchlisted(!isWatchlisted);
+  };
+
+  const handleAnswerChange = (questionId, value) => {
+    setAnswerTexts((prev) => ({
+      ...prev,
+      [questionId]: value,
+    }));
+  };
+
+  const handleSubmitAnswer = async (questionId) => {
+    const answer = answerTexts[questionId]?.trim();
+    if (!answer) return;
+
+    setSubmittingAnswer((prev) => ({ ...prev, [questionId]: true }));
+
+    try {
+      // Mock API call - replace with actual API
+      // await axiosInstance.post(`/products/${mockProduct.id}/questions/${questionId}/answer`, { answer });
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      
+      // Update the question with answer in state
+      setQuestions((prev) =>
+        prev.map((q) =>
+          q.id === questionId
+            ? { ...q, answer, answeredAt: new Date() }
+            : q
+        )
+      );
+
+      // Clear answer text
+      setAnswerTexts((prev) => {
+        const updated = { ...prev };
+        delete updated[questionId];
+        return updated;
+      });
+    } catch (err) {
+      console.error('Error submitting answer:', err);
+    } finally {
+      setSubmittingAnswer((prev) => {
+        const updated = { ...prev };
+        delete updated[questionId];
+        return updated;
+      });
+    }
   };
 
   const suggestedBids = [
@@ -945,7 +998,7 @@ function ProductDetailPage() {
                     {/* Questions List */}
                     <Box sx={{ maxHeight: 500, overflowY: 'auto' }}>
                       <Stack spacing={2}>
-                        {mockQuestions.map((qa) => (
+                        {questions.map((qa) => (
                           <Paper key={qa.id} elevation={0} sx={{ 
                             p: 2.5,
                             borderRadius: 2,
@@ -1010,11 +1063,46 @@ function ProductDetailPage() {
                                     </Box>
                                   </Box>
                                 ) : (
-                                  <Alert severity="info" sx={{ py: 0.5 }}>
-                                    <Typography variant="caption">
-                                      Waiting for seller's response...
-                                    </Typography>
-                                  </Alert>
+                                  <Box>
+                                    {isSeller ? (
+                                      <Box sx={{ mt: 1 }}>
+                                        <TextField
+                                          fullWidth
+                                          multiline
+                                          rows={3}
+                                          placeholder="Type your answer here..."
+                                          value={answerTexts[qa.id] || ''}
+                                          onChange={(e) => handleAnswerChange(qa.id, e.target.value)}
+                                          sx={{ mb: 1 }}
+                                        />
+                                        <Stack direction="row" spacing={1} justifyContent="flex-end">
+                                          <Button
+                                            size="small"
+                                            variant="outlined"
+                                            onClick={() => handleAnswerChange(qa.id, '')}
+                                            disabled={submittingAnswer[qa.id]}
+                                          >
+                                            Clear
+                                          </Button>
+                                          <Button
+                                            size="small"
+                                            variant="contained"
+                                            startIcon={<Send />}
+                                            onClick={() => handleSubmitAnswer(qa.id)}
+                                            disabled={!answerTexts[qa.id]?.trim() || submittingAnswer[qa.id]}
+                                          >
+                                            {submittingAnswer[qa.id] ? 'Submitting...' : 'Submit Answer'}
+                                          </Button>
+                                        </Stack>
+                                      </Box>
+                                    ) : (
+                                      <Alert severity="info" sx={{ py: 0.5 }}>
+                                        <Typography variant="caption">
+                                          Waiting for seller's response...
+                                        </Typography>
+                                      </Alert>
+                                    )}
+                                  </Box>
                                 )}
                               </Box>
                             </Box>
