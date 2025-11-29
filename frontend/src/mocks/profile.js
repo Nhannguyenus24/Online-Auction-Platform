@@ -143,3 +143,131 @@ export const mockGetWonItems = (delay = 500) => {
   });
 };
 
+// Ratings received (from others)
+export const mockRatingsReceived = [
+  {
+    id: 1,
+    fromUser: 'Seller A',
+    fromUserId: 101,
+    rating: 1, // +1
+    comment: 'Great bidder! Fast payment and smooth transaction.',
+    date: getPastDate(5),
+    productTitle: 'Vintage Rolex Submariner - 1985',
+    productId: 201,
+  },
+  {
+    id: 2,
+    fromUser: 'Seller B',
+    fromUserId: 102,
+    rating: 1, // +1
+    comment: 'Excellent communication and quick response. Highly recommended!',
+    date: getPastDate(10),
+    productTitle: 'Designer Leather Handbag - Hermès Style',
+    productId: 202,
+  },
+  {
+    id: 3,
+    fromUser: 'Seller C',
+    fromUserId: 103,
+    rating: -1, // -1
+    comment: 'Payment was delayed. Had to wait longer than expected.',
+    date: getPastDate(15),
+    productTitle: 'Canon EOS R5 Professional Camera Body',
+    productId: 203,
+  },
+  {
+    id: 4,
+    fromUser: 'Seller D',
+    fromUserId: 104,
+    rating: 1, // +1
+    comment: 'Perfect buyer! Very professional and trustworthy.',
+    date: getPastDate(20),
+    productTitle: 'Luxury Watch Collection',
+    productId: 204,
+  },
+  {
+    id: 5,
+    fromUser: 'Seller E',
+    fromUserId: 105,
+    rating: 1, // +1
+    comment: 'Great experience. Would sell to again!',
+    date: getPastDate(25),
+    productTitle: 'Vintage Camera Set',
+    productId: 205,
+  },
+];
+
+// Ratings given (to sellers)
+export const mockRatingsGiven = [
+  {
+    id: 1,
+    toUser: 'Seller A',
+    toUserId: 101,
+    rating: 1, // +1
+    comment: 'Amazing product! Exactly as described. Fast shipping.',
+    date: getPastDate(5),
+    productTitle: 'Vintage Rolex Submariner - 1985',
+    productId: 201,
+  },
+  {
+    id: 2,
+    toUser: 'Seller B',
+    toUserId: 102,
+    rating: 1, // +1
+    comment: 'Good seller, product in great condition.',
+    date: getPastDate(10),
+    productTitle: 'Designer Leather Handbag - Hermès Style',
+    productId: 202,
+  },
+];
+
+// Won items that need rating (completed but not rated yet)
+export const mockItemsNeedingRating = [
+  {
+    id: 2,
+    productId: 202,
+    title: 'Designer Leather Handbag - Hermès Style',
+    image: 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=400',
+    sellerName: 'Seller B',
+    sellerId: 102,
+    completedDate: getPastDate(10),
+  },
+];
+
+// Mock API functions for ratings
+export const mockGetRatingsReceived = (delay = 500) => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve({
+        success: true,
+        data: mockRatingsReceived,
+        total: mockRatingsReceived.length,
+      });
+    }, delay);
+  });
+};
+
+export const mockGetRatingsGiven = (delay = 500) => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve({
+        success: true,
+        data: mockRatingsGiven,
+        total: mockRatingsGiven.length,
+      });
+    }, delay);
+  });
+};
+
+export const mockGetItemsNeedingRating = (delay = 500) => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve({
+        success: true,
+        data: mockItemsNeedingRating,
+        total: mockItemsNeedingRating.length,
+      });
+    }, delay);
+  });
+};
+
