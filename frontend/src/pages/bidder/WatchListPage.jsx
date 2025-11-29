@@ -22,6 +22,7 @@ import {
 } from '@mui/icons-material';
 import Page from '../../components/Page';
 import { formatPrice } from '../../utils/formatNumber';
+import { mockGetWatchList } from '../../mocks';
 
 const BidderWatchListPage = () => {
   const navigate = useNavigate();
@@ -29,13 +30,25 @@ const BidderWatchListPage = () => {
   const [watchList, setWatchList] = useState([]);
   const [error, setError] = useState(null);
 
-  // Mock data for now - will be replaced with API call in Step 2
+  // Use mock data for now - will be replaced with real API call in Step 2
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setWatchList([]); // Empty for now to show empty state
-      setLoading(false);
-    }, 500);
+    const fetchWatchList = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        // Use mock data - set to false to see products, true to see empty state
+        const response = await mockGetWatchList(false, 500);
+        setWatchList(response.data || []);
+      } catch (err) {
+        console.error('Error fetching watch list:', err);
+        setError('Failed to load watch list. Please try again.');
+        setWatchList([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchWatchList();
   }, []);
 
   // Calculate time left
