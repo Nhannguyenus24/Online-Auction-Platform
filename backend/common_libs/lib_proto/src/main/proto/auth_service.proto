@@ -27,6 +27,9 @@ service AuthService {
 
   // 6. Đổi mật khẩu
   rpc ChangePassword (ChangePasswordRequest) returns (ChangePasswordResponse);
+
+  // 7. Xác minh email
+  rpc VerifyEmail (VerifyEmailRequest) returns (VerifyEmailResponse);
 }
 
 // --- Message Definitions ---
@@ -37,14 +40,15 @@ message RegisterRequest {
   string password = 2;
   string full_name = 3;
   string phone_number = 4; // Optional
+  string address = 5; // Optional
 }
 
 message RegisterResponse {
   string user_id = 1;
   string email = 2;
-  // Có thể trả về Token luôn để auto-login sau khi reg, hoặc bắt user login lại
   bool success = 3;
   string message = 4;
+  string email_verification_link = 5;
 }
 
 // 2. LOGIN
@@ -112,6 +116,16 @@ message ChangePasswordRequest {
 }
 
 message ChangePasswordResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// 7. VERIFY EMAIL
+message VerifyEmailRequest {
+  string token = 1;
+}
+
+message VerifyEmailResponse {
   bool success = 1;
   string message = 2;
 }
