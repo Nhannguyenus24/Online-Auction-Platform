@@ -52,8 +52,7 @@ const ProductCard = ({
       sx={{
         cursor: 'pointer',
         height: '100%',
-        minWidth: 350,
-        maxWidth: 350,
+        width: 350,
         display: 'flex',
         flexDirection: 'column',
         border: '1px solid',

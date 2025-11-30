@@ -19,6 +19,7 @@ import {
   Person as PersonIcon,
   Menu as MenuIcon,
   Chat as ChatIcon,
+  Inventory as InventoryIcon,
 } from '@mui/icons-material';
 
 const DRAWER_WIDTH = 260;
@@ -39,6 +40,7 @@ const SellerLayout = () => {
   const menuItems = [
     { title: 'Dashboard', path: '/seller/home', icon: <HomeIcon /> },
     { title: 'Create Auction', path: '/seller/create-auction', icon: <AddCircleIcon /> },
+    { title: 'My Products', path: '/seller/products', icon: <InventoryIcon /> },
     { title: 'Orders', path: '/seller/orders', icon: <ListAltIcon /> },
     { title: 'Chat', path: '/seller/chat', icon: <ChatIcon /> },
     { title: 'Profile', path: '/seller/profile', icon: <PersonIcon /> },

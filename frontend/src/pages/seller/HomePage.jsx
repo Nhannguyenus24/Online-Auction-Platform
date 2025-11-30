@@ -22,8 +22,12 @@ import {
   Clear,
   EmojiEvents,
   Inventory,
+  AttachMoney,
+  Visibility,
+  TrendingUp,
 } from '@mui/icons-material';
 import Page from '../../components/Page';
+import StatCard from '../../components/StatCard';
 import ProductCard from '../../components/ProductCard';
 import { formatPrice } from '../../utils/formatNumber';
 import { mockGetSellerProducts, mockGetSellerWonItems } from '../../mocks';
@@ -35,6 +39,46 @@ const SellerHomePage = () => {
   const [wonItems, setWonItems] = useState([]);
   const [loading, setLoading] = useState({ active: false, won: false });
   const [searchQuery, setSearchQuery] = useState('');
+  const [stats, setStats] = useState({
+    activeListings: 0,
+    wonItems: 0,
+    totalRevenue: 0,
+    totalViews: 0,
+  });
+
+  // Fetch all data on mount to calculate complete stats
+  useEffect(() => {
+    const fetchAllData = async () => {
+      try {
+        // Fetch active listings
+        const activeRes = await mockGetSellerProducts(false, 500);
+        const active = (activeRes.data || []).filter((p) => p.status === 'active');
+        setActiveListings(active);
+        
+        // Fetch won items
+        const wonRes = await mockGetSellerWonItems(false, 500);
+        const wonData = wonRes.data || [];
+        setWonItems(wonData);
+        
+        // Calculate all stats
+        const activeViews = active.reduce((sum, p) => sum + (p.views || 0), 0);
+        const wonViews = wonData.reduce((sum, item) => sum + (item.views || 0), 0);
+        const totalRevenue = wonData.reduce((sum, item) => sum + (item.winningPrice || 0), 0);
+        
+        setStats({
+          activeListings: active.length,
+          wonItems: wonData.length,
+          totalRevenue,
+          totalViews: activeViews + wonViews,
+        });
+      } catch (err) {
+        console.error('Error fetching data:', err);
+        setActiveListings([]);
+        setWonItems([]);
+      }
+    };
+    fetchAllData();
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -57,7 +101,8 @@ const SellerHomePage = () => {
         try {
           setLoading((prev) => ({ ...prev, won: true }));
           const response = await mockGetSellerWonItems(false, 500);
-          setWonItems(response.data || []);
+          const wonData = response.data || [];
+          setWonItems(wonData);
         } catch (err) {
           console.error('Error fetching won items:', err);
           setWonItems([]);
@@ -68,6 +113,20 @@ const SellerHomePage = () => {
     };
     fetchData();
   }, [tabValue]);
+
+  // Recalculate stats whenever activeListings or wonItems change
+  useEffect(() => {
+    const activeViews = activeListings.reduce((sum, p) => sum + (p.views || 0), 0);
+    const wonViews = wonItems.reduce((sum, item) => sum + (item.views || 0), 0);
+    const totalRevenue = wonItems.reduce((sum, item) => sum + (item.winningPrice || 0), 0);
+    
+    setStats({
+      activeListings: activeListings.length,
+      wonItems: wonItems.length,
+      totalRevenue,
+      totalViews: activeViews + wonViews,
+    });
+  }, [activeListings, wonItems]);
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
@@ -105,6 +164,46 @@ const SellerHomePage = () => {
             Manage your active listings and view items with winners
           </Typography>
         </Box>
+
+        {/* Statistics Cards */}
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          <Grid item xs={12} sm={6} md={3}>
+            <StatCard
+              title="Active Listings"
+              value={stats.activeListings}
+              icon={<Inventory />}
+              color="primary"
+              simple
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <StatCard
+              title="Won Items"
+              value={stats.wonItems}
+              icon={<EmojiEvents />}
+              color="success"
+              simple
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <StatCard
+              title="Total Revenue"
+              value={formatPrice(stats.totalRevenue)}
+              icon={<AttachMoney />}
+              color="info"
+              simple
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <StatCard
+              title="Total Views"
+              value={stats.totalViews}
+              icon={<Visibility />}
+              color="warning"
+              simple
+            />
+          </Grid>
+        </Grid>
 
         {/* Tabs */}
         <Card elevation={0} sx={{ mb: 3, border: '1px solid', borderColor: 'divider' }}>

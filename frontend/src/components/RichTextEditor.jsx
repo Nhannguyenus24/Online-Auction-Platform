@@ -18,7 +18,7 @@ import {
   Image as ImageIcon,
 } from '@mui/icons-material';
 
-const RichTextEditor = ({ value, onChange, error, helperText, placeholder, minHeight = 200 }) => {
+const RichTextEditor = ({ value, onChange, error, helperText, placeholder, minHeight = 200, disabled = false }) => {
   const editorRef = useRef(null);
   const [isFocused, setIsFocused] = useState(false);
   const lastValueRef = useRef(value || '');
@@ -53,6 +53,7 @@ const RichTextEditor = ({ value, onChange, error, helperText, placeholder, minHe
   };
 
   const execCommand = (command, value = null) => {
+    if (disabled) return;
     document.execCommand(command, false, value);
     editorRef.current?.focus();
     handleInput();
@@ -78,6 +79,8 @@ const RichTextEditor = ({ value, onChange, error, helperText, placeholder, minHe
           borderRadius: 1,
           overflow: 'hidden',
           transition: 'all 0.2s',
+          opacity: disabled ? 0.6 : 1,
+          bgcolor: disabled ? 'grey.50' : 'transparent',
         }}
       >
         {/* Toolbar */}
@@ -98,6 +101,7 @@ const RichTextEditor = ({ value, onChange, error, helperText, placeholder, minHe
               size="small"
               onClick={() => execCommand('bold')}
               onMouseDown={(e) => e.preventDefault()}
+              disabled={disabled}
             >
               <FormatBold fontSize="small" />
             </IconButton>
@@ -107,6 +111,7 @@ const RichTextEditor = ({ value, onChange, error, helperText, placeholder, minHe
               size="small"
               onClick={() => execCommand('italic')}
               onMouseDown={(e) => e.preventDefault()}
+              disabled={disabled}
             >
               <FormatItalic fontSize="small" />
             </IconButton>
@@ -116,6 +121,7 @@ const RichTextEditor = ({ value, onChange, error, helperText, placeholder, minHe
               size="small"
               onClick={() => execCommand('underline')}
               onMouseDown={(e) => e.preventDefault()}
+              disabled={disabled}
             >
               <FormatUnderlined fontSize="small" />
             </IconButton>
@@ -126,6 +132,7 @@ const RichTextEditor = ({ value, onChange, error, helperText, placeholder, minHe
               size="small"
               onClick={() => execCommand('insertUnorderedList')}
               onMouseDown={(e) => e.preventDefault()}
+              disabled={disabled}
             >
               <FormatListBulleted fontSize="small" />
             </IconButton>
@@ -135,6 +142,7 @@ const RichTextEditor = ({ value, onChange, error, helperText, placeholder, minHe
               size="small"
               onClick={() => execCommand('insertOrderedList')}
               onMouseDown={(e) => e.preventDefault()}
+              disabled={disabled}
             >
               <FormatListNumbered fontSize="small" />
             </IconButton>
@@ -144,6 +152,7 @@ const RichTextEditor = ({ value, onChange, error, helperText, placeholder, minHe
               size="small"
               onClick={() => execCommand('formatBlock', 'blockquote')}
               onMouseDown={(e) => e.preventDefault()}
+              disabled={disabled}
             >
               <FormatQuote fontSize="small" />
             </IconButton>
@@ -153,10 +162,12 @@ const RichTextEditor = ({ value, onChange, error, helperText, placeholder, minHe
             <IconButton
               size="small"
               onClick={() => {
+                if (disabled) return;
                 const url = prompt('Enter URL:');
                 if (url) execCommand('createLink', url);
               }}
               onMouseDown={(e) => e.preventDefault()}
+              disabled={disabled}
             >
               <Link fontSize="small" />
             </IconButton>
@@ -166,16 +177,17 @@ const RichTextEditor = ({ value, onChange, error, helperText, placeholder, minHe
         {/* Editor */}
         <Box
           ref={editorRef}
-          contentEditable
+          contentEditable={!disabled}
           suppressContentEditableWarning
           onInput={handleInput}
-          onPaste={handlePaste}
-          onFocus={() => setIsFocused(true)}
+          onPaste={disabled ? undefined : handlePaste}
+          onFocus={() => !disabled && setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           sx={{
             minHeight,
             p: 2,
             outline: 'none',
+            cursor: disabled ? 'not-allowed' : 'text',
             '&:empty:before': {
               content: `"${placeholder || 'Start typing...'}"`,
               color: 'text.disabled',

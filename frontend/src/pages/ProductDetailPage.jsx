@@ -207,7 +207,10 @@ function ProductDetailPage() {
   const { user } = useAuth();
   // Check if current user is the seller/owner of this product
   // Mock: Assume user.id === 101 is the seller for this product
-  const isSeller = user && user.roleName?.toLowerCase() === 'seller' && user.id === mockProduct.seller.id;
+  let isSeller = user && user.roleName?.toLowerCase() === 'seller' && user.id === mockProduct.seller.id;
+  isSeller = true;
+  // Check if auction has started (has bids)
+  const hasStartedBidding = mockProduct.bidCount > 0 || bidHistory.length > 0;
   const formatPrice = (price) => {
     return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
@@ -599,44 +602,60 @@ function ProductDetailPage() {
                   borderRadius: 3,
                   boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
                   border: '2px dashed',
-                  borderColor: 'primary.main',
-                  bgcolor: 'primary.50'
+                  borderColor: hasStartedBidding ? 'grey.300' : 'primary.main',
+                  bgcolor: hasStartedBidding ? 'grey.50' : 'primary.50'
                 }}>
                   <Box sx={{ p: 3 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                      <Typography variant="h6" fontWeight="bold" color="primary">
+                      <Typography variant="h6" fontWeight="bold" color={hasStartedBidding ? 'text.secondary' : 'primary'}>
                         Add More Description
                       </Typography>
-                      <Chip label="Seller Only" size="small" color="primary" sx={{ fontWeight: 'bold' }} />
+                      <Chip 
+                        label={hasStartedBidding ? 'Bidding Started' : 'Seller Only'} 
+                        size="small" 
+                        color={hasStartedBidding ? 'default' : 'primary'} 
+                        sx={{ fontWeight: 'bold' }} 
+                      />
                     </Box>
-                    <Alert severity="info" sx={{ mb: 2 }}>
-                      <Typography variant="body2">
-                        You can add additional information to the product description. The new content will be appended to the existing description and cannot be edited or deleted later.
-                      </Typography>
-                    </Alert>
-                    <RichTextEditor
-                      value={newDescription}
-                      onChange={handleNewDescriptionChange}
-                      placeholder="Add more details about your product..."
-                      minHeight={200}
-                    />
-                    <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
-                      <Button
-                        variant="outlined"
-                        onClick={() => setNewDescription('')}
-                        disabled={submittingDescription || !newDescription.trim()}
-                      >
-                        Clear
-                      </Button>
-                      <Button
-                        variant="contained"
-                        onClick={handleSubmitNewDescription}
-                        disabled={!newDescription.replace(/<[^>]*>/g, '').trim() || submittingDescription}
-                        startIcon={submittingDescription ? <CircularProgress size={16} color="inherit" /> : <Send />}
-                      >
-                        {submittingDescription ? 'Submitting...' : 'Add Description'}
-                      </Button>
-                    </Stack>
+                    {hasStartedBidding ? (
+                      <Alert severity="warning" sx={{ mb: 2 }}>
+                        <Typography variant="body2" fontWeight="medium">
+                          Bidding has already started. You cannot add more description to maintain fairness and transparency.
+                        </Typography>
+                      </Alert>
+                    ) : (
+                      <>
+                        <Alert severity="info" sx={{ mb: 2 }}>
+                          <Typography variant="body2">
+                            You can add additional information to the product description before bidding starts. The new content will be appended to the existing description and cannot be edited or deleted later.
+                          </Typography>
+                        </Alert>
+                        <RichTextEditor
+                          value={newDescription}
+                          onChange={handleNewDescriptionChange}
+                          placeholder="Add more details about your product..."
+                          minHeight={200}
+                          disabled={hasStartedBidding}
+                        />
+                        <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
+                          <Button
+                            variant="outlined"
+                            onClick={() => setNewDescription('')}
+                            disabled={submittingDescription || !newDescription.trim() || hasStartedBidding}
+                          >
+                            Clear
+                          </Button>
+                          <Button
+                            variant="contained"
+                            onClick={handleSubmitNewDescription}
+                            disabled={!newDescription.replace(/<[^>]*>/g, '').trim() || submittingDescription || hasStartedBidding}
+                            startIcon={submittingDescription ? <CircularProgress size={16} color="inherit" /> : <Send />}
+                          >
+                            {submittingDescription ? 'Submitting...' : 'Add Description'}
+                          </Button>
+                        </Stack>
+                      </>
+                    )}
                   </Box>
                 </Card>
               )}
