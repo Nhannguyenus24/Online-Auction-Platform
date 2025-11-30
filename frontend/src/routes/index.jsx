@@ -74,6 +74,7 @@ export default function Router() {
         { path: "auction-history", element: <BidderAuctionHistoryPage /> },
         { path: "checkout", element: <BidderCheckoutPage /> },
         { path: "checkout/:id", element: <BidderCheckoutPage /> },
+        { path: "order-completion/:orderId", element: <BidderOrderCompletionPage /> },
       ],
     },
     {
@@ -161,6 +162,9 @@ const BidderAuctionHistoryPage = Loadable(
 );
 const BidderCheckoutPage = Loadable(
   lazy(() => import("../pages/bidder/CheckoutPage.jsx"))
+);
+const BidderOrderCompletionPage = Loadable(
+  lazy(() => import("../pages/bidder/OrderCompletionPage.jsx"))
 );
 
 // OTHERS

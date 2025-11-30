@@ -6,12 +6,10 @@ import {
   Typography,
   Card,
   CardContent,
-  CardMedia,
   Grid,
   Tabs,
   Tab,
   Button,
-  Chip,
   CircularProgress,
   Stack,
   TextField,
@@ -20,15 +18,13 @@ import {
 } from '@mui/material';
 import {
   AddBox,
-  AccessTime,
-  LocalOffer,
-  Visibility,
   Search,
   Clear,
   EmojiEvents,
   Inventory,
 } from '@mui/icons-material';
 import Page from '../../components/Page';
+import ProductCard from '../../components/ProductCard';
 import { formatPrice } from '../../utils/formatNumber';
 import { mockGetSellerProducts, mockGetSellerWonItems } from '../../mocks';
 
@@ -78,24 +74,6 @@ const SellerHomePage = () => {
     setSearchQuery(''); // Reset search when switching tabs
   };
 
-  const getTimeLeft = (endTime) => {
-    if (!endTime) return 'N/A';
-    const now = new Date();
-    const end = new Date(endTime);
-    const diff = end - now;
-
-    if (diff <= 0) return 'Ended';
-
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-    if (days > 0) return `${days}d ${hours}h`;
-    if (hours > 0) return `${hours}h ${minutes}m`;
-    return `${minutes}m ${seconds}s`;
-  };
-
   // Filter products based on search query
   const filteredActiveListings = activeListings.filter((product) =>
     product.title.toLowerCase().includes(searchQuery.toLowerCase())
@@ -103,139 +81,6 @@ const SellerHomePage = () => {
 
   const filteredWonItems = wonItems.filter((product) =>
     product.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  // Product Card Component
-  const ProductCard = ({ product, showStatus = false }) => (
-    <Card
-      elevation={0}
-      sx={{
-        cursor: 'pointer',
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        border: '1px solid',
-        borderColor: 'grey.200',
-        borderRadius: 2,
-        overflow: 'hidden',
-        transition: 'all 0.3s',
-        position: 'relative',
-        '&:hover': {
-          boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-          transform: 'translateY(-4px)',
-          borderColor: 'primary.main',
-        },
-      }}
-      onClick={() => navigate(`/product/${product.productId || product.id}`)}
-    >
-      <Box sx={{ position: 'relative', paddingTop: '75%', bgcolor: 'grey.50' }}>
-        <CardMedia
-          component="img"
-          image={product.image || '/placeholder-image.jpg'}
-          alt={product.title}
-          sx={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-          }}
-        />
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 12,
-            right: 12,
-            bgcolor: 'rgba(255,255,255,0.95)',
-            backdropFilter: 'blur(10px)',
-            px: 1.5,
-            py: 0.5,
-            borderRadius: 1.5,
-            boxShadow: 1,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 0.5,
-          }}
-        >
-          <LocalOffer sx={{ fontSize: 14, color: 'primary.main' }} />
-          <Typography variant="caption" fontWeight="bold" color="primary">
-            {product.bidCount || 0} bids
-          </Typography>
-        </Box>
-        {product.condition && (
-          <Chip
-            label={product.condition}
-            size="small"
-            color={product.condition === 'New' ? 'success' : 'default'}
-            sx={{
-              position: 'absolute',
-              top: 12,
-              left: 12,
-              fontWeight: 'bold',
-              fontSize: '0.7rem',
-            }}
-          />
-        )}
-        {showStatus && product.status && (
-          <Chip
-            label={product.status === 'active' ? 'Active' : 'Ended'}
-            size="small"
-            color={product.status === 'active' ? 'success' : 'default'}
-            sx={{
-              position: 'absolute',
-              bottom: 12,
-              left: 12,
-              fontWeight: 'bold',
-            }}
-          />
-        )}
-      </Box>
-      <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', p: 2 }}>
-        <Typography
-          variant="subtitle1"
-          fontWeight={600}
-          sx={{
-            mb: 1,
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-            minHeight: '3em',
-          }}
-        >
-          {product.title}
-        </Typography>
-        <Box sx={{ mt: 'auto', pt: 1 }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-            <Typography variant="h6" color="primary" fontWeight="bold">
-              {formatPrice(product.currentPrice || product.winningPrice || 0)}
-            </Typography>
-            {product.views !== undefined && (
-              <Stack direction="row" spacing={0.5} alignItems="center">
-                <Visibility sx={{ fontSize: 16, color: 'text.secondary' }} />
-                <Typography variant="caption" color="text.secondary">
-                  {product.views}
-                </Typography>
-              </Stack>
-            )}
-          </Stack>
-          {product.endTime && (
-            <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
-              <AccessTime sx={{ fontSize: 14, color: 'text.secondary' }} />
-              <Typography variant="caption" color="text.secondary">
-                {getTimeLeft(product.endTime)}
-              </Typography>
-            </Stack>
-          )}
-          {product.winnerName && (
-            <Typography variant="caption" color="success.main" sx={{ mt: 1, display: 'block' }}>
-              Winner: {product.winnerName}
-            </Typography>
-          )}
-        </Box>
-      </CardContent>
-    </Card>
   );
 
   return (
@@ -347,7 +192,11 @@ const SellerHomePage = () => {
                   <Grid container spacing={3}>
                     {filteredActiveListings.map((product) => (
                       <Grid item xs={12} sm={6} md={4} lg={3} key={product.id}>
-                        <ProductCard product={product} showStatus />
+                        <ProductCard 
+                          product={product} 
+                          showStatus 
+                          showViews 
+                        />
                       </Grid>
                     ))}
                   </Grid>
@@ -378,7 +227,11 @@ const SellerHomePage = () => {
                   <Grid container spacing={3}>
                     {filteredWonItems.map((product) => (
                       <Grid item xs={12} sm={6} md={4} lg={3} key={product.id}>
-                        <ProductCard product={product} />
+                        <ProductCard 
+                          product={product} 
+                          showViews 
+                          showWinner 
+                        />
                       </Grid>
                     ))}
                   </Grid>

@@ -21,6 +21,11 @@ import {
   CircularProgress,
   Stack,
   Button,
+  Pagination,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
 } from '@mui/material';
 import {
   History,
@@ -30,6 +35,8 @@ import {
   AccessTime,
   EmojiEvents,
   Gavel,
+  ChevronLeft,
+  ChevronRight,
 } from '@mui/icons-material';
 import Page from '../../components/Page';
 import { formatPrice } from '../../utils/formatNumber';
@@ -40,18 +47,28 @@ const BidderAuctionHistoryPage = () => {
   const navigate = useNavigate();
   const [tabValue, setTabValue] = useState(0); // 0: All, 1: Active, 2: Ended, 3: Won
   const [loading, setLoading] = useState(false);
-  const [biddingHistory, setBiddingHistory] = useState([]);
+  const [allBiddingHistory, setAllBiddingHistory] = useState([]); // All data from API
   const [wonItems, setWonItems] = useState([]);
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    currentSize: 10,
+    totalPages: 1,
+    totalItems: 0,
+    hasNext: false,
+    hasPrevious: false,
+  });
+  const [pageSize, setPageSize] = useState(10);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
+        // Fetch all data (no pagination from API for now, as we filter client-side)
         const [biddingRes, wonRes] = await Promise.all([
-          mockGetBiddingHistory(500),
+          mockGetBiddingHistory(500, 1, 1000), // Get all data
           mockGetWonItems(500),
         ]);
-        setBiddingHistory(biddingRes.data || []);
+        setAllBiddingHistory(biddingRes.data || []);
         setWonItems(wonRes.data || []);
       } catch (err) {
         console.error('Error fetching auction history:', err);
@@ -93,29 +110,72 @@ const BidderAuctionHistoryPage = () => {
     return { label: 'Active', color: 'info', icon: <AccessTime /> };
   };
 
+  // Get filtered bids based on tab
   const getFilteredBids = () => {
     const now = new Date();
     const wonProductIds = new Set(wonItems.map((item) => item.productId));
 
     switch (tabValue) {
       case 1: // Active
-        return biddingHistory.filter((bid) => {
+        return allBiddingHistory.filter((bid) => {
           const endTime = new Date(bid.endTime);
           return endTime > now && !wonProductIds.has(bid.productId);
         });
       case 2: // Ended
-        return biddingHistory.filter((bid) => {
+        return allBiddingHistory.filter((bid) => {
           const endTime = new Date(bid.endTime);
           return endTime <= now && !wonProductIds.has(bid.productId);
         });
       case 3: // Won
-        return biddingHistory.filter((bid) => wonProductIds.has(bid.productId));
+        return allBiddingHistory.filter((bid) => wonProductIds.has(bid.productId));
       default: // All
-        return biddingHistory;
+        return allBiddingHistory;
     }
   };
 
-  const filteredBids = getFilteredBids();
+  const allFilteredBids = getFilteredBids();
+
+  // Update pagination when filtered data or page size changes
+  useEffect(() => {
+    const totalItems = allFilteredBids.length;
+    const totalPages = Math.ceil(totalItems / pageSize) || 1;
+    // Ensure current page is valid (not greater than total pages)
+    const currentPage = Math.min(pagination.currentPage, totalPages) || 1;
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const paginatedData = allFilteredBids.slice(startIndex, endIndex);
+
+    setPagination({
+      currentPage: currentPage,
+      currentSize: paginatedData.length,
+      totalPages: totalPages,
+      totalItems: totalItems,
+      hasNext: currentPage < totalPages,
+      hasPrevious: currentPage > 1,
+    });
+  }, [allBiddingHistory.length, wonItems.length, tabValue, pageSize]);
+
+  // Get paginated bids
+  const filteredBids = (() => {
+    const startIndex = (pagination.currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return allFilteredBids.slice(startIndex, endIndex);
+  })();
+
+  const handlePageChange = (event, newPage) => {
+    setPagination((prev) => ({ ...prev, currentPage: newPage }));
+  };
+
+  const handlePageSizeChange = (event) => {
+    const newSize = parseInt(event.target.value, 10);
+    setPageSize(newSize);
+    setPagination((prev) => ({ ...prev, currentPage: 1 })); // Reset to first page
+  };
+
+  const handleTabChange = (event, newValue) => {
+    setTabValue(newValue);
+    setPagination((prev) => ({ ...prev, currentPage: 1 })); // Reset to first page when tab changes
+  };
 
   return (
     <Page title="Auction History - Bidder Dashboard">
@@ -146,7 +206,7 @@ const BidderAuctionHistoryPage = () => {
           <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
             <Tabs
               value={tabValue}
-              onChange={(e, newValue) => setTabValue(newValue)}
+              onChange={handleTabChange}
               variant="scrollable"
               scrollButtons="auto"
               sx={{
@@ -160,28 +220,38 @@ const BidderAuctionHistoryPage = () => {
               <Tab
                 label={
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Gavel /> All ({biddingHistory.length})
+                    <Gavel /> All ({allBiddingHistory.length})
                   </Box>
                 }
               />
               <Tab
                 label={
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <AccessTime /> Active ({biddingHistory.filter((bid) => new Date(bid.endTime) > new Date() && !wonItems.some((item) => item.productId === bid.productId)).length})
+                    <AccessTime /> Active ({allBiddingHistory.filter((bid) => {
+                      const endTime = new Date(bid.endTime);
+                      const now = new Date();
+                      const wonProductIds = new Set(wonItems.map((item) => item.productId));
+                      return endTime > now && !wonProductIds.has(bid.productId);
+                    }).length})
                   </Box>
                 }
               />
               <Tab
                 label={
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Cancel /> Ended ({biddingHistory.filter((bid) => new Date(bid.endTime) <= new Date() && !wonItems.some((item) => item.productId === bid.productId)).length})
+                    <Cancel /> Ended ({allBiddingHistory.filter((bid) => {
+                      const endTime = new Date(bid.endTime);
+                      const now = new Date();
+                      const wonProductIds = new Set(wonItems.map((item) => item.productId));
+                      return endTime <= now && !wonProductIds.has(bid.productId);
+                    }).length})
                   </Box>
                 }
               />
               <Tab
                 label={
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <EmojiEvents /> Won ({biddingHistory.filter((bid) => wonItems.some((item) => item.productId === bid.productId)).length})
+                    <EmojiEvents /> Won ({allBiddingHistory.filter((bid) => wonItems.some((item) => item.productId === bid.productId)).length})
                   </Box>
                 }
               />
@@ -357,6 +427,56 @@ const BidderAuctionHistoryPage = () => {
                   </TableBody>
                 </Table>
               </TableContainer>
+            )}
+
+            {/* Pagination */}
+            {!loading && filteredBids.length > 0 && (
+              <Box
+                sx={{
+                  p: 3,
+                  borderTop: 1,
+                  borderColor: 'divider',
+                  display: 'flex',
+                  flexDirection: { xs: 'column', sm: 'row' },
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: 2,
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Showing {pagination.currentSize} of {pagination.totalItems} items
+                  </Typography>
+                  <FormControl size="small" sx={{ minWidth: 120 }}>
+                    <InputLabel>Page Size</InputLabel>
+                    <Select
+                      value={pageSize}
+                      label="Page Size"
+                      onChange={handlePageSizeChange}
+                    >
+                      <MenuItem value={5}>5</MenuItem>
+                      <MenuItem value={10}>10</MenuItem>
+                      <MenuItem value={20}>20</MenuItem>
+                      <MenuItem value={50}>50</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Box>
+
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Page {pagination.currentPage} of {pagination.totalPages}
+                  </Typography>
+                  <Pagination
+                    count={pagination.totalPages}
+                    page={pagination.currentPage}
+                    onChange={handlePageChange}
+                    color="primary"
+                    shape="rounded"
+                    showFirstButton
+                    showLastButton
+                  />
+                </Box>
+              </Box>
             )}
           </CardContent>
         </Card>

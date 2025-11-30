@@ -24,9 +24,6 @@ import {
 import {
   Person,
   Lock,
-  Favorite,
-  History,
-  EmojiEvents,
   Star,
   Visibility,
   VisibilityOff,
@@ -42,9 +39,6 @@ import Page from '../../components/Page';
 import { formatPrice } from '../../utils/formatNumber';
 import { fVNDate } from '../../utils/formatTime';
 import {
-  mockGetWatchList,
-  mockGetBiddingHistory,
-  mockGetWonItems,
   mockGetRatingsReceived,
   mockGetRatingsGiven,
   mockGetItemsNeedingRating,
@@ -76,16 +70,10 @@ const BidderProfilePage = () => {
   const [errorMessage, setErrorMessage] = useState('');
 
   // Data states for tabs
-  const [watchList, setWatchList] = useState([]);
-  const [biddingHistory, setBiddingHistory] = useState([]);
-  const [wonItems, setWonItems] = useState([]);
   const [ratingsReceived, setRatingsReceived] = useState([]);
   const [ratingsGiven, setRatingsGiven] = useState([]);
   const [itemsNeedingRating, setItemsNeedingRating] = useState([]);
   const [loading, setLoading] = useState({
-    watchList: false,
-    bidding: false,
-    won: false,
     ratings: false,
   });
   const [ratingSubTab, setRatingSubTab] = useState(0); // 0: Received, 1: Given, 2: Rate Sellers
@@ -166,37 +154,7 @@ const BidderProfilePage = () => {
   // Fetch data when tab changes
   useEffect(() => {
     const fetchData = async () => {
-      if (tabValue === 2 && watchList.length === 0) {
-        setLoading((prev) => ({ ...prev, watchList: true }));
-        try {
-          const response = await mockGetWatchList(false, 500);
-          setWatchList(response.data || []);
-        } catch (err) {
-          console.error('Error fetching watch list:', err);
-        } finally {
-          setLoading((prev) => ({ ...prev, watchList: false }));
-        }
-      } else if (tabValue === 3 && biddingHistory.length === 0) {
-        setLoading((prev) => ({ ...prev, bidding: true }));
-        try {
-          const response = await mockGetBiddingHistory(500);
-          setBiddingHistory(response.data || []);
-        } catch (err) {
-          console.error('Error fetching bidding history:', err);
-        } finally {
-          setLoading((prev) => ({ ...prev, bidding: false }));
-        }
-      } else if (tabValue === 4 && wonItems.length === 0) {
-        setLoading((prev) => ({ ...prev, won: true }));
-        try {
-          const response = await mockGetWonItems(500);
-          setWonItems(response.data || []);
-        } catch (err) {
-          console.error('Error fetching won items:', err);
-        } finally {
-          setLoading((prev) => ({ ...prev, won: false }));
-        }
-      } else if (tabValue === 5) {
+      if (tabValue === 2) {
         setLoading((prev) => ({ ...prev, ratings: true }));
         try {
           const [receivedRes, givenRes, needingRes] = await Promise.all([
@@ -216,7 +174,7 @@ const BidderProfilePage = () => {
     };
 
     fetchData();
-  }, [tabValue, watchList.length, biddingHistory.length, wonItems.length]);
+  }, [tabValue]);
 
   // Calculate time left
   const getTimeLeft = (endTime) => {
@@ -379,12 +337,30 @@ const BidderProfilePage = () => {
             </Typography>
           )}
           {showStatus && (
-            <Chip
-              label={product.status === 'pending_payment' ? 'Pending Payment' : product.status === 'paid' ? 'Paid' : product.status === 'shipping' ? 'Shipping' : 'Completed'}
-              size="small"
-              color={product.status === 'completed' ? 'success' : product.status === 'pending_payment' ? 'warning' : 'info'}
-              sx={{ mb: 1 }}
-            />
+            <>
+              <Chip
+                label={product.status === 'pending_payment' ? 'Pending Payment' : product.status === 'paid' ? 'Paid' : product.status === 'shipping' ? 'Shipping' : 'Completed'}
+                size="small"
+                color={product.status === 'completed' ? 'success' : product.status === 'pending_payment' ? 'warning' : 'info'}
+                sx={{ mb: 1.5 }}
+              />
+              {(product.status === 'pending_payment' || product.status === 'paid' || product.status === 'shipping') && (
+                <Button
+                  variant="contained"
+                  size="small"
+                  fullWidth
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    // Generate orderId from productId (in real app, this would come from API)
+                    const orderId = `ORD-${String(product.productId || product.id).padStart(3, '0')}`;
+                    navigate(`/bidder/order-completion/${orderId}`);
+                  }}
+                  sx={{ mb: 1.5, fontWeight: 'bold' }}
+                >
+                  Complete Order
+                </Button>
+              )}
+            </>
           )}
           <Box
             sx={{
@@ -409,10 +385,7 @@ const BidderProfilePage = () => {
   const tabs = [
     { label: 'Personal Info', icon: <Person />, value: 0 },
     { label: 'Change Password', icon: <Lock />, value: 1 },
-    { label: 'Watch List', icon: <Favorite />, value: 2 },
-    { label: 'Bidding History', icon: <History />, value: 3 },
-    { label: 'Won Items', icon: <EmojiEvents />, value: 4 },
-    { label: 'Ratings', icon: <Star />, value: 5 },
+    { label: 'Ratings', icon: <Star />, value: 2 },
   ];
 
   return (
@@ -502,8 +475,8 @@ const BidderProfilePage = () => {
 
                 <Divider sx={{ mb: 4 }} />
 
-                <Grid container spacing={3}>
-                  <Grid item xs={12} md={6}>
+                <Box sx={{ maxWidth: 600 }}>
+                  <Stack spacing={3}>
                     <TextField
                       fullWidth
                       label="Full Name"
@@ -511,8 +484,6 @@ const BidderProfilePage = () => {
                       onChange={handleProfileChange('name')}
                       disabled={!isEditing}
                     />
-                  </Grid>
-                  <Grid item xs={12} md={6}>
                     <TextField
                       fullWidth
                       label="Email"
@@ -521,8 +492,6 @@ const BidderProfilePage = () => {
                       onChange={handleProfileChange('email')}
                       disabled={!isEditing}
                     />
-                  </Grid>
-                  <Grid item xs={12} md={6}>
                     <TextField
                       fullWidth
                       label="Phone Number"
@@ -530,8 +499,6 @@ const BidderProfilePage = () => {
                       onChange={handleProfileChange('phone')}
                       disabled={!isEditing}
                     />
-                  </Grid>
-                  <Grid item xs={12} md={6}>
                     <TextField
                       fullWidth
                       label="Date of Birth"
@@ -541,38 +508,36 @@ const BidderProfilePage = () => {
                       disabled={!isEditing}
                       InputLabelProps={{ shrink: true }}
                     />
-                  </Grid>
-                  <Grid item xs={12}>
                     <TextField
                       fullWidth
                       label="Address"
                       multiline
-                      rows={1}
+                      rows={3}
                       value={profileData.address}
                       onChange={handleProfileChange('address')}
                       disabled={!isEditing}
                     />
-                  </Grid>
-                </Grid>
-
-                {isEditing && (
-                  <Stack direction="row" spacing={2} sx={{ mt: 4 }}>
-                    <Button
-                      variant="contained"
-                      startIcon={<Save />}
-                      onClick={handleSaveProfile}
-                    >
-                      Save Changes
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      startIcon={<Cancel />}
-                      onClick={handleCancelEdit}
-                    >
-                      Cancel
-                    </Button>
                   </Stack>
-                )}
+
+                  {isEditing && (
+                    <Stack direction="row" spacing={2} sx={{ mt: 4 }}>
+                      <Button
+                        variant="contained"
+                        startIcon={<Save />}
+                        onClick={handleSaveProfile}
+                      >
+                        Save Changes
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        startIcon={<Cancel />}
+                        onClick={handleCancelEdit}
+                      >
+                        Cancel
+                      </Button>
+                    </Stack>
+                  )}
+                </Box>
               </Box>
             )}
 
@@ -657,113 +622,8 @@ const BidderProfilePage = () => {
               </Box>
             )}
 
-            {/* Tab 2: Watch List */}
+            {/* Tab 2: Ratings & Reviews */}
             {tabValue === 2 && (
-              <Box>
-                <Typography variant="h6" gutterBottom fontWeight={600}>
-                  Watch List
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                  Products you've saved for later
-                </Typography>
-                {loading.watchList ? (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-                    <CircularProgress />
-                  </Box>
-                ) : watchList.length === 0 ? (
-                  <Box sx={{ textAlign: 'center', py: 8 }}>
-                    <Favorite sx={{ fontSize: 64, color: 'grey.300', mb: 2 }} />
-                    <Typography variant="h6" color="text.secondary" gutterBottom>
-                      Your Watch List is Empty
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Start exploring products and add them to your watch list
-                    </Typography>
-                  </Box>
-                ) : (
-                  <Grid container spacing={3}>
-                    {watchList.map((product) => (
-                      <Grid item xs={12} sm={6} md={4} lg={3} key={product.id}>
-                        <ProductCard product={product} showRemove />
-                      </Grid>
-                    ))}
-                  </Grid>
-                )}
-              </Box>
-            )}
-
-            {/* Tab 3: Bidding History */}
-            {tabValue === 3 && (
-              <Box>
-                <Typography variant="h6" gutterBottom fontWeight={600}>
-                  Bidding History
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                  Products you're currently bidding on
-                </Typography>
-                {loading.bidding ? (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-                    <CircularProgress />
-                  </Box>
-                ) : biddingHistory.length === 0 ? (
-                  <Box sx={{ textAlign: 'center', py: 8 }}>
-                    <History sx={{ fontSize: 64, color: 'grey.300', mb: 2 }} />
-                    <Typography variant="h6" color="text.secondary" gutterBottom>
-                      No Active Bids
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      You haven't placed any bids yet
-                    </Typography>
-                  </Box>
-                ) : (
-                  <Grid container spacing={3}>
-                    {biddingHistory.map((product) => (
-                      <Grid item xs={12} sm={6} md={4} lg={3} key={product.id}>
-                        <ProductCard product={product} showBidInfo />
-                      </Grid>
-                    ))}
-                  </Grid>
-                )}
-              </Box>
-            )}
-
-            {/* Tab 4: Won Items */}
-            {tabValue === 4 && (
-              <Box>
-                <Typography variant="h6" gutterBottom fontWeight={600}>
-                  Won Items
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                  Products you've won in auctions
-                </Typography>
-                {loading.won ? (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-                    <CircularProgress />
-                  </Box>
-                ) : wonItems.length === 0 ? (
-                  <Box sx={{ textAlign: 'center', py: 8 }}>
-                    <EmojiEvents sx={{ fontSize: 64, color: 'grey.300', mb: 2 }} />
-                    <Typography variant="h6" color="text.secondary" gutterBottom>
-                      No Won Items Yet
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Keep bidding to win amazing products!
-                    </Typography>
-                  </Box>
-                ) : (
-                  <Grid container spacing={3}>
-                    {wonItems.map((product) => (
-                      <Grid item xs={12} sm={6} md={4} lg={3} key={product.id}>
-                        <ProductCard product={product} showStatus />
-                      </Grid>
-                    ))}
-                  </Grid>
-                )}
-              </Box>
-            )}
-
-            {/* Tab 5: Ratings & Reviews */}
-            {tabValue === 5 && (
               <Box>
                 {loading.ratings ? (
                   <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>

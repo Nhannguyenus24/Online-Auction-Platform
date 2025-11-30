@@ -6,42 +6,57 @@ import {
   Typography,
   Card,
   CardContent,
-  CardMedia,
-  Grid,
-  IconButton,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   Chip,
-  Stack,
+  IconButton,
   CircularProgress,
-  Alert,
+  Button,
+  Pagination,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
 } from '@mui/material';
 import {
   AccessTime,
-  LocalOffer,
+  Gavel,
   Delete as DeleteIcon,
   Favorite as FavoriteIcon,
+  Visibility,
 } from '@mui/icons-material';
 import Page from '../../components/Page';
 import { formatPrice } from '../../utils/formatNumber';
+import { fVNDate } from '../../utils/formatTime';
 import { mockGetWatchList } from '../../mocks';
 
 const BidderWatchListPage = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [watchList, setWatchList] = useState([]);
-  const [error, setError] = useState(null);
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    currentSize: 10,
+    totalPages: 1,
+    totalItems: 0,
+    hasNext: false,
+    hasPrevious: false,
+  });
+  const [pageSize, setPageSize] = useState(10);
 
-  // Use mock data for now - will be replaced with real API call in Step 2
   useEffect(() => {
     const fetchWatchList = async () => {
       try {
         setLoading(true);
-        setError(null);
         // Use mock data - set to false to see products, true to see empty state
         const response = await mockGetWatchList(false, 500);
         setWatchList(response.data || []);
       } catch (err) {
         console.error('Error fetching watch list:', err);
-        setError('Failed to load watch list. Please try again.');
         setWatchList([]);
       } finally {
         setLoading(false);
@@ -50,6 +65,42 @@ const BidderWatchListPage = () => {
 
     fetchWatchList();
   }, []);
+
+  // Update pagination when data or page size changes
+  useEffect(() => {
+    const totalItems = watchList.length;
+    const totalPages = Math.ceil(totalItems / pageSize) || 1;
+    const currentPage = Math.min(pagination.currentPage, totalPages) || 1;
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const paginatedData = watchList.slice(startIndex, endIndex);
+
+    setPagination({
+      currentPage: currentPage,
+      currentSize: paginatedData.length,
+      totalPages: totalPages,
+      totalItems: totalItems,
+      hasNext: currentPage < totalPages,
+      hasPrevious: currentPage > 1,
+    });
+  }, [watchList.length, pageSize]);
+
+  // Get paginated watch list
+  const paginatedWatchList = (() => {
+    const startIndex = (pagination.currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return watchList.slice(startIndex, endIndex);
+  })();
+
+  const handlePageChange = (event, newPage) => {
+    setPagination((prev) => ({ ...prev, currentPage: newPage }));
+  };
+
+  const handlePageSizeChange = (event) => {
+    const newSize = parseInt(event.target.value, 10);
+    setPageSize(newSize);
+    setPagination((prev) => ({ ...prev, currentPage: 1 })); // Reset to first page
+  };
 
   // Calculate time left
   const getTimeLeft = (endTime) => {
@@ -73,197 +124,11 @@ const BidderWatchListPage = () => {
 
   const handleRemoveFromWatchList = (productId, event) => {
     event.stopPropagation();
-    // Will be implemented in Step 3
+    // Will be implemented with API call later
     console.log('Remove product from watch list:', productId);
+    // Remove from local state for now
+    setWatchList((prev) => prev.filter((item) => item.id !== productId));
   };
-
-  const ProductCard = ({ product }) => (
-    <Card
-      elevation={0}
-      sx={{
-        cursor: 'pointer',
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        border: '1px solid',
-        borderColor: 'grey.200',
-        borderRadius: 2,
-        overflow: 'hidden',
-        transition: 'all 0.3s',
-        position: 'relative',
-        '&:hover': {
-          boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-          transform: 'translateY(-4px)',
-          borderColor: 'primary.main',
-        },
-      }}
-      onClick={() => navigate(`/product/${product.id}`)}
-    >
-      <Box sx={{ position: 'relative', paddingTop: '75%', bgcolor: 'grey.50' }}>
-        <CardMedia
-          component="img"
-          image={product.image || '/placeholder-image.jpg'}
-          alt={product.title}
-          sx={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-          }}
-        />
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 12,
-            right: 12,
-            bgcolor: 'rgba(255,255,255,0.95)',
-            backdropFilter: 'blur(10px)',
-            px: 1.5,
-            py: 0.5,
-            borderRadius: 1.5,
-            boxShadow: 1,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 0.5,
-          }}
-        >
-          <LocalOffer sx={{ fontSize: 14, color: 'primary.main' }} />
-          <Typography variant="caption" fontWeight="bold" color="primary">
-            {product.bidCount || 0} bids
-          </Typography>
-        </Box>
-        <IconButton
-          onClick={(e) => handleRemoveFromWatchList(product.id, e)}
-          sx={{
-            position: 'absolute',
-            top: 12,
-            left: 12,
-            bgcolor: 'rgba(255,255,255,0.95)',
-            backdropFilter: 'blur(10px)',
-            boxShadow: 1,
-            '&:hover': {
-              bgcolor: 'error.main',
-              color: 'white',
-            },
-            transition: 'all 0.2s',
-          }}
-          size="small"
-        >
-          <DeleteIcon fontSize="small" />
-        </IconButton>
-        {product.condition && (
-          <Chip
-            label={product.condition}
-            size="small"
-            color={product.condition === 'New' ? 'success' : 'default'}
-            sx={{
-              position: 'absolute',
-              bottom: 12,
-              left: 12,
-              fontWeight: 'bold',
-              fontSize: '0.7rem',
-            }}
-          />
-        )}
-      </Box>
-      <CardContent
-        sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', p: 2 }}
-      >
-        <Typography
-          variant="body1"
-          gutterBottom
-          sx={{
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            minHeight: 48,
-            fontWeight: 600,
-            lineHeight: 1.4,
-            mb: 2,
-          }}
-        >
-          {product.title}
-        </Typography>
-        <Box sx={{ mt: 'auto' }}>
-          <Typography variant="body2" color="text.secondary" gutterBottom>
-            Current Bid
-          </Typography>
-          <Typography
-            variant="h6"
-            color="primary"
-            fontWeight="bold"
-            sx={{ mb: 1.5 }}
-          >
-            {formatPrice(product.currentPrice)}
-          </Typography>
-          {product.buyNowPrice && (
-            <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
-              Buy Now: {formatPrice(product.buyNowPrice)}
-            </Typography>
-          )}
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 0.5,
-              pt: 1.5,
-              borderTop: 1,
-              borderColor: 'divider',
-            }}
-          >
-            <AccessTime sx={{ fontSize: 16, color: 'error.main' }} />
-            <Typography variant="caption" color="error.main" fontWeight="bold">
-              {getTimeLeft(product.endTime)} left
-            </Typography>
-          </Box>
-        </Box>
-      </CardContent>
-    </Card>
-  );
-
-  const EmptyState = () => (
-    <Box
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        py: 8,
-        px: 2,
-        textAlign: 'center',
-      }}
-    >
-      <FavoriteIcon
-        sx={{
-          fontSize: 80,
-          color: 'grey.300',
-          mb: 2,
-        }}
-      />
-      <Typography variant="h5" gutterBottom fontWeight={600}>
-        Your Watch List is Empty
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3, maxWidth: 400 }}>
-        Start exploring products and add them to your watch list to keep track of auctions you're interested in.
-      </Typography>
-      <Stack direction="row" spacing={2}>
-        <Chip
-          label="Browse Products"
-          onClick={() => navigate('/')}
-          sx={{ cursor: 'pointer' }}
-        />
-        <Chip
-          label="View Categories"
-          onClick={() => navigate('/category')}
-          sx={{ cursor: 'pointer' }}
-        />
-      </Stack>
-    </Box>
-  );
 
   return (
     <Page title="Watch List - Online Auction Platform">
@@ -277,41 +142,228 @@ const BidderWatchListPage = () => {
           </Typography>
         </Box>
 
-        {error && (
-          <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
-            {error}
-          </Alert>
-        )}
-
-        {loading ? (
+        <Card elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 3 }}>
           <Box
             sx={{
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              minHeight: 400,
+              p: 3,
+              background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+              color: 'white',
+              borderRadius: '12px 12px 0 0',
             }}
           >
-            <CircularProgress />
+            <Typography variant="h5" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <FavoriteIcon /> Watch List ({watchList.length})
+            </Typography>
           </Box>
-        ) : watchList.length === 0 ? (
-          <EmptyState />
-        ) : (
-          <>
-            <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography variant="body2" color="text.secondary">
-                {watchList.length} {watchList.length === 1 ? 'item' : 'items'} in your watch list
-              </Typography>
-            </Box>
-            <Grid container spacing={3}>
-              {watchList.map((product) => (
-                <Grid item xs={12} sm={6} md={4} lg={3} key={product.id}>
-                  <ProductCard product={product} />
-                </Grid>
-              ))}
-            </Grid>
-          </>
-        )}
+
+          <CardContent sx={{ p: 0 }}>
+            {loading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+                <CircularProgress />
+              </Box>
+            ) : watchList.length === 0 ? (
+              <Box sx={{ textAlign: 'center', py: 8, px: 3 }}>
+                <FavoriteIcon sx={{ fontSize: 64, color: 'grey.300', mb: 2 }} />
+                <Typography variant="h6" color="text.secondary" gutterBottom>
+                  Your Watch List is Empty
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Start exploring products and add them to your watch list to keep track of auctions you're interested in.
+                </Typography>
+                <Button variant="contained" onClick={() => navigate('/')}>
+                  Browse Products
+                </Button>
+              </Box>
+            ) : (
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: 'grey.50' }}>
+                      <TableCell sx={{ fontWeight: 'bold', py: 2 }}>Product</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 'bold', py: 2 }}>
+                        Current Price
+                      </TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 'bold', py: 2 }}>
+                        Buy Now Price
+                      </TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 'bold', py: 2 }}>
+                        Bids
+                      </TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 'bold', py: 2 }}>
+                        Time Left
+                      </TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 'bold', py: 2 }}>
+                        Actions
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {paginatedWatchList.map((product) => {
+                      const endTime = new Date(product.endTime);
+                      const now = new Date();
+                      const isEnded = endTime <= now;
+
+                      return (
+                        <TableRow
+                          key={product.id}
+                          hover
+                          sx={{
+                            '&:hover': { bgcolor: 'action.hover' },
+                            cursor: 'pointer',
+                          }}
+                          onClick={() => navigate(`/product/${product.id}`)}
+                        >
+                          <TableCell>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                              <Box
+                                component="img"
+                                src={product.image}
+                                alt={product.title}
+                                sx={{
+                                  width: 60,
+                                  height: 60,
+                                  objectFit: 'cover',
+                                  borderRadius: 1.5,
+                                  border: '1px solid',
+                                  borderColor: 'divider',
+                                }}
+                              />
+                              <Box>
+                                <Typography variant="body2" fontWeight={600} sx={{ mb: 0.5 }}>
+                                  {product.title}
+                                </Typography>
+                                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                                  {product.condition && (
+                                    <Chip
+                                      label={product.condition}
+                                      size="small"
+                                      color={product.condition === 'New' ? 'success' : 'default'}
+                                      sx={{ height: 20, fontSize: '0.7rem' }}
+                                    />
+                                  )}
+                                </Box>
+                              </Box>
+                            </Box>
+                          </TableCell>
+                          <TableCell align="center">
+                            <Typography variant="body2" fontWeight={600} color="primary">
+                              {formatPrice(product.currentPrice)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="center">
+                            {product.buyNowPrice ? (
+                              <Typography variant="body2" fontWeight={600} color="success.main">
+                                {formatPrice(product.buyNowPrice)}
+                              </Typography>
+                            ) : (
+                              <Typography variant="caption" color="text.secondary">
+                                N/A
+                              </Typography>
+                            )}
+                          </TableCell>
+                          <TableCell align="center">
+                            <Chip
+                              icon={<Gavel sx={{ fontSize: 12 }} />}
+                              label={product.bidCount || 0}
+                              size="small"
+                              sx={{ height: 20, fontSize: '0.7rem' }}
+                            />
+                          </TableCell>
+                          <TableCell align="center">
+                            {isEnded ? (
+                              <Typography variant="caption" color="text.secondary">
+                                Ended
+                              </Typography>
+                            ) : (
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: 'center' }}>
+                                <AccessTime sx={{ fontSize: 14, color: 'error.main' }} />
+                                <Typography variant="caption" color="error.main" fontWeight="bold">
+                                  {getTimeLeft(product.endTime)}
+                                </Typography>
+                              </Box>
+                            )}
+                          </TableCell>
+                          <TableCell align="center">
+                            <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
+                              <IconButton
+                                size="small"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/product/${product.id}`);
+                                }}
+                                title="View Product"
+                              >
+                                <Visibility fontSize="small" />
+                              </IconButton>
+                              <IconButton
+                                size="small"
+                                color="error"
+                                onClick={(e) => handleRemoveFromWatchList(product.id, e)}
+                                title="Remove from Watch List"
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </Box>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+
+            {/* Pagination */}
+            {!loading && watchList.length > 0 && (
+              <Box
+                sx={{
+                  p: 3,
+                  borderTop: 1,
+                  borderColor: 'divider',
+                  display: 'flex',
+                  flexDirection: { xs: 'column', sm: 'row' },
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: 2,
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Showing {pagination.currentSize} of {pagination.totalItems} items
+                  </Typography>
+                  <FormControl size="small" sx={{ minWidth: 120 }}>
+                    <InputLabel>Page Size</InputLabel>
+                    <Select
+                      value={pageSize}
+                      label="Page Size"
+                      onChange={handlePageSizeChange}
+                    >
+                      <MenuItem value={5}>5</MenuItem>
+                      <MenuItem value={10}>10</MenuItem>
+                      <MenuItem value={20}>20</MenuItem>
+                      <MenuItem value={50}>50</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Box>
+
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Page {pagination.currentPage} of {pagination.totalPages}
+                  </Typography>
+                  <Pagination
+                    count={pagination.totalPages}
+                    page={pagination.currentPage}
+                    onChange={handlePageChange}
+                    color="primary"
+                    shape="rounded"
+                    showFirstButton
+                    showLastButton
+                  />
+                </Box>
+              </Box>
+            )}
+          </CardContent>
+        </Card>
       </Container>
     </Page>
   );

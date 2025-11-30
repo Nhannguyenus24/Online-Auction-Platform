@@ -529,8 +529,8 @@ const SellerProfilePage = () => {
 
                 <Divider sx={{ mb: 4 }} />
 
-                <Grid container spacing={3}>
-                  <Grid item xs={12} md={6}>
+                <Box sx={{ maxWidth: 600 }}>
+                  <Stack spacing={3}>
                     <TextField
                       fullWidth
                       label="Full Name"
@@ -538,8 +538,6 @@ const SellerProfilePage = () => {
                       onChange={handleProfileChange('name')}
                       disabled={!isEditing}
                     />
-                  </Grid>
-                  <Grid item xs={12} md={6}>
                     <TextField
                       fullWidth
                       label="Email"
@@ -548,8 +546,6 @@ const SellerProfilePage = () => {
                       onChange={handleProfileChange('email')}
                       disabled={!isEditing}
                     />
-                  </Grid>
-                  <Grid item xs={12} md={6}>
                     <TextField
                       fullWidth
                       label="Phone Number"
@@ -557,8 +553,6 @@ const SellerProfilePage = () => {
                       onChange={handleProfileChange('phone')}
                       disabled={!isEditing}
                     />
-                  </Grid>
-                  <Grid item xs={12} md={6}>
                     <TextField
                       fullWidth
                       label="Date of Birth"
@@ -568,38 +562,36 @@ const SellerProfilePage = () => {
                       disabled={!isEditing}
                       InputLabelProps={{ shrink: true }}
                     />
-                  </Grid>
-                  <Grid item xs={12}>
                     <TextField
                       fullWidth
                       label="Address"
                       multiline
-                      rows={1}
+                      rows={3}
                       value={profileData.address}
                       onChange={handleProfileChange('address')}
                       disabled={!isEditing}
                     />
-                  </Grid>
-                </Grid>
-
-                {isEditing && (
-                  <Stack direction="row" spacing={2} sx={{ mt: 4 }}>
-                    <Button
-                      variant="contained"
-                      startIcon={<Save />}
-                      onClick={handleSaveProfile}
-                    >
-                      Save Changes
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      startIcon={<Cancel />}
-                      onClick={handleCancelEdit}
-                    >
-                      Cancel
-                    </Button>
                   </Stack>
-                )}
+
+                  {isEditing && (
+                    <Stack direction="row" spacing={2} sx={{ mt: 4 }}>
+                      <Button
+                        variant="contained"
+                        startIcon={<Save />}
+                        onClick={handleSaveProfile}
+                      >
+                        Save Changes
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        startIcon={<Cancel />}
+                        onClick={handleCancelEdit}
+                      >
+                        Cancel
+                      </Button>
+                    </Stack>
+                  )}
+                </Box>
               </Box>
             )}
 

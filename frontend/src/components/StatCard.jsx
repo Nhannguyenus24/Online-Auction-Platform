@@ -14,7 +14,16 @@ import {
   ErrorOutline,
 } from '@mui/icons-material';
 
-const StatCard = ({ title, value, icon, trend, color, prefix = '', suffix = '' }) => {
+const StatCard = ({ 
+  title, 
+  value, 
+  icon, 
+  trend, 
+  color, 
+  prefix = '', 
+  suffix = '',
+  simple = false, // Simple mode: icon on left, no trend, color as theme color name
+}) => {
   const [displayValue, setDisplayValue] = useState(0);
   const isPositive = trend >= 0;
   const IconComponent = icon;
@@ -22,7 +31,7 @@ const StatCard = ({ title, value, icon, trend, color, prefix = '', suffix = '' }
   // Check if value is null, undefined, or not a valid number
   const isNoData = value === null || value === undefined || (typeof value === 'number' && isNaN(value));
   const numericValue = typeof value === 'number' ? value : parseFloat(value);
-  const isAnimatable = !isNoData && !isNaN(numericValue);
+  const isAnimatable = !isNoData && !isNaN(numericValue) && !simple;
 
   useEffect(() => {
     if (!isAnimatable) return;
@@ -48,6 +57,9 @@ const StatCard = ({ title, value, icon, trend, color, prefix = '', suffix = '' }
 
   // Format display value
   const formatValue = (val) => {
+    if (simple) {
+      return val; // Return as-is for simple mode (already formatted)
+    }
     if (Number.isInteger(numericValue)) {
       return Math.floor(val).toLocaleString();
     }
@@ -57,10 +69,64 @@ const StatCard = ({ title, value, icon, trend, color, prefix = '', suffix = '' }
     });
   };
 
+  // Get color value for simple mode (theme color name like 'primary', 'success')
+  const getColorValue = () => {
+    if (simple && color) {
+      // For simple mode, color is a theme color name like 'primary', 'success'
+      return color;
+    }
+    return color;
+  };
+
+  // Simple mode layout (icon on left, like in HomePage)
+  if (simple) {
+    return (
+      <Card
+        sx={{
+          height: '100%',
+          minHeight: 140, // Ensure consistent height
+          border: '1px solid',
+          borderColor: 'divider',
+          borderRadius: 2,
+          overflow: 'hidden',
+          transition: 'all 0.3s',
+          '&:hover': {
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+            transform: 'translateY(-2px)',
+          },
+        }}
+      >
+        <CardContent sx={{ height: '100%', display: 'flex', alignItems: 'center' }}>
+          <Stack direction="row" spacing={2} alignItems="center" sx={{ width: '100%' }}>
+            <Avatar
+              sx={{
+                bgcolor: `${getColorValue()}.main`,
+                width: 56,
+                height: 56,
+              }}
+            >
+              {icon}
+            </Avatar>
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                {title}
+              </Typography>
+              <Typography variant="h4" fontWeight="bold" color={`${getColorValue()}.main`}>
+                {value}
+              </Typography>
+            </Box>
+          </Stack>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Advanced mode layout (with trend, gradient background)
   return (
     <Card
       sx={{
         height: '100%',
+        minHeight: 140, // Ensure consistent height
         background: isNoData 
           ? `linear-gradient(135deg, ${alpha('#9e9e9e', 0.1)} 0%, ${alpha('#9e9e9e', 0.05)} 100%)`
           : `linear-gradient(135deg, ${alpha(color, 0.1)} 0%, ${alpha(color, 0.05)} 100%)`,
@@ -68,8 +134,8 @@ const StatCard = ({ title, value, icon, trend, color, prefix = '', suffix = '' }
         transition: 'transform 0.2s, box-shadow 0.2s',
       }}    
     >
-      <CardContent>
-        <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+      <CardContent sx={{ height: '100%', display: 'flex', alignItems: 'center' }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ width: '100%' }}>
           <Box sx={{ flex: 1 }}>
             <Typography variant="body2" color="text.secondary" gutterBottom fontWeight={500}>
               {title}
