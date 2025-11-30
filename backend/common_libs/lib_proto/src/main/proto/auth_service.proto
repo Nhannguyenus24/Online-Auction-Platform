@@ -1,0 +1,131 @@
+syntax = "proto3";
+
+// Tên package logical của file proto
+package auth;
+
+// Cấu hình cho Java Code Generator
+option java_multiple_files = true;
+option java_package = "com.example.grpc.auth"; // Đổi thành package của bạn
+option java_outer_classname = "AuthProto";
+
+// --- Service Definition ---
+service AuthService {
+  // 1. Đăng ký tài khoản mới
+  rpc Register (RegisterRequest) returns (RegisterResponse);
+
+  // 2. Đăng nhập (trả về Access + Refresh Token)
+  rpc Login (LoginRequest) returns (LoginResponse);
+
+  // 3. Cấp lại Access Token mới bằng Refresh Token
+  rpc RefreshToken (RefreshTokenRequest) returns (RefreshTokenResponse);
+
+  // 4. Đăng xuất (Thu hồi Refresh Token)
+  rpc Logout (LogoutRequest) returns (LogoutResponse);
+
+  // 5. Kiểm tra Token hợp lệ (Dùng cho Gateway hoặc Service khác gọi internal)
+  rpc ValidateToken (ValidateTokenRequest) returns (ValidateTokenResponse);
+
+  // 6. Đổi mật khẩu
+  rpc ChangePassword (ChangePasswordRequest) returns (ChangePasswordResponse);
+
+  // 7. Xác minh email
+  rpc VerifyEmail (VerifyEmailRequest) returns (VerifyEmailResponse);
+}
+
+// --- Message Definitions ---
+
+// 1. REGISTER
+message RegisterRequest {
+  string email = 1;
+  string password = 2;
+  string full_name = 3;
+  string phone_number = 4; // Optional
+  string address = 5; // Optional
+}
+
+message RegisterResponse {
+  string user_id = 1;
+  string email = 2;
+  bool success = 3;
+  string message = 4;
+  string email_verification_link = 5;
+}
+
+// 2. LOGIN
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+  string device_id = 3; // Optional: Để tracking thiết bị hoặc force logout
+}
+
+message LoginResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+  int64 access_token_expires_in = 3; // Thời gian hết hạn (seconds)
+  string token_type = 4; // Thường là "Bearer"
+  
+  // Trả thêm thông tin user để Client hiển thị luôn đỡ phải gọi API khác
+  UserInfo user_info = 5;
+}
+
+message UserInfo {
+  string id = 1;
+  string email = 2;
+  string full_name = 3;
+  repeated string roles = 4; // ["USER", "ADMIN"]
+}
+
+// 3. REFRESH TOKEN
+message RefreshTokenRequest {
+  string refresh_token = 1;
+}
+
+message RefreshTokenResponse {
+  string access_token = 1;
+  string refresh_token = 2; // Có thể cấp mới cả Refresh Token (Rotation)
+  int64 access_token_expires_in = 3;
+}
+
+// 4. LOGOUT
+message LogoutRequest {
+  string refresh_token = 1; // Logout cần revoke refresh token trong DB/Redis
+  string user_id = 2;
+}
+
+message LogoutResponse {
+  bool success = 1;
+}
+
+// 5. VALIDATE TOKEN (Internal Call)
+message ValidateTokenRequest {
+  string access_token = 1;
+}
+
+message ValidateTokenResponse {
+  bool is_valid = 1;
+  string user_id = 2;
+  repeated string roles = 3; // Trả về role để Gateway check quyền
+  string error_message = 4; // Nếu không valid thì lý do là gì (Expired/Invalid Signature)
+}
+
+// 6. CHANGE PASSWORD
+message ChangePasswordRequest {
+  string user_id = 1;
+  string old_password = 2;
+  string new_password = 3;
+}
+
+message ChangePasswordResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// 7. VERIFY EMAIL
+message VerifyEmailRequest {
+  string token = 1;
+}
+
+message VerifyEmailResponse {
+  bool success = 1;
+  string message = 2;
+}

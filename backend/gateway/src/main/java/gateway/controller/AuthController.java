@@ -1,106 +1,323 @@
 package gateway.controller;
 
-import gateway.config.JwtDecoderConfig;
+import com.example.grpc.auth.*;
+import gateway.dto.ChangePasswordRequest;
+import gateway.dto.LoginRequest;
+import gateway.dto.RegisterRequest;
+import gateway.grpc.UserGrpcClient;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Mono;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/auth")
-@Tag(name = "Authentication", description = "Mock authentication endpoints for testing")
+@Tag(name = "Authentication", description = "Authentication endpoints - calls user service via gRPC")
+@RequiredArgsConstructor
+@Slf4j
 public class AuthController {
 
-    private final JwtDecoderConfig jwtDecoderConfig;
+    private final UserGrpcClient userGrpcClient;
+    
+    private static final int REFRESH_TOKEN_MAX_AGE = 7 * 24 * 60 * 60; // 7 days in seconds
 
-    public AuthController(JwtDecoderConfig jwtDecoderConfig) {
-        this.jwtDecoderConfig = jwtDecoderConfig;
+    @PostMapping("/register")
+    @Operation(summary = "Register new user", description = "Register a new user account. Returns email verification link.")
+    public Mono<ResponseEntity<Map<String, Object>>> register(@RequestBody RegisterRequest request) {
+        log.info("Register request for email: {}", request.getEmail());
+        
+        com.example.grpc.auth.RegisterRequest grpcRequest = com.example.grpc.auth.RegisterRequest.newBuilder()
+                .setEmail(request.getEmail())
+                .setPassword(request.getPassword())
+                .setFullName(request.getFullName())
+                .setPhoneNumber(request.getPhoneNumber() != null ? request.getPhoneNumber() : "")
+                .build();
+
+        return userGrpcClient.register(grpcRequest)
+                .map(response -> {
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("success", response.getSuccess());
+                    result.put("message", response.getMessage());
+                    result.put("email", response.getEmail());
+                    result.put("emailVerificationLink", response.getEmailVerificationLink());
+                    
+                    if (response.getSuccess()) {
+                        return ResponseEntity.ok(result);
+                    } else {
+                        return ResponseEntity.badRequest().body(result);
+                    }
+                })
+                .onErrorResume(e -> {
+                    log.error("Register error: {}", e.getMessage(), e);
+                    Map<String, Object> error = new HashMap<>();
+                    error.put("success", false);
+                    error.put("message", "Registration failed: " + e.getMessage());
+                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error));
+                });
     }
 
-    @PostMapping("/generate-token")
-    @Operation(
-            summary = "Generate Mock JWT Token",
-            description = "Generate a mock JWT token for testing purposes. Use this token in Authorization header as 'Bearer {token}'"
-    )
-    public ResponseEntity<Map<String, String>> generateToken(
-            @Parameter(description = "User ID", example = "user123")
-            @RequestParam(defaultValue = "user123") String userId,
-            
-            @Parameter(description = "User role (ADMIN, SELLER, BIDDER)", example = "ADMIN")
-            @RequestParam(defaultValue = "ADMIN") String role,
-            
-            @Parameter(description = "User email", example = "user@example.com")
-            @RequestParam(defaultValue = "user@example.com") String email
-    ) {
-        String token = jwtDecoderConfig.generateMockToken(userId, role, email);
+    @PostMapping("/login")
+    @Operation(summary = "Login", description = "Login with email and password. Returns access token and sets refresh token in httpOnly cookie.")
+    public Mono<ResponseEntity<Map<String, Object>>> login(
+            @RequestBody LoginRequest request,
+            HttpServletResponse response) {
+        log.info("Login request for email: {}", request.getEmail());
         
-        Map<String, String> response = new HashMap<>();
-        response.put("accessToken", token);
-        response.put("tokenType", "Bearer");
-        response.put("userId", userId);
-        response.put("role", role);
-        response.put("email", email);
-        response.put("expiresIn", "3600");
-        response.put("usage", "Add this to Authorization header: Bearer " + token);
+        com.example.grpc.auth.LoginRequest grpcRequest = com.example.grpc.auth.LoginRequest.newBuilder()
+                .setEmail(request.getEmail())
+                .setPassword(request.getPassword())
+                .build();
+
+        return userGrpcClient.login(grpcRequest)
+                .map(loginResponse -> {
+                    // Set refresh token in httpOnly cookie
+                    Cookie refreshTokenCookie = new Cookie("refreshToken", loginResponse.getRefreshToken());
+                    refreshTokenCookie.setHttpOnly(true);
+                    refreshTokenCookie.setSecure(false); // Set to true in production with HTTPS
+                    refreshTokenCookie.setPath("/");
+                    refreshTokenCookie.setMaxAge(REFRESH_TOKEN_MAX_AGE);
+                    response.addCookie(refreshTokenCookie);
+
+                    // Return access token and user info
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("accessToken", loginResponse.getAccessToken());
+                    result.put("tokenType", loginResponse.getTokenType());
+                    result.put("expiresIn", loginResponse.getAccessTokenExpiresIn());
+                    
+                    Map<String, Object> userInfo = new HashMap<>();
+                    userInfo.put("id", loginResponse.getUserInfo().getId());
+                    userInfo.put("email", loginResponse.getUserInfo().getEmail());
+                    userInfo.put("fullName", loginResponse.getUserInfo().getFullName());
+                    userInfo.put("roles", loginResponse.getUserInfo().getRolesList());
+                    result.put("user", userInfo);
+                    
+                    log.info("Login successful for user: {}", request.getEmail());
+                    return ResponseEntity.ok(result);
+                })
+                .onErrorResume(e -> {
+                    log.error("Login error: {}", e.getMessage());
+                    Map<String, Object> error = new HashMap<>();
+                    error.put("message", "Login failed: " + e.getMessage());
+                    return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error));
+                });
+    }
+
+    @PostMapping("/refresh")
+    @Operation(summary = "Refresh access token", description = "Get new access token using refresh token from cookie. Returns new tokens.")
+    public Mono<ResponseEntity<Map<String, Object>>> refreshToken(
+            HttpServletRequest request,
+            HttpServletResponse response) {
         
-        return ResponseEntity.ok(response);
+        // Get refresh token from cookie
+        String refreshToken = getRefreshTokenFromCookie(request);
+        
+        if (refreshToken == null) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("message", "Refresh token not found");
+            return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error));
+        }
+
+        log.info("Refresh token request");
+        
+        RefreshTokenRequest grpcRequest = RefreshTokenRequest.newBuilder()
+                .setRefreshToken(refreshToken)
+                .build();
+
+        return userGrpcClient.refreshToken(grpcRequest)
+                .map(refreshResponse -> {
+                    // Set new refresh token in cookie (rotation)
+                    Cookie newRefreshTokenCookie = new Cookie("refreshToken", refreshResponse.getRefreshToken());
+                    newRefreshTokenCookie.setHttpOnly(true);
+                    newRefreshTokenCookie.setSecure(false);
+                    newRefreshTokenCookie.setPath("/");
+                    newRefreshTokenCookie.setMaxAge(REFRESH_TOKEN_MAX_AGE);
+                    response.addCookie(newRefreshTokenCookie);
+
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("accessToken", refreshResponse.getAccessToken());
+                    result.put("expiresIn", refreshResponse.getAccessTokenExpiresIn());
+                    
+                    log.info("Token refreshed successfully");
+                    return ResponseEntity.ok(result);
+                })
+                .onErrorResume(e -> {
+                    log.error("Refresh token error: {}", e.getMessage());
+                    Map<String, Object> error = new HashMap<>();
+                    error.put("message", "Token refresh failed: " + e.getMessage());
+                    return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error));
+                });
+    }
+
+    @PostMapping("/logout")
+    @Operation(summary = "Logout", description = "Logout user and clear refresh token cookie.")
+    public Mono<ResponseEntity<Map<String, Object>>> logout(
+            HttpServletRequest request,
+            HttpServletResponse response) {
+        
+        String refreshToken = getRefreshTokenFromCookie(request);
+        
+        log.info("Logout request");
+        
+        LogoutRequest grpcRequest = LogoutRequest.newBuilder()
+                .setRefreshToken(refreshToken != null ? refreshToken : "")
+                .build();
+
+        return userGrpcClient.logout(grpcRequest)
+                .map(logoutResponse -> {
+                    // Clear refresh token cookie
+                    Cookie clearCookie = new Cookie("refreshToken", null);
+                    clearCookie.setHttpOnly(true);
+                    clearCookie.setPath("/");
+                    clearCookie.setMaxAge(0);
+                    response.addCookie(clearCookie);
+
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("success", true);
+                    result.put("message", "Logged out successfully");
+                    
+                    log.info("Logout successful");
+                    return ResponseEntity.ok(result);
+                })
+                .onErrorResume(e -> {
+                    log.error("Logout error: {}", e.getMessage());
+                    
+                    // Clear cookie anyway
+                    Cookie clearCookie = new Cookie("refreshToken", null);
+                    clearCookie.setHttpOnly(true);
+                    clearCookie.setPath("/");
+                    clearCookie.setMaxAge(0);
+                    response.addCookie(clearCookie);
+                    
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("success", true);
+                    result.put("message", "Logged out");
+                    return Mono.just(ResponseEntity.ok(result));
+                });
+    }
+
+    @GetMapping("/verify-email")
+    @Operation(summary = "Verify email", description = "Verify user email with token from email link.")
+    public Mono<ResponseEntity<Map<String, Object>>> verifyEmail(
+            @Parameter(description = "Email verification token") @RequestParam String token) {
+        
+        log.info("Email verification request");
+        
+        VerifyEmailRequest grpcRequest = VerifyEmailRequest.newBuilder()
+                .setToken(token)
+                .build();
+
+        return userGrpcClient.verifyEmail(grpcRequest)
+                .map(verifyResponse -> {
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("success", verifyResponse.getSuccess());
+                    result.put("message", verifyResponse.getMessage());
+                    
+                    if (verifyResponse.getSuccess()) {
+                        return ResponseEntity.ok(result);
+                    } else {
+                        return ResponseEntity.badRequest().body(result);
+                    }
+                })
+                .onErrorResume(e -> {
+                    log.error("Email verification error: {}", e.getMessage());
+                    Map<String, Object> error = new HashMap<>();
+                    error.put("success", false);
+                    error.put("message", "Email verification failed: " + e.getMessage());
+                    return Mono.just(ResponseEntity.badRequest().body(error));
+                });
+    }
+
+    @PostMapping("/change-password")
+    @Operation(summary = "Change password", description = "Change user password. Requires authentication.")
+    public Mono<ResponseEntity<Map<String, Object>>> changePassword(@RequestBody ChangePasswordRequest request) {
+        
+        // Get user ID from security context
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String userId = authentication.getName();
+        
+        log.info("Change password request for user: {}", userId);
+        
+        com.example.grpc.auth.ChangePasswordRequest grpcRequest = com.example.grpc.auth.ChangePasswordRequest.newBuilder()
+                .setUserId(userId)
+                .setOldPassword(request.getOldPassword())
+                .setNewPassword(request.getNewPassword())
+                .build();
+
+        return userGrpcClient.changePassword(grpcRequest)
+                .map(changeResponse -> {
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("success", changeResponse.getSuccess());
+                    result.put("message", changeResponse.getMessage());
+                    
+                    if (changeResponse.getSuccess()) {
+                        return ResponseEntity.ok(result);
+                    } else {
+                        return ResponseEntity.badRequest().body(result);
+                    }
+                })
+                .onErrorResume(e -> {
+                    log.error("Change password error: {}", e.getMessage());
+                    Map<String, Object> error = new HashMap<>();
+                    error.put("success", false);
+                    error.put("message", "Password change failed: " + e.getMessage());
+                    return Mono.just(ResponseEntity.badRequest().body(error));
+                });
     }
 
     @GetMapping("/validate")
-    @Operation(
-            summary = "Validate JWT Token",
-            description = "Validate if a JWT token is valid and not expired"
-    )
-    public ResponseEntity<Map<String, Object>> validateToken(
-            @Parameter(description = "JWT Token to validate")
-            @RequestParam String token
-    ) {
-        Map<String, Object> response = new HashMap<>();
+    @Operation(summary = "Validate token", description = "Validate JWT access token. For internal use by Gateway.")
+    public Mono<ResponseEntity<Map<String, Object>>> validateToken(
+            @Parameter(description = "Access token to validate") @RequestParam String token) {
         
-        try {
-            boolean isExpired = jwtDecoderConfig.isTokenExpired(token);
-            String userId = jwtDecoderConfig.getUserIdFromToken(token);
-            String role = jwtDecoderConfig.getRoleFromToken(token);
-            
-            response.put("valid", !isExpired);
-            response.put("expired", isExpired);
-            response.put("userId", userId);
-            response.put("role", role);
-            
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            response.put("valid", false);
-            response.put("error", e.getMessage());
-            return ResponseEntity.badRequest().body(response);
-        }
+        ValidateTokenRequest grpcRequest = ValidateTokenRequest.newBuilder()
+                .setAccessToken(token)
+                .build();
+
+        return userGrpcClient.validateToken(grpcRequest)
+                .map(validateResponse -> {
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("valid", validateResponse.getIsValid());
+                    
+                    if (validateResponse.getIsValid()) {
+                        result.put("userId", validateResponse.getUserId());
+                        result.put("roles", validateResponse.getRolesList());
+                    } else {
+                        result.put("error", validateResponse.getErrorMessage());
+                    }
+                    
+                    return ResponseEntity.ok(result);
+                })
+                .onErrorResume(e -> {
+                    Map<String, Object> error = new HashMap<>();
+                    error.put("valid", false);
+                    error.put("error", e.getMessage());
+                    return Mono.just(ResponseEntity.ok(error));
+                });
     }
 
-    @GetMapping("/roles-info")
-    @Operation(
-            summary = "Get Available Roles Information",
-            description = "Get information about available roles and their permissions"
-    )
-    public ResponseEntity<Map<String, Object>> getRolesInfo() {
-        Map<String, Object> response = new HashMap<>();
-        
-        Map<String, String> roles = new HashMap<>();
-        roles.put("ADMIN", "Full access to all endpoints including /api/admin/**");
-        roles.put("SELLER", "Access to seller endpoints /api/seller/**");
-        roles.put("BIDDER", "Access to bidder endpoints /api/bidder/**");
-        
-        Map<String, String> publicEndpoints = new HashMap<>();
-        publicEndpoints.put("/api/auth/**", "No authentication required");
-        publicEndpoints.put("/api/gateway/health", "No authentication required");
-        publicEndpoints.put("/swagger-ui.html", "No authentication required");
-        
-        response.put("roles", roles);
-        response.put("publicEndpoints", publicEndpoints);
-        response.put("note", "Other endpoints require valid JWT token");
-        
-        return ResponseEntity.ok(response);
+    private String getRefreshTokenFromCookie(HttpServletRequest request) {
+        if (request.getCookies() != null) {
+            Optional<Cookie> refreshTokenCookie = Arrays.stream(request.getCookies())
+                    .filter(cookie -> "refreshToken".equals(cookie.getName()))
+                    .findFirst();
+            
+            return refreshTokenCookie.map(Cookie::getValue).orElse(null);
+        }
+        return null;
     }
 }
