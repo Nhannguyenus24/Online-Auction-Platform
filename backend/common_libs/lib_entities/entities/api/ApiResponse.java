@@ -1,23 +1,38 @@
-package entities.api;
+package entites.api;
 
-import entities.msg.Message;
+import lombok.*;
 
-public class ApiResponse {
-    private String user;
-    private boolean success;
-    private int resultCode;
-    private String description;
-    private Message data;
+import java.time.LocalDateTime;
 
-    public String getUser() { return user;}
-    public boolean getSuccess() { return success;}
-    public int getResultCode() { return resultCode;}
-    public void setResultCode(int resultCode, String description) {
-        this.resultCode = resultCode;
-        this.description = description;
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class ApiResponse<T> {
+
+    private String status;
+
+    private String message;
+
+    private T data;
+
+    private LocalDateTime timestamp;
+
+    public static <T> ApiResponse<T> success(String message, T data) {
+        return ApiResponse.<T>builder()
+                .status("success")
+                .message(message)
+                .data(data)
+                .timestamp(LocalDateTime.now())
+                .build();
     }
-    public String getDescription() { return description;}
-    public Message getData() { return data;}
-    public void setData(Message data)  { this.data = data;}
 
+    public static <T> ApiResponse<T> error(String message) {
+        return ApiResponse.<T>builder()
+                .status("error")
+                .message(message)
+                .timestamp(LocalDateTime.now())
+                .build();
+    }
 }
