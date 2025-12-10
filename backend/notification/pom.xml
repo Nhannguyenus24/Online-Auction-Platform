@@ -30,6 +30,24 @@
 		<spring-grpc.version>0.12.0</spring-grpc.version>
 	</properties>
 	<dependencies>
+		<!-- Shared entities library -->
+		<dependency>
+			<groupId>entities</groupId>
+			<artifactId>lib-entities</artifactId>
+			<version>1.0.0</version>
+		</dependency>
+		<!-- Shared RabbitMQ library -->
+		<dependency>
+			<groupId>rabbitmq</groupId>
+			<artifactId>lib-rabbitmq</artifactId>
+			<version>1.0.0</version>
+		</dependency>
+		<!-- Shared MySQL library -->
+		<dependency>
+			<groupId>mysql</groupId>
+			<artifactId>lib-mysql</artifactId>
+			<version>1.0.0</version>
+		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-mail</artifactId>

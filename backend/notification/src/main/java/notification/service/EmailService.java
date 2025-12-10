@@ -1,4 +1,4 @@
-package user.service;
+package notification.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +23,7 @@ public class EmailService {
 
     private final JavaMailSender mailSender;
     private final TemplateEngine templateEngine;
+    private final NotificationService notificationService;
 
     @Value("${app.mail.from-address}")
     private String fromAddress;
@@ -156,4 +157,103 @@ public class EmailService {
         .onErrorMap(e -> new RuntimeException("Failed to send email", e))
         .then();
     }
+
+    /**
+     * Lưu notification vào database (Helper method)
+     */
+    private Mono<Void> saveNotificationToDatabase(Integer userId, String notificationType, Map<String, Object> payloadMap) {
+        return notificationService.saveNotificationWithJson(userId, notificationType, payloadMap)
+                .doOnError(e -> log.warn("Failed to save notification to database: userId={}, type={}, error={}", 
+                    userId, notificationType, e.getMessage()))
+                .onErrorResume(e -> Mono.empty()) // Continue even if DB save fails
+                .then();
+    }
+
+    /**
+     * Gửi OTP email và lưu notification vào DB
+     */
+    public Mono<Void> sendOtpVerificationEmailWithNotification(String to, Integer userId, String userName, 
+                                                               String otp, int expiryMinutes) {
+        Map<String, Object> notificationPayload = Map.of(
+                "email", to,
+                "userName", userName,
+                "type", "otp_verification",
+                "timestamp", System.currentTimeMillis()
+        );
+
+        return sendOtpVerificationEmail(to, userName, otp, expiryMinutes)
+                .then(saveNotificationToDatabase(userId, "OTP_VERIFICATION", notificationPayload));
+    }
+
+    /**
+     * Gửi bid success email và lưu notification vào DB
+     */
+    public Mono<Void> sendBidSuccessEmailWithNotification(String to, Integer userId, String userName, 
+                                                          String productName, String bidAmount, String productId, 
+                                                          String bidTime, String auctionEndTime) {
+        Map<String, Object> notificationPayload = Map.of(
+                "email", to,
+                "userName", userName,
+                "productName", productName,
+                "bidAmount", bidAmount,
+                "productId", productId,
+                "bidTime", bidTime,
+                "auctionEndTime", auctionEndTime,
+                "type", "bid_success"
+        );
+
+        return sendBidSuccessEmail(to, userName, productName, bidAmount, productId, bidTime, auctionEndTime)
+                .then(saveNotificationToDatabase(userId, "BID_SUCCESS", notificationPayload));
+    }
+
+    /**
+     * Gửi bid outbid email và lưu notification vào DB
+     */
+    public Mono<Void> sendBidOutbidEmailWithNotification(String to, Integer userId, String userName, 
+                                                         String productName, String yourBidAmount, 
+                                                         String newHighestBid, String bidDifference, 
+                                                         String outbidTime, String auctionEndTime, 
+                                                         String timeRemaining, String auctionLink) {
+        Map<String, Object> notificationPayload = Map.of(
+                "email", to,
+                "userName", userName,
+                "productName", productName,
+                "yourBidAmount", yourBidAmount,
+                "newHighestBid", newHighestBid,
+                "bidDifference", bidDifference,
+                "outbidTime", outbidTime,
+                "auctionEndTime", auctionEndTime,
+                "timeRemaining", timeRemaining,
+                "type", "bid_outbid"
+        );
+
+        return sendBidOutbidEmail(to, userName, productName, yourBidAmount, newHighestBid, 
+                bidDifference, outbidTime, auctionEndTime, timeRemaining, auctionLink)
+                .then(saveNotificationToDatabase(userId, "BID_OUTBID", notificationPayload));
+    }
+
+    /**
+     * Gửi account violation warning email và lưu notification vào DB
+     */
+    public Mono<Void> sendAccountViolationWarningEmailWithNotification(String to, Integer userId, String userName, 
+                                                                       String violationType, String violationDescription,
+                                                                       String detectionDate, String warningLevel,
+                                                                       String referenceNumber, String termsLink,
+                                                                       String guidelinesLink) {
+        Map<String, Object> notificationPayload = Map.of(
+                "email", to,
+                "userName", userName,
+                "violationType", violationType,
+                "violationDescription", violationDescription,
+                "detectionDate", detectionDate,
+                "warningLevel", warningLevel,
+                "referenceNumber", referenceNumber,
+                "type", "account_violation_warning"
+        );
+
+        return sendAccountViolationWarningEmail(to, userName, violationType, violationDescription,
+                detectionDate, warningLevel, referenceNumber, termsLink, guidelinesLink)
+                .then(saveNotificationToDatabase(userId, "ACCOUNT_VIOLATION_WARNING", notificationPayload));
+    }
 }
+
