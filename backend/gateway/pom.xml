@@ -40,6 +40,13 @@
 			<version>1.0.0</version>
 		</dependency>
 		
+		<!-- Shared Utils Library -->
+		<dependency>
+			<groupId>com.auction.platform</groupId>
+			<artifactId>lib_utils</artifactId>
+			<version>1.0.0</version>
+		</dependency>
+		
 		<!-- gRPC dependencies -->
 		<dependency>
 			<groupId>io.grpc</groupId>
@@ -91,21 +98,9 @@
 
 		<!-- JWT Dependencies -->
 		<dependency>
-			<groupId>io.jsonwebtoken</groupId>
-			<artifactId>jjwt-api</artifactId>
-			<version>0.12.6</version>
-		</dependency>
-		<dependency>
-			<groupId>io.jsonwebtoken</groupId>
-			<artifactId>jjwt-impl</artifactId>
-			<version>0.12.6</version>
-			<scope>runtime</scope>
-		</dependency>
-		<dependency>
-			<groupId>io.jsonwebtoken</groupId>
-			<artifactId>jjwt-jackson</artifactId>
-			<version>0.12.6</version>
-			<scope>runtime</scope>
+			<groupId>com.nimbusds</groupId>
+			<artifactId>nimbus-jose-jwt</artifactId>
+			<version>10.5</version>
 		</dependency>
 
 		<!-- Lombok for reducing boilerplate code -->

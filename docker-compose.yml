@@ -8,3 +8,18 @@ services:
     ports:
       - "6379:6379"
     command: ["redis-server"]
+  mysql:
+    image: mysql:8.0
+    container_name: mysql-r2dbc
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: mydb
+    ports:
+      - "3306:3306"
+    command: >
+      --default-authentication-plugin=mysql_native_password
+    volumes:
+      - mysql_data:/var/lib/mysql
+volumes:
+  mysql_data:

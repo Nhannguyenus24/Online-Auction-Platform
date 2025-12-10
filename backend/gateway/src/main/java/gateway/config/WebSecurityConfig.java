@@ -1,5 +1,6 @@
 package gateway.config;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -7,24 +8,21 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import com.auction.platform.utils.JwtUtils;
 
 import java.util.List;
 
 @Configuration
 @EnableWebSecurity
+@Slf4j
 public class WebSecurityConfig {
 
-    private final JwtDecoderConfig jwtDecoderConfig;
-
-    public WebSecurityConfig(JwtDecoderConfig jwtDecoderConfig) {
-        this.jwtDecoderConfig = jwtDecoderConfig;
-    }
-
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtUtils jwtUtils) throws Exception {
         
         http
             // CORS configuration
@@ -71,14 +69,18 @@ public class WebSecurityConfig {
                 .anyRequest().authenticated()
             )
             
-            // OAuth2 Resource Server for JWT
-            .oauth2ResourceServer(oauth2 -> oauth2
-                .jwt(jwt -> jwt
-                    .decoder(jwtDecoderConfig.jwtDecoder())
-                )
-            );
+            // Add custom JWT filter instead of oauth2ResourceServer
+            .addFilterBefore(jwtAuthenticationFilter(jwtUtils), BasicAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    /**
+     * Custom JWT filter that only validates JWT for protected endpoints
+     */
+    @Bean
+    public JwtAuthenticationFilter jwtAuthenticationFilter(JwtUtils jwtUtils) {
+        return new JwtAuthenticationFilter(jwtUtils);
     }
 
     @Bean
@@ -102,3 +104,4 @@ public class WebSecurityConfig {
         return source;
     }
 }
+
