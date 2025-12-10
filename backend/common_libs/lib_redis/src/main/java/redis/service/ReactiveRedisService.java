@@ -1,4 +1,4 @@
-package com.auction.platform.redis.service;
+package redis.service;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;

@@ -1,4 +1,4 @@
-package com.auction.platform.rabbitmq.service;
+package rabbitmq.services;
 
 import java.util.function.Function;
 

@@ -1,25 +1,29 @@
-package utils;
+package user.util;
+
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.MACSigner;
 import com.nimbusds.jose.crypto.MACVerifier;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
 import java.text.ParseException;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
 
-public class JwtUtils {
+@Component
+public class JwtTokenProvider {
 
+    @Value("${jwt.secret}")
     private String jwtSecret;
-    private long accessTokenExpirationMs;
-    private long refreshTokenExpirationMs;
 
-    public JwtUtils(String jwtSecret, long accessTokenExpirationMs, long refreshTokenExpirationMs) {
-        this.jwtSecret = jwtSecret;
-        this.accessTokenExpirationMs = accessTokenExpirationMs;
-        this.refreshTokenExpirationMs = refreshTokenExpirationMs;
-    }
+    @Value("${jwt.access-token-expiration-ms}")
+    private long accessTokenExpirationMs;
+
+    @Value("${jwt.refresh-token-expiration-ms}")
+    private long refreshTokenExpirationMs;
 
     /**
      * Generate access token (15 minutes)

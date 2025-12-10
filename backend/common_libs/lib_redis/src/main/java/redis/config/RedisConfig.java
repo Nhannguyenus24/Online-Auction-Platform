@@ -1,4 +1,4 @@
-package com.auction.platform.redis.config;
+package redis.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;

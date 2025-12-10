@@ -1,10 +1,11 @@
-package com.auction.platform.rabbitmq.service;
+package rabbitmq.services;
 
-import com.auction.platform.rabbitmq.model.MessageWrapper;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.function.Function;
+
+import rabbitmq.model.MessageWrapper;
 
 /**
  * Reactive RabbitMQ Producer Service Interface

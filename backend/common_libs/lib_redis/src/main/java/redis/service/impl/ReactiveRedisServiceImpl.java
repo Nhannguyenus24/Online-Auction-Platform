@@ -1,11 +1,11 @@
-package com.auction.platform.redis.service.impl;
+package redis.service.impl;
 
-import com.auction.platform.redis.service.ReactiveRedisService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import redis.service.ReactiveRedisService;
 
 import java.time.Duration;
 import java.util.List;

@@ -1,10 +1,11 @@
-package com.auction.platform.rabbitmq.service.impl;
+package rabbitmq.services.impl;
 
-import com.auction.platform.rabbitmq.model.MessageWrapper;
-import com.auction.platform.rabbitmq.service.ReactiveRabbitProducer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rabbitmq.client.AMQP;
 import lombok.RequiredArgsConstructor;
+import rabbitmq.model.MessageWrapper;
+import rabbitmq.services.ReactiveRabbitProducer;
+
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 import reactor.rabbitmq.*;

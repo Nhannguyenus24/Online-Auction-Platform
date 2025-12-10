@@ -1,4 +1,4 @@
-package com.auction.platform.rabbitmq.model;
+package rabbitmq.model;
 
 import java.time.LocalDateTime;
 import java.util.Map;

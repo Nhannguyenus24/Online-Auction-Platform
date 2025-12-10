@@ -1,4 +1,4 @@
-package com.auction.platform.mysql.config;
+package mysql.config;
 
 import io.r2dbc.pool.ConnectionPool;
 import io.r2dbc.pool.ConnectionPoolConfiguration;

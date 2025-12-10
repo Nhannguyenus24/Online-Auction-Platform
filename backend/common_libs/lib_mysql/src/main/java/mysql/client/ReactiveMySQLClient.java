@@ -1,4 +1,4 @@
-package com.auction.platform.mysql.client;
+package mysql.client;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.r2dbc.core.DatabaseClient;

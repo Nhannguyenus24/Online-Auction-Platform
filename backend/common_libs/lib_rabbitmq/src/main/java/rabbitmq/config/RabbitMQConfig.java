@@ -1,4 +1,4 @@
-package com.auction.platform.rabbitmq.config;
+package rabbitmq.config;
 
 import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
 import org.springframework.beans.factory.annotation.Value;
