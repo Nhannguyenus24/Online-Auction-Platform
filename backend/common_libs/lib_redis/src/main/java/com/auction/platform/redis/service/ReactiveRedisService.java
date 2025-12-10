@@ -22,7 +22,7 @@ public interface ReactiveRedisService {
      * 
      * @param key the key
      * @param value the value
-     * @return Mono<Boolean> true if successful
+     * @return true if successful
      */
     Mono<Boolean> set(String key, Object value);
 
@@ -32,7 +32,7 @@ public interface ReactiveRedisService {
      * @param key the key
      * @param value the value
      * @param timeout the expiration duration
-     * @return Mono<Boolean> true if successful
+     * @return true if successful
      */
     Mono<Boolean> set(String key, Object value, Duration timeout);
 
@@ -40,7 +40,7 @@ public interface ReactiveRedisService {
      * Get value by key
      * 
      * @param key the key
-     * @return Mono<Object> the value
+     * @return the value
      */
     Mono<Object> get(String key);
 
@@ -50,7 +50,7 @@ public interface ReactiveRedisService {
      * @param key the key
      * @param clazz the target class type
      * @param <T> the type parameter
-     * @return Mono<T> the value cast to specified type
+     * @return the value cast to specified type
      */
     <T> Mono<T> get(String key, Class<T> clazz);
 
@@ -58,7 +58,7 @@ public interface ReactiveRedisService {
      * Delete a key
      * 
      * @param key the key
-     * @return Mono<Boolean> true if key was deleted
+     * @return true if key was deleted
      */
     Mono<Boolean> delete(String key);
 
@@ -66,7 +66,7 @@ public interface ReactiveRedisService {
      * Delete multiple keys
      * 
      * @param keys the keys to delete
-     * @return Mono<Long> number of keys deleted
+     * @return number of keys deleted
      */
     Mono<Long> delete(List<String> keys);
 
@@ -74,7 +74,7 @@ public interface ReactiveRedisService {
      * Check if key exists
      * 
      * @param key the key
-     * @return Mono<Boolean> true if key exists
+     * @return true if key exists
      */
     Mono<Boolean> exists(String key);
 
@@ -83,7 +83,7 @@ public interface ReactiveRedisService {
      * 
      * @param key the key
      * @param timeout the expiration duration
-     * @return Mono<Boolean> true if successful
+     * @return true if successful
      */
     Mono<Boolean> expire(String key, Duration timeout);
 
@@ -91,7 +91,7 @@ public interface ReactiveRedisService {
      * Get time to live for a key
      * 
      * @param key the key
-     * @return Mono<Duration> remaining time to live
+     * @return remaining time to live
      */
     Mono<Duration> getExpire(String key);
 
@@ -103,7 +103,7 @@ public interface ReactiveRedisService {
      * @param key the key
      * @param hashKey the hash field
      * @param value the value
-     * @return Mono<Boolean> true if successful
+     * @return true if successful
      */
     Mono<Boolean> hSet(String key, String hashKey, Object value);
 
@@ -112,7 +112,7 @@ public interface ReactiveRedisService {
      * 
      * @param key the key
      * @param hashKey the hash field
-     * @return Mono<Object> the value
+     * @return the value
      */
     Mono<Object> hGet(String key, String hashKey);
 
@@ -120,7 +120,7 @@ public interface ReactiveRedisService {
      * Get all fields and values from a hash
      * 
      * @param key the key
-     * @return Mono<Map<String, Object>> map of all fields and values
+     * @return map of all fields and values
      */
     Mono<Map<Object, Object>> hGetAll(String key);
 
@@ -129,7 +129,7 @@ public interface ReactiveRedisService {
      * 
      * @param key the key
      * @param hashKeys the hash fields to delete
-     * @return Mono<Long> number of fields deleted
+     * @return number of fields deleted
      */
     Mono<Long> hDelete(String key, Object... hashKeys);
 
@@ -138,7 +138,7 @@ public interface ReactiveRedisService {
      * 
      * @param key the key
      * @param hashKey the hash field
-     * @return Mono<Boolean> true if field exists
+     * @return true if field exists
      */
     Mono<Boolean> hExists(String key, String hashKey);
 
@@ -148,7 +148,7 @@ public interface ReactiveRedisService {
      * @param key the key
      * @param hashKey the hash field
      * @param delta the increment value
-     * @return Mono<Long> the new value
+     * @return the new value
      */
     Mono<Long> hIncrement(String key, String hashKey, long delta);
 
@@ -159,7 +159,7 @@ public interface ReactiveRedisService {
      * 
      * @param key the key
      * @param value the value
-     * @return Mono<Long> list length after operation
+     * @return list length after operation
      */
     Mono<Long> lPush(String key, Object value);
 
@@ -168,7 +168,7 @@ public interface ReactiveRedisService {
      * 
      * @param key the key
      * @param values the values
-     * @return Mono<Long> list length after operation
+     * @return list length after operation
      */
     Mono<Long> lPushAll(String key, Object... values);
 
@@ -176,7 +176,7 @@ public interface ReactiveRedisService {
      * Pop value from the left of a list
      * 
      * @param key the key
-     * @return Mono<Object> the popped value
+     * @return the popped value
      */
     Mono<Object> lPop(String key);
 
@@ -185,7 +185,7 @@ public interface ReactiveRedisService {
      * 
      * @param key the key
      * @param value the value
-     * @return Mono<Long> list length after operation
+     * @return list length after operation
      */
     Mono<Long> rPush(String key, Object value);
 
@@ -193,7 +193,7 @@ public interface ReactiveRedisService {
      * Pop value from the right of a list
      * 
      * @param key the key
-     * @return Mono<Object> the popped value
+     * @return the popped value
      */
     Mono<Object> rPop(String key);
 
@@ -203,7 +203,7 @@ public interface ReactiveRedisService {
      * @param key the key
      * @param start start index
      * @param end end index
-     * @return Flux<Object> stream of values in range
+     * @return stream of values in range
      */
     Flux<Object> lRange(String key, long start, long end);
 
@@ -211,7 +211,7 @@ public interface ReactiveRedisService {
      * Get list size
      * 
      * @param key the key
-     * @return Mono<Long> list size
+     * @return list size
      */
     Mono<Long> lSize(String key);
 
@@ -222,7 +222,7 @@ public interface ReactiveRedisService {
      * 
      * @param key the key
      * @param values the values to add
-     * @return Mono<Long> number of members added
+     * @return number of members added
      */
     Mono<Long> sAdd(String key, Object... values);
 
@@ -231,7 +231,7 @@ public interface ReactiveRedisService {
      * 
      * @param key the key
      * @param values the values to remove
-     * @return Mono<Long> number of members removed
+     * @return number of members removed
      */
     Mono<Long> sRemove(String key, Object... values);
 
@@ -240,7 +240,7 @@ public interface ReactiveRedisService {
      * 
      * @param key the key
      * @param value the value to check
-     * @return Mono<Boolean> true if member exists
+     * @return true if member exists
      */
     Mono<Boolean> sIsMember(String key, Object value);
 
@@ -248,7 +248,7 @@ public interface ReactiveRedisService {
      * Get all members of a set
      * 
      * @param key the key
-     * @return Flux<Object> stream of all members
+     * @return stream of all members
      */
     Flux<Object> sMembers(String key);
 
@@ -256,7 +256,7 @@ public interface ReactiveRedisService {
      * Get set size
      * 
      * @param key the key
-     * @return Mono<Long> set size
+     * @return set size
      */
     Mono<Long> sSize(String key);
 
@@ -268,7 +268,7 @@ public interface ReactiveRedisService {
      * @param key the key
      * @param value the value
      * @param score the score
-     * @return Mono<Boolean> true if member was added
+     * @return true if member was added
      */
     Mono<Boolean> zAdd(String key, Object value, double score);
 
@@ -277,7 +277,7 @@ public interface ReactiveRedisService {
      * 
      * @param key the key
      * @param values the values to remove
-     * @return Mono<Long> number of members removed
+     * @return number of members removed
      */
     Mono<Long> zRemove(String key, Object... values);
 
@@ -287,7 +287,7 @@ public interface ReactiveRedisService {
      * @param key the key
      * @param min minimum score
      * @param max maximum score
-     * @return Flux<Object> stream of members in range
+     * @return stream of members in range
      */
     Flux<Object> zRangeByScore(String key, double min, double max);
 
@@ -297,7 +297,7 @@ public interface ReactiveRedisService {
      * @param key the key
      * @param start start index
      * @param end end index
-     * @return Flux<Object> stream of members in range
+     * @return stream of members in range
      */
     Flux<Object> zRange(String key, long start, long end);
 
@@ -305,7 +305,7 @@ public interface ReactiveRedisService {
      * Get sorted set size
      * 
      * @param key the key
-     * @return Mono<Long> sorted set size
+     * @return sorted set size
      */
     Mono<Long> zSize(String key);
 
@@ -314,7 +314,7 @@ public interface ReactiveRedisService {
      * 
      * @param key the key
      * @param value the member
-     * @return Mono<Double> member score
+     * @return member score
      */
     Mono<Double> zScore(String key, Object value);
 
@@ -324,7 +324,7 @@ public interface ReactiveRedisService {
      * @param key the key
      * @param value the member
      * @param delta the increment value
-     * @return Mono<Double> new score
+     * @return new score
      */
     Mono<Double> zIncrementScore(String key, Object value, double delta);
 }

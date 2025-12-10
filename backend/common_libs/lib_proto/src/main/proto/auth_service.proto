@@ -3,9 +3,8 @@ syntax = "proto3";
 // Tên package logical của file proto
 package auth;
 
-// Cấu hình cho Java Code Generator
 option java_multiple_files = true;
-option java_package = "com.example.grpc.auth"; // Đổi thành package của bạn
+option java_package = "com.example.grpc.auth";
 option java_outer_classname = "AuthProto";
 
 // --- Service Definition ---
@@ -39,8 +38,8 @@ message RegisterRequest {
   string email = 1;
   string password = 2;
   string full_name = 3;
-  string phone_number = 4; // Optional
-  string address = 5; // Optional
+  string phone_number = 4;
+  string address = 5;
 }
 
 message RegisterResponse {
@@ -55,16 +54,11 @@ message RegisterResponse {
 message LoginRequest {
   string email = 1;
   string password = 2;
-  string device_id = 3; // Optional: Để tracking thiết bị hoặc force logout
 }
 
 message LoginResponse {
   string access_token = 1;
   string refresh_token = 2;
-  int64 access_token_expires_in = 3; // Thời gian hết hạn (seconds)
-  string token_type = 4; // Thường là "Bearer"
-  
-  // Trả thêm thông tin user để Client hiển thị luôn đỡ phải gọi API khác
   UserInfo user_info = 5;
 }
 
@@ -72,7 +66,7 @@ message UserInfo {
   string id = 1;
   string email = 2;
   string full_name = 3;
-  repeated string roles = 4; // ["USER", "ADMIN"]
+  repeated string roles = 4;
 }
 
 // 3. REFRESH TOKEN
@@ -82,7 +76,7 @@ message RefreshTokenRequest {
 
 message RefreshTokenResponse {
   string access_token = 1;
-  string refresh_token = 2; // Có thể cấp mới cả Refresh Token (Rotation)
+  string refresh_token = 2;
   int64 access_token_expires_in = 3;
 }
 
@@ -96,7 +90,6 @@ message LogoutResponse {
   bool success = 1;
 }
 
-// 5. VALIDATE TOKEN (Internal Call)
 message ValidateTokenRequest {
   string access_token = 1;
 }
@@ -104,8 +97,8 @@ message ValidateTokenRequest {
 message ValidateTokenResponse {
   bool is_valid = 1;
   string user_id = 2;
-  repeated string roles = 3; // Trả về role để Gateway check quyền
-  string error_message = 4; // Nếu không valid thì lý do là gì (Expired/Invalid Signature)
+  repeated string roles = 3;
+  string error_message = 4;
 }
 
 // 6. CHANGE PASSWORD
@@ -127,5 +120,4 @@ message VerifyEmailRequest {
 
 message VerifyEmailResponse {
   bool success = 1;
-  string message = 2;
 }

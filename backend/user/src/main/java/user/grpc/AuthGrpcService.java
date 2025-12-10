@@ -52,8 +52,6 @@ public class AuthGrpcService extends ReactorAuthServiceGrpc.AuthServiceImplBase 
                 .map(result -> LoginResponse.newBuilder()
                     .setAccessToken(result.accessToken())
                     .setRefreshToken(result.refreshToken())
-                    .setAccessTokenExpiresIn(900) // 15 minutes in seconds
-                    .setTokenType("Bearer")
                     .setUserInfo(UserInfo.newBuilder()
                         .setId(String.valueOf(result.userId()))
                         .setEmail(result.email())
@@ -149,13 +147,11 @@ public class AuthGrpcService extends ReactorAuthServiceGrpc.AuthServiceImplBase 
             authService.verifyEmail(req.getToken())
                 .map(message -> VerifyEmailResponse.newBuilder()
                     .setSuccess(true)
-                    .setMessage(message)
                     .build())
                 .onErrorResume(e -> {
                     log.error("Verify email error: {}", e.getMessage());
                     return Mono.just(VerifyEmailResponse.newBuilder()
                         .setSuccess(false)
-                        .setMessage(e.getMessage())
                         .build());
                 })
         );

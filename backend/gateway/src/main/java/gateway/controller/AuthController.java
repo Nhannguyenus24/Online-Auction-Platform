@@ -96,8 +96,6 @@ public class AuthController {
                     // Return access token and user info
                     Map<String, Object> result = new HashMap<>();
                     result.put("accessToken", loginResponse.getAccessToken());
-                    result.put("tokenType", loginResponse.getTokenType());
-                    result.put("expiresIn", loginResponse.getAccessTokenExpiresIn());
                     
                     Map<String, Object> userInfo = new HashMap<>();
                     userInfo.put("id", loginResponse.getUserInfo().getId());
@@ -225,7 +223,6 @@ public class AuthController {
                 .map(verifyResponse -> {
                     Map<String, Object> result = new HashMap<>();
                     result.put("success", verifyResponse.getSuccess());
-                    result.put("message", verifyResponse.getMessage());
                     
                     if (verifyResponse.getSuccess()) {
                         return ResponseEntity.ok(result);

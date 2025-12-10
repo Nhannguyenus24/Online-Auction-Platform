@@ -12,6 +12,8 @@ public interface UserRepository extends ReactiveCrudRepository<User, Integer> {
     Mono<User> findByEmail(String email);
     
     Mono<Boolean> existsByEmail(String email);
+
+    Mono<Boolean> existsByPhone(String phone);
     
     @Query("SELECT * FROM users WHERE id = :userId")
     Mono<User> findByUserId(Integer userId);
