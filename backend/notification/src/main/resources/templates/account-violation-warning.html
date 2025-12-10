@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Warning</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: #ffffff;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+        }
+        .warning-icon {
+            font-size: 50px;
+            margin: 10px 0 0 0;
+        }
+        .content {
+            padding: 30px;
+            color: #333333;
+        }
+        .violation-details {
+            background-color: #ffe6e6;
+            border: 1px solid #ff9999;
+            border-radius: 6px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .violation-item {
+            padding: 10px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .violation-item:last-child {
+            border-bottom: none;
+        }
+        .violation-title {
+            font-weight: bold;
+            color: #c0392b;
+        }
+        .violation-description {
+            color: #666666;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        .alert-danger {
+            background-color: #ffcccc;
+            border-left: 4px solid #e74c3c;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .action-section {
+            background-color: #f0f0f0;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .action-list {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+        .action-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .action-list li:before {
+            content: "→ ";
+            color: #e74c3c;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        .action-list li:last-child {
+            border-bottom: none;
+        }
+        .button {
+            display: inline-block;
+            background-color: #e74c3c;
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 15px;
+        }
+        .footer {
+            background-color: #f9f9f9;
+            padding: 20px;
+            text-align: center;
+            color: #666666;
+            font-size: 12px;
+            border-top: 1px solid #eeeeee;
+        }
+        .support-info {
+            background-color: #f5f5f5;
+            border-radius: 4px;
+            padding: 10px;
+            margin-top: 15px;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="warning-icon">⚠</div>
+            <h1>Account Violation Warning</h1>
+        </div>
+        <div class="content">
+            <h2>Important Notice: {{userName}}</h2>
+            <p>We are writing to inform you that your account has violated one or more of our platform policies. This is a formal warning, and further violations may result in account suspension or termination.</p>
+            
+            <div class="violation-details">
+                <div class="violation-item">
+                    <div class="violation-title">Violation Type:</div>
+                    <div class="violation-description">{{violationType}}</div>
+                </div>
+                <div class="violation-item">
+                    <div class="violation-title">Description:</div>
+                    <div class="violation-description">{{violationDescription}}</div>
+                </div>
+                <div class="violation-item">
+                    <div class="violation-title">Date Detected:</div>
+                    <div class="violation-description">{{detectionDate}}</div>
+                </div>
+                <div class="violation-item">
+                    <div class="violation-title">Warning Level:</div>
+                    <div class="violation-description">{{warningLevel}} of 3</div>
+                </div>
+            </div>
+            
+            <div class="alert-danger">
+                <strong>Critical:</strong> If you receive another violation warning, your account may be suspended. Please review and comply with our platform's terms of service and community guidelines immediately.
+            </div>
+            
+            <div class="action-section">
+                <h3>What You Should Do:</h3>
+                <ul class="action-list">
+                    <li>Review your recent activity on the platform</li>
+                    <li>Read our <a href="{{termsLink}}">Terms of Service</a> and <a href="{{guidelinesLink}}">Community Guidelines</a></li>
+                    <li>Ensure future transactions comply with our policies</li>
+                    <li>Contact our support team if you believe this is in error</li>
+                </ul>
+            </div>
+            
+            <div class="support-info">
+                <strong>Need Help?</strong> If you have questions about this warning or believe it was issued in error, please contact our support team at <a href="mailto:support@auctionplatform.com">support@auctionplatform.com</a> with your reference number: {{referenceNumber}}
+            </div>
+        </div>
+        <div class="footer">
+            <p>&copy; 2025 Online Auction Platform. All rights reserved.</p>
+            <p>This is an automated message. Please do not reply to this email.</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bid Successfully Placed</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+            color: #ffffff;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+        }
+        .success-icon {
+            font-size: 50px;
+            margin: 10px 0 0 0;
+        }
+        .content {
+            padding: 30px;
+            color: #333333;
+        }
+        .bid-details {
+            background-color: #f0fdf4;
+            border: 1px solid #86efac;
+            border-radius: 6px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        .detail-label {
+            font-weight: bold;
+            color: #666666;
+        }
+        .detail-value {
+            color: #27ae60;
+            font-weight: bold;
+        }
+        .product-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: #27ae60;
+            margin: 15px 0;
+        }
+        .alert-info {
+            background-color: #d1f2eb;
+            border-left: 4px solid #16a34a;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .footer {
+            background-color: #f9f9f9;
+            padding: 20px;
+            text-align: center;
+            color: #666666;
+            font-size: 12px;
+            border-top: 1px solid #eeeeee;
+        }
+        .button {
+            display: inline-block;
+            background-color: #27ae60;
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="success-icon">✓</div>
+            <h1>Bid Successfully Placed!</h1>
+        </div>
+        <div class="content">
+            <h2>Congratulations, {{userName}}!</h2>
+            <p>Your bid has been successfully placed on the auction.</p>
+            
+            <div class="product-name">{{productName}}</div>
+            
+            <div class="bid-details">
+                <div class="detail-row">
+                    <span class="detail-label">Bid Amount:</span>
+                    <span class="detail-value">${{bidAmount}}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Product ID:</span>
+                    <span class="detail-value">{{productId}}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Bid Time:</span>
+                    <span class="detail-value">{{bidTime}}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Auction Ends:</span>
+                    <span class="detail-value">{{auctionEndTime}}</span>
+                </div>
+            </div>
+            
+            <div class="alert-info">
+                <strong>Note:</strong> You are currently the highest bidder for this item. However, other bidders may place higher bids before the auction ends. Keep an eye on your auction to monitor bid activity.
+            </div>
+            
+            <p>You will receive notifications if your bid is outbid by another user. Thank you for participating in our auction!</p>
+        </div>
+        <div class="footer">
+            <p>&copy; 2025 Online Auction Platform. All rights reserved.</p>
+            <p>This is an automated message. Please do not reply to this email.</p>
+        </div>
+    </div>
+</body>
+</html>
