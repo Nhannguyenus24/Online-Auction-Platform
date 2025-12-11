@@ -8,9 +8,10 @@ services:
     ports:
       - "6379:6379"
     command: ["redis-server"]
+
   mysql:
     image: mysql:8.0
-    container_name: mysql-r2dbc
+    container_name: mysql
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: root123
@@ -22,5 +23,20 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
       - ./docs/mysqldb.sql:/docker-entrypoint-initdb.d/init.sql
+
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: rabbitmq
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin123
+    ports:
+      - "5672:5672"       # cổng AMQP
+      - "15672:15672"     # giao diện quản lý
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
 volumes:
   mysql_data:
+  rabbitmq_data:
