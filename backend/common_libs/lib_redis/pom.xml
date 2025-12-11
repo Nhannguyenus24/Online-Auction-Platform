@@ -5,12 +5,12 @@
          http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.auction.platform</groupId>
+    <groupId>redis</groupId>
     <artifactId>lib_redis</artifactId>
     <version>1.0.0</version>
     <packaging>jar</packaging>
 
-    <name>Auction Platform - Redis Library</name>
+    <name>lib_redis</name>
     <description>Common Redis library with reactive support for WebFlux microservices</description>
 
     <properties>

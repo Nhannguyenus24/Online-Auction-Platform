@@ -1,15 +1,12 @@
 package rabbitmq.services.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.rabbitmq.client.Delivery;
 import lombok.RequiredArgsConstructor;
 import rabbitmq.services.ReactiveRabbitConsumer;
 
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.rabbitmq.AcknowledgableDelivery;
-import reactor.rabbitmq.ConsumeOptions;
 import reactor.rabbitmq.Receiver;
 
 import java.time.Duration;
@@ -46,13 +43,15 @@ public class ReactiveRabbitConsumerImpl implements ReactiveRabbitConsumer {
                         .flatMap(message -> messageHandler.apply(message)
                                 .flatMap(success -> {
                                     if (success) {
-                                        return delivery.ack().then(Mono.empty());
+                                        return Mono.fromRunnable(() -> delivery.ack(true));
                                     } else {
-                                        return delivery.nack(true).then(Mono.empty());
+                                        return Mono.fromRunnable(() -> delivery.nack(true));
                                     }
                                 })
                         )
-                        .onErrorResume(e -> delivery.nack(true).then(Mono.empty()))
+                        .onErrorResume(e ->
+                                Mono.fromRunnable(() -> delivery.nack(true))
+                        ).then()
                 );
     }
 
@@ -62,10 +61,11 @@ public class ReactiveRabbitConsumerImpl implements ReactiveRabbitConsumer {
                 .flatMap(delivery -> parseMessage(delivery.getBody(), messageClass)
                         .flatMap(message -> messageHandler.apply(message)
                                 .retryWhen(reactor.util.retry.Retry.fixedDelay(maxRetries, Duration.ofSeconds(1)))
-                                .then(delivery.ack())
-                                .then(Mono.empty())
+                                .then(Mono.fromRunnable(() -> delivery.ack(true)))
                         )
-                        .onErrorResume(e -> delivery.nack(false).then(Mono.empty()))
+                        .onErrorResume(e ->
+                                Mono.fromRunnable(() -> delivery.nack(false))
+                        ).then()
                 );
     }
 

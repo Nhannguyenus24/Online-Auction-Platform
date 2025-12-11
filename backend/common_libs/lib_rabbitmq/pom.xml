@@ -5,12 +5,12 @@
          http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.auction.platform</groupId>
+    <groupId>rabbitmq</groupId>
     <artifactId>lib_rabbitmq</artifactId>
     <version>1.0.0</version>
     <packaging>jar</packaging>
 
-    <name>Auction Platform - RabbitMQ Library</name>
+    <name>lib_rabbitmq</name>
     <description>Common RabbitMQ library with reactive support for WebFlux microservices</description>
 
     <properties>
@@ -168,6 +168,11 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <version>3.11.1</version>
+                <configuration>
+                    <doclint>none</doclint>
+                    <quiet>true</quiet>
+                    <failOnError>false</failOnError>
+                </configuration>
                 <executions>
                     <execution>
                         <id>attach-javadocs</id>

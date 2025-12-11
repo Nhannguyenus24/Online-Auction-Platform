@@ -49,11 +49,12 @@ public class ReactiveRedisServiceImpl implements ReactiveRedisService {
     public <T> Mono<T> get(String key, Class<T> clazz) {
         return redisTemplate.opsForValue()
                 .get(key)
-                .map(value -> {
+                .<T>handle((value, sink) -> {
                     if (clazz.isInstance(value)) {
-                        return (T) value;
+                        sink.next((T) value);
+                        return;
                     }
-                    throw new ClassCastException("Cannot cast to " + clazz.getName());
+                    sink.error(new ClassCastException("Cannot cast to " + clazz.getName()));
                 })
                 .onErrorResume(e -> Mono.empty());
     }

@@ -42,7 +42,7 @@
 		
 		<!-- Shared Utils Library -->
 		<dependency>
-			<groupId>com.auction.platform</groupId>
+			<groupId>utils</groupId>
 			<artifactId>lib_utils</artifactId>
 			<version>1.0.0</version>
 		</dependency>

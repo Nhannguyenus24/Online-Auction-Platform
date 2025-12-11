@@ -5,12 +5,12 @@
          http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.auction.platform</groupId>
+    <groupId>mysql</groupId>
     <artifactId>lib_mysql</artifactId>
     <version>1.0.0</version>
     <packaging>jar</packaging>
 
-    <name>Auction Platform - MySQL Library</name>
+    <name>lib_mysql</name>
     <description>Common MySQL library with R2DBC reactive support for WebFlux microservices</description>
 
     <properties>

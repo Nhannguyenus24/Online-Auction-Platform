@@ -19,19 +19,15 @@
 		<spring-cloud.version>2025.0.0</spring-cloud.version>
 	</properties>
 
-	<!-- Common Libraries (Shared Libraries) -->
 	<modules>
-		<module>common_libs/lib_utils</module>
-		<module>common_libs/lib_entities</module>
-		<module>common_libs/lib_auth</module>
-		<module>common_libs/lib_proto</module>
-		<module>common_libs/lib_mysql</module>
-		<module>common_libs/lib_rabbitmq</module>
-		<module>common_libs/lib_redis</module>
+		<!-- Common Libraries -->
+		<module>common_libs</module>
 		
 		<!-- Microservices -->
 		<module>gateway</module>
 		<module>user</module>
+		<module>products</module>
+		<module>notification</module>
 	</modules>
 
 	<dependencyManagement>
