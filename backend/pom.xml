@@ -28,6 +28,7 @@
 		<module>user</module>
 		<module>products</module>
 		<module>notification</module>
+		<module>chat</module>
 	</modules>
 
 	<dependencyManagement>
