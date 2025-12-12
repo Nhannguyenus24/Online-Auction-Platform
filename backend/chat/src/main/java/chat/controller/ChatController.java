@@ -1,5 +1,6 @@
 package chat.controller;
 
+import chat.dto.ConversationDto;
 import chat.dto.MessageDto;
 import chat.dto.SendMessageRequest;
 import chat.service.ChatService;
@@ -20,6 +21,21 @@ import java.util.List;
 public class ChatController {
 	private final ChatService chatService;
 	private final SimpMessagingTemplate messagingTemplate;
+
+	@GetMapping("/conversations")
+	public ResponseEntity<List<ConversationDto>> getConversations(
+		@RequestParam String userRole,
+		@RequestParam(defaultValue = "mock-user") String userId
+	) {
+		try {
+			List<ConversationDto> conversations = chatService.getConversations(userRole, userId);
+			return ResponseEntity.ok(conversations);
+		} catch (IllegalArgumentException e) {
+			return ResponseEntity.badRequest().build();
+		} catch (Exception e) {
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+		}
+	}
 
 	@GetMapping("/{orderId}/messages")
 	public ResponseEntity<List<MessageDto>> getMessages(@PathVariable String orderId) {

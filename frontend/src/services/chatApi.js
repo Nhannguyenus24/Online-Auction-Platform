@@ -15,5 +15,12 @@ export const getMessagesByOrder = async (orderId) => {
   return data;
 };
 
+export const getConversations = async (userRole, userId = 'mock-user') => {
+  const { data } = await chatApi.get('/api/chat/conversations', {
+    params: { userRole, userId },
+  });
+  return data;
+};
+
 export default chatApi;
 

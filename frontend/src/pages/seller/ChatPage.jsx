@@ -29,71 +29,7 @@ import {
 import Page from '../../components/Page';
 import { formatPrice } from '../../utils/formatNumber';
 import useChatSocket from '../../hooks/useChatSocket';
-import { getMessagesByOrder } from '../../services/chatApi';
-
-// Mock data for conversations (orders with winners)
-const mockConversations = [
-  {
-    orderId: 'ORD-001',
-    productId: 1,
-    productTitle: 'Vintage Rolex Submariner Watch',
-    productImage: 'https://images.unsplash.com/photo-1523170335258-f5ed11844a49?w=200',
-    winner: {
-      id: 201,
-      name: 'Alice Johnson',
-      avatar: 'https://i.pravatar.cc/150?img=1',
-    },
-    status: 'pending_payment',
-    amount: 25000000,
-    lastMessage: {
-      text: 'Thank you! I will send the payment today.',
-      sender: 'buyer',
-      time: new Date(Date.now() - 30 * 60 * 1000), // 30 minutes ago
-      read: false,
-    },
-    unreadCount: 2,
-  },
-  {
-    orderId: 'ORD-002',
-    productId: 2,
-    productTitle: 'Omega Speedmaster Professional Moonwatch',
-    productImage: 'https://images.unsplash.com/photo-1622434641406-a158123450f9?w=200',
-    winner: {
-      id: 202,
-      name: 'Bob Smith',
-      avatar: 'https://i.pravatar.cc/150?img=2',
-    },
-    status: 'paid',
-    amount: 18000000,
-    lastMessage: {
-      text: 'When will you ship the item?',
-      sender: 'buyer',
-      time: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-      read: true,
-    },
-    unreadCount: 0,
-  },
-  {
-    orderId: 'ORD-003',
-    productId: 3,
-    productTitle: 'TAG Heuer Carrera Automatic Chronograph',
-    productImage: 'https://images.unsplash.com/photo-1606403726988-eb66a8c2d233?w=200',
-    winner: {
-      id: 203,
-      name: 'Charlie Brown',
-      avatar: 'https://i.pravatar.cc/150?img=3',
-    },
-    status: 'shipping',
-    amount: 12000000,
-    lastMessage: {
-      text: 'The package has been shipped. Tracking number: TR123456789',
-      sender: 'seller',
-      time: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
-      read: true,
-    },
-    unreadCount: 0,
-  },
-];
+import { getMessagesByOrder, getConversations } from '../../services/chatApi';
 
 const SellerChatPage = () => {
   const { orderId } = useParams();
@@ -102,11 +38,33 @@ const SellerChatPage = () => {
   const [selectedOrderId, setSelectedOrderId] = useState(orderId || null);
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState([]);
+  const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [loadingConversations, setLoadingConversations] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
 
-  const selectedConversation = mockConversations.find((conv) => conv.orderId === selectedOrderId);
+  // Map API conversation to UI format
+  const mapConversationToUI = useCallback((conv) => {
+    return {
+      orderId: conv.orderId,
+      winner: {
+        name: conv.bidderName || `Bidder ${conv.orderId}`,
+        avatar: conv.bidderAvatar || '/anonymous-user.jpg',
+      },
+      status: conv.status || 'pending_payment',
+      amount: conv.amount ? Number(conv.amount) : 0,
+      lastMessage: {
+        text: conv.lastMessageContent || '',
+        sender: conv.lastMessageSenderRole?.toLowerCase() === 'bidder' ? 'buyer' : 'seller',
+        time: conv.lastMessageTime ? new Date(conv.lastMessageTime) : new Date(),
+        read: (conv.unreadCountSeller || 0) === 0,
+      },
+      unreadCount: conv.unreadCountSeller || 0,
+    };
+  }, []);
+
+  const selectedConversation = conversations.find((conv) => conv.orderId === selectedOrderId);
 
   const mapDtoToMessage = useCallback((dto) => {
     const role = (dto.senderRole || '').toLowerCase();
@@ -131,6 +89,30 @@ const SellerChatPage = () => {
     onMessage: handleIncomingMessage,
   });
 
+  // Load conversations list
+  useEffect(() => {
+    let isMounted = true;
+    setLoadingConversations(true);
+
+    getConversations('SELLER', 'mock-seller')
+      .then((data) => {
+        if (!isMounted) return;
+        setConversations((data || []).map(mapConversationToUI));
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setConversations([]);
+      })
+      .finally(() => {
+        if (isMounted) setLoadingConversations(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [mapConversationToUI]);
+
+  // Load messages when orderId selected
   useEffect(() => {
     if (!selectedOrderId) return;
     let isMounted = true;
@@ -263,9 +245,20 @@ const SellerChatPage = () => {
               <Typography variant="h6" fontWeight={600}>
                 Conversations
               </Typography>
-            </Box>
-            <List sx={{ p: 0 }}>
-              {mockConversations.map((conversation) => (
+              </Box>
+              <List sx={{ p: 0 }}>
+                {loadingConversations ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                    <CircularProgress />
+                  </Box>
+                ) : conversations.length === 0 ? (
+                  <Box sx={{ textAlign: 'center', py: 4 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      There is no conversation yet
+                    </Typography>
+                  </Box>
+                ) : (
+                  conversations.map((conversation) => (
                 <ListItem key={conversation.orderId} disablePadding>
                   <ListItemButton
                     onClick={() => handleSelectConversation(conversation.orderId)}
@@ -279,7 +272,7 @@ const SellerChatPage = () => {
                   >
                     <ListItemAvatar>
                       <Badge
-                        badgeContent={conversation.unreadCount}
+                        variant="dot"
                         color="error"
                         invisible={conversation.unreadCount === 0}
                       >
@@ -288,19 +281,9 @@ const SellerChatPage = () => {
                     </ListItemAvatar>
                     <ListItemText
                       primary={
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                          <Typography variant="subtitle2" fontWeight={600}>
-                            {conversation.winner.name}
-                          </Typography>
-                          {conversation.unreadCount > 0 && (
-                            <Chip
-                              label={conversation.unreadCount}
-                              size="small"
-                              color="error"
-                              sx={{ height: 18, fontSize: '0.7rem', fontWeight: 'bold' }}
-                            />
-                          )}
-                        </Box>
+                        <Typography variant="subtitle2" fontWeight={conversation.unreadCount > 0 ? 600 : 400}>
+                          {conversation.winner.name}
+                        </Typography>
                       }
                       secondary={
                         <Box>
@@ -333,10 +316,11 @@ const SellerChatPage = () => {
                       }
                       secondaryTypographyProps={{ component: 'div' }}
                     />
-                  </ListItemButton>
-                </ListItem>
-              ))}
-            </List>
+                    </ListItemButton>
+                  </ListItem>
+                  ))
+                )}
+              </List>
           </Card>
         </Container>
       </Page>
