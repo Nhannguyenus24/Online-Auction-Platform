@@ -41,7 +41,7 @@ VALUES
         CURRENT_TIMESTAMP - INTERVAL '30 minutes', 
         2, 
         1,
-        CURRENT_TIMESTAMP - INTERVAL '3 days',
+        CURRENT_TIMESTAMP - INTERVAL '1 day',
         CURRENT_TIMESTAMP - INTERVAL '30 minutes'
     ),
     (
@@ -61,7 +61,7 @@ VALUES
         CURRENT_TIMESTAMP - INTERVAL '2 hours', 
         0, 
         0,
-        CURRENT_TIMESTAMP - INTERVAL '2 days',
+        CURRENT_TIMESTAMP - INTERVAL '1 day',
         CURRENT_TIMESTAMP - INTERVAL '2 hours'
     ),
     (
@@ -81,7 +81,7 @@ VALUES
         CURRENT_TIMESTAMP - INTERVAL '1 day', 
         0, 
         1,
-        CURRENT_TIMESTAMP - INTERVAL '5 days',
+        CURRENT_TIMESTAMP - INTERVAL '2 days',
         CURRENT_TIMESTAMP - INTERVAL '1 day'
     )
 ON CONFLICT (order_id) DO UPDATE SET

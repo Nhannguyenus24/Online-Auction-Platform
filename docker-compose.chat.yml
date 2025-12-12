@@ -13,6 +13,8 @@ services:
     volumes:
       - chat_db_data:/var/lib/postgresql/data
       - ./sql/chat-init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./sql/insert-conversations.sql:/docker-entrypoint-initdb.d/insert-conversations.sql
+      - ./sql/insert-messages.sql:/docker-entrypoint-initdb.d/insert-messages.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U chat_user -d chatdb"]
       interval: 10s
