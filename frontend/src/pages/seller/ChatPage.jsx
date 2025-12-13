@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -29,7 +29,8 @@ import {
 import Page from '../../components/Page';
 import { formatPrice } from '../../utils/formatNumber';
 import useChatSocket from '../../hooks/useChatSocket';
-import { getMessagesByOrder, getConversations } from '../../services/chatApi';
+import useConversationsSocket from '../../hooks/useConversationsSocket';
+import { getMessagesByOrder, getConversations, markConversationAsRead } from '../../services/chatApi';
 
 const SellerChatPage = () => {
   const { orderId } = useParams();
@@ -84,9 +85,65 @@ const SellerChatPage = () => {
     [mapDtoToMessage]
   );
 
+  // Handle incoming messages for conversation list updates
+  const handleConversationMessage = useCallback(
+    (payload) => {
+      console.log('handleConversationMessage received:', payload);
+      // Update conversation list when a new message arrives
+      setConversations((prev) => {
+        const updated = prev.map((conv) => {
+          if (conv.orderId === payload.orderId) {
+            const isSeller = payload.senderRole?.toLowerCase() === 'seller';
+            const isCurrentConversation = selectedOrderId === payload.orderId;
+            const isFromOtherParty = !isSeller; // Seller receives messages from bidder
+            
+            // If message is from other party and we're viewing this conversation,
+            // backend will increment unread count, but we should keep it at 0
+            // because user is actively viewing it. However, if we're NOT viewing it,
+            // we need to increment the unread count.
+            let newUnreadCount = conv.unreadCount || 0;
+            if (isFromOtherParty && !isCurrentConversation) {
+              // Message from other party and we're NOT viewing it -> increment unread
+              newUnreadCount = newUnreadCount + 1;
+            } else if (isCurrentConversation) {
+              // We're viewing this conversation -> unread should be 0
+              newUnreadCount = 0;
+            }
+            // If message is from current user, unread count stays the same
+
+            return {
+              ...conv,
+              lastMessage: {
+                text: payload.content || '',
+                sender: isSeller ? 'seller' : 'buyer',
+                time: payload.createdAt ? new Date(payload.createdAt) : new Date(),
+                read: newUnreadCount === 0,
+              },
+              unreadCount: newUnreadCount,
+            };
+          }
+          return conv;
+        });
+        // Sort by last message time (most recent first)
+        return updated.sort((a, b) => b.lastMessage.time - a.lastMessage.time);
+      });
+    },
+    [selectedOrderId]
+  );
+
   const { connected: socketConnected, error: socketError, sendMessage } = useChatSocket({
     orderId: selectedOrderId,
     onMessage: handleIncomingMessage,
+  });
+
+  // Subscribe to all conversations for real-time updates
+  const conversationOrderIds = useMemo(() => {
+    return conversations.map((conv) => conv.orderId);
+  }, [conversations]);
+  
+  useConversationsSocket({
+    orderIds: conversationOrderIds,
+    onMessage: handleConversationMessage,
   });
 
   // Load conversations list
@@ -112,31 +169,66 @@ const SellerChatPage = () => {
     };
   }, [mapConversationToUI]);
 
-  // Load messages when orderId selected
+  // Refresh conversations list when returning from a conversation (orderId becomes null)
+  useEffect(() => {
+    if (!orderId && selectedOrderId === null) {
+      // We're on the conversation list page, refresh to get latest unread counts
+      getConversations('SELLER', 'mock-seller')
+        .then((data) => {
+          setConversations((data || []).map(mapConversationToUI));
+        })
+        .catch(() => {
+          // Silently fail, don't show error
+        });
+    }
+  }, [orderId, selectedOrderId, mapConversationToUI]);
+
+  // Load messages when orderId selected and mark as read
   useEffect(() => {
     if (!selectedOrderId) return;
     let isMounted = true;
     setLoading(true);
     setError(null);
+    // Clear messages when switching to a new conversation
+    setMessages([]);
 
+    // Mark conversation as read
+    markConversationAsRead(selectedOrderId, 'SELLER')
+      .then(() => {
+        // Refresh conversations list to update unread status
+        return getConversations('SELLER', 'mock-seller');
+      })
+      .then((data) => {
+        if (!isMounted) return;
+        setConversations((data || []).map(mapConversationToUI));
+      })
+      .catch((err) => {
+        console.error('Error marking as read:', err);
+      });
+
+    // Load messages
     getMessagesByOrder(selectedOrderId)
       .then((data) => {
         if (!isMounted) return;
-        setMessages((data || []).map(mapDtoToMessage));
+        const mappedMessages = (data || []).map(mapDtoToMessage);
+        setMessages(mappedMessages);
+        setLoading(false);
+        if (mappedMessages.length === 0) {
+          // Only show error if we expected messages but got none
+          // This is normal for new conversations
+        }
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error('Error loading messages:', err);
         if (!isMounted) return;
-        setMessages([]);
         setError('Không tải được lịch sử chat. Vui lòng thử lại.');
-      })
-      .finally(() => {
-        if (isMounted) setLoading(false);
+        setLoading(false);
       });
 
     return () => {
       isMounted = false;
     };
-  }, [selectedOrderId, mapDtoToMessage]);
+  }, [selectedOrderId, mapDtoToMessage, mapConversationToUI]);
 
   useEffect(() => {
     // Auto scroll to bottom when new messages arrive
@@ -144,7 +236,7 @@ const SellerChatPage = () => {
   }, [messages]);
 
   const handleSelectConversation = (orderId) => {
-    setMessages([]);
+    // Don't clear messages here - let useEffect handle loading
     setError(null);
     setSelectedOrderId(orderId);
     navigate(`/seller/chat/${orderId}`);

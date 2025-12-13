@@ -47,6 +47,21 @@ public class ChatController {
 		}
 	}
 
+	@PostMapping("/{orderId}/mark-read")
+	public ResponseEntity<Void> markAsRead(
+		@PathVariable String orderId,
+		@RequestParam String userRole
+	) {
+		try {
+			chatService.markAsRead(orderId, userRole);
+			return ResponseEntity.ok().build();
+		} catch (IllegalArgumentException e) {
+			return ResponseEntity.badRequest().build();
+		} catch (Exception e) {
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+		}
+	}
+
 	@MessageMapping("/chat.send")
 	public void sendMessage(@Payload SendMessageRequest request) {
 		try {

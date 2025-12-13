@@ -22,5 +22,11 @@ export const getConversations = async (userRole, userId = 'mock-user') => {
   return data;
 };
 
+export const markConversationAsRead = async (orderId, userRole) => {
+  await chatApi.post(`/api/chat/${orderId}/mark-read`, null, {
+    params: { userRole },
+  });
+};
+
 export default chatApi;
 

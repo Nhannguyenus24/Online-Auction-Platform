@@ -98,6 +98,22 @@ public class ChatService {
 
 		return MessageDto.fromEntity(saved);
 	}
+
+	@Transactional
+	public void markAsRead(String orderId, String userRole) {
+		Conversation conversation = conversationRepository.findByOrderId(orderId)
+			.orElseThrow(() -> new IllegalArgumentException("Conversation not found for orderId: " + orderId));
+
+		if ("SELLER".equalsIgnoreCase(userRole)) {
+			conversation.setUnreadCountSeller(0);
+		} else if ("BIDDER".equalsIgnoreCase(userRole)) {
+			conversation.setUnreadCountBidder(0);
+		} else {
+			throw new IllegalArgumentException("Invalid userRole. Must be SELLER or BIDDER");
+		}
+
+		conversationRepository.save(conversation);
+	}
 }
 
 
