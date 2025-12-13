@@ -11,31 +11,29 @@ import {
   Stack,
   Paper,
   Chip,
+  CircularProgress,
+  Alert,
   List,
   ListItem,
   ListItemButton,
   ListItemAvatar,
   ListItemText,
   Badge,
-  CircularProgress,
-  Alert,
 } from '@mui/material';
-import {
-  Send,
-  ArrowBack,
-  CheckCircle,
-  Schedule,
-} from '@mui/icons-material';
+import { Send, ArrowBack, CheckCircle, Schedule } from '@mui/icons-material';
 import Page from '../../components/Page';
 import { formatPrice } from '../../utils/formatNumber';
 import useChatSocket from '../../hooks/useChatSocket';
 import useConversationsSocket from '../../hooks/useConversationsSocket';
 import { getMessagesByOrder, getConversations, markConversationAsRead } from '../../services/chatApi';
 
-const SellerChatPage = () => {
+const defaultAvatar = '/anonymous-user.jpg';
+
+const BidderChatPage = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
   const messagesEndRef = useRef(null);
+
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState([]);
   const [conversations, setConversations] = useState([]);
@@ -48,19 +46,19 @@ const SellerChatPage = () => {
   const mapConversationToUI = useCallback((conv) => {
     return {
       orderId: conv.orderId,
-      winner: {
-        name: conv.bidderName || `Bidder ${conv.orderId}`,
-        avatar: conv.bidderAvatar || '/anonymous-user.jpg',
+      seller: {
+        name: conv.sellerName || `Seller ${conv.orderId}`,
+        avatar: conv.sellerAvatar || defaultAvatar,
       },
       status: conv.status || 'pending_payment',
       amount: conv.amount ? Number(conv.amount) : 0,
       lastMessage: {
         text: conv.lastMessageContent || '',
-        sender: conv.lastMessageSenderRole?.toLowerCase() === 'bidder' ? 'buyer' : 'seller',
+        sender: conv.lastMessageSenderRole?.toLowerCase() === 'seller' ? 'seller' : 'buyer',
         time: conv.lastMessageTime ? new Date(conv.lastMessageTime) : new Date(),
-        read: (conv.unreadCountSeller || 0) === 0,
+        read: (conv.unreadCountBidder || 0) === 0,
       },
-      unreadCount: conv.unreadCountSeller || 0,
+      unreadCount: conv.unreadCountBidder || 0,
     };
   }, []);
 
@@ -71,7 +69,7 @@ const SellerChatPage = () => {
     return {
       id: dto.id || Date.now(),
       text: dto.content || '',
-      sender: role === 'seller' ? 'seller' : 'buyer',
+      sender: role === 'bidder' ? 'buyer' : 'seller',
       time: dto.createdAt ? new Date(dto.createdAt) : new Date(),
       read: true,
     };
@@ -90,8 +88,8 @@ const SellerChatPage = () => {
       console.log('handleConversationMessage received:', payload);
       console.log('orderId from URL:', orderId);
       const isCurrentConversation = orderId === payload.orderId;
-      const isSeller = payload.senderRole?.toLowerCase() === 'seller';
-      const isFromOtherParty = !isSeller; // Seller receives messages from bidder
+      const isBidder = payload.senderRole?.toLowerCase() === 'bidder';
+      const isFromOtherParty = !isBidder; // Bidder receives messages from seller
       
       console.log('isFromOtherParty:', isFromOtherParty, 'isCurrentConversation:', isCurrentConversation);
       
@@ -102,9 +100,9 @@ const SellerChatPage = () => {
       if (isFromOtherParty && !isCurrentConversation) {
         // Message from other party and we're NOT viewing it -> refresh from DB to get accurate unread count
         // Add small delay to ensure backend has committed the transaction
-        console.log('Refreshing conversations from DB for seller...');
+        console.log('Refreshing conversations from DB for bidder...');
         setTimeout(() => {
-          getConversations('SELLER', 'mock-seller')
+          getConversations('BIDDER', 'mock-bidder')
             .then((data) => {
               console.log('Refreshed conversations:', data);
               const updatedConversations = (data || []).map(mapConversationToUI);
@@ -115,7 +113,7 @@ const SellerChatPage = () => {
               if (targetConv && targetConv.unreadCount === 0) {
                 console.log('Unread count is 0, retrying refresh after delay...');
                 setTimeout(() => {
-                  getConversations('SELLER', 'mock-seller')
+                  getConversations('BIDDER', 'mock-bidder')
                     .then((retryData) => {
                       console.log('Retry refreshed conversations:', retryData);
                       setConversations((retryData || []).map(mapConversationToUI));
@@ -136,7 +134,7 @@ const SellerChatPage = () => {
                       ...conv,
                       lastMessage: {
                         text: payload.content || '',
-                        sender: isSeller ? 'seller' : 'buyer',
+                        sender: isBidder ? 'buyer' : 'seller',
                         time: payload.createdAt ? new Date(payload.createdAt) : new Date(),
                         read: false,
                       },
@@ -159,7 +157,7 @@ const SellerChatPage = () => {
                 ...conv,
                 lastMessage: {
                   text: payload.content || '',
-                  sender: isSeller ? 'seller' : 'buyer',
+                  sender: isBidder ? 'buyer' : 'seller',
                   time: payload.createdAt ? new Date(payload.createdAt) : new Date(),
                   read: isCurrentConversation, // If viewing, it's read
                 },
@@ -176,7 +174,7 @@ const SellerChatPage = () => {
   );
 
   const { connected: socketConnected, error: socketError, sendMessage } = useChatSocket({
-    orderId: orderId,
+    orderId,
     onMessage: handleIncomingMessage,
   });
 
@@ -195,7 +193,7 @@ const SellerChatPage = () => {
     let isMounted = true;
     setLoadingConversations(true);
 
-    getConversations('SELLER', 'mock-seller')
+    getConversations('BIDDER', 'mock-bidder')
       .then((data) => {
         if (!isMounted) return;
         setConversations((data || []).map(mapConversationToUI));
@@ -217,7 +215,7 @@ const SellerChatPage = () => {
   useEffect(() => {
     if (!orderId) {
       // We're on the conversation list page, refresh to get latest unread counts
-      getConversations('SELLER', 'mock-seller')
+      getConversations('BIDDER', 'mock-bidder')
         .then((data) => {
           setConversations((data || []).map(mapConversationToUI));
         })
@@ -237,10 +235,10 @@ const SellerChatPage = () => {
     setMessages([]);
 
     // Mark conversation as read
-    markConversationAsRead(orderId, 'SELLER')
+    markConversationAsRead(orderId, 'BIDDER')
       .then(() => {
         // Refresh conversations list to update unread status
-        return getConversations('SELLER', 'mock-seller');
+        return getConversations('BIDDER', 'mock-bidder');
       })
       .then((data) => {
         if (!isMounted) return;
@@ -275,27 +273,16 @@ const SellerChatPage = () => {
   }, [mapDtoToMessage, mapConversationToUI, orderId]);
 
   useEffect(() => {
-    // Auto scroll to bottom when messages change or orderId changes
-    // Use setTimeout to ensure DOM has updated
-    const timer = setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, 100);
-    return () => clearTimeout(timer);
-  }, [messages, orderId]);
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
-  const handleSelectConversation = (orderId) => {
-    // Don't clear messages here - let useEffect handle loading
-    setError(null);
-    navigate(`/seller/chat/${orderId}`);
-  };
-
-  const handleSendMessage = async () => {
+  const handleSendMessage = () => {
     if (!message.trim() || !orderId) return;
     const payload = {
-      orderId: orderId,
-      senderRole: 'SELLER',
-      senderName: `Seller ${orderId}`,
-      senderEmail: `seller+${orderId}@example.com`,
+      orderId,
+      senderRole: 'BIDDER',
+      senderName: `Bidder ${orderId}`,
+      senderEmail: `bidder+${orderId}@example.com`,
       content: message.trim(),
     };
 
@@ -303,7 +290,7 @@ const SellerChatPage = () => {
       setSending(true);
       sendMessage(payload);
       setMessage('');
-    } catch {
+    } catch (err) {
       setError('Không thể gửi tin nhắn. Vui lòng kiểm tra kết nối và thử lại.');
     } finally {
       setSending(false);
@@ -365,17 +352,25 @@ const SellerChatPage = () => {
     }
   };
 
+  const handleSelectConversation = (orderId) => {
+    // Don't clear messages here - let useEffect handle loading
+    setError(null);
+    navigate(`/bidder/chat/${orderId}`);
+  };
+
+  const isSelf = (msg) => msg.sender === 'buyer';
+
   // Show conversation list when no orderId
   if (!orderId) {
     return (
-      <Page title="Chat - Seller Dashboard">
+      <Page title="Chat - Bidder">
         <Container maxWidth="lg" sx={{ py: 2 }}>
           <Box sx={{ mb: 3 }}>
             <Typography variant="h4" component="h1" gutterBottom fontWeight={700}>
-              Chat with Winners
+              Chat with Sellers
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Communicate with buyers to complete orders
+              Communicate with sellers about your orders
             </Typography>
           </Box>
 
@@ -415,13 +410,13 @@ const SellerChatPage = () => {
                         color="error"
                         invisible={conversation.unreadCount === 0}
                       >
-                        <Avatar src={conversation.winner.avatar} alt={conversation.winner.name} />
+                        <Avatar src={conversation.seller.avatar} alt={conversation.seller.name} />
                       </Badge>
                     </ListItemAvatar>
                     <ListItemText
                       primary={
                         <Typography variant="subtitle2" fontWeight={conversation.unreadCount > 0 ? 600 : 400}>
-                          {conversation.winner.name}
+                          {conversation.seller.name}
                         </Typography>
                       }
                       secondary={
@@ -466,10 +461,10 @@ const SellerChatPage = () => {
     );
   }
 
-  // Show chat view when orderId exists (similar to bidder)
+  // Show chat view when orderId exists
   if (!selectedConversation) {
     return (
-      <Page title="Chat - Seller">
+      <Page title="Chat - Bidder">
         <Container maxWidth="lg" sx={{ py: 2 }}>
           <Box sx={{ textAlign: 'center', py: 6 }}>
             <Typography variant="h6">Không tìm thấy conversation.</Typography>
@@ -480,7 +475,7 @@ const SellerChatPage = () => {
   }
 
   return (
-    <Page title="Chat - Seller">
+    <Page title="Chat - Bidder">
       <Container maxWidth="lg" sx={{ py: 2 }}>
         <Card
           elevation={0}
@@ -498,13 +493,13 @@ const SellerChatPage = () => {
               bgcolor: 'grey.50',
             }}
           >
-            <IconButton onClick={() => navigate('/seller/chat')}>
+            <IconButton onClick={() => navigate('/bidder/chat')}>
               <ArrowBack />
             </IconButton>
-            <Avatar src={selectedConversation.winner.avatar} alt={selectedConversation.winner.name} />
+            <Avatar src={selectedConversation.seller.avatar} alt={selectedConversation.seller.name} />
             <Box sx={{ flex: 1 }}>
               <Typography variant="subtitle1" fontWeight={600}>
-                {selectedConversation.winner.name}
+                {selectedConversation.seller.name}
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 Order: {selectedConversation.orderId} • {formatPrice(selectedConversation.amount)}
@@ -555,7 +550,7 @@ const SellerChatPage = () => {
             ) : (
               <Stack spacing={2}>
                 {messages.map((msg, index) => {
-                  const isSeller = msg.sender === 'seller';
+                  const self = isSelf(msg);
                   const showAvatar = index === 0 || messages[index - 1].sender !== msg.sender;
                   const showTime =
                     index === messages.length - 1 ||
@@ -566,35 +561,31 @@ const SellerChatPage = () => {
                       key={msg.id}
                       sx={{
                         display: 'flex',
-                        justifyContent: isSeller ? 'flex-end' : 'flex-start',
+                        justifyContent: self ? 'flex-end' : 'flex-start',
                         gap: 1,
                         alignItems: 'flex-end',
                       }}
                     >
-                      {!isSeller && showAvatar && (
-                        <Avatar
-                          src={selectedConversation.winner.avatar}
-                          alt={selectedConversation.winner.name}
-                          sx={{ width: 32, height: 32 }}
-                        />
+                      {!self && showAvatar && (
+                        <Avatar src={selectedConversation.seller.avatar} alt={selectedConversation.seller.name} sx={{ width: 32, height: 32 }} />
                       )}
                       <Box
                         sx={{
                           maxWidth: { xs: '85%', sm: '75%', md: '70%' },
                           display: 'flex',
                           flexDirection: 'column',
-                          alignItems: isSeller ? 'flex-end' : 'flex-start',
+                          alignItems: self ? 'flex-end' : 'flex-start',
                         }}
                       >
                         <Paper
                           elevation={0}
                           sx={{
                             p: 1.5,
-                            bgcolor: isSeller ? 'primary.main' : 'white',
-                            color: isSeller ? 'white' : 'text.primary',
+                            bgcolor: self ? 'primary.main' : 'white',
+                            color: self ? 'white' : 'text.primary',
                             borderRadius: 2,
-                            borderTopLeftRadius: showAvatar && !isSeller ? 0.5 : 2,
-                            borderTopRightRadius: showAvatar && isSeller ? 0.5 : 2,
+                            borderTopLeftRadius: showAvatar && !self ? 0.5 : 2,
+                            borderTopRightRadius: showAvatar && self ? 0.5 : 2,
                             boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
                           }}
                         >
@@ -607,7 +598,7 @@ const SellerChatPage = () => {
                             <Typography variant="caption" color="text.secondary" fontSize="0.7rem">
                               {getTimeDisplay(msg.time)}
                             </Typography>
-                            {isSeller && (
+                            {self && (
                               <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                 {msg.read ? (
                                   <CheckCircle sx={{ fontSize: 14, color: 'primary.main' }} />
@@ -619,9 +610,7 @@ const SellerChatPage = () => {
                           </Box>
                         )}
                       </Box>
-                      {isSeller && showAvatar && (
-                        <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>S</Avatar>
-                      )}
+                      {self && showAvatar && <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>B</Avatar>}
                     </Box>
                   );
                 })}
@@ -691,5 +680,5 @@ const SellerChatPage = () => {
   );
 };
 
-export default SellerChatPage;
+export default BidderChatPage;
 

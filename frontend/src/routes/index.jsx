@@ -75,6 +75,8 @@ export default function Router() {
         { path: "checkout", element: <BidderCheckoutPage /> },
         { path: "checkout/:id", element: <BidderCheckoutPage /> },
         { path: "order-completion/:orderId", element: <BidderOrderCompletionPage /> },
+        { path: "chat", element: <BidderChatPage /> },
+        { path: "chat/:orderId", element: <BidderChatPage /> },
       ],
     },
     {
@@ -154,6 +156,9 @@ const SellerChatPage = Loadable(
 //BIDDER
 const BidderHomePage = Loadable(
   lazy(() => import("../pages/bidder/HomePage.jsx"))
+);
+const BidderChatPage = Loadable(
+  lazy(() => import("../pages/bidder/ChatPage.jsx"))
 );
 const BidderProfilePage = Loadable(
   lazy(() => import("../pages/bidder/ProfilePage.jsx"))

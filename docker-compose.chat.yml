@@ -1,0 +1,49 @@
+
+services:
+  chat-db:
+    image: postgres:15-alpine
+    container_name: chat-db
+    restart: always
+    environment:
+      POSTGRES_DB: chatdb
+      POSTGRES_USER: chat_user
+      POSTGRES_PASSWORD: chat_pass
+    ports:
+      - "5434:5432"
+    volumes:
+      - chat_db_data:/var/lib/postgresql/data
+      - ./sql/chat-init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./sql/insert-conversations.sql:/docker-entrypoint-initdb.d/insert-conversations.sql
+      - ./sql/insert-messages.sql:/docker-entrypoint-initdb.d/insert-messages.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chat_user -d chatdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  chat-service:
+    build:
+      context: ./backend
+      dockerfile: chat/Dockerfile
+    container_name: chat-service
+    restart: always
+    ports:
+      - "8085:8085"
+    environment:
+      CHAT_DB_HOST: chat-db
+      CHAT_DB_PORT: 5432
+      CHAT_DB_USER: chat_user
+      CHAT_DB_PASSWORD: chat_pass
+      CHAT_SERVICE_PORT: 8085
+    depends_on:
+      chat-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8085/api/chat/ORD-001/messages || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  chat_db_data:
+
