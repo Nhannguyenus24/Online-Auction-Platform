@@ -549,7 +549,7 @@ const SellerChatPage = () => {
             ) : messages.length === 0 ? (
               <Box sx={{ textAlign: 'center', py: 8 }}>
                 <Typography variant="body1" color="text.secondary">
-                  Chưa có tin nhắn. Hãy bắt đầu cuộc trò chuyện!
+                  No messages yet. Start the conversation!
                 </Typography>
               </Box>
             ) : (
