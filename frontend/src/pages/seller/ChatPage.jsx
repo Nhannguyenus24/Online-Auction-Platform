@@ -36,7 +36,6 @@ const SellerChatPage = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
   const messagesEndRef = useRef(null);
-  const [selectedOrderId, setSelectedOrderId] = useState(orderId || null);
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState([]);
   const [conversations, setConversations] = useState([]);
@@ -65,7 +64,7 @@ const SellerChatPage = () => {
     };
   }, []);
 
-  const selectedConversation = conversations.find((conv) => conv.orderId === selectedOrderId);
+  const selectedConversation = conversations.find((conv) => conv.orderId === orderId);
 
   const mapDtoToMessage = useCallback((dto) => {
     const role = (dto.senderRole || '').toLowerCase();
@@ -89,50 +88,95 @@ const SellerChatPage = () => {
   const handleConversationMessage = useCallback(
     (payload) => {
       console.log('handleConversationMessage received:', payload);
-      // Update conversation list when a new message arrives
-      setConversations((prev) => {
-        const updated = prev.map((conv) => {
-          if (conv.orderId === payload.orderId) {
-            const isSeller = payload.senderRole?.toLowerCase() === 'seller';
-            const isCurrentConversation = selectedOrderId === payload.orderId;
-            const isFromOtherParty = !isSeller; // Seller receives messages from bidder
-            
-            // If message is from other party and we're viewing this conversation,
-            // backend will increment unread count, but we should keep it at 0
-            // because user is actively viewing it. However, if we're NOT viewing it,
-            // we need to increment the unread count.
-            let newUnreadCount = conv.unreadCount || 0;
-            if (isFromOtherParty && !isCurrentConversation) {
-              // Message from other party and we're NOT viewing it -> increment unread
-              newUnreadCount = newUnreadCount + 1;
-            } else if (isCurrentConversation) {
-              // We're viewing this conversation -> unread should be 0
-              newUnreadCount = 0;
+      console.log('orderId from URL:', orderId);
+      const isCurrentConversation = orderId === payload.orderId;
+      const isSeller = payload.senderRole?.toLowerCase() === 'seller';
+      const isFromOtherParty = !isSeller; // Seller receives messages from bidder
+      
+      console.log('isFromOtherParty:', isFromOtherParty, 'isCurrentConversation:', isCurrentConversation);
+      
+      // If we're viewing this conversation and message is from other party,
+      // backend will increment unread count, but we should keep it at 0
+      // because user is actively viewing it. We'll refresh from DB when leaving.
+      // If we're NOT viewing it, we need to fetch the latest unread count from DB.
+      if (isFromOtherParty && !isCurrentConversation) {
+        // Message from other party and we're NOT viewing it -> refresh from DB to get accurate unread count
+        // Add small delay to ensure backend has committed the transaction
+        console.log('Refreshing conversations from DB for seller...');
+        setTimeout(() => {
+          getConversations('SELLER', 'mock-seller')
+            .then((data) => {
+              console.log('Refreshed conversations:', data);
+              const updatedConversations = (data || []).map(mapConversationToUI);
+              setConversations(updatedConversations);
+              
+              // Check if the conversation has unread count, if not, retry once after another delay
+              const targetConv = updatedConversations.find(c => c.orderId === payload.orderId);
+              if (targetConv && targetConv.unreadCount === 0) {
+                console.log('Unread count is 0, retrying refresh after delay...');
+                setTimeout(() => {
+                  getConversations('SELLER', 'mock-seller')
+                    .then((retryData) => {
+                      console.log('Retry refreshed conversations:', retryData);
+                      setConversations((retryData || []).map(mapConversationToUI));
+                    })
+                    .catch((err) => {
+                      console.error('Retry failed to refresh conversations:', err);
+                    });
+                }, 300);
+              }
+            })
+            .catch((err) => {
+              console.error('Failed to refresh conversations:', err);
+              // Fallback: update locally
+              setConversations((prev) => {
+                const updated = prev.map((conv) => {
+                  if (conv.orderId === payload.orderId) {
+                    return {
+                      ...conv,
+                      lastMessage: {
+                        text: payload.content || '',
+                        sender: isSeller ? 'seller' : 'buyer',
+                        time: payload.createdAt ? new Date(payload.createdAt) : new Date(),
+                        read: false,
+                      },
+                      unreadCount: (conv.unreadCount || 0) + 1,
+                    };
+                  }
+                  return conv;
+                });
+                return updated.sort((a, b) => b.lastMessage.time - a.lastMessage.time);
+              });
+            });
+        }, 100); // 100ms delay to ensure backend transaction is committed
+      } else {
+        // Message from current user or we're viewing this conversation -> just update last message
+        console.log('Updating last message only (message from current user or viewing conversation)');
+        setConversations((prev) => {
+          const updated = prev.map((conv) => {
+            if (conv.orderId === payload.orderId) {
+              return {
+                ...conv,
+                lastMessage: {
+                  text: payload.content || '',
+                  sender: isSeller ? 'seller' : 'buyer',
+                  time: payload.createdAt ? new Date(payload.createdAt) : new Date(),
+                  read: isCurrentConversation, // If viewing, it's read
+                },
+                unreadCount: isCurrentConversation ? 0 : (conv.unreadCount || 0),
+              };
             }
-            // If message is from current user, unread count stays the same
-
-            return {
-              ...conv,
-              lastMessage: {
-                text: payload.content || '',
-                sender: isSeller ? 'seller' : 'buyer',
-                time: payload.createdAt ? new Date(payload.createdAt) : new Date(),
-                read: newUnreadCount === 0,
-              },
-              unreadCount: newUnreadCount,
-            };
-          }
-          return conv;
+            return conv;
+          });
+          return updated.sort((a, b) => b.lastMessage.time - a.lastMessage.time);
         });
-        // Sort by last message time (most recent first)
-        return updated.sort((a, b) => b.lastMessage.time - a.lastMessage.time);
-      });
+      }
     },
-    [selectedOrderId]
+    [orderId, mapConversationToUI]
   );
 
   const { connected: socketConnected, error: socketError, sendMessage } = useChatSocket({
-    orderId: selectedOrderId,
+    orderId: orderId,
     onMessage: handleIncomingMessage,
   });
 
@@ -171,7 +215,7 @@ const SellerChatPage = () => {
 
   // Refresh conversations list when returning from a conversation (orderId becomes null)
   useEffect(() => {
-    if (!orderId && selectedOrderId === null) {
+    if (!orderId) {
       // We're on the conversation list page, refresh to get latest unread counts
       getConversations('SELLER', 'mock-seller')
         .then((data) => {
@@ -181,11 +225,11 @@ const SellerChatPage = () => {
           // Silently fail, don't show error
         });
     }
-  }, [orderId, selectedOrderId, mapConversationToUI]);
+  }, [orderId, mapConversationToUI]);
 
   // Load messages when orderId selected and mark as read
   useEffect(() => {
-    if (!selectedOrderId) return;
+    if (!orderId) return;
     let isMounted = true;
     setLoading(true);
     setError(null);
@@ -193,7 +237,7 @@ const SellerChatPage = () => {
     setMessages([]);
 
     // Mark conversation as read
-    markConversationAsRead(selectedOrderId, 'SELLER')
+    markConversationAsRead(orderId, 'SELLER')
       .then(() => {
         // Refresh conversations list to update unread status
         return getConversations('SELLER', 'mock-seller');
@@ -207,7 +251,7 @@ const SellerChatPage = () => {
       });
 
     // Load messages
-    getMessagesByOrder(selectedOrderId)
+    getMessagesByOrder(orderId)
       .then((data) => {
         if (!isMounted) return;
         const mappedMessages = (data || []).map(mapDtoToMessage);
@@ -228,27 +272,30 @@ const SellerChatPage = () => {
     return () => {
       isMounted = false;
     };
-  }, [selectedOrderId, mapDtoToMessage, mapConversationToUI]);
+  }, [mapDtoToMessage, mapConversationToUI, orderId]);
 
   useEffect(() => {
-    // Auto scroll to bottom when new messages arrive
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    // Auto scroll to bottom when messages change or orderId changes
+    // Use setTimeout to ensure DOM has updated
+    const timer = setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [messages, orderId]);
 
   const handleSelectConversation = (orderId) => {
     // Don't clear messages here - let useEffect handle loading
     setError(null);
-    setSelectedOrderId(orderId);
     navigate(`/seller/chat/${orderId}`);
   };
 
   const handleSendMessage = async () => {
-    if (!message.trim() || !selectedOrderId) return;
+    if (!message.trim() || !orderId) return;
     const payload = {
-      orderId: selectedOrderId,
+      orderId: orderId,
       senderRole: 'SELLER',
-      senderName: `Seller ${selectedOrderId}`,
-      senderEmail: `seller+${selectedOrderId}@example.com`,
+      senderName: `Seller ${orderId}`,
+      senderEmail: `seller+${orderId}@example.com`,
       content: message.trim(),
     };
 

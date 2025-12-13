@@ -86,46 +86,91 @@ const BidderChatPage = () => {
   const handleConversationMessage = useCallback(
     (payload) => {
       console.log('handleConversationMessage received:', payload);
-      // Update conversation list when a new message arrives
-      setConversations((prev) => {
-        const updated = prev.map((conv) => {
-          if (conv.orderId === payload.orderId) {
-            const isBidder = payload.senderRole?.toLowerCase() === 'bidder';
-            const isCurrentConversation = orderId === payload.orderId;
-            const isFromOtherParty = !isBidder; // Bidder receives messages from seller
-            
-            // If message is from other party and we're viewing this conversation,
-            // backend will increment unread count, but we should keep it at 0
-            // because user is actively viewing it. However, if we're NOT viewing it,
-            // we need to increment the unread count.
-            let newUnreadCount = conv.unreadCount || 0;
-            if (isFromOtherParty && !isCurrentConversation) {
-              // Message from other party and we're NOT viewing it -> increment unread
-              newUnreadCount = newUnreadCount + 1;
-            } else if (isCurrentConversation) {
-              // We're viewing this conversation -> unread should be 0
-              newUnreadCount = 0;
+      console.log('orderId from URL:', orderId);
+      const isCurrentConversation = orderId === payload.orderId;
+      const isBidder = payload.senderRole?.toLowerCase() === 'bidder';
+      const isFromOtherParty = !isBidder; // Bidder receives messages from seller
+      
+      console.log('isFromOtherParty:', isFromOtherParty, 'isCurrentConversation:', isCurrentConversation);
+      
+      // If we're viewing this conversation and message is from other party,
+      // backend will increment unread count, but we should keep it at 0
+      // because user is actively viewing it. We'll refresh from DB when leaving.
+      // If we're NOT viewing it, we need to fetch the latest unread count from DB.
+      if (isFromOtherParty && !isCurrentConversation) {
+        // Message from other party and we're NOT viewing it -> refresh from DB to get accurate unread count
+        // Add small delay to ensure backend has committed the transaction
+        console.log('Refreshing conversations from DB for bidder...');
+        setTimeout(() => {
+          getConversations('BIDDER', 'mock-bidder')
+            .then((data) => {
+              console.log('Refreshed conversations:', data);
+              const updatedConversations = (data || []).map(mapConversationToUI);
+              setConversations(updatedConversations);
+              
+              // Check if the conversation has unread count, if not, retry once after another delay
+              const targetConv = updatedConversations.find(c => c.orderId === payload.orderId);
+              if (targetConv && targetConv.unreadCount === 0) {
+                console.log('Unread count is 0, retrying refresh after delay...');
+                setTimeout(() => {
+                  getConversations('BIDDER', 'mock-bidder')
+                    .then((retryData) => {
+                      console.log('Retry refreshed conversations:', retryData);
+                      setConversations((retryData || []).map(mapConversationToUI));
+                    })
+                    .catch((err) => {
+                      console.error('Retry failed to refresh conversations:', err);
+                    });
+                }, 300);
+              }
+            })
+            .catch((err) => {
+              console.error('Failed to refresh conversations:', err);
+              // Fallback: update locally
+              setConversations((prev) => {
+                const updated = prev.map((conv) => {
+                  if (conv.orderId === payload.orderId) {
+                    return {
+                      ...conv,
+                      lastMessage: {
+                        text: payload.content || '',
+                        sender: isBidder ? 'buyer' : 'seller',
+                        time: payload.createdAt ? new Date(payload.createdAt) : new Date(),
+                        read: false,
+                      },
+                      unreadCount: (conv.unreadCount || 0) + 1,
+                    };
+                  }
+                  return conv;
+                });
+                return updated.sort((a, b) => b.lastMessage.time - a.lastMessage.time);
+              });
+            });
+        }, 100); // 100ms delay to ensure backend transaction is committed
+      } else {
+        // Message from current user or we're viewing this conversation -> just update last message
+        console.log('Updating last message only (message from current user or viewing conversation)');
+        setConversations((prev) => {
+          const updated = prev.map((conv) => {
+            if (conv.orderId === payload.orderId) {
+              return {
+                ...conv,
+                lastMessage: {
+                  text: payload.content || '',
+                  sender: isBidder ? 'buyer' : 'seller',
+                  time: payload.createdAt ? new Date(payload.createdAt) : new Date(),
+                  read: isCurrentConversation, // If viewing, it's read
+                },
+                unreadCount: isCurrentConversation ? 0 : (conv.unreadCount || 0),
+              };
             }
-            // If message is from current user, unread count stays the same
-
-            return {
-              ...conv,
-              lastMessage: {
-                text: payload.content || '',
-                sender: isBidder ? 'buyer' : 'seller',
-                time: payload.createdAt ? new Date(payload.createdAt) : new Date(),
-                read: newUnreadCount === 0,
-              },
-              unreadCount: newUnreadCount,
-            };
-          }
-          return conv;
+            return conv;
+          });
+          return updated.sort((a, b) => b.lastMessage.time - a.lastMessage.time);
         });
-        // Sort by last message time (most recent first)
-        return updated.sort((a, b) => b.lastMessage.time - a.lastMessage.time);
-      });
+      }
     },
-    [orderId]
+    [orderId, mapConversationToUI]
   );
 
   const { connected: socketConnected, error: socketError, sendMessage } = useChatSocket({
