@@ -40,6 +40,13 @@
 			<version>1.0.0</version>
 		</dependency>
 		
+		<!-- Shared Entities Library -->
+		<dependency>
+			<groupId>entities</groupId>
+			<artifactId>lib_entities</artifactId>
+			<version>1.0.0</version>
+		</dependency>
+		
 		<!-- Shared Utils Library -->
 		<dependency>
 			<groupId>utils</groupId>
