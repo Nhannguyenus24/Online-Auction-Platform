@@ -15,4 +15,3 @@ public class SendMessageRequest {
 	private String content;
 }
 
-

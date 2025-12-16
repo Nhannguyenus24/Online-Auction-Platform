@@ -1,6 +1,6 @@
--- Insert conversations manually into chatdb
--- Run this command: docker exec -it chat-db psql -U chat_user -d chatdb -f /docker-entrypoint-initdb.d/insert-conversations.sql
--- Or connect directly: psql -U chat_user -d chatdb -h localhost -p 5434
+-- Insert conversations manually into mydb (MySQL)
+-- Run this command: docker exec -it mysql mysql -uroot -proot123 mydb < insert-conversations.sql
+-- Or connect directly: mysql -uroot -proot123 -h localhost -P 3306 mydb
 
 -- Insert conversations for seller (seller_id = 'mock-seller')
 INSERT INTO conversations (
@@ -38,11 +38,11 @@ VALUES
         25000000, 
         'Thank you! I will send the payment today.', 
         'BIDDER', 
-        CURRENT_TIMESTAMP - INTERVAL '30 minutes', 
+        DATE_SUB(NOW(), INTERVAL 30 MINUTE), 
         2, 
         1,
-        CURRENT_TIMESTAMP - INTERVAL '1 day',
-        CURRENT_TIMESTAMP - INTERVAL '30 minutes'
+        DATE_SUB(NOW(), INTERVAL 1 DAY),
+        DATE_SUB(NOW(), INTERVAL 30 MINUTE)
     ),
     (
         'ORD-002', 
@@ -58,11 +58,11 @@ VALUES
         18000000, 
         'When will you ship the item?', 
         'BIDDER', 
-        CURRENT_TIMESTAMP - INTERVAL '2 hours', 
+        DATE_SUB(NOW(), INTERVAL 2 HOUR), 
         0, 
         0,
-        CURRENT_TIMESTAMP - INTERVAL '1 day',
-        CURRENT_TIMESTAMP - INTERVAL '2 hours'
+        DATE_SUB(NOW(), INTERVAL 1 DAY),
+        DATE_SUB(NOW(), INTERVAL 2 HOUR)
     ),
     (
         'ORD-003', 
@@ -78,16 +78,16 @@ VALUES
         12000000, 
         'The package has been shipped. Tracking number: TR123456789', 
         'SELLER', 
-        CURRENT_TIMESTAMP - INTERVAL '1 day', 
+        DATE_SUB(NOW(), INTERVAL 1 DAY), 
         0, 
         1,
-        CURRENT_TIMESTAMP - INTERVAL '2 days',
-        CURRENT_TIMESTAMP - INTERVAL '1 day'
+        DATE_SUB(NOW(), INTERVAL 2 DAY),
+        DATE_SUB(NOW(), INTERVAL 1 DAY)
     )
-ON CONFLICT (order_id) DO UPDATE SET
-    seller_id = EXCLUDED.seller_id,
-    seller_name = EXCLUDED.seller_name,
-    bidder_id = EXCLUDED.bidder_id,
-    bidder_name = EXCLUDED.bidder_name,
-    updated_at = CURRENT_TIMESTAMP;
+ON DUPLICATE KEY UPDATE
+    seller_id = VALUES(seller_id),
+    seller_name = VALUES(seller_name),
+    bidder_id = VALUES(bidder_id),
+    bidder_name = VALUES(bidder_name),
+    updated_at = NOW();
 

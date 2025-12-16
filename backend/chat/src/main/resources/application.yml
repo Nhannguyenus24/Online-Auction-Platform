@@ -3,10 +3,10 @@ spring:
     name: chat
   
   datasource:
-    url: jdbc:postgresql://${CHAT_DB_HOST:localhost}:${CHAT_DB_PORT:5434}/chatdb
-    username: ${CHAT_DB_USER:chat_user}
-    password: ${CHAT_DB_PASSWORD:chat_pass}
-    driver-class-name: org.postgresql.Driver
+    url: jdbc:mysql://${CHAT_DB_HOST:localhost}:${CHAT_DB_PORT:3306}/mydb
+    username: ${CHAT_DB_USER:root}
+    password: ${CHAT_DB_PASSWORD:root123}
+    driver-class-name: com.mysql.cj.jdbc.Driver
   
   jpa:
     hibernate:
@@ -14,7 +14,7 @@ spring:
     show-sql: false
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
+        dialect: org.hibernate.dialect.MySQLDialect
         format_sql: true
 
 server:
@@ -24,5 +24,4 @@ logging:
   level:
     chat: INFO
     org.springframework.web.socket: DEBUG
-
 

@@ -11,15 +11,15 @@ CREATE TABLE `users` (
   `positive_reviews` int DEFAULT 0,
   `negative_reviews` int DEFAULT 0,
   `rating_percent` numeric(5,2) DEFAULT 0,
-  `created_at` timestamp DEFAULT 'now()',
-  `updated_at` timestamp
+  `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 CREATE TABLE `categories` (
   `id` int PRIMARY KEY,
   `name` varchar(200) NOT NULL,
   `parent_id` int,
-  `created_at` timestamp DEFAULT 'now()'
+  `created_at` timestamp DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE `products` (
@@ -39,8 +39,8 @@ CREATE TABLE `products` (
   `status` varchar(30) DEFAULT 'active',
   `views_count` int DEFAULT 0,
   `bids_count` int DEFAULT 0,
-  `created_at` timestamp DEFAULT 'now()',
-  `updated_at` timestamp
+  `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 CREATE TABLE `product_images` (
@@ -49,7 +49,7 @@ CREATE TABLE `product_images` (
   `url` text NOT NULL,
   `sort_order` int DEFAULT 0,
   `is_primary` boolean DEFAULT false,
-  `created_at` timestamp DEFAULT 'now()'
+  `created_at` timestamp DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE `bids` (
@@ -58,7 +58,7 @@ CREATE TABLE `bids` (
   `bidder_id` int NOT NULL,
   `amount` numeric(18,2) NOT NULL,
   `is_auto` boolean DEFAULT false,
-  `created_at` timestamp DEFAULT 'now()'
+  `created_at` timestamp DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE `auto_bids` (
@@ -66,14 +66,14 @@ CREATE TABLE `auto_bids` (
   `product_id` int NOT NULL,
   `bidder_id` int NOT NULL,
   `max_amount` numeric(18,2) NOT NULL,
-  `created_at` timestamp DEFAULT 'now()'
+  `created_at` timestamp DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE `watchlists` (
   `id` int PRIMARY KEY,
   `user_id` int NOT NULL,
   `product_id` int NOT NULL,
-  `created_at` timestamp DEFAULT 'now()'
+  `created_at` timestamp DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE `questions` (
@@ -83,7 +83,7 @@ CREATE TABLE `questions` (
   `question` text NOT NULL,
   `answer` text,
   `answered_by` int,
-  `created_at` timestamp DEFAULT 'now()',
+  `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
   `answered_at` timestamp
 );
 
@@ -94,7 +94,7 @@ CREATE TABLE `upgrade_requests` (
   `status` varchar(20) DEFAULT 'pending',
   `admin_id` int,
   `reviewed_at` timestamp,
-  `created_at` timestamp DEFAULT 'now()'
+  `created_at` timestamp DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE `product_bans` (
@@ -102,7 +102,7 @@ CREATE TABLE `product_bans` (
   `product_id` int NOT NULL,
   `user_id` int NOT NULL,
   `reason` text,
-  `created_at` timestamp DEFAULT 'now()'
+  `created_at` timestamp DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE `reviews` (
@@ -112,7 +112,7 @@ CREATE TABLE `reviews` (
   `product_id` int,
   `score` int NOT NULL,
   `comment` text,
-  `created_at` timestamp DEFAULT 'now()'
+  `created_at` timestamp DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE `orders` (
@@ -124,8 +124,8 @@ CREATE TABLE `orders` (
   `status` varchar(30) DEFAULT 'pending',
   `payment_method` varchar(50),
   `shipping_address` text,
-  `created_at` timestamp DEFAULT 'now()',
-  `updated_at` timestamp
+  `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 CREATE TABLE `payments` (
@@ -139,8 +139,8 @@ CREATE TABLE `payments` (
   `status` varchar(30) DEFAULT 'processing',
   `paid_at` timestamp,
   `refunded_amount` numeric(18,2) DEFAULT 0,
-  `created_at` timestamp DEFAULT 'now()',
-  `updated_at` timestamp
+  `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 CREATE TABLE `notifications` (
@@ -149,8 +149,50 @@ CREATE TABLE `notifications` (
   `type` varchar(100),
   `payload` text,
   `is_read` boolean DEFAULT false,
-  `created_at` timestamp DEFAULT 'now()'
+  `created_at` timestamp DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Chat Service Tables
+CREATE TABLE `conversations` (
+  `id` bigint AUTO_INCREMENT PRIMARY KEY,
+  `order_id` varchar(50) NOT NULL UNIQUE,
+  `seller_id` varchar(100),
+  `seller_name` varchar(100),
+  `seller_avatar` varchar(500),
+  `bidder_id` varchar(100),
+  `bidder_name` varchar(100),
+  `bidder_avatar` varchar(500),
+  `product_title` varchar(500),
+  `product_image` varchar(500),
+  `status` varchar(50) NOT NULL DEFAULT 'pending_payment',
+  `amount` decimal(15, 2) DEFAULT 0,
+  `last_message_content` text,
+  `last_message_sender_role` varchar(20),
+  `last_message_time` timestamp,
+  `unread_count_seller` int DEFAULT 0,
+  `unread_count_bidder` int DEFAULT 0,
+  `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE `messages` (
+  `id` bigint AUTO_INCREMENT PRIMARY KEY,
+  `order_id` varchar(50) NOT NULL,
+  `sender_role` varchar(20) NOT NULL,
+  `sender_name` varchar(100),
+  `sender_email` varchar(200),
+  `content` text NOT NULL,
+  `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
+  CHECK (`sender_role` IN ('SELLER', 'BIDDER'))
+);
+
+-- Indexes for chat tables
+CREATE INDEX `idx_conversations_order_id` ON `conversations`(`order_id`);
+CREATE INDEX `idx_conversations_seller_id` ON `conversations`(`seller_id`);
+CREATE INDEX `idx_conversations_bidder_id` ON `conversations`(`bidder_id`);
+CREATE INDEX `idx_conversations_updated_at` ON `conversations`(`updated_at`);
+CREATE INDEX `idx_messages_order_id` ON `messages`(`order_id`);
+CREATE INDEX `idx_messages_created_at` ON `messages`(`created_at`);
 
 ALTER TABLE `categories` ADD FOREIGN KEY (`parent_id`) REFERENCES `categories` (`id`);
 
