@@ -8,11 +8,11 @@
 		<version>3.5.7</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
-	<groupId>com.example</groupId>
-	<artifactId>gateway</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
-	<name>gateway</name>
-	<description>gateway for microservice</description>
+	<groupId>com.auction</groupId>
+	<artifactId>gateway-service</artifactId>
+	<version>1.0.0</version>
+	<name>Gateway Service</name>
+	<description>API Gateway for microservices</description>
 	<url/>
 	<licenses>
 		<license/>

@@ -3,11 +3,10 @@ CREATE TABLE `users` (
   `email` varchar(255) UNIQUE NOT NULL,
   `password_hash` varchar(255) NOT NULL,
   `full_name` varchar(255),
-  `role` varchar(20) NOT NULL DEFAULT 'bidder',
+  `role` varchar(20) NOT NULL DEFAULT 'bidder', -- roles: bidder, seller, admin
   `phone` varchar(30),
   `address` text,
   `is_email_verified` boolean DEFAULT false,
-  `otp_verified` boolean DEFAULT false,
   `positive_reviews` int DEFAULT 0,
   `negative_reviews` int DEFAULT 0,
   `rating_percent` numeric(5,2) DEFAULT 0,
@@ -47,7 +46,6 @@ CREATE TABLE `product_images` (
   `id` int PRIMARY KEY,
   `product_id` int NOT NULL,
   `url` text NOT NULL,
-  `sort_order` int DEFAULT 0,
   `is_primary` boolean DEFAULT false,
   `created_at` timestamp DEFAULT CURRENT_TIMESTAMP
 );

@@ -5,13 +5,13 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>3.5.8</version>
+		<version>3.5.7</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.auction</groupId>
-	<artifactId>chat</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
-	<name>chat</name>
+	<artifactId>chat-service</artifactId>
+	<version>1.0.0</version>
+	<name>Chat Service</name>
 	<description>Chat service for seller-winner communication</description>
 	<url/>
 	<licenses>

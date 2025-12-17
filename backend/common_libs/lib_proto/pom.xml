@@ -6,17 +6,17 @@
     <modelVersion>4.0.0</modelVersion>
     
     <parent>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.5.8</version>
-        <relativePath/>
+        <groupId>com.auction</groupId>
+        <artifactId>common-libs</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <groupId>proto</groupId>
+    <groupId>com.auction</groupId>
     <artifactId>lib-proto</artifactId>
     <version>1.0.0</version>
     <packaging>jar</packaging>
-    <name>lib-proto</name>
+    <name>Proto Library</name>
     <description>Shared Protocol Buffers definitions for gRPC services</description>
 
     <properties>

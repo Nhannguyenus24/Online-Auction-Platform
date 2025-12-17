@@ -38,18 +38,17 @@ public class RabbitMQConsumerService {
             return Mono.error(new IllegalArgumentException("Payload cannot be null or empty"));
         }
 
-        return switch (message.getEventType()) {
+        return (switch (message.getEventType()) {
             case TASK_SEND_MAIL_OTP -> handleOtpEvent(message);
             case TASK_SEND_MAIL_SUCCESS_BID -> handleBidSuccessEvent(message);
             case TASK_SEND_MAIL_OUTBID -> handleBidOutbidEvent(message);
             case TASK_SEND_MAIL_ACCOUNT_VIOLATION -> handleAccountViolationEvent(message);
-            case TASK_SEND_NOTIFICATION, TASK_DELETE_NOTIFICATION, TASK_READ_NOTIFICATION -> 
-                Mono.empty(); // Skip other event types
+            case TASK_SEND_NOTIFICATION, TASK_DELETE_NOTIFICATION, TASK_READ_NOTIFICATION -> Mono.empty(); // Skip other event types
             default -> {
                 log.error("Unknown event type: {}", message.getEventType());
                 yield Mono.empty();
             }
-        }
+        })
         .doOnError(e -> log.error("Error processing RabbitMessage: eventId={}, error={}", 
             message.getEventId(), e.getMessage(), e))
         .onErrorResume(e -> Mono.empty()); // Continue processing even if error

@@ -5,13 +5,14 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>3.5.8</version>
+		<version>3.5.7</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
-	<artifactId>user</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
-	<name>user</name>
-	<description>user service</description>
+	<groupId>com.auction</groupId>
+	<artifactId>user-service</artifactId>
+	<version>1.0.0</version>
+	<name>User Service</name>
+	<description>User service for authentication and user management</description>
 	<url/>
 	<licenses>
 		<license/>

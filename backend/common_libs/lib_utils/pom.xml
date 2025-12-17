@@ -5,12 +5,19 @@
          http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>utils</groupId>
-    <artifactId>lib_utils</artifactId>
+    <parent>
+        <groupId>com.auction</groupId>
+        <artifactId>common-libs</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <groupId>com.auction</groupId>
+    <artifactId>lib-utils</artifactId>
     <version>1.0.0</version>
     <packaging>jar</packaging>
 
-    <name>lib_utils</name>
+    <name>Utils Library</name>
     <description>Common utility library for string, number, date, currency, and JSON operations</description>
 
     <properties>
