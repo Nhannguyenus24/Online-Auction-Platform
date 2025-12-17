@@ -32,17 +32,17 @@
 	<dependencies>
 		<!-- Shared libraries -->
 		<dependency>
-			<groupId>proto</groupId>
+			<groupId>com.auction</groupId>
 			<artifactId>lib-proto</artifactId>
 			<version>1.0.0</version>
 		</dependency>
 		<dependency>
-			<groupId>entities</groupId>
+			<groupId>com.auction</groupId>
 			<artifactId>lib-entities</artifactId>
 			<version>1.0.0</version>
 		</dependency>
 		<dependency>
-			<groupId>mysql</groupId>
+			<groupId>com.auction</groupId>
 			<artifactId>lib-mysql</artifactId>
 			<version>1.0.0</version>
 		</dependency>
@@ -81,13 +81,6 @@
 		<dependency>
 			<groupId>io.projectreactor</groupId>
 			<artifactId>reactor-core</artifactId>
-		</dependency>
-
-		<!-- Lombok -->
-		<dependency>
-			<groupId>org.projectlombok</groupId>
-			<artifactId>lombok</artifactId>
-			<optional>true</optional>
 		</dependency>
 
 		<!-- Testing -->

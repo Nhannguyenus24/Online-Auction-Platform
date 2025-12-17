@@ -32,8 +32,29 @@
 	<dependencies>
 		<!-- Shared Proto Library -->
 		<dependency>
-			<groupId>proto</groupId>
+			<groupId>com.auction</groupId>
 			<artifactId>lib-proto</artifactId>
+			<version>1.0.0</version>
+		</dependency>
+		
+		<!-- Shared Entities Library -->
+		<dependency>
+			<groupId>com.auction</groupId>
+			<artifactId>lib-entities</artifactId>
+			<version>1.0.0</version>
+		</dependency>
+		
+		<!-- Shared Utils Library -->
+		<dependency>
+			<groupId>com.auction</groupId>
+			<artifactId>lib-utils</artifactId>
+			<version>1.0.0</version>
+		</dependency>
+		
+		<!-- Shared Redis Library -->
+		<dependency>
+			<groupId>com.auction</groupId>
+			<artifactId>lib-redis</artifactId>
 			<version>1.0.0</version>
 		</dependency>
 		
@@ -91,12 +112,6 @@
             <artifactId>nimbus-jose-jwt</artifactId>
             <version>10.5</version>
         </dependency>
-		<!-- Lombok -->
-		<dependency>
-			<groupId>org.projectlombok</groupId>
-			<artifactId>lombok</artifactId>
-			<optional>true</optional>
-		</dependency>
 		<!-- Spring Security Crypto for BCrypt (without full security) -->
 		<dependency>
 			<groupId>org.springframework.security</groupId>

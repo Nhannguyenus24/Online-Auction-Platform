@@ -1,4 +1,4 @@
-package gateway.dto;
+package entities.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

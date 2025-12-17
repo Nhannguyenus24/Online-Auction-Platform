@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import * as yup from "yup";
 import Grid from "@mui/material/Grid";
 import {
@@ -11,6 +11,12 @@ import {
   Checkbox,
   FormControlLabel,
   Divider,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  CircularProgress,
+  Box,
 } from "@mui/material";
 import { VerifiedUser, Google } from "@mui/icons-material";
 import AuthLayout from "../../layouts/AuthLayout";
@@ -52,6 +58,14 @@ const Register = () => {
   const [formErrors, setFormErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState(null);
+  
+  // OTP verification states
+  const [showOTPDialog, setShowOTPDialog] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [otpError, setOtpError] = useState("");
+  const [otpSubmitting, setOtpSubmitting] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(300); // 5 minutes in seconds
+  const [registerData, setRegisterData] = useState(null);
 
   const strength = useMemo(() => {
     if (!formValues.password) return 0;
@@ -113,6 +127,9 @@ const Register = () => {
     setTimeout(() => {
       setSubmitting(false);
       setStatus("success");
+      // Show OTP dialog after successful registration
+      setShowOTPDialog(true);
+      setTimeLeft(300); // Reset timer to 5 minutes
     }, 1400);
   };
 
@@ -125,6 +142,76 @@ const Register = () => {
 
   const handleGoogleSignup = () => {
     simulateAuth();
+  };
+
+  // OTP countdown timer
+  useEffect(() => {
+    if (!showOTPDialog || timeLeft <= 0) return;
+
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => prev - 1);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [showOTPDialog, timeLeft]);
+
+  const handleOTPChange = (e) => {
+    const value = e.target.value.replace(/\D/g, "").slice(0, 6);
+    setOtp(value);
+    setOtpError("");
+  };
+
+  const handleVerifyOTP = async () => {
+    if (otp.length !== 6) {
+      setOtpError("OTP must be 6 digits");
+      return;
+    }
+
+    setOtpSubmitting(true);
+    
+    try {
+      // Call API to verify OTP
+      const response = await fetch("/api/auth/verify-otp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: registerData?.userId,
+          otp: otp,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setOtpSubmitting(false);
+        setShowOTPDialog(false);
+        setStatus("otp_verified");
+        // Optionally redirect to login or show success message
+        setTimeout(() => {
+          window.location.href = "/login";
+        }, 2000);
+      } else {
+        setOtpError(data.message || "Invalid OTP");
+        setOtpSubmitting(false);
+      }
+    } catch (error) {
+      setOtpError("Failed to verify OTP. Please try again.");
+      setOtpSubmitting(false);
+    }
+  };
+
+  const handleCloseOTPDialog = () => {
+    if (timeLeft > 0) {
+      setShowOTPDialog(false);
+    }
+  };
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
   return (
@@ -140,6 +227,12 @@ const Register = () => {
         {status === "success" && (
           <Alert severity="success" sx={{ py: 0.25, mb: 0 }}>
             Check your email to confirm ownership.
+          </Alert>
+        )}
+
+        {status === "otp_verified" && (
+          <Alert severity="success" sx={{ py: 0.25, mb: 0 }}>
+            Email verified successfully! Redirecting to login...
           </Alert>
         )}
 
@@ -269,6 +362,65 @@ const Register = () => {
           Sign up with Google
         </Button>
       </Stack>
+
+      {/* OTP Verification Dialog */}
+      <Dialog open={showOTPDialog} onClose={handleCloseOTPDialog} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ pb: 1 }}>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+            Verify Your Email
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Enter the 6-digit OTP sent to your email
+          </Typography>
+        </DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          <Stack spacing={2}>
+            <TextField
+              fullWidth
+              placeholder="000000"
+              value={otp}
+              onChange={handleOTPChange}
+              inputProps={{ maxLength: 6, style: { textAlign: "center", fontSize: "24px", letterSpacing: "8px" } }}
+              error={Boolean(otpError)}
+              helperText={otpError}
+              disabled={otpSubmitting || timeLeft <= 0}
+            />
+
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <Typography variant="body2" color={timeLeft <= 60 ? "error" : "text.secondary"}>
+                Time remaining: <strong>{formatTime(timeLeft)}</strong>
+              </Typography>
+              {timeLeft <= 0 && (
+                <Typography variant="caption" color="error">
+                  OTP Expired
+                </Typography>
+              )}
+            </Box>
+
+            {timeLeft <= 0 && (
+              <Alert severity="error">
+                OTP has expired. Please request a new one.
+              </Alert>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, pt: 1 }}>
+          <Button 
+            onClick={handleCloseOTPDialog} 
+            disabled={otpSubmitting}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleVerifyOTP}
+            disabled={otpSubmitting || otp.length !== 6 || timeLeft <= 0}
+            startIcon={otpSubmitting ? <CircularProgress size={20} /> : null}
+          >
+            {otpSubmitting ? "Verifying..." : "Verify"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </AuthLayout>
   );
 };

@@ -32,19 +32,19 @@
 	<dependencies>
 		<!-- Shared entities library -->
 		<dependency>
-			<groupId>entities</groupId>
+			<groupId>com.auction</groupId>
 			<artifactId>lib-entities</artifactId>
 			<version>1.0.0</version>
 		</dependency>
 		<!-- Shared RabbitMQ library -->
 		<dependency>
-			<groupId>rabbitmq</groupId>
+			<groupId>com.auction</groupId>
 			<artifactId>lib-rabbitmq</artifactId>
 			<version>1.0.0</version>
 		</dependency>
 		<!-- Shared MySQL library -->
 		<dependency>
-			<groupId>mysql</groupId>
+			<groupId>com.auction</groupId>
 			<artifactId>lib-mysql</artifactId>
 			<version>1.0.0</version>
 		</dependency>
@@ -80,12 +80,6 @@
 			<groupId>io.asyncer</groupId>
 			<artifactId>r2dbc-mysql</artifactId>
 			<version>1.4.1</version>
-		</dependency>
-		<!-- Lombok -->
-		<dependency>
-			<groupId>org.projectlombok</groupId>
-			<artifactId>lombok</artifactId>
-			<optional>true</optional>
 		</dependency>
 	</dependencies>
 

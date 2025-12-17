@@ -1,9 +1,10 @@
 package gateway.controller;
 
 import com.example.grpc.auth.*;
-import gateway.dto.ChangePasswordRequest;
-import gateway.dto.LoginRequest;
-import gateway.dto.RegisterRequest;
+import entities.dto.ChangePasswordRequest;
+import entities.dto.LoginRequest;
+import entities.dto.RegisterRequest;
+import entities.dto.VerifyOTPRequest;
 import gateway.grpc.UserGrpcClient;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -54,7 +55,9 @@ public class AuthController {
                     result.put("success", response.getSuccess());
                     result.put("message", response.getMessage());
                     result.put("email", response.getEmail());
-                    result.put("emailVerificationLink", response.getEmailVerificationLink());
+                    result.put("userId", response.getUserId());
+                    result.put("otp", response.getOtp());
+                    result.put("otpExpiryMinutes", 10);
                     
                     if (response.getSuccess()) {
                         return ResponseEntity.ok(result);
@@ -208,8 +211,41 @@ public class AuthController {
                 });
     }
 
+    @PostMapping("/verify-otp")
+    @Operation(summary = "Verify OTP", description = "Verify user email with OTP sent during registration.")
+    public Mono<ResponseEntity<Map<String, Object>>> verifyOTP(@RequestBody VerifyOTPRequest request) {
+        
+        log.info("OTP verification request for user: {}", request.getUserId());
+        
+        com.example.grpc.auth.VerifyOTPRequest grpcRequest = com.example.grpc.auth.VerifyOTPRequest.newBuilder()
+                .setUserId(request.getUserId())
+                .setOtp(request.getOtp())
+                .build();
+
+        return userGrpcClient.verifyOTP(grpcRequest)
+                .map(verifyResponse -> {
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("success", verifyResponse.getSuccess());
+                    result.put("message", verifyResponse.getMessage());
+                    
+                    if (verifyResponse.getSuccess()) {
+                        log.info("OTP verification successful for user: {}", request.getUserId());
+                        return ResponseEntity.ok(result);
+                    } else {
+                        return ResponseEntity.badRequest().body(result);
+                    }
+                })
+                .onErrorResume(e -> {
+                    log.error("OTP verification error: {}", e.getMessage());
+                    Map<String, Object> error = new HashMap<>();
+                    error.put("success", false);
+                    error.put("message", "OTP verification failed: " + e.getMessage());
+                    return Mono.just(ResponseEntity.badRequest().body(error));
+                });
+    }
+
     @GetMapping("/verify-email")
-    @Operation(summary = "Verify email", description = "Verify user email with token from email link.")
+    @Operation(summary = "Verify email (Legacy)", description = "Verify user email with token from email link (kept for backward compatibility).")
     public Mono<ResponseEntity<Map<String, Object>>> verifyEmail(
             @Parameter(description = "Email verification token") @RequestParam String token) {
         

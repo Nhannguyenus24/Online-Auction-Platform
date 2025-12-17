@@ -35,22 +35,22 @@
 	<dependencies>
 		<!-- Shared Proto Library -->
 		<dependency>
-			<groupId>proto</groupId>
+			<groupId>com.auction</groupId>
 			<artifactId>lib-proto</artifactId>
 			<version>1.0.0</version>
 		</dependency>
 		
 		<!-- Shared Entities Library -->
 		<dependency>
-			<groupId>entities</groupId>
-			<artifactId>lib_entities</artifactId>
+			<groupId>com.auction</groupId>
+			<artifactId>lib-entities</artifactId>
 			<version>1.0.0</version>
 		</dependency>
 		
 		<!-- Shared Utils Library -->
 		<dependency>
-			<groupId>utils</groupId>
-			<artifactId>lib_utils</artifactId>
+			<groupId>com.auction</groupId>
+			<artifactId>lib-utils</artifactId>
 			<version>1.0.0</version>
 		</dependency>
 		
@@ -108,13 +108,6 @@
 			<groupId>com.nimbusds</groupId>
 			<artifactId>nimbus-jose-jwt</artifactId>
 			<version>10.5</version>
-		</dependency>
-
-		<!-- Lombok for reducing boilerplate code -->
-		<dependency>
-			<groupId>org.projectlombok</groupId>
-			<artifactId>lombok</artifactId>
-			<optional>true</optional>
 		</dependency>
 
 		<dependency>

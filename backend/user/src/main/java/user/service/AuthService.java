@@ -6,14 +6,15 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
-import user.entity.EmailVerificationToken;
-import user.entity.User;
-import user.repository.EmailVerificationTokenRepository;
+import redis.services.ReactiveRedisClient;
+import entities.database.User;
 import user.repository.UserRepository;
-import user.util.JwtTokenProvider;
+import utils.JwtUtils;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Random;
 
 @Service
 @RequiredArgsConstructor
@@ -21,12 +22,12 @@ import java.time.LocalDateTime;
 public class AuthService {
 
     private final UserRepository userRepository;
-    private final EmailVerificationTokenRepository emailVerificationTokenRepository;
-    private final JwtTokenProvider jwtTokenProvider;
     private final BCryptPasswordEncoder passwordEncoder;
+    private final ReactiveRedisClient redisClient;
+    private final JwtUtils jwtUtils;
 
-    @Value("${app.base-url}")
-    private String baseUrl;
+    private static final int OTP_LENGTH = 6;
+    private static final long OTP_EXPIRY_MINUTES = 10;
 
     /**
      * Register new user
@@ -54,26 +55,30 @@ public class AuthService {
 
                     return userRepository.save(user)
                             .flatMap(savedUser -> {
-                                // Generate email verification token
-                                String token = jwtTokenProvider.generateEmailVerificationToken(savedUser.getId());
-                                String verificationLink = baseUrl + "/api/auth/verify-email?token=" + token;
-
-                                // Save token to database
-                                EmailVerificationToken emailToken = new EmailVerificationToken();
-                                emailToken.setToken(token);
-                                emailToken.setUserId(savedUser.getId());
-                                emailToken.setExpiresAt(LocalDateTime.now().plusHours(24));
-                                emailToken.setCreatedAt(LocalDateTime.now());
-
-                                return emailVerificationTokenRepository.save(emailToken)
+                                // Generate 6-digit OTP
+                                String otp = generateOTP();
+                                
+                                // Cache OTP to Redis with 10 minutes expiry
+                                String redisKey = "otp:" + savedUser.getId();
+                                return redisClient.set(redisKey, otp, Duration.ofMinutes(OTP_EXPIRY_MINUTES))
                                         .then(Mono.just(new RegisterResult(
                                                 savedUser.getId(),
                                                 savedUser.getEmail(),
-                                                verificationLink,
-                                                "Registration successful. Please verify your email."
-                                        )));
+                                                otp,
+                                                "Registration successful. OTP sent to email. Expires in 10 minutes."
+                                        )))
+                                        .doOnSuccess(v -> log.info("User registered: {}, OTP generated and cached", email));
                             });
                 });
+    }
+
+    /**
+     * Generate 6-digit OTP
+     */
+    private String generateOTP() {
+        Random random = new Random();
+        int otp = random.nextInt(999999);
+        return String.format("%06d", otp);
     }
 
     /**
@@ -94,8 +99,8 @@ public class AuthService {
                     }
 
                     // Generate tokens (Gateway will store refresh token in httpOnly cookie)
-                    String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getEmail(), user.getRole());
-                    String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId());
+                    String accessToken = jwtUtils.generateAccessToken(user.getId(), user.getEmail(), user.getRole());
+                    String refreshToken = jwtUtils.generateRefreshToken(user.getId());
 
                     return Mono.just(new LoginResult(
                             accessToken,
@@ -114,21 +119,21 @@ public class AuthService {
     public Mono<RefreshResult> refreshToken(String refreshToken) {
         try {
             // Validate refresh token JWT signature and expiration
-            Integer userId = jwtTokenProvider.getUserIdFromToken(refreshToken);
+            Integer userId = jwtUtils.getUserIdFromToken(refreshToken);
 
             // Get user to generate new tokens
             return userRepository.findById(userId)
                     .switchIfEmpty(Mono.error(new RuntimeException("User not found")))
                     .flatMap(user -> {
                         // Generate new access token
-                        String newAccessToken = jwtTokenProvider.generateAccessToken(
+                        String newAccessToken = jwtUtils.generateAccessToken(
                                 user.getId(),
                                 user.getEmail(),
                                 user.getRole()
                         );
 
                         // Generate new refresh token (rotation for better security)
-                        String newRefreshToken = jwtTokenProvider.generateRefreshToken(user.getId());
+                        String newRefreshToken = jwtUtils.generateRefreshToken(user.getId());
 
                         return Mono.just(new RefreshResult(newAccessToken, newRefreshToken));
                     });
@@ -147,33 +152,43 @@ public class AuthService {
     }
 
     /**
-     * Verify email
+     * Verify OTP
+     */
+    public Mono<String> verifyOTP(Integer userId, String otp) {
+        String redisKey = "otp:" + userId;
+        
+        return redisClient.get(redisKey)
+                .switchIfEmpty(Mono.error(new RuntimeException("OTP expired or not found")))
+                .flatMap(cachedOtp -> {
+                    if (!cachedOtp.equals(otp)) {
+                        return Mono.error(new RuntimeException("Invalid OTP"));
+                    }
+
+                    // Update user email verification status
+                    return userRepository.findById(userId)
+                            .switchIfEmpty(Mono.error(new RuntimeException("User not found")))
+                            .flatMap(user -> {
+                                user.setIsEmailVerified(true);
+                                user.setUpdatedAt(LocalDateTime.now());
+                                return userRepository.save(user);
+                            })
+                            .then(redisClient.delete(redisKey))
+                            .then(Mono.just("Email verified successfully"))
+                            .doOnSuccess(v -> log.info("User {} email verified via OTP", userId));
+                });
+    }
+
+    /**
+     * Verify email (legacy method, kept for backward compatibility)
      */
     public Mono<String> verifyEmail(String token) {
         try {
             // Validate token
-            Integer userId = jwtTokenProvider.getUserIdFromToken(token);
+            Integer userId = jwtUtils.getUserIdFromToken(token);
 
-            return emailVerificationTokenRepository.findByToken(token)
-                    .switchIfEmpty(Mono.error(new RuntimeException("Invalid verification token")))
-                    .flatMap(tokenEntity -> {
-                        // Check if token is expired
-                        if (tokenEntity.getExpiresAt().isBefore(LocalDateTime.now())) {
-                            return emailVerificationTokenRepository.delete(tokenEntity)
-                                    .then(Mono.error(new RuntimeException("Verification token expired")));
-                        }
-
-                        // Update user email verification status
-                        return userRepository.findById(userId)
-                                .switchIfEmpty(Mono.error(new RuntimeException("User not found")))
-                                .flatMap(user -> {
-                                    user.setIsEmailVerified(true);
-                                    user.setUpdatedAt(LocalDateTime.now());
-                                    return userRepository.save(user);
-                                })
-                                .then(emailVerificationTokenRepository.delete(tokenEntity))
-                                .then(Mono.just("Email verified successfully"));
-                    });
+            // Email verification via token is deprecated
+            // Use verifyOTP instead
+            return Mono.error(new RuntimeException("Email verification via token is deprecated. Use OTP verification instead."));
         } catch (Exception e) {
             return Mono.error(new RuntimeException("Invalid verification token"));
         }
@@ -184,9 +199,9 @@ public class AuthService {
      */
     public Mono<ValidateResult> validateToken(String accessToken) {
         try {
-            Integer userId = jwtTokenProvider.getUserIdFromToken(accessToken);
-            String email = jwtTokenProvider.getEmailFromToken(accessToken);
-            String role = jwtTokenProvider.getRoleFromToken(accessToken);
+            Integer userId = jwtUtils.getUserIdFromToken(accessToken);
+            String email = jwtUtils.getEmailFromToken(accessToken);
+            String role = jwtUtils.getRoleFromToken(accessToken);
 
             return Mono.just(new ValidateResult(true, userId, email, role, null));
         } catch (Exception e) {
@@ -216,7 +231,7 @@ public class AuthService {
     }
 
     // Result classes
-    public record RegisterResult(Integer userId, String email, String verificationLink, String message) {}
+    public record RegisterResult(Integer userId, String email, String otp, String message) {}
     public record LoginResult(String accessToken, String refreshToken, Integer userId, String email, String fullName, String role) {}
     public record RefreshResult(String accessToken, String refreshToken) {}
     public record ValidateResult(boolean isValid, Integer userId, String email, String role, String errorMessage) {}
