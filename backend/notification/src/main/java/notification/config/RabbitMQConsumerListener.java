@@ -1,7 +1,7 @@
 package notification.config;
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -12,12 +12,13 @@ import notification.service.RabbitMQConsumerService;
  * Listener để khởi động RabbitMQ consumers khi application start
  */
 @Component
-@RequiredArgsConstructor
-@Slf4j
 public class RabbitMQConsumerListener {
-
+    private static final Logger log = LoggerFactory.getLogger(RabbitMQConsumerListener.class);
     private final RabbitMQConsumerService consumerService;
 
+    public RabbitMQConsumerListener(RabbitMQConsumerService consumerService) {
+        this.consumerService = consumerService;
+    }
     // Queue name for all notification events
     private static final String NOTIFICATION_QUEUE = "notification.events";
 
@@ -32,7 +33,7 @@ public class RabbitMQConsumerListener {
         consumerService.startConsumingMessages(NOTIFICATION_QUEUE)
                 .subscribeOn(Schedulers.boundedElastic())
                 .subscribe(
-                    () -> log.info("Notification event consumer started"),
+                    unused -> log.info("Notification event consumer started"),
                     error -> log.error("Failed to start notification event consumer", error)
                 );
 

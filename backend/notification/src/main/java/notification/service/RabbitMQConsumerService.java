@@ -1,14 +1,12 @@
 package notification.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import entities.msg.EventType;
 import entities.msg.RabbitMessage;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import rabbitmq.services.ReactiveRabbitConsumer;
 import reactor.core.publisher.Mono;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.util.Map;
 
 /**
@@ -16,14 +14,18 @@ import java.util.Map;
  * Xử lý các event từ các microservice khác
  */
 @Service
-@RequiredArgsConstructor
-@Slf4j
 public class RabbitMQConsumerService {
-
+    private static final Logger log = LoggerFactory.getLogger(RabbitMQConsumerService.class);
     private final ReactiveRabbitConsumer rabbitConsumer;
     private final EmailService emailService;
-    private final ObjectMapper objectMapper;
 
+    private RabbitMQConsumerService(
+            ReactiveRabbitConsumer rabbitConsumer,
+            EmailService emailService
+    ) {
+        this.rabbitConsumer = rabbitConsumer;
+        this.emailService = emailService;
+    }
     /**
      * Xử lý RabbitMessage từ queue
      * Phân loại theo EventType và xử lý tương ứng
@@ -43,10 +45,10 @@ public class RabbitMQConsumerService {
             case TASK_SEND_MAIL_SUCCESS_BID -> handleBidSuccessEvent(message);
             case TASK_SEND_MAIL_OUTBID -> handleBidOutbidEvent(message);
             case TASK_SEND_MAIL_ACCOUNT_VIOLATION -> handleAccountViolationEvent(message);
-            case TASK_SEND_NOTIFICATION, TASK_DELETE_NOTIFICATION, TASK_READ_NOTIFICATION -> Mono.empty(); // Skip other event types
+            case TASK_SEND_NOTIFICATION, TASK_DELETE_NOTIFICATION, TASK_READ_NOTIFICATION -> Mono.empty().then();
             default -> {
                 log.error("Unknown event type: {}", message.getEventType());
-                yield Mono.empty();
+                yield Mono.empty().then();
             }
         })
         .doOnError(e -> log.error("Error processing RabbitMessage: eventId={}, error={}", 

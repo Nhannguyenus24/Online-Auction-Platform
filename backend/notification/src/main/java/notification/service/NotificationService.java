@@ -3,25 +3,26 @@ package notification.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.r2dbc.spi.Row;
 import io.r2dbc.spi.RowMetadata;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import mysql.client.ReactiveMySQLClient;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import entities.database.Notification;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.time.LocalDateTime;
 import java.util.Map;
 
 @Service
-@RequiredArgsConstructor
-@Slf4j
 public class NotificationService {
-
+    private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
     private final ReactiveMySQLClient mysqlClient;
     private final ObjectMapper objectMapper;
 
+    private NotificationService(ReactiveMySQLClient mysqlClient, ObjectMapper objectMapper) {
+        this.mysqlClient = mysqlClient;
+        this.objectMapper = objectMapper;
+    }
     // Mapper function to convert Row to Notification
     private static final java.util.function.BiFunction<Row, RowMetadata, Notification> NOTIFICATION_MAPPER = (row, metadata) ->
             Notification.builder()

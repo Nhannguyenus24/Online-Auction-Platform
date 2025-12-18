@@ -1,7 +1,6 @@
 package notification.service;
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -11,16 +10,15 @@ import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import java.util.Map;
 
 @Service
-@RequiredArgsConstructor
-@Slf4j
 public class EmailService {
-
+    private static final Logger log = LoggerFactory.getLogger(EmailService.class);
     private final JavaMailSender mailSender;
     private final TemplateEngine templateEngine;
     private final NotificationService notificationService;
@@ -31,6 +29,12 @@ public class EmailService {
     @Value("${app.mail.from-name}")
     private String fromName;
 
+    private EmailService(JavaMailSender mailSender, TemplateEngine templateEngine,
+                         NotificationService notificationService) {
+        this.mailSender = mailSender;
+        this.templateEngine = templateEngine;
+        this.notificationService = notificationService;
+    }
     /**
      * Gửi email HTML với template (Reactive)
      */
