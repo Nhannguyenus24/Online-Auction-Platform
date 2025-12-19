@@ -1,9 +1,11 @@
 package notification.service;
 
-import entities.msg.EventType;
-import entities.msg.RabbitMessage;
 import org.springframework.stereotype.Service;
-import rabbitmq.services.ReactiveRabbitConsumer;
+
+import com.auction.entities.msg.EventType;
+import com.auction.entities.msg.RabbitMessage;
+import com.auction.rabbitmq.services.ReactiveRabbitConsumer;
+
 import reactor.core.publisher.Mono;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

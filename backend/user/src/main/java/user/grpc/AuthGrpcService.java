@@ -1,21 +1,18 @@
 package user.grpc;
 
-import com.example.grpc.auth.*;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import com.auction.grpc.auth.*;
 import org.springframework.grpc.server.service.GrpcService;
 import reactor.core.publisher.Mono;
 import user.service.AuthService;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 /**
  * gRPC implementation of AuthService with full JWT authentication
  * Gateway will call this service and handle cookies
  */
 @GrpcService
-@RequiredArgsConstructor
-@Slf4j
 public class AuthGrpcService extends ReactorAuthServiceGrpc.AuthServiceImplBase {
-
+    private static final Logger log = LoggerFactory.getLogger(AuthGrpcService.class);
     private final AuthService authService;
 
     @Override

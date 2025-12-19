@@ -3,7 +3,7 @@ syntax = "proto3";
 package product_service;
 
 option java_multiple_files = true;
-option java_package = "product.service";
+option java_package = "com.auction.proto.product";
 option java_outer_classname = "ProductServiceProto";
 
 service ProductService {

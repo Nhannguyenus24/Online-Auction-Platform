@@ -1,29 +1,30 @@
 package user.service;
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
-import reactor.core.publisher.Mono;
-import redis.services.ReactiveRedisClient;
-import entities.database.User;
-import user.repository.UserRepository;
-import utils.JwtUtils;
 
+import com.auction.entities.database.User;
+import com.auction.redis.service.ReactiveRedisService;
+import com.auction.utils.JwtUtils;
+
+import reactor.core.publisher.Mono;
+import user.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Random;
 
 @Service
-@RequiredArgsConstructor
-@Slf4j
 public class AuthService {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
     private final UserRepository userRepository;
     private final BCryptPasswordEncoder passwordEncoder;
-    private final ReactiveRedisClient redisClient;
+    private final ReactiveRedisService redisClient;
     private final JwtUtils jwtUtils;
 
     private static final int OTP_LENGTH = 6;

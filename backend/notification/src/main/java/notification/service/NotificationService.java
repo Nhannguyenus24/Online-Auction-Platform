@@ -1,13 +1,15 @@
 package notification.service;
 
+import com.auction.entities.database.Notification;
+import com.auction.mysql.client.ReactiveMySQLClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.r2dbc.spi.Row;
 import io.r2dbc.spi.RowMetadata;
-import mysql.client.ReactiveMySQLClient;
+
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import entities.database.Notification;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.time.LocalDateTime;

@@ -4,7 +4,7 @@ syntax = "proto3";
 package auth;
 
 option java_multiple_files = true;
-option java_package = "com.example.grpc.auth";
+option java_package = "com.auction.proto.auth";
 option java_outer_classname = "AuthProto";
 
 // --- Service Definition ---

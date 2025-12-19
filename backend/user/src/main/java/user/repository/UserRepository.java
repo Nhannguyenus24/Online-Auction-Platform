@@ -4,7 +4,7 @@ import org.springframework.data.r2dbc.repository.Query;
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Mono;
-import user.entity.User;
+import com.auction.entities.database.User;
 
 @Repository
 public interface UserRepository extends ReactiveCrudRepository<User, Integer> {
