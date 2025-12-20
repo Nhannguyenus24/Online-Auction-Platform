@@ -1,6 +1,6 @@
 package gateway.config;
 
-import entities.api.ApiResponse;
+import com.auction.entities.api.ApiResponse;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.MediaType;
 import org.springframework.http.converter.HttpMessageConverter;

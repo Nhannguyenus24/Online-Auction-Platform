@@ -1,6 +1,12 @@
 package user.service;
 
-import org.springframework.beans.factory.annotation.Value;
+import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.Random;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -10,12 +16,6 @@ import com.auction.utils.JwtUtils;
 
 import reactor.core.publisher.Mono;
 import user.repository.UserRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import java.math.BigDecimal;
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.util.Random;
 
 @Service
 public class AuthService {
@@ -27,6 +27,18 @@ public class AuthService {
     private final ReactiveRedisService redisClient;
     private final JwtUtils jwtUtils;
 
+    public AuthService(
+            UserRepository userRepository,
+            BCryptPasswordEncoder passwordEncoder,
+            ReactiveRedisService redisClient,
+            JwtUtils jwtUtils
+    ) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.redisClient = redisClient;
+        this.jwtUtils = jwtUtils;
+    }
+    
     private static final int OTP_LENGTH = 6;
     private static final long OTP_EXPIRY_MINUTES = 10;
 

@@ -1,10 +1,23 @@
 package gateway.controller;
 
-import com.example.grpc.auth.*;
-import entities.dto.ChangePasswordRequest;
-import entities.dto.LoginRequest;
-import entities.dto.RegisterRequest;
-import entities.dto.VerifyOTPRequest;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import gateway.grpc.UserGrpcClient;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -12,41 +25,30 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
-
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/auth")
 @Tag(name = "Authentication", description = "Authentication endpoints - calls user service via gRPC")
-@RequiredArgsConstructor
-@Slf4j
 public class AuthController {
-
+    private static final Logger log = LoggerFactory.getLogger(AuthController.class);
     private final UserGrpcClient userGrpcClient;
-    
+    public AuthController(UserGrpcClient userGrpcClient) {
+        this.userGrpcClient = userGrpcClient;
+    }
     private static final int REFRESH_TOKEN_MAX_AGE = 7 * 24 * 60 * 60; // 7 days in seconds
 
     @PostMapping("/register")
-    @Operation(summary = "Register new user", description = "Register a new user account. Returns email verification link.")
-    public Mono<ResponseEntity<Map<String, Object>>> register(@RequestBody RegisterRequest request) {
+    @Operation(summary = "Register new user", description = "Register a new user account. Returns OTP for email verification.")
+    public Mono<ResponseEntity<Map<String, Object>>> register(@RequestBody com.auction.entities.dto.RegisterRequest request) {
         log.info("Register request for email: {}", request.getEmail());
         
-        com.example.grpc.auth.RegisterRequest grpcRequest = com.example.grpc.auth.RegisterRequest.newBuilder()
+        com.auction.proto.auth.RegisterRequest grpcRequest = com.auction.proto.auth.RegisterRequest.newBuilder()
                 .setEmail(request.getEmail())
                 .setPassword(request.getPassword())
                 .setFullName(request.getFullName())
                 .setPhoneNumber(request.getPhoneNumber() != null ? request.getPhoneNumber() : "")
+                .setAddress(request.getAddress() != null ? request.getAddress() : "")
                 .build();
 
         return userGrpcClient.register(grpcRequest)
@@ -77,11 +79,11 @@ public class AuthController {
     @PostMapping("/login")
     @Operation(summary = "Login", description = "Login with email and password. Returns access token and sets refresh token in httpOnly cookie.")
     public Mono<ResponseEntity<Map<String, Object>>> login(
-            @RequestBody LoginRequest request,
+            @RequestBody com.auction.entities.dto.LoginRequest request,
             HttpServletResponse response) {
         log.info("Login request for email: {}", request.getEmail());
         
-        com.example.grpc.auth.LoginRequest grpcRequest = com.example.grpc.auth.LoginRequest.newBuilder()
+        com.auction.proto.auth.LoginRequest grpcRequest = com.auction.proto.auth.LoginRequest.newBuilder()
                 .setEmail(request.getEmail())
                 .setPassword(request.getPassword())
                 .build();
@@ -135,7 +137,7 @@ public class AuthController {
 
         log.info("Refresh token request");
         
-        RefreshTokenRequest grpcRequest = RefreshTokenRequest.newBuilder()
+        com.auction.proto.auth.RefreshTokenRequest grpcRequest = com.auction.proto.auth.RefreshTokenRequest.newBuilder()
                 .setRefreshToken(refreshToken)
                 .build();
 
@@ -174,8 +176,13 @@ public class AuthController {
         
         log.info("Logout request");
         
-        LogoutRequest grpcRequest = LogoutRequest.newBuilder()
+        // Get user ID from authentication if available
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String userId = authentication != null && authentication.getName() != null ? authentication.getName() : "";
+        
+        com.auction.proto.auth.LogoutRequest grpcRequest = com.auction.proto.auth.LogoutRequest.newBuilder()
                 .setRefreshToken(refreshToken != null ? refreshToken : "")
+                .setUserId(userId)
                 .build();
 
         return userGrpcClient.logout(grpcRequest)
@@ -213,12 +220,12 @@ public class AuthController {
 
     @PostMapping("/verify-otp")
     @Operation(summary = "Verify OTP", description = "Verify user email with OTP sent during registration.")
-    public Mono<ResponseEntity<Map<String, Object>>> verifyOTP(@RequestBody VerifyOTPRequest request) {
+    public Mono<ResponseEntity<Map<String, Object>>> verifyOTP(@RequestBody com.auction.entities.dto.VerifyOTPRequest request) {
         
         log.info("OTP verification request for user: {}", request.getUserId());
         
-        com.example.grpc.auth.VerifyOTPRequest grpcRequest = com.example.grpc.auth.VerifyOTPRequest.newBuilder()
-                .setUserId(request.getUserId())
+        com.auction.proto.auth.VerifyOTPRequest grpcRequest = com.auction.proto.auth.VerifyOTPRequest.newBuilder()
+                .setUserId(String.valueOf(request.getUserId()))
                 .setOtp(request.getOtp())
                 .build();
 
@@ -251,7 +258,7 @@ public class AuthController {
         
         log.info("Email verification request");
         
-        VerifyEmailRequest grpcRequest = VerifyEmailRequest.newBuilder()
+        com.auction.proto.auth.VerifyEmailRequest grpcRequest = com.auction.proto.auth.VerifyEmailRequest.newBuilder()
                 .setToken(token)
                 .build();
 
@@ -277,7 +284,7 @@ public class AuthController {
 
     @PostMapping("/change-password")
     @Operation(summary = "Change password", description = "Change user password. Requires authentication.")
-    public Mono<ResponseEntity<Map<String, Object>>> changePassword(@RequestBody ChangePasswordRequest request) {
+    public Mono<ResponseEntity<Map<String, Object>>> changePassword(@RequestBody com.auction.entities.dto.ChangePasswordRequest request) {
         
         // Get user ID from security context
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -285,7 +292,7 @@ public class AuthController {
         
         log.info("Change password request for user: {}", userId);
         
-        com.example.grpc.auth.ChangePasswordRequest grpcRequest = com.example.grpc.auth.ChangePasswordRequest.newBuilder()
+        com.auction.proto.auth.ChangePasswordRequest grpcRequest = com.auction.proto.auth.ChangePasswordRequest.newBuilder()
                 .setUserId(userId)
                 .setOldPassword(request.getOldPassword())
                 .setNewPassword(request.getNewPassword())
@@ -317,7 +324,7 @@ public class AuthController {
     public Mono<ResponseEntity<Map<String, Object>>> validateToken(
             @Parameter(description = "Access token to validate") @RequestParam String token) {
         
-        ValidateTokenRequest grpcRequest = ValidateTokenRequest.newBuilder()
+        com.auction.proto.auth.ValidateTokenRequest grpcRequest = com.auction.proto.auth.ValidateTokenRequest.newBuilder()
                 .setAccessToken(token)
                 .build();
 

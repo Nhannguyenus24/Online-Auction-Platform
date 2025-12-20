@@ -1,14 +1,14 @@
 package gateway.config;
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
-import com.auction.platform.utils.JwtUtils;
+import com.auction.utils.JwtUtils;
 import com.nimbusds.jwt.JWTClaimsSet;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -24,12 +24,13 @@ import java.util.List;
  * Custom JWT Authentication Filter using JwtUtils
  * Only validates JWT for protected endpoints, skips public endpoints
  */
-@RequiredArgsConstructor
-@Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtils jwtUtils;
-
+    private static final Logger log =  LoggerFactory.getLogger(JwtAuthenticationFilter.class);
+    public  JwtAuthenticationFilter(JwtUtils jwtUtils) {
+        this.jwtUtils = jwtUtils;
+    }
     // List of public endpoints that don't require JWT validation
     private static final List<String> PUBLIC_PATHS = List.of(
         "/api/gateway/health",

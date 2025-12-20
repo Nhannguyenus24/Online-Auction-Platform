@@ -1,19 +1,37 @@
 package gateway.grpc;
 
-import com.example.grpc.auth.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+import com.auction.proto.auth.ChangePasswordRequest;
+import com.auction.proto.auth.ChangePasswordResponse;
+import com.auction.proto.auth.LoginRequest;
+import com.auction.proto.auth.LoginResponse;
+import com.auction.proto.auth.LogoutRequest;
+import com.auction.proto.auth.LogoutResponse;
+import com.auction.proto.auth.ReactorAuthServiceGrpc;
+import com.auction.proto.auth.RefreshTokenRequest;
+import com.auction.proto.auth.RefreshTokenResponse;
+import com.auction.proto.auth.RegisterRequest;
+import com.auction.proto.auth.RegisterResponse;
+import com.auction.proto.auth.ValidateTokenRequest;
+import com.auction.proto.auth.ValidateTokenResponse;
+import com.auction.proto.auth.VerifyEmailRequest;
+import com.auction.proto.auth.VerifyEmailResponse;
+import com.auction.proto.auth.VerifyOTPRequest;
+import com.auction.proto.auth.VerifyOTPResponse;
+
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
 @Component
-@Slf4j
 public class UserGrpcClient {
-
+    private static final Logger log = LoggerFactory.getLogger(UserGrpcClient.class);
     @Value("${grpc.user-service.host:localhost}")
     private String userServiceHost;
 
@@ -73,8 +91,13 @@ public class UserGrpcClient {
         return authServiceStub.changePassword(Mono.just(request));
     }
 
-    // Verify Email
+    // Verify Email (deprecated)
     public Mono<VerifyEmailResponse> verifyEmail(VerifyEmailRequest request) {
         return authServiceStub.verifyEmail(Mono.just(request));
+    }
+
+    // Verify OTP
+    public Mono<VerifyOTPResponse> verifyOTP(VerifyOTPRequest request) {
+        return authServiceStub.verifyOTP(Mono.just(request));
     }
 }

@@ -27,8 +27,11 @@ service AuthService {
   // 6. Đổi mật khẩu
   rpc ChangePassword (ChangePasswordRequest) returns (ChangePasswordResponse);
 
-  // 7. Xác minh email
+  // 7. Xác minh email (deprecated - sử dụng VerifyOTP thay thế)
   rpc VerifyEmail (VerifyEmailRequest) returns (VerifyEmailResponse);
+
+  // 8. Xác minh OTP
+  rpc VerifyOTP (VerifyOTPRequest) returns (VerifyOTPResponse);
 }
 
 // --- Message Definitions ---
@@ -47,7 +50,7 @@ message RegisterResponse {
   string email = 2;
   bool success = 3;
   string message = 4;
-  string email_verification_link = 5;
+  string otp = 5; // OTP 6 chữ số được gửi qua email, hết hạn sau 10 phút
 }
 
 // 2. LOGIN
@@ -113,11 +116,22 @@ message ChangePasswordResponse {
   string message = 2;
 }
 
-// 7. VERIFY EMAIL
+// 7. VERIFY EMAIL (deprecated)
 message VerifyEmailRequest {
   string token = 1;
 }
 
 message VerifyEmailResponse {
   bool success = 1;
+}
+
+// 8. VERIFY OTP
+message VerifyOTPRequest {
+  string user_id = 1;
+  string otp = 2; // OTP 6 chữ số
+}
+
+message VerifyOTPResponse {
+  bool success = 1;
+  string message = 2;
 }

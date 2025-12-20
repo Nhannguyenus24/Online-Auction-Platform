@@ -1,6 +1,6 @@
 package user.grpc;
 
-import com.auction.grpc.auth.*;
+import com.auction.proto.auth.*;
 import org.springframework.grpc.server.service.GrpcService;
 import reactor.core.publisher.Mono;
 import user.service.AuthService;
@@ -14,6 +14,10 @@ import org.slf4j.LoggerFactory;
 public class AuthGrpcService extends ReactorAuthServiceGrpc.AuthServiceImplBase {
     private static final Logger log = LoggerFactory.getLogger(AuthGrpcService.class);
     private final AuthService authService;
+
+    public AuthGrpcService(AuthService authService) {
+        this.authService = authService;
+    }
 
     @Override
     public Mono<RegisterResponse> register(Mono<RegisterRequest> request) {
@@ -29,7 +33,7 @@ public class AuthGrpcService extends ReactorAuthServiceGrpc.AuthServiceImplBase 
                 .setSuccess(true)
                 .setUserId(String.valueOf(result.userId()))
                 .setEmail(result.email())
-                .setEmailVerificationLink(result.verificationLink())
+                .setOtp(result.otp())  // OTP 6 chữ số gửi qua email
                 .setMessage(result.message())
                 .build())
             .onErrorResume(e -> {
@@ -81,8 +85,9 @@ public class AuthGrpcService extends ReactorAuthServiceGrpc.AuthServiceImplBase 
 
     @Override
     public Mono<LogoutResponse> logout(Mono<LogoutRequest> request) {
-        return request.flatMap(req ->
-            authService.logout(req.getRefreshToken())
+        return request.flatMap(req -> {
+            log.info("Logout request for user: {}", req.getUserId());
+            return authService.logout(req.getRefreshToken())
                 .then(Mono.just(LogoutResponse.newBuilder()
                     .setSuccess(true)
                     .build()))
@@ -91,8 +96,8 @@ public class AuthGrpcService extends ReactorAuthServiceGrpc.AuthServiceImplBase 
                     return Mono.just(LogoutResponse.newBuilder()
                         .setSuccess(false)
                         .build());
-                })
-        );
+                });
+        });
     }
 
     @Override
@@ -151,6 +156,27 @@ public class AuthGrpcService extends ReactorAuthServiceGrpc.AuthServiceImplBase 
                         .setSuccess(false)
                         .build());
                 })
+        );
+    }
+
+    @Override
+    public Mono<VerifyOTPResponse> verifyOTP(Mono<VerifyOTPRequest> request) {
+        return request.flatMap(req ->
+            authService.verifyOTP(
+                Integer.parseInt(req.getUserId()),
+                req.getOtp()
+            )
+            .map(message -> VerifyOTPResponse.newBuilder()
+                .setSuccess(true)
+                .setMessage(message)
+                .build())
+            .onErrorResume(e -> {
+                log.error("Verify OTP error: {}", e.getMessage());
+                return Mono.just(VerifyOTPResponse.newBuilder()
+                    .setSuccess(false)
+                    .setMessage(e.getMessage())
+                    .build());
+            })
         );
     }
 }
