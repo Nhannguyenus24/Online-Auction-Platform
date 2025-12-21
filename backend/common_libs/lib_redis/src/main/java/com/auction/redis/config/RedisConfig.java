@@ -1,7 +1,9 @@
 package com.auction.redis.config;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.data.redis.connection.ReactiveRedisConnectionFactory;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
@@ -26,6 +28,8 @@ public class RedisConfig {
      * @return configured ObjectMapper
      */
     @Bean
+    @Primary
+    @Qualifier("redisObjectMapper")
     public ObjectMapper redisObjectMapper() {
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
@@ -45,7 +49,7 @@ public class RedisConfig {
     @Bean
     public ReactiveRedisTemplate<String, Object> reactiveRedisTemplate(
             ReactiveRedisConnectionFactory connectionFactory,
-            ObjectMapper redisObjectMapper) {
+            @Qualifier("redisObjectMapper") ObjectMapper redisObjectMapper) {
         
         // String serializer for keys
         StringRedisSerializer keySerializer = new StringRedisSerializer();

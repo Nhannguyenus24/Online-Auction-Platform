@@ -1,27 +1,13 @@
 package gateway.grpc;
 
+import com.auction.proto.auth.*;
+import io.swagger.v3.core.util.Json;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import com.auction.proto.auth.ChangePasswordRequest;
-import com.auction.proto.auth.ChangePasswordResponse;
-import com.auction.proto.auth.LoginRequest;
-import com.auction.proto.auth.LoginResponse;
-import com.auction.proto.auth.LogoutRequest;
-import com.auction.proto.auth.LogoutResponse;
-import com.auction.proto.auth.ReactorAuthServiceGrpc;
-import com.auction.proto.auth.RefreshTokenRequest;
-import com.auction.proto.auth.RefreshTokenResponse;
-import com.auction.proto.auth.RegisterRequest;
-import com.auction.proto.auth.RegisterResponse;
-import com.auction.proto.auth.ValidateTokenRequest;
-import com.auction.proto.auth.ValidateTokenResponse;
-import com.auction.proto.auth.VerifyEmailRequest;
-import com.auction.proto.auth.VerifyEmailResponse;
-import com.auction.proto.auth.VerifyOTPRequest;
-import com.auction.proto.auth.VerifyOTPResponse;
+import com.auction.utils.JsonUtils;
 
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -63,41 +49,49 @@ public class UserGrpcClient {
 
     // Register
     public Mono<RegisterResponse> register(RegisterRequest request) {
+        log.info("gRPC register request: {}", request);
         return authServiceStub.register(Mono.just(request));
     }
 
     // Login
     public Mono<LoginResponse> login(LoginRequest request) {
+        log.info("gRPC login request: {}", JsonUtils.toJson(request));
         return authServiceStub.login(Mono.just(request));
     }
 
     // Refresh Token
     public Mono<RefreshTokenResponse> refreshToken(RefreshTokenRequest request) {
+        log.info("gRPC refreshToken request: {}", request);
         return authServiceStub.refreshToken(Mono.just(request));
     }
 
     // Logout
     public Mono<LogoutResponse> logout(LogoutRequest request) {
+        log.info("gRPC logout request: {}", request);
         return authServiceStub.logout(Mono.just(request));
     }
 
     // Validate Token
     public Mono<ValidateTokenResponse> validateToken(ValidateTokenRequest request) {
+        log.info("gRPC validateToken request: {}", request);
         return authServiceStub.validateToken(Mono.just(request));
     }
 
     // Change Password
     public Mono<ChangePasswordResponse> changePassword(ChangePasswordRequest request) {
+        log.info("gRPC changePassword request: {}", request);
         return authServiceStub.changePassword(Mono.just(request));
-    }
-
-    // Verify Email (deprecated)
-    public Mono<VerifyEmailResponse> verifyEmail(VerifyEmailRequest request) {
-        return authServiceStub.verifyEmail(Mono.just(request));
     }
 
     // Verify OTP
     public Mono<VerifyOTPResponse> verifyOTP(VerifyOTPRequest request) {
+        log.info("gRPC verifyOTP request: {}", request);
         return authServiceStub.verifyOTP(Mono.just(request));
+    }
+
+    // Reproduce OTP
+    public Mono<ReproduceOTPResponse> reproduceOTP(ReproduceOTPRequest request) {
+        log.info("gRPC reproduceOTP request: {}", request);
+        return authServiceStub.reproduceOTP(Mono.just(request));
     }
 }

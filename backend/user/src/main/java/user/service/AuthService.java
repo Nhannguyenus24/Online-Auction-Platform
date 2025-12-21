@@ -3,7 +3,10 @@ package user.service;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
+import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,6 +14,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.auction.entities.database.User;
+import com.auction.rabbitmq.model.MessageWrapper;
+import com.auction.rabbitmq.services.ReactiveRabbitProducer;
 import com.auction.redis.service.ReactiveRedisService;
 import com.auction.utils.JwtUtils;
 
@@ -26,20 +31,25 @@ public class AuthService {
     private final BCryptPasswordEncoder passwordEncoder;
     private final ReactiveRedisService redisClient;
     private final JwtUtils jwtUtils;
+    private final ReactiveRabbitProducer rabbitProducer;
+    
+    private static final String NOTIFICATION_EXCHANGE = "notification.exchange";
+    private static final String EMAIL_ROUTING_KEY = "notification.email";
 
     public AuthService(
             UserRepository userRepository,
             BCryptPasswordEncoder passwordEncoder,
             ReactiveRedisService redisClient,
-            JwtUtils jwtUtils
+            JwtUtils jwtUtils,
+            ReactiveRabbitProducer rabbitProducer
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.redisClient = redisClient;
         this.jwtUtils = jwtUtils;
+        this.rabbitProducer = rabbitProducer;
     }
     
-    private static final int OTP_LENGTH = 6;
     private static final long OTP_EXPIRY_MINUTES = 10;
 
     /**
@@ -60,7 +70,6 @@ public class AuthService {
                     user.setAddress(address);
                     user.setRole("bidder");
                     user.setIsEmailVerified(false);
-                    user.setOtpVerified(false);
                     user.setPositiveReviews(0);
                     user.setNegativeReviews(0);
                     user.setRatingPercent(BigDecimal.ZERO);
@@ -72,8 +81,9 @@ public class AuthService {
                                 String otp = generateOTP();
                                 
                                 // Cache OTP to Redis with 10 minutes expiry
-                                String redisKey = "otp:" + savedUser.getId();
+                                String redisKey = "otp:" + savedUser.getEmail();
                                 return redisClient.set(redisKey, otp, Duration.ofMinutes(OTP_EXPIRY_MINUTES))
+                                        .then(sendOTPEmail(savedUser.getEmail(), otp))
                                         .then(Mono.just(new RegisterResult(
                                                 savedUser.getId(),
                                                 savedUser.getEmail(),
@@ -92,6 +102,30 @@ public class AuthService {
         Random random = new Random();
         int otp = random.nextInt(999999);
         return String.format("%06d", otp);
+    }
+    
+    /**
+     * Send OTP email via RabbitMQ (fire and forget)
+     */
+    private Mono<Void> sendOTPEmail(String email, String otp) {
+        Map<String, Object> emailPayload = new HashMap<>();
+        emailPayload.put("to", email);
+        emailPayload.put("subject", "Your OTP Code");
+        emailPayload.put("otp", otp);
+        emailPayload.put("type", "OTP_VERIFICATION");
+        
+        MessageWrapper<Map<String, Object>> message = MessageWrapper.<Map<String, Object>>builder()
+                .messageId(UUID.randomUUID().toString())
+                .messageType("EMAIL_OTP")
+                .timestamp(LocalDateTime.now())
+                .source("user-service")
+                .payload(emailPayload)
+                .build();
+        
+        return rabbitProducer.sendWrappedMessage(NOTIFICATION_EXCHANGE, EMAIL_ROUTING_KEY, message)
+                .doOnSuccess(v -> log.info("OTP email message sent to queue for: {}", email))
+                .doOnError(e -> log.error("Failed to send OTP email message for: {}", email, e))
+                .onErrorResume(e -> Mono.empty()); // Fire and forget - don't fail if message sending fails
     }
 
     /**
@@ -167,8 +201,8 @@ public class AuthService {
     /**
      * Verify OTP
      */
-    public Mono<String> verifyOTP(Integer userId, String otp) {
-        String redisKey = "otp:" + userId;
+    public Mono<String> verifyOTP(String email, String otp) {
+        String redisKey = "otp:" + email;
         
         return redisClient.get(redisKey)
                 .switchIfEmpty(Mono.error(new RuntimeException("OTP expired or not found")))
@@ -178,7 +212,7 @@ public class AuthService {
                     }
 
                     // Update user email verification status
-                    return userRepository.findById(userId)
+                    return userRepository.findByEmail(email)
                             .switchIfEmpty(Mono.error(new RuntimeException("User not found")))
                             .flatMap(user -> {
                                 user.setIsEmailVerified(true);
@@ -187,24 +221,29 @@ public class AuthService {
                             })
                             .then(redisClient.delete(redisKey))
                             .then(Mono.just("Email verified successfully"))
-                            .doOnSuccess(v -> log.info("User {} email verified via OTP", userId));
+                            .doOnSuccess(v -> log.info("User {} email verified via OTP", email));
                 });
     }
 
-    /**
-     * Verify email (legacy method, kept for backward compatibility)
-     */
-    public Mono<String> verifyEmail(String token) {
-        try {
-            // Validate token
-            Integer userId = jwtUtils.getUserIdFromToken(token);
+    public Mono<String> reproduceOTP(String email) {
 
-            // Email verification via token is deprecated
-            // Use verifyOTP instead
-            return Mono.error(new RuntimeException("Email verification via token is deprecated. Use OTP verification instead."));
-        } catch (Exception e) {
-            return Mono.error(new RuntimeException("Invalid verification token"));
-        }
+        return userRepository.existsByEmail(email)
+                .flatMap(exists -> {
+                    if (!exists) {
+                        return Mono.error(new RuntimeException("Email not exists"));
+                    }
+
+                    // Generate 6-digit OTP
+                    String otp = generateOTP();
+
+                    // Cache OTP to Redis with 10 minutes expiry
+                    String redisKey = "otp:" + email;
+                    return redisClient.set(redisKey, otp, Duration.ofMinutes(OTP_EXPIRY_MINUTES))
+                            .then(sendOTPEmail(email, otp))
+                            .then(Mono.just("OTP resent to email. Expires in 10 minutes."))
+                            .doOnSuccess(v -> log.info("OTP regenerated and cached for: {}", email));
+
+                });
     }
 
     /**

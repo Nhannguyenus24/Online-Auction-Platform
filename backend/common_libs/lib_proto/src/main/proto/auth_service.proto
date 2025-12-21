@@ -27,11 +27,11 @@ service AuthService {
   // 6. Đổi mật khẩu
   rpc ChangePassword (ChangePasswordRequest) returns (ChangePasswordResponse);
 
-  // 7. Xác minh email (deprecated - sử dụng VerifyOTP thay thế)
-  rpc VerifyEmail (VerifyEmailRequest) returns (VerifyEmailResponse);
-
-  // 8. Xác minh OTP
+  // 7. Xác minh OTP
   rpc VerifyOTP (VerifyOTPRequest) returns (VerifyOTPResponse);
+
+  // 8. Cấp lại OTP
+  rpc reproduceOTP (ReproduceOTPRequest) returns (ReproduceOTPResponse);
 }
 
 // --- Message Definitions ---
@@ -62,6 +62,7 @@ message LoginRequest {
 message LoginResponse {
   string access_token = 1;
   string refresh_token = 2;
+  string message = 3;
   UserInfo user_info = 5;
 }
 
@@ -80,7 +81,8 @@ message RefreshTokenRequest {
 message RefreshTokenResponse {
   string access_token = 1;
   string refresh_token = 2;
-  int64 access_token_expires_in = 3;
+  string message = 3;
+  int64 access_token_expires_in = 4;
 }
 
 // 4. LOGOUT
@@ -91,6 +93,7 @@ message LogoutRequest {
 
 message LogoutResponse {
   bool success = 1;
+  string message = 2;
 }
 
 message ValidateTokenRequest {
@@ -116,22 +119,23 @@ message ChangePasswordResponse {
   string message = 2;
 }
 
-// 7. VERIFY EMAIL (deprecated)
-message VerifyEmailRequest {
-  string token = 1;
-}
-
-message VerifyEmailResponse {
-  bool success = 1;
-}
-
-// 8. VERIFY OTP
+// 7. VERIFY OTP
 message VerifyOTPRequest {
-  string user_id = 1;
+  string email = 1;
   string otp = 2; // OTP 6 chữ số
 }
 
 message VerifyOTPResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// 8. Reproduce OTP
+message ReproduceOTPRequest {
+  string email = 1;
+}
+
+message ReproduceOTPResponse {
   bool success = 1;
   string message = 2;
 }

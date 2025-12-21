@@ -1,6 +1,7 @@
 package com.auction.rabbitmq.config;
 
 import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -47,6 +48,7 @@ public class RabbitMQConfig {
      * @return configured ObjectMapper
      */
     @Bean
+    @Qualifier("rabbitMqObjectMapper")
     public ObjectMapper rabbitMqObjectMapper() {
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
@@ -60,8 +62,8 @@ public class RabbitMQConfig {
      * 
      * @return configured ConnectionFactory
      */
-    @Bean
-    public CachingConnectionFactory connectionFactory() {
+    @Bean(name = "rabbitConnectionFactory")
+    public CachingConnectionFactory rabbitConnectionFactory() {
         CachingConnectionFactory factory = new CachingConnectionFactory();
         factory.setHost(host);
         factory.setPort(port);

@@ -7,7 +7,7 @@ import org.springframework.data.r2dbc.repository.config.EnableR2dbcRepositories;
 
 @SpringBootApplication
 @EnableR2dbcRepositories(basePackages = "user.repository")
-@ComponentScan(basePackages = {"user", "com.auction.redis", "com.auction.utils"})
+@ComponentScan(basePackages = {"user", "com.auction.redis", "com.auction.utils", "com.auction.rabbitmq"})
 public class UserApplication {
 
 	public static void main(String[] args) {

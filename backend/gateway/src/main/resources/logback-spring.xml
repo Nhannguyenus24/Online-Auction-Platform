@@ -3,7 +3,9 @@
     <!-- Console Appender with colored pattern -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%highlight(%level)|%green(%d{yyyy-MM-dd HH:mm:ss})|%blue(%thread)|%yellow(%logger)|%msg%n</pattern>
+            <pattern>
+                %highlight(%level)|%green(%d{yyyy-MM-dd HH:mm:ss})|%blue(%thread)|%yellow(%logger{36})|%msg%n
+            </pattern>
             <charset>UTF-8</charset>
         </encoder>
     </appender>

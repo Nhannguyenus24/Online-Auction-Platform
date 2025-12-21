@@ -1,19 +1,24 @@
 package com.auction.rabbitmq.services.impl;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.rabbitmq.client.AMQP;
-import lombok.RequiredArgsConstructor;
-import com.auction.rabbitmq.model.MessageWrapper;
-import com.auction.rabbitmq.services.ReactiveRabbitProducer;
-
-import org.springframework.stereotype.Service;
-import reactor.core.publisher.Mono;
-import reactor.rabbitmq.*;
-
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.stereotype.Service;
+
+import com.auction.rabbitmq.model.MessageWrapper;
+import com.auction.rabbitmq.services.ReactiveRabbitProducer;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rabbitmq.client.AMQP;
+
+import reactor.core.publisher.Mono;
+import reactor.rabbitmq.BindingSpecification;
+import reactor.rabbitmq.ExchangeSpecification;
+import reactor.rabbitmq.OutboundMessage;
+import reactor.rabbitmq.QueueSpecification;
+import reactor.rabbitmq.Sender;
 
 /**
  * Implementation of ReactiveRabbitProducer
@@ -21,11 +26,17 @@ import java.util.UUID;
  * Create by Nhan Nguyen on 2025-12-1
  */
 @Service
-@RequiredArgsConstructor
 public class ReactiveRabbitProducerImpl implements ReactiveRabbitProducer {
 
     private final Sender sender;
     private final ObjectMapper rabbitMqObjectMapper;
+
+    public ReactiveRabbitProducerImpl(
+            Sender sender,
+            @Qualifier("rabbitMqObjectMapper") ObjectMapper rabbitMqObjectMapper) {
+        this.sender = sender;
+        this.rabbitMqObjectMapper = rabbitMqObjectMapper;
+    }
 
     @Override
     public <T> Mono<Void> sendMessage(String exchange, String routingKey, T message) {

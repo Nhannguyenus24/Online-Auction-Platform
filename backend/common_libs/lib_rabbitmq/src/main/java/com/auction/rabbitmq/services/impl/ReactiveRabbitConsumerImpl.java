@@ -1,18 +1,21 @@
 package com.auction.rabbitmq.services.impl;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
-import com.auction.rabbitmq.services.ReactiveRabbitConsumer;
-
-import org.springframework.stereotype.Service;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
-import reactor.rabbitmq.Receiver;
-
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.stereotype.Service;
+
+import com.auction.rabbitmq.services.ReactiveRabbitConsumer;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.rabbitmq.Receiver;
 
 /**
  * Implementation of ReactiveRabbitConsumer
@@ -20,19 +23,33 @@ import java.util.function.Function;
  * Create by Nhan Nguyen on 2025-12-1
  */
 @Service
-@RequiredArgsConstructor
 public class ReactiveRabbitConsumerImpl implements ReactiveRabbitConsumer {
+    private static final Logger log = LoggerFactory.getLogger(ReactiveRabbitConsumerImpl.class);
 
     private final Receiver receiver;
     private final ObjectMapper rabbitMqObjectMapper;
     private final Map<String, reactor.core.Disposable> activeConsumers = new ConcurrentHashMap<>();
 
+    public ReactiveRabbitConsumerImpl(
+            Receiver receiver,
+            @Qualifier("rabbitMqObjectMapper") ObjectMapper rabbitMqObjectMapper) {
+        this.receiver = receiver;
+        this.rabbitMqObjectMapper = rabbitMqObjectMapper;
+    }
+
     @Override
     public <T> Flux<Void> consumeMessages(String queueName, Class<T> messageClass, Function<T, Mono<Void>> messageHandler) {
+        log.info("Starting to consume messages from queue: {} with message class: {}", queueName, messageClass.getSimpleName());
         return receiver.consumeAutoAck(queueName)
+                .doOnNext(delivery -> log.debug("Received message from queue {}, body size: {} bytes", queueName, delivery.getBody().length))
                 .flatMap(delivery -> parseMessage(delivery.getBody(), messageClass)
+                        .doOnNext(msg -> log.debug("Successfully parsed message: {}", msg.getClass().getSimpleName()))
                         .flatMap(messageHandler)
-                        .onErrorResume(e -> Mono.empty())
+                        .doOnError(e -> log.error("Error handling message from queue {}: {}", queueName, e.getMessage(), e))
+                        .onErrorResume(e -> {
+                            log.warn("Skipping failed message from queue {}", queueName);
+                            return Mono.empty();
+                        })
                 );
     }
 
@@ -95,7 +112,16 @@ public class ReactiveRabbitConsumerImpl implements ReactiveRabbitConsumer {
      * Parse message bytes to object
      */
     private <T> Mono<T> parseMessage(byte[] messageBody, Class<T> messageClass) {
-        return Mono.fromCallable(() -> rabbitMqObjectMapper.readValue(messageBody, messageClass))
-                .onErrorResume(e -> Mono.empty());
+        return Mono.fromCallable(() -> {
+            String messageStr = new String(messageBody);
+            log.debug("Parsing message to {}: {}", messageClass.getSimpleName(), messageStr);
+            return rabbitMqObjectMapper.readValue(messageBody, messageClass);
+        })
+        .doOnError(e -> {
+            String messageStr = new String(messageBody);
+            log.error("Failed to parse message to {}: {}. Message content: {}", 
+                messageClass.getSimpleName(), e.getMessage(), messageStr, e);
+        })
+        .onErrorResume(e -> Mono.empty());
     }
 }
