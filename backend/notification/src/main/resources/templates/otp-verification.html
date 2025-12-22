@@ -90,12 +90,12 @@
             <p>Account Verification</p>
         </div>
         <div class="content">
-            <h2>Welcome, {{userName}}!</h2>
+            <h2>Welcome, <span th:text="${userName}">User</span>!</h2>
             <p>Thank you for signing up with Online Auction Platform. To complete your account registration, please use the OTP (One-Time Password) below:</p>
             
             <div class="otp-box">
-                <p class="otp-code">{{otp}}</p>
-                <div class="expiry">This code expires in {{expiryMinutes}} minutes</div>
+                <p class="otp-code" th:text="${otp}">000000</p>
+                <div class="expiry">This code expires in <span th:text="${expiryMinutes}">10</span> minutes</div>
             </div>
             
             <div class="instructions">

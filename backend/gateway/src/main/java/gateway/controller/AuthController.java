@@ -349,6 +349,151 @@ public class AuthController {
                 });
     }
 
+    @GetMapping("/profile")
+    @Operation(summary = "Get user profile", description = "Get authenticated user's profile information. Requires authentication.")
+    public Mono<ResponseEntity<Map<String, Object>>> getProfile() {
+        
+        // Get user ID from security context
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String userId = authentication.getName();
+        
+        log.info("Get profile request for user: {}", userId);
+        
+        GetProfileRequest grpcRequest = GetProfileRequest.newBuilder()
+                .setUserId(userId)
+                .build();
+
+        return userGrpcClient.getProfile(grpcRequest)
+                .map(profileResponse -> {
+                    Map<String, Object> result = new HashMap<>();
+                    
+                    if (profileResponse.getUserId() != null && !profileResponse.getUserId().isEmpty()) {
+                        Map<String, Object> profile = new HashMap<>();
+                        profile.put("userId", profileResponse.getUserId());
+                        profile.put("email", profileResponse.getEmail());
+                        profile.put("fullName", profileResponse.getFullName());
+                        profile.put("phoneNumber", profileResponse.getPhoneNumber());
+                        profile.put("address", profileResponse.getAddress());
+                        profile.put("roles", profileResponse.getRolesList());
+                        profile.put("isVerified", profileResponse.getIsVerified());
+                        profile.put("createdAt", profileResponse.getCreatedAt());
+                        result.put("profile", profile);
+                        result.put("message", profileResponse.getMessage());
+                        
+                        log.info("Profile retrieved successfully for user: {}", userId);
+                        return ResponseEntity.ok(result);
+                    } else {
+                        result.put("message", profileResponse.getMessage());
+                        return ResponseEntity.badRequest().body(result);
+                    }
+                })
+                .onErrorResume(e -> {
+                    log.error("Get profile error: {}", e.getMessage());
+                    Map<String, Object> error = new HashMap<>();
+                    error.put("message", "Get profile failed: " + e.getMessage());
+                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error));
+                });
+    }
+
+    @PostMapping("/profile")
+    @Operation(summary = "Update user profile", description = "Update authenticated user's profile information. Requires authentication.")
+    public Mono<ResponseEntity<Map<String, Object>>> updateProfile(
+            @RequestBody com.auction.entities.dto.UpdateProfileRequest request) {
+        
+        // Get user ID from security context
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String userId = authentication.getName();
+        
+        log.info("Update profile request for user: {}", userId);
+        
+        UpdateProfileRequest grpcRequest = UpdateProfileRequest.newBuilder()
+                .setUserId(userId)
+                .setFullName(request.getFullName() != null ? request.getFullName() : "")
+                .setPhoneNumber(request.getPhoneNumber() != null ? request.getPhoneNumber() : "")
+                .setAddress(request.getAddress() != null ? request.getAddress() : "")
+                .build();
+
+        return userGrpcClient.updateProfile(grpcRequest)
+                .map(updateResponse -> {
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("success", updateResponse.getSuccess());
+                    result.put("message", updateResponse.getMessage());
+                    
+                    if (updateResponse.getSuccess() && updateResponse.hasUpdatedProfile()) {
+                        GetProfileResponse profile = updateResponse.getUpdatedProfile();
+                        Map<String, Object> profileData = new HashMap<>();
+                        profileData.put("userId", profile.getUserId());
+                        profileData.put("email", profile.getEmail());
+                        profileData.put("fullName", profile.getFullName());
+                        profileData.put("phoneNumber", profile.getPhoneNumber());
+                        profileData.put("address", profile.getAddress());
+                        profileData.put("roles", profile.getRolesList());
+                        profileData.put("isVerified", profile.getIsVerified());
+                        profileData.put("createdAt", profile.getCreatedAt());
+                        result.put("profile", profileData);
+                        
+                        log.info("Profile updated successfully for user: {}", userId);
+                        return ResponseEntity.ok(result);
+                    } else {
+                        return ResponseEntity.badRequest().body(result);
+                    }
+                })
+                .onErrorResume(e -> {
+                    log.error("Update profile error: {}", e.getMessage());
+                    Map<String, Object> error = new HashMap<>();
+                    error.put("success", false);
+                    error.put("message", "Update profile failed: " + e.getMessage());
+                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error));
+                });
+    }
+
+    @PostMapping("/google")
+    @Operation(summary = "Login with Google", description = "Login or register with Google OAuth. Returns access token and sets refresh token in httpOnly cookie.")
+    public Mono<ResponseEntity<Map<String, Object>>> loginWithGoogle(
+            @RequestBody com.auction.entities.dto.LoginWithGoogleRequest request,
+            HttpServletResponse response) {
+        
+        log.info("Google login request for email: {}", request.getEmail());
+        
+        LoginWithGoogleRequest grpcRequest = LoginWithGoogleRequest.newBuilder()
+                .setGoogleIdToken(request.getGoogleIdToken() != null ? request.getGoogleIdToken() : "")
+                .setEmail(request.getEmail())
+                .setFullName(request.getFullName() != null ? request.getFullName() : "")
+                .setProfilePicture(request.getProfilePicture() != null ? request.getProfilePicture() : "")
+                .build();
+
+        return userGrpcClient.loginWithGoogle(grpcRequest)
+                .map(loginResponse -> {
+                    // Set refresh token in httpOnly cookie
+                    Cookie refreshTokenCookie = new Cookie("refreshToken", loginResponse.getRefreshToken());
+                    refreshTokenCookie.setHttpOnly(true);
+                    refreshTokenCookie.setSecure(false); // Set to true in production with HTTPS
+                    refreshTokenCookie.setPath("/");
+                    refreshTokenCookie.setMaxAge(REFRESH_TOKEN_MAX_AGE);
+                    response.addCookie(refreshTokenCookie);
+
+                    // Return access token and user info
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("accessToken", loginResponse.getAccessToken());
+                    
+                    Map<String, Object> userInfo = new HashMap<>();
+                    userInfo.put("id", loginResponse.getUserInfo().getId());
+                    userInfo.put("email", loginResponse.getUserInfo().getEmail());
+                    userInfo.put("fullName", loginResponse.getUserInfo().getFullName());
+                    userInfo.put("roles", loginResponse.getUserInfo().getRolesList());
+                    result.put("user", userInfo);
+                    
+                    log.info("Google login successful for user: {}", request.getEmail());
+                    return ResponseEntity.ok(result);
+                })
+                .onErrorResume(e -> {
+                    log.error("Google login error: {}", e.getMessage());
+                    Map<String, Object> error = new HashMap<>();
+                    error.put("message", "Google login failed: " + e.getMessage());
+                    return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error));
+                });
+    }
+
     private String getRefreshTokenFromCookie(HttpServletRequest request) {
         if (request.getCookies() != null) {
             Optional<Cookie> refreshTokenCookie = Arrays.stream(request.getCookies())

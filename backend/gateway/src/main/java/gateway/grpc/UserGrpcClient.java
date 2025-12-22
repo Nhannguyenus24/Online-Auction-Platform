@@ -94,4 +94,22 @@ public class UserGrpcClient {
         log.info("gRPC reproduceOTP request: {}", request);
         return authServiceStub.reproduceOTP(Mono.just(request));
     }
+
+    // Get Profile
+    public Mono<GetProfileResponse> getProfile(GetProfileRequest request) {
+        log.info("gRPC getProfile request: {}", request);
+        return authServiceStub.getProfile(Mono.just(request));
+    }
+
+    // Update Profile
+    public Mono<UpdateProfileResponse> updateProfile(UpdateProfileRequest request) {
+        log.info("gRPC updateProfile request: {}", request);
+        return authServiceStub.updateProfile(Mono.just(request));
+    }
+
+    // Login with Google
+    public Mono<LoginResponse> loginWithGoogle(LoginWithGoogleRequest request) {
+        log.info("gRPC loginWithGoogle request: {}", request);
+        return authServiceStub.loginWithGoogle(Mono.just(request));
+    }
 }

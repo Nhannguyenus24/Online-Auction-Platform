@@ -124,25 +124,25 @@
             <h1>Account Violation Warning</h1>
         </div>
         <div class="content">
-            <h2>Important Notice: {{userName}}</h2>
+            <h2>Important Notice: <span th:text="${userName}">User</span></h2>
             <p>We are writing to inform you that your account has violated one or more of our platform policies. This is a formal warning, and further violations may result in account suspension or termination.</p>
             
             <div class="violation-details">
                 <div class="violation-item">
                     <div class="violation-title">Violation Type:</div>
-                    <div class="violation-description">{{violationType}}</div>
+                    <div class="violation-description" th:text="${violationType}">Type</div>
                 </div>
                 <div class="violation-item">
                     <div class="violation-title">Description:</div>
-                    <div class="violation-description">{{violationDescription}}</div>
+                    <div class="violation-description" th:text="${violationDescription}">Description</div>
                 </div>
                 <div class="violation-item">
                     <div class="violation-title">Date Detected:</div>
-                    <div class="violation-description">{{detectionDate}}</div>
+                    <div class="violation-description" th:text="${detectionDate}">Date</div>
                 </div>
                 <div class="violation-item">
                     <div class="violation-title">Warning Level:</div>
-                    <div class="violation-description">{{warningLevel}} of 3</div>
+                    <div class="violation-description"><span th:text="${warningLevel}">1</span> of 3</div>
                 </div>
             </div>
             
@@ -154,14 +154,14 @@
                 <h3>What You Should Do:</h3>
                 <ul class="action-list">
                     <li>Review your recent activity on the platform</li>
-                    <li>Read our <a href="{{termsLink}}">Terms of Service</a> and <a href="{{guidelinesLink}}">Community Guidelines</a></li>
+                    <li>Read our <a th:href="${termsLink}">Terms of Service</a> and <a th:href="${guidelinesLink}">Community Guidelines</a></li>
                     <li>Ensure future transactions comply with our policies</li>
                     <li>Contact our support team if you believe this is in error</li>
                 </ul>
             </div>
             
             <div class="support-info">
-                <strong>Need Help?</strong> If you have questions about this warning or believe it was issued in error, please contact our support team at <a href="mailto:support@auctionplatform.com">support@auctionplatform.com</a> with your reference number: {{referenceNumber}}
+                <strong>Need Help?</strong> If you have questions about this warning or believe it was issued in error, please contact our support team at <a href="mailto:support@auctionplatform.com">support@auctionplatform.com</a> with your reference number: <span th:text="${referenceNumber}">REF123</span>
             </div>
         </div>
         <div class="footer">

@@ -102,41 +102,41 @@
             <h1>You Have Been Outbid</h1>
         </div>
         <div class="content">
-            <h2>Hello {{userName}},</h2>
+            <h2>Hello <span th:text="${userName}">User</span>,</h2>
             <p>Unfortunately, another bidder has placed a higher bid on an item you were bidding on.</p>
             
-            <div class="product-name">{{productName}}</div>
+            <div class="product-name" th:text="${productName}">Product Name</div>
             
             <div class="outbid-details">
                 <div class="detail-row">
                     <span class="detail-label">Your Previous Bid:</span>
-                    <span class="detail-value">${{yourBidAmount}}</span>
+                    <span class="detail-value">$<span th:text="${yourBidAmount}">0</span></span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">New Highest Bid:</span>
-                    <span class="detail-value">${{newHighestBid}}</span>
+                    <span class="detail-value">$<span th:text="${newHighestBid}">0</span></span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Outbid by:</span>
-                    <span class="detail-value">${{bidDifference}}</span>
+                    <span class="detail-value">$<span th:text="${bidDifference}">0</span></span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Outbid Time:</span>
-                    <span class="detail-value">{{outbidTime}}</span>
+                    <span class="detail-value" th:text="${outbidTime}">Time</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Auction Ends:</span>
-                    <span class="detail-value">{{auctionEndTime}}</span>
+                    <span class="detail-value" th:text="${auctionEndTime}">End Time</span>
                 </div>
             </div>
             
             <div class="alert-warning">
-                <strong>Action Required:</strong> If you wish to remain in the auction, you can place a new bid. You have until {{timeRemaining}} to place a higher bid.
+                <strong>Action Required:</strong> If you wish to remain in the auction, you can place a new bid. You have until <span th:text="${timeRemaining}">time</span> to place a higher bid.
             </div>
             
             <div class="action-section">
                 <p>Would you like to place another bid?</p>
-                <a href="{{auctionLink}}" class="button">Place a New Bid</a>
+                <a th:href="${auctionLink}" class="button">Place a New Bid</a>
             </div>
             
             <p>Thank you for your continued participation in our auction platform!</p>

@@ -8,7 +8,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.auction.entities.msg.RabbitMessage;
-import com.auction.rabbitmq.model.MessageWrapper;
 import com.auction.rabbitmq.services.ReactiveRabbitConsumer;
 
 import jakarta.annotation.PostConstruct;
@@ -258,91 +257,6 @@ public class RabbitMQConsumerService {
         } catch (Exception e) {
             log.error("Unexpected error in AccountViolation event handler: eventId={}, error={}", 
                 message.getEventId(), e.getMessage(), e);
-            return Mono.error(e);
-        }
-    }
-
-    /**
-     * Consume RabbitMessage từ queue
-     */
-    public Mono<Void> startConsumingMessages(String queueName) {
-        return Mono.fromRunnable(() -> {
-            // Consume MessageWrapper from user service (OTP emails)
-            rabbitConsumer.consumeMessages(
-                    queueName,
-                    MessageWrapper.class,
-                    this::handleMessageWrapper
-            ).subscribe(
-                unused -> {},
-                error -> log.error("Error consuming MessageWrapper from queue: {}", queueName, error)
-            );
-            
-            // Also consume legacy RabbitMessage format
-            rabbitConsumer.consumeMessages(
-                    queueName,
-                    RabbitMessage.class,
-                    this::handleRabbitMessage
-            ).subscribe(
-                unused -> {},
-                error -> log.error("Error consuming RabbitMessage from queue: {}", queueName, error)
-            );
-        });
-    }
-    
-    /**
-     * Handle MessageWrapper from user service (new format)
-     */
-    @SuppressWarnings("unchecked")
-    private Mono<Void> handleMessageWrapper(MessageWrapper<?> wrapper) {
-        log.info("Processing MessageWrapper: messageId={}, messageType={}, source={}", 
-            wrapper.getMessageId(), wrapper.getMessageType(), wrapper.getSource());
-
-        if (wrapper.getPayload() == null) {
-            log.error("Invalid payload in MessageWrapper: messageId={}, messageType={}", 
-                wrapper.getMessageId(), wrapper.getMessageType());
-            return Mono.error(new IllegalArgumentException("Payload cannot be null"));
-        }
-
-        return (switch (wrapper.getMessageType()) {
-            case "EMAIL_OTP" -> handleEmailOtpMessage((MessageWrapper<Map<String, Object>>) wrapper);
-            default -> {
-                log.warn("Unknown message type: {}", wrapper.getMessageType());
-                yield Mono.empty();
-            }
-        })
-        .then()
-        .doOnError(e -> log.error("Error processing MessageWrapper: messageId={}, error={}", 
-            wrapper.getMessageId(), e.getMessage(), e))
-        .onErrorResume(e -> Mono.empty()); // Continue processing even if error
-    }
-    
-    /**
-     * Handle EMAIL_OTP message from user service
-     */
-    private Mono<Void> handleEmailOtpMessage(MessageWrapper<Map<String, Object>> wrapper) {
-        try {
-            Map<String, Object> payload = wrapper.getPayload();
-            
-            String email = (String) payload.get("to");
-            String otp = (String) payload.get("otp");
-            String type = (String) payload.get("type");
-
-            if (email == null || otp == null) {
-                log.error("Missing required fields in EMAIL_OTP message: messageId={}", wrapper.getMessageId());
-                return Mono.error(new IllegalArgumentException("Missing required fields: to, otp"));
-            }
-
-            log.info("Sending OTP email to: {}, OTP: {}", email, otp);
-            
-            // Send simple OTP email without notification
-            return emailService.sendOtpVerificationEmail(email, email, otp, 10)
-                .doOnSuccess(v -> log.info("OTP email sent successfully: messageId={}, email={}", 
-                    wrapper.getMessageId(), email))
-                .doOnError(e -> log.error("Failed to send OTP email: messageId={}, email={}", 
-                    wrapper.getMessageId(), email, e));
-        } catch (Exception e) {
-            log.error("Unexpected error in EMAIL_OTP handler: messageId={}, error={}", 
-                wrapper.getMessageId(), e.getMessage(), e);
             return Mono.error(e);
         }
     }

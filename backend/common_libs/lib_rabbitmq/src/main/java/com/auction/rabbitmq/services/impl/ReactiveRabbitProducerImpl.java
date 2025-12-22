@@ -5,6 +5,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
@@ -27,6 +29,7 @@ import reactor.rabbitmq.Sender;
  */
 @Service
 public class ReactiveRabbitProducerImpl implements ReactiveRabbitProducer {
+    private static final Logger log = LoggerFactory.getLogger(ReactiveRabbitProducerImpl.class);
 
     private final Sender sender;
     private final ObjectMapper rabbitMqObjectMapper;
@@ -40,7 +43,11 @@ public class ReactiveRabbitProducerImpl implements ReactiveRabbitProducer {
 
     @Override
     public <T> Mono<Void> sendMessage(String exchange, String routingKey, T message) {
-        return Mono.fromCallable(() -> rabbitMqObjectMapper.writeValueAsBytes(message))
+        return Mono.fromCallable(() -> {
+                    log.debug("Sending message to exchange: {}, routingKey: {}, messageType: {}", 
+                        exchange, routingKey, message.getClass().getSimpleName());
+                    return rabbitMqObjectMapper.writeValueAsBytes(message);
+                })
                 .flatMap(messageBody -> {
                     OutboundMessage outboundMessage = new OutboundMessage(
                             exchange,
@@ -54,6 +61,9 @@ public class ReactiveRabbitProducerImpl implements ReactiveRabbitProducer {
                     );
                     return sender.send(Mono.just(outboundMessage));
                 })
+                .doOnSuccess(v -> log.debug("Message sent successfully to exchange: {}, routingKey: {}", exchange, routingKey))
+                .doOnError(e -> log.error("Failed to send message to exchange: {}, routingKey: {}, error: {}", 
+                    exchange, routingKey, e.getMessage(), e))
                 .onErrorResume(e -> Mono.empty());
     }
 

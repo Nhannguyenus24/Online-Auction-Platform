@@ -32,6 +32,15 @@ service AuthService {
 
   // 8. Cấp lại OTP
   rpc reproduceOTP (ReproduceOTPRequest) returns (ReproduceOTPResponse);
+
+  // 9. Lấy thông tin profile
+  rpc GetProfile (GetProfileRequest) returns (GetProfileResponse);
+
+  // 10. Cập nhật thông tin profile
+  rpc UpdateProfile (UpdateProfileRequest) returns (UpdateProfileResponse);
+
+  // 11. Đăng nhập bằng Google
+  rpc LoginWithGoogle (LoginWithGoogleRequest) returns (LoginResponse);
 }
 
 // --- Message Definitions ---
@@ -138,4 +147,43 @@ message ReproduceOTPRequest {
 message ReproduceOTPResponse {
   bool success = 1;
   string message = 2;
+}
+
+// 9. GET PROFILE
+message GetProfileRequest {
+  string user_id = 1;
+}
+
+message GetProfileResponse {
+  string user_id = 1;
+  string email = 2;
+  string full_name = 3;
+  string phone_number = 4;
+  string address = 5;
+  repeated string roles = 6;
+  bool is_verified = 7;
+  string created_at = 8;
+  string message = 9;
+}
+
+// 10. UPDATE PROFILE
+message UpdateProfileRequest {
+  string user_id = 1;
+  string full_name = 2;
+  string phone_number = 3;
+  string address = 4;
+}
+
+message UpdateProfileResponse {
+  bool success = 1;
+  string message = 2;
+  GetProfileResponse updated_profile = 3;
+}
+
+// 11. LOGIN WITH GOOGLE
+message LoginWithGoogleRequest {
+  string google_id_token = 1; // ID Token từ Google OAuth
+  string email = 2;
+  string full_name = 3;
+  string profile_picture = 4;
 }

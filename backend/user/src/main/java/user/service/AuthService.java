@@ -14,7 +14,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.auction.entities.database.User;
-import com.auction.rabbitmq.model.MessageWrapper;
+import com.auction.entities.msg.EventType;
+import com.auction.entities.msg.RabbitMessage;
 import com.auction.rabbitmq.services.ReactiveRabbitProducer;
 import com.auction.redis.service.ReactiveRedisService;
 import com.auction.utils.JwtUtils;
@@ -33,8 +34,7 @@ public class AuthService {
     private final JwtUtils jwtUtils;
     private final ReactiveRabbitProducer rabbitProducer;
     
-    private static final String NOTIFICATION_EXCHANGE = "notification.exchange";
-    private static final String EMAIL_ROUTING_KEY = "notification.email";
+    private static final String NOTIFICATION_QUEUE = "dev";
 
     public AuthService(
             UserRepository userRepository,
@@ -108,24 +108,28 @@ public class AuthService {
      * Send OTP email via RabbitMQ (fire and forget)
      */
     private Mono<Void> sendOTPEmail(String email, String otp) {
-        Map<String, Object> emailPayload = new HashMap<>();
-        emailPayload.put("to", email);
-        emailPayload.put("subject", "Your OTP Code");
-        emailPayload.put("otp", otp);
-        emailPayload.put("type", "OTP_VERIFICATION");
-        
-        MessageWrapper<Map<String, Object>> message = MessageWrapper.<Map<String, Object>>builder()
-                .messageId(UUID.randomUUID().toString())
-                .messageType("EMAIL_OTP")
-                .timestamp(LocalDateTime.now())
-                .source("user-service")
-                .payload(emailPayload)
-                .build();
-        
-        return rabbitProducer.sendWrappedMessage(NOTIFICATION_EXCHANGE, EMAIL_ROUTING_KEY, message)
-                .doOnSuccess(v -> log.info("OTP email message sent to queue for: {}", email))
-                .doOnError(e -> log.error("Failed to send OTP email message for: {}", email, e))
-                .onErrorResume(e -> Mono.empty()); // Fire and forget - don't fail if message sending fails
+        // Lấy user để có userId và userName
+        return userRepository.findByEmail(email)
+                .flatMap(user -> {
+                    Map<String, String> emailPayload = new HashMap<>();
+                    emailPayload.put("email", email);
+                    emailPayload.put("userName", user.getFullName() != null ? user.getFullName() : email);
+                    emailPayload.put("otp", otp);
+                    emailPayload.put("expiryMinutes", String.valueOf(OTP_EXPIRY_MINUTES));
+                    
+                    RabbitMessage message = RabbitMessage.builder()
+                            .eventId(UUID.randomUUID().toString())
+                            .eventType(EventType.TASK_SEND_MAIL_OTP)
+                            .timestamp(System.currentTimeMillis())
+                            .userId(String.valueOf(user.getId()))
+                            .payload(emailPayload)
+                            .build();
+                    
+                    return rabbitProducer.sendToQueue(NOTIFICATION_QUEUE, message)
+                            .doOnSuccess(v -> log.info("OTP email message sent to queue: {} for: {}", NOTIFICATION_QUEUE, email))
+                            .doOnError(e -> log.error("Failed to send OTP email message to queue: {} for: {}", NOTIFICATION_QUEUE, email, e))
+                            .onErrorResume(e -> Mono.empty()); // Fire and forget
+                });
     }
 
     /**
@@ -282,9 +286,113 @@ public class AuthService {
                 });
     }
 
+    /**
+     * Get user profile
+     */
+    public Mono<ProfileResult> getProfile(Integer userId) {
+        return userRepository.findById(userId)
+                .switchIfEmpty(Mono.error(new RuntimeException("User not found")))
+                .map(user -> new ProfileResult(
+                        user.getId(),
+                        user.getEmail(),
+                        user.getFullName(),
+                        user.getPhone(),
+                        user.getAddress(),
+                        user.getRole(),
+                        user.getIsEmailVerified(),
+                        user.getCreatedAt() != null ? user.getCreatedAt().toString() : ""
+                ));
+    }
+
+    /**
+     * Update user profile
+     */
+    public Mono<ProfileResult> updateProfile(Integer userId, String fullName, String phoneNumber, String address) {
+        return userRepository.findById(userId)
+                .switchIfEmpty(Mono.error(new RuntimeException("User not found")))
+                .flatMap(user -> {
+                    // Update user information
+                    if (fullName != null && !fullName.isEmpty()) {
+                        user.setFullName(fullName);
+                    }
+                    if (phoneNumber != null && !phoneNumber.isEmpty()) {
+                        user.setPhone(phoneNumber);
+                    }
+                    if (address != null && !address.isEmpty()) {
+                        user.setAddress(address);
+                    }
+                    user.setUpdatedAt(LocalDateTime.now());
+
+                    return userRepository.save(user)
+                            .map(savedUser -> new ProfileResult(
+                                    savedUser.getId(),
+                                    savedUser.getEmail(),
+                                    savedUser.getFullName(),
+                                    savedUser.getPhone(),
+                                    savedUser.getAddress(),
+                                    savedUser.getRole(),
+                                    savedUser.getIsEmailVerified(),
+                                    savedUser.getCreatedAt() != null ? savedUser.getCreatedAt().toString() : ""
+                            ));
+                });
+    }
+
+    /**
+     * Login with Google
+     */
+    public Mono<LoginResult> loginWithGoogle(String googleIdToken, String email, String fullName, String profilePicture) {
+        return userRepository.findByEmail(email)
+                .flatMap(existingUser -> {
+                    // User exists, update info if needed
+                    boolean needsUpdate = false;
+                    if (fullName != null && !fullName.equals(existingUser.getFullName())) {
+                        existingUser.setFullName(fullName);
+                        needsUpdate = true;
+                    }
+                    
+                    if (needsUpdate) {
+                        existingUser.setUpdatedAt(LocalDateTime.now());
+                        return userRepository.save(existingUser);
+                    }
+                    return Mono.just(existingUser);
+                })
+                .switchIfEmpty(
+                    // Create new user if doesn't exist
+                    Mono.defer(() -> {
+                        User newUser = new User();
+                        newUser.setEmail(email);
+                        newUser.setFullName(fullName != null ? fullName : email);
+                        newUser.setPasswordHash(passwordEncoder.encode(UUID.randomUUID().toString())); // Random password for Google users
+                        newUser.setRole("bidder");
+                        newUser.setIsEmailVerified(true); // Google accounts are already verified
+                        newUser.setPositiveReviews(0);
+                        newUser.setNegativeReviews(0);
+                        newUser.setRatingPercent(BigDecimal.ZERO);
+                        newUser.setCreatedAt(LocalDateTime.now());
+                        
+                        return userRepository.save(newUser);
+                    })
+                )
+                .flatMap(user -> {
+                    // Generate tokens
+                    String accessToken = jwtUtils.generateAccessToken(user.getId(), user.getEmail(), user.getRole());
+                    String refreshToken = jwtUtils.generateRefreshToken(user.getId());
+
+                    return Mono.just(new LoginResult(
+                            accessToken,
+                            refreshToken,
+                            user.getId(),
+                            user.getEmail(),
+                            user.getFullName(),
+                            user.getRole()
+                    ));
+                });
+    }
+
     // Result classes
     public record RegisterResult(Integer userId, String email, String otp, String message) {}
     public record LoginResult(String accessToken, String refreshToken, Integer userId, String email, String fullName, String role) {}
     public record RefreshResult(String accessToken, String refreshToken) {}
     public record ValidateResult(boolean isValid, Integer userId, String email, String role, String errorMessage) {}
+    public record ProfileResult(Integer userId, String email, String fullName, String phone, String address, String role, Boolean isVerified, String createdAt) {}
 }

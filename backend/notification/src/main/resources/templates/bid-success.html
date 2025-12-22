@@ -100,27 +100,27 @@
             <h1>Bid Successfully Placed!</h1>
         </div>
         <div class="content">
-            <h2>Congratulations, {{userName}}!</h2>
+            <h2>Congratulations, <span th:text="${userName}">User</span>!</h2>
             <p>Your bid has been successfully placed on the auction.</p>
             
-            <div class="product-name">{{productName}}</div>
+            <div class="product-name" th:text="${productName}">Product Name</div>
             
             <div class="bid-details">
                 <div class="detail-row">
                     <span class="detail-label">Bid Amount:</span>
-                    <span class="detail-value">${{bidAmount}}</span>
+                    <span class="detail-value">$<span th:text="${bidAmount}">0</span></span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Product ID:</span>
-                    <span class="detail-value">{{productId}}</span>
+                    <span class="detail-value" th:text="${productId}">0</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Bid Time:</span>
-                    <span class="detail-value">{{bidTime}}</span>
+                    <span class="detail-value" th:text="${bidTime}">Time</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Auction Ends:</span>
-                    <span class="detail-value">{{auctionEndTime}}</span>
+                    <span class="detail-value" th:text="${auctionEndTime}">End Time</span>
                 </div>
             </div>
             

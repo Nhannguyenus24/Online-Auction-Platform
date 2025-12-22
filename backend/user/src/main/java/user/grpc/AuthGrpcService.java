@@ -191,4 +191,110 @@ public class AuthGrpcService extends ReactorAuthServiceGrpc.AuthServiceImplBase 
                     return Mono.just(ReproduceOTPResponse.newBuilder().setSuccess(false).setMessage(e.getMessage()).build());
                 });
     }
+
+    @Override
+    public Mono<GetProfileResponse> getProfile(Mono<GetProfileRequest> request) {
+        return request.doOnNext(req -> log.info("Raw get profile request: {}", JsonUtils.toJson(req)))
+                .flatMap(req -> {
+                    try {
+                        Integer userId = Integer.parseInt(req.getUserId());
+                        return authService.getProfile(userId)
+                                .map(profile -> GetProfileResponse.newBuilder()
+                                        .setUserId(String.valueOf(profile.userId()))
+                                        .setEmail(profile.email())
+                                        .setFullName(profile.fullName() != null ? profile.fullName() : "")
+                                        .setPhoneNumber(profile.phone() != null ? profile.phone() : "")
+                                        .setAddress(profile.address() != null ? profile.address() : "")
+                                        .addRoles(profile.role())
+                                        .setIsVerified(profile.isVerified() != null ? profile.isVerified() : false)
+                                        .setCreatedAt(profile.createdAt())
+                                        .setMessage("Profile retrieved successfully")
+                                        .build());
+                    } catch (NumberFormatException e) {
+                        log.error("Invalid user ID: {}", req.getUserId());
+                        return Mono.just(GetProfileResponse.newBuilder()
+                                .setMessage("Invalid user ID")
+                                .build());
+                    }
+                })
+                .onErrorResume(e -> {
+                    log.error("Get profile error: {}", e.getMessage());
+                    return Mono.just(GetProfileResponse.newBuilder()
+                            .setMessage("Get profile failed: " + e.getMessage())
+                            .build());
+                });
+    }
+
+    @Override
+    public Mono<UpdateProfileResponse> updateProfile(Mono<UpdateProfileRequest> request) {
+        return request.doOnNext(req -> log.info("Raw update profile request: {}", JsonUtils.toJson(req)))
+                .flatMap(req -> {
+                    try {
+                        Integer userId = Integer.parseInt(req.getUserId());
+                        return authService.updateProfile(
+                                userId,
+                                req.getFullName(),
+                                req.getPhoneNumber(),
+                                req.getAddress()
+                        )
+                        .map(profile -> UpdateProfileResponse.newBuilder()
+                                .setSuccess(true)
+                                .setMessage("Profile updated successfully")
+                                .setUpdatedProfile(GetProfileResponse.newBuilder()
+                                        .setUserId(String.valueOf(profile.userId()))
+                                        .setEmail(profile.email())
+                                        .setFullName(profile.fullName() != null ? profile.fullName() : "")
+                                        .setPhoneNumber(profile.phone() != null ? profile.phone() : "")
+                                        .setAddress(profile.address() != null ? profile.address() : "")
+                                        .addRoles(profile.role())
+                                        .setIsVerified(profile.isVerified() != null ? profile.isVerified() : false)
+                                        .setCreatedAt(profile.createdAt())
+                                        .build())
+                                .build());
+                    } catch (NumberFormatException e) {
+                        log.error("Invalid user ID: {}", req.getUserId());
+                        return Mono.just(UpdateProfileResponse.newBuilder()
+                                .setSuccess(false)
+                                .setMessage("Invalid user ID")
+                                .build());
+                    }
+                })
+                .onErrorResume(e -> {
+                    log.error("Update profile error: {}", e.getMessage());
+                    return Mono.just(UpdateProfileResponse.newBuilder()
+                            .setSuccess(false)
+                            .setMessage("Update profile failed: " + e.getMessage())
+                            .build());
+                });
+    }
+
+    @Override
+    public Mono<LoginResponse> loginWithGoogle(Mono<LoginWithGoogleRequest> request) {
+        return request.doOnNext(req -> log.info("Raw login with Google request: {}", JsonUtils.toJson(req)))
+                .flatMap(req ->
+                    authService.loginWithGoogle(
+                            req.getGoogleIdToken(),
+                            req.getEmail(),
+                            req.getFullName(),
+                            req.getProfilePicture()
+                    )
+                    .map(result -> LoginResponse.newBuilder()
+                            .setAccessToken(result.accessToken())
+                            .setRefreshToken(result.refreshToken())
+                            .setMessage("Google login success")
+                            .setUserInfo(UserInfo.newBuilder()
+                                    .setId(String.valueOf(result.userId()))
+                                    .setEmail(result.email())
+                                    .setFullName(result.fullName())
+                                    .addRoles(result.role())
+                                    .build())
+                            .build())
+                    .onErrorResume(e -> {
+                        log.error("Google login error: {}", e.getMessage());
+                        return Mono.just(LoginResponse.newBuilder()
+                                .setMessage("Google login failed: " + e.getMessage())
+                                .build());
+                    })
+                );
+    }
 }
