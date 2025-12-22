@@ -1,0 +1,137 @@
+package gateway.grpc;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+import com.auction.proto.user.AddToWatchlistRequest;
+import com.auction.proto.user.AddToWatchlistResponse;
+import com.auction.proto.user.AskQuestionRequest;
+import com.auction.proto.user.AskQuestionResponse;
+import com.auction.proto.user.GetMyBidsRequest;
+import com.auction.proto.user.GetMyBidsResponse;
+import com.auction.proto.user.GetProductBidsRequest;
+import com.auction.proto.user.GetProductBidsResponse;
+import com.auction.proto.user.GetProductDetailsRequest;
+import com.auction.proto.user.GetProductDetailsResponse;
+import com.auction.proto.user.GetProductQuestionsRequest;
+import com.auction.proto.user.GetProductQuestionsResponse;
+import com.auction.proto.user.GetRelatedProductsRequest;
+import com.auction.proto.user.GetRelatedProductsResponse;
+import com.auction.proto.user.GetWatchlistRequest;
+import com.auction.proto.user.GetWatchlistResponse;
+import com.auction.proto.user.PlaceBidRequest;
+import com.auction.proto.user.PlaceBidResponse;
+import com.auction.proto.user.ReactorUserServiceGrpc;
+import com.auction.proto.user.RemoveFromWatchlistRequest;
+import com.auction.proto.user.RemoveFromWatchlistResponse;
+import com.auction.proto.user.SetAutoBidRequest;
+import com.auction.proto.user.SetAutoBidResponse;
+import com.auction.utils.JsonUtils;
+
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
+import reactor.core.publisher.Mono;
+
+@Component
+public class BidderGrpcClient {
+    private static final Logger log = LoggerFactory.getLogger(BidderGrpcClient.class);
+    
+    @Value("${grpc.product-service.host:localhost}")
+    private String productServiceHost;
+
+    @Value("${grpc.product-service.port:9091}")
+    private int productServicePort;
+
+    private ManagedChannel channel;
+    private ReactorUserServiceGrpc.ReactorUserServiceStub userServiceStub;
+
+    @PostConstruct
+    public void init() {
+        channel = ManagedChannelBuilder
+                .forAddress(productServiceHost, productServicePort)
+                .usePlaintext()
+                .build();
+        
+        userServiceStub = ReactorUserServiceGrpc.newReactorStub(channel);
+        
+        log.info("gRPC User Product Service client initialized: {}:{}", productServiceHost, productServicePort);
+    }
+
+    @PreDestroy
+    public void shutdown() {
+        if (channel != null && !channel.isShutdown()) {
+            channel.shutdown();
+            log.info("gRPC User Product Service channel shutdown");
+        }
+    }
+
+    // Get Product Details
+    public Mono<GetProductDetailsResponse> getProductDetails(GetProductDetailsRequest request) {
+        log.info("gRPC getProductDetails request: {}", JsonUtils.toJson(request));
+        return userServiceStub.getProductDetails(Mono.just(request));
+    }
+
+    // Get Related Products
+    public Mono<GetRelatedProductsResponse> getRelatedProducts(GetRelatedProductsRequest request) {
+        log.info("gRPC getRelatedProducts request: {}", JsonUtils.toJson(request));
+        return userServiceStub.getRelatedProducts(Mono.just(request));
+    }
+
+    // Add to Watchlist
+    public Mono<AddToWatchlistResponse> addToWatchlist(AddToWatchlistRequest request) {
+        log.info("gRPC addToWatchlist request: {}", JsonUtils.toJson(request));
+        return userServiceStub.addToWatchlist(Mono.just(request));
+    }
+
+    // Remove from Watchlist
+    public Mono<RemoveFromWatchlistResponse> removeFromWatchlist(RemoveFromWatchlistRequest request) {
+        log.info("gRPC removeFromWatchlist request: {}", JsonUtils.toJson(request));
+        return userServiceStub.removeFromWatchlist(Mono.just(request));
+    }
+
+    // Get Watchlist
+    public Mono<GetWatchlistResponse> getWatchlist(GetWatchlistRequest request) {
+        log.info("gRPC getWatchlist request: {}", JsonUtils.toJson(request));
+        return userServiceStub.getWatchlist(Mono.just(request));
+    }
+
+    // Ask Question
+    public Mono<AskQuestionResponse> askQuestion(AskQuestionRequest request) {
+        log.info("gRPC askQuestion request: {}", JsonUtils.toJson(request));
+        return userServiceStub.askQuestion(Mono.just(request));
+    }
+
+    // Get Product Bids
+    public Mono<GetProductBidsResponse> getProductBids(GetProductBidsRequest request) {
+        log.info("gRPC getProductBids request: {}", JsonUtils.toJson(request));
+        return userServiceStub.getProductBids(Mono.just(request));
+    }
+
+    // Place Bid
+    public Mono<PlaceBidResponse> placeBid(PlaceBidRequest request) {
+        log.info("gRPC placeBid request: {}", JsonUtils.toJson(request));
+        return userServiceStub.placeBid(Mono.just(request));
+    }
+
+    // Set Auto Bid
+    public Mono<SetAutoBidResponse> setAutoBid(SetAutoBidRequest request) {
+        log.info("gRPC setAutoBid request: {}", JsonUtils.toJson(request));
+        return userServiceStub.setAutoBid(Mono.just(request));
+    }
+
+    // Get My Bids
+    public Mono<GetMyBidsResponse> getMyBids(GetMyBidsRequest request) {
+        log.info("gRPC getMyBids request: {}", JsonUtils.toJson(request));
+        return userServiceStub.getMyBids(Mono.just(request));
+    }
+
+    // Get Product Questions
+    public Mono<GetProductQuestionsResponse> getProductQuestions(GetProductQuestionsRequest request) {
+        log.info("gRPC getProductQuestions request: {}", JsonUtils.toJson(request));
+        return userServiceStub.getProductQuestions(Mono.just(request));
+    }
+}

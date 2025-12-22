@@ -1,5 +1,10 @@
 package gateway.config;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -8,17 +13,14 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
+
 import com.auction.utils.JwtUtils;
 import com.nimbusds.jwt.JWTClaimsSet;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
 
 /**
  * Custom JWT Authentication Filter using JwtUtils
@@ -34,8 +36,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     // List of public endpoints that don't require JWT validation
     private static final List<String> PUBLIC_PATHS = List.of(
         "/api/gateway/health",
-        "/api/gateway/info",
-        "/api/gateway/routes",
         "/api/auth/register",
         "/api/auth/login",
         "/api/auth/refresh",
@@ -43,7 +43,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         "/swagger-ui",
         "/v3/api-docs",
         "/api-docs",
-        "/actuator"
+        "/api/guest"
     );
 
     @Override

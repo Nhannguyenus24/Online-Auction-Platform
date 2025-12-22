@@ -1,0 +1,255 @@
+package products.grpc;
+
+import com.auction.proto.user.*;
+import org.springframework.grpc.server.service.GrpcService;
+import reactor.core.publisher.Mono;
+import products.service.BidderService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import com.auction.utils.JsonUtils;
+
+/**
+ * gRPC implementation of UserService for Bidder operations
+ * Gateway will call this service for bidder-related functionality
+ */
+@GrpcService
+public class BidderGrpcService extends ReactorUserServiceGrpc.UserServiceImplBase {
+    private static final Logger log = LoggerFactory.getLogger(BidderGrpcService.class);
+    private final BidderService bidderService;
+
+    public BidderGrpcService(BidderService bidderService) {
+        this.bidderService = bidderService;
+    }
+
+    @Override
+    public Mono<GetProductDetailsResponse> getProductDetails(Mono<GetProductDetailsRequest> request) {
+        return request.doOnNext(req -> log.info("Raw get product details request: {}", JsonUtils.toJson(req)))
+                .flatMap(req ->
+                    bidderService.getProductDetails(req.getProductId(), req.getUserId())
+                        .map(product -> GetProductDetailsResponse.newBuilder()
+                            .setProduct(product)
+                            .setSuccess(true)
+                            .setMessage("Product details retrieved successfully")
+                            .build())
+                        .onErrorResume(e -> {
+                            log.error("Get product details error: {}", e.getMessage());
+                            return Mono.just(GetProductDetailsResponse.newBuilder()
+                                .setSuccess(false)
+                                .setMessage("Failed to get product details: " + e.getMessage())
+                                .build());
+                        })
+                );
+    }
+
+    @Override
+    public Mono<GetRelatedProductsResponse> getRelatedProducts(Mono<GetRelatedProductsRequest> request) {
+        return request.doOnNext(req -> log.info("Raw get related products request: {}", JsonUtils.toJson(req)))
+                .flatMap(req ->
+                    bidderService.getRelatedProducts(req.getProductId(), req.getUserId(), req.getLimit())
+                        .collectList()
+                        .map(products -> GetRelatedProductsResponse.newBuilder()
+                            .addAllProducts(products)
+                            .setSuccess(true)
+                            .setMessage("Related products retrieved successfully")
+                            .build())
+                        .onErrorResume(e -> {
+                            log.error("Get related products error: {}", e.getMessage());
+                            return Mono.just(GetRelatedProductsResponse.newBuilder()
+                                .setSuccess(false)
+                                .setMessage("Failed to get related products: " + e.getMessage())
+                                .build());
+                        })
+                );
+    }
+
+    @Override
+    public Mono<AddToWatchlistResponse> addToWatchlist(Mono<AddToWatchlistRequest> request) {
+        return request.doOnNext(req -> log.info("Raw add to watchlist request: {}", JsonUtils.toJson(req)))
+                .flatMap(req ->
+                    bidderService.addToWatchlist(req.getProductId(), req.getUserId())
+                        .map(watchlistId -> AddToWatchlistResponse.newBuilder()
+                            .setSuccess(true)
+                            .setMessage("Product added to watchlist successfully")
+                            .setWatchlistId(watchlistId)
+                            .build())
+                        .onErrorResume(e -> {
+                            log.error("Add to watchlist error: {}", e.getMessage());
+                            return Mono.just(AddToWatchlistResponse.newBuilder()
+                                .setSuccess(false)
+                                .setMessage("Failed to add to watchlist: " + e.getMessage())
+                                .build());
+                        })
+                );
+    }
+
+    @Override
+    public Mono<RemoveFromWatchlistResponse> removeFromWatchlist(Mono<RemoveFromWatchlistRequest> request) {
+        return request.doOnNext(req -> log.info("Raw remove from watchlist request: {}", JsonUtils.toJson(req)))
+                .flatMap(req ->
+                    bidderService.removeFromWatchlist(req.getProductId(), req.getUserId())
+                        .map(message -> RemoveFromWatchlistResponse.newBuilder()
+                            .setSuccess(true)
+                            .setMessage(message)
+                            .build())
+                        .onErrorResume(e -> {
+                            log.error("Remove from watchlist error: {}", e.getMessage());
+                            return Mono.just(RemoveFromWatchlistResponse.newBuilder()
+                                .setSuccess(false)
+                                .setMessage("Failed to remove from watchlist: " + e.getMessage())
+                                .build());
+                        })
+                );
+    }
+
+    @Override
+    public Mono<GetWatchlistResponse> getWatchlist(Mono<GetWatchlistRequest> request) {
+        return request.doOnNext(req -> log.info("Raw get watchlist request: {}", JsonUtils.toJson(req)))
+                .flatMap(req ->
+                    bidderService.getWatchlist(req.getUserId(), req.getPage(), req.getLimit(), req.getStatus())
+                        .map(result -> GetWatchlistResponse.newBuilder()
+                            .addAllProducts(result.products())
+                            .setPageInfo(result.pageInfo())
+                            .setSuccess(true)
+                            .setMessage("Watchlist retrieved successfully")
+                            .build())
+                        .onErrorResume(e -> {
+                            log.error("Get watchlist error: {}", e.getMessage());
+                            return Mono.just(GetWatchlistResponse.newBuilder()
+                                .setSuccess(false)
+                                .setMessage("Failed to get watchlist: " + e.getMessage())
+                                .build());
+                        })
+                );
+    }
+
+    @Override
+    public Mono<AskQuestionResponse> askQuestion(Mono<AskQuestionRequest> request) {
+        return request.doOnNext(req -> log.info("Raw ask question request: {}", JsonUtils.toJson(req)))
+                .flatMap(req ->
+                    bidderService.askQuestion(req.getProductId(), req.getUserId(), req.getQuestion())
+                        .map(result -> AskQuestionResponse.newBuilder()
+                            .setSuccess(true)
+                            .setMessage("Question submitted successfully")
+                            .setQuestionId(result.questionId())
+                            .setCreatedAt(result.createdAt())
+                            .build())
+                        .onErrorResume(e -> {
+                            log.error("Ask question error: {}", e.getMessage());
+                            return Mono.just(AskQuestionResponse.newBuilder()
+                                .setSuccess(false)
+                                .setMessage("Failed to submit question: " + e.getMessage())
+                                .build());
+                        })
+                );
+    }
+
+    @Override
+    public Mono<GetProductQuestionsResponse> getProductQuestions(Mono<GetProductQuestionsRequest> request) {
+        return request.doOnNext(req -> log.info("Raw get product questions request: {}", JsonUtils.toJson(req)))
+                .flatMap(req ->
+                    bidderService.getProductQuestions(req.getProductId(), req.getPage(), req.getLimit())
+                        .map(result -> GetProductQuestionsResponse.newBuilder()
+                            .addAllQuestions(result.questions())
+                            .setPageInfo(result.pageInfo())
+                            .setSuccess(true)
+                            .setMessage("Product questions retrieved successfully")
+                            .build())
+                        .onErrorResume(e -> {
+                            log.error("Get product questions error: {}", e.getMessage());
+                            return Mono.just(GetProductQuestionsResponse.newBuilder()
+                                .setSuccess(false)
+                                .setMessage("Failed to get product questions: " + e.getMessage())
+                                .build());
+                        })
+                );
+    }
+
+    @Override
+    public Mono<GetProductBidsResponse> getProductBids(Mono<GetProductBidsRequest> request) {
+        return request.doOnNext(req -> log.info("Raw get product bids request: {}", JsonUtils.toJson(req)))
+                .flatMap(req ->
+                    bidderService.getProductBids(req.getProductId(), req.getUserId(), req.getPage(), req.getLimit())
+                        .map(result -> GetProductBidsResponse.newBuilder()
+                            .addAllBids(result.bids())
+                            .setPageInfo(result.pageInfo())
+                            .setSuccess(true)
+                            .setMessage("Product bids retrieved successfully")
+                            .build())
+                        .onErrorResume(e -> {
+                            log.error("Get product bids error: {}", e.getMessage());
+                            return Mono.just(GetProductBidsResponse.newBuilder()
+                                .setSuccess(false)
+                                .setMessage("Failed to get product bids: " + e.getMessage())
+                                .build());
+                        })
+                );
+    }
+
+    @Override
+    public Mono<PlaceBidResponse> placeBid(Mono<PlaceBidRequest> request) {
+        return request.doOnNext(req -> log.info("Raw place bid request: {}", JsonUtils.toJson(req)))
+                .flatMap(req ->
+                    bidderService.placeBid(req.getProductId(), req.getUserId(), req.getBidAmount())
+                        .map(result -> PlaceBidResponse.newBuilder()
+                            .setSuccess(true)
+                            .setMessage("Bid placed successfully")
+                            .setBidId(result.bidId())
+                            .setCurrentPrice(result.currentPrice())
+                            .setNextMinBid(result.nextMinBid())
+                            .setCreatedAt(result.createdAt())
+                            .setIsHighestBidder(result.isHighestBidder())
+                            .build())
+                        .onErrorResume(e -> {
+                            log.error("Place bid error: {}", e.getMessage());
+                            return Mono.just(PlaceBidResponse.newBuilder()
+                                .setSuccess(false)
+                                .setMessage("Failed to place bid: " + e.getMessage())
+                                .build());
+                        })
+                );
+    }
+
+    @Override
+    public Mono<SetAutoBidResponse> setAutoBid(Mono<SetAutoBidRequest> request) {
+        return request.doOnNext(req -> log.info("Raw set auto bid request: {}", JsonUtils.toJson(req)))
+                .flatMap(req ->
+                    bidderService.setAutoBid(req.getProductId(), req.getUserId(), req.getMaxAmount())
+                        .map(result -> SetAutoBidResponse.newBuilder()
+                            .setSuccess(true)
+                            .setMessage("Auto-bid set successfully")
+                            .setAutoBidId(result.autoBidId())
+                            .setMaxAmount(result.maxAmount())
+                            .setCurrentBid(result.currentBid())
+                            .setCreatedAt(result.createdAt())
+                            .build())
+                        .onErrorResume(e -> {
+                            log.error("Set auto bid error: {}", e.getMessage());
+                            return Mono.just(SetAutoBidResponse.newBuilder()
+                                .setSuccess(false)
+                                .setMessage("Failed to set auto-bid: " + e.getMessage())
+                                .build());
+                        })
+                );
+    }
+
+    @Override
+    public Mono<GetMyBidsResponse> getMyBids(Mono<GetMyBidsRequest> request) {
+        return request.doOnNext(req -> log.info("Raw get my bids request: {}", JsonUtils.toJson(req)))
+                .flatMap(req ->
+                    bidderService.getMyBids(req.getUserId(), req.getPage(), req.getLimit(), req.getFilter())
+                        .map(result -> GetMyBidsResponse.newBuilder()
+                            .addAllBids(result.bids())
+                            .setPageInfo(result.pageInfo())
+                            .setSuccess(true)
+                            .setMessage("Bid history retrieved successfully")
+                            .build())
+                        .onErrorResume(e -> {
+                            log.error("Get my bids error: {}", e.getMessage());
+                            return Mono.just(GetMyBidsResponse.newBuilder()
+                                .setSuccess(false)
+                                .setMessage("Failed to get bid history: " + e.getMessage())
+                                .build());
+                        })
+                );
+    }
+}

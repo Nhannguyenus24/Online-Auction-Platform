@@ -1,0 +1,299 @@
+syntax = "proto3";
+
+package user_service;
+
+option java_multiple_files = true;
+option java_package = "com.auction.proto.user";
+option java_outer_classname = "UserServiceProto";
+
+// User Service - APIs for authenticated bidder users
+service UserService {
+  // 1. Get product details by ID (with user-specific data like watchlist status)
+  rpc GetProductDetails(GetProductDetailsRequest) returns (GetProductDetailsResponse);
+  
+  // 2. Get related products in the same category
+  rpc GetRelatedProducts(GetRelatedProductsRequest) returns (GetRelatedProductsResponse);
+  
+  // 3. Add product to watchlist
+  rpc AddToWatchlist(AddToWatchlistRequest) returns (AddToWatchlistResponse);
+  
+  // 4. Remove product from watchlist
+  rpc RemoveFromWatchlist(RemoveFromWatchlistRequest) returns (RemoveFromWatchlistResponse);
+  
+  // 5. Get user's watchlist
+  rpc GetWatchlist(GetWatchlistRequest) returns (GetWatchlistResponse);
+  
+  // 6. Ask a question about a product
+  rpc AskQuestion(AskQuestionRequest) returns (AskQuestionResponse);
+  
+  // 7. Get list of bids for a product
+  rpc GetProductBids(GetProductBidsRequest) returns (GetProductBidsResponse);
+  
+  // 8. Place a bid on a product
+  rpc PlaceBid(PlaceBidRequest) returns (PlaceBidResponse);
+  
+  // 9. Set up auto-bid for a product
+  rpc SetAutoBid(SetAutoBidRequest) returns (SetAutoBidResponse);
+  
+  // 10. Get user's bid history
+  rpc GetMyBids(GetMyBidsRequest) returns (GetMyBidsResponse);
+  
+  // 11. Get product questions
+  rpc GetProductQuestions(GetProductQuestionsRequest) returns (GetProductQuestionsResponse);
+}
+
+// ==================== Product Messages ====================
+
+message ProductImage {
+  int32 id = 1;
+  int32 product_id = 2;
+  string url = 3;
+  bool is_primary = 4;
+  int64 created_at = 5;
+}
+
+message SellerInfo {
+  int32 id = 1;
+  string full_name = 2;
+  string email = 3;
+  double rating_percent = 4;
+  int32 positive_reviews = 5;
+  int32 negative_reviews = 6;
+}
+
+message Product {
+  int32 id = 1;
+  int32 seller_id = 2;
+  SellerInfo seller_info = 3;
+  int32 category_id = 4;
+  string category_name = 5;
+  string title = 6;
+  string description = 7;
+  double starting_price = 8;
+  double current_price = 9;
+  double step_price = 10;
+  double buy_now_price = 11;
+  int64 starts_at = 12;
+  int64 ends_at = 13;
+  bool is_auto_extend = 14;
+  int32 auto_extend_seconds = 15;
+  string status = 16; // active, ended, pending, cancelled
+  int32 views_count = 17;
+  int32 bids_count = 18;
+  int64 created_at = 19;
+  int64 updated_at = 20;
+  repeated ProductImage images = 21;
+  string highest_bidder_masked = 22;
+  int64 time_remaining = 23; // Seconds remaining until end
+  bool is_in_watchlist = 24; // True if current user has this in watchlist
+  bool is_user_highest_bidder = 25; // True if current user is highest bidder
+  double user_max_auto_bid = 26; // User's max auto-bid amount (0 if not set)
+}
+
+// ==================== 1. Get Product Details ====================
+
+message GetProductDetailsRequest {
+  int32 product_id = 1;
+  int32 user_id = 2; // Authenticated user ID (from JWT)
+}
+
+message GetProductDetailsResponse {
+  Product product = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+// ==================== 2. Get Related Products ====================
+
+message GetRelatedProductsRequest {
+  int32 product_id = 1;
+  int32 user_id = 2; // Optional: for watchlist status
+  int32 limit = 3; // Default: 5, Max: 20
+}
+
+message GetRelatedProductsResponse {
+  repeated Product products = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+// ==================== 3. Watchlist Management ====================
+
+message AddToWatchlistRequest {
+  int32 product_id = 1;
+  int32 user_id = 2; // Authenticated user ID (from JWT)
+}
+
+message AddToWatchlistResponse {
+  bool success = 1;
+  string message = 2;
+  int32 watchlist_id = 3;
+}
+
+message RemoveFromWatchlistRequest {
+  int32 product_id = 1;
+  int32 user_id = 2; // Authenticated user ID (from JWT)
+}
+
+message RemoveFromWatchlistResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message GetWatchlistRequest {
+  int32 user_id = 1; // Authenticated user ID (from JWT)
+  int32 page = 2; // Default: 1
+  int32 limit = 3; // Default: 20, Max: 100
+  string status = 4; // Filter by product status: active, ended, all
+}
+
+message PageInfo {
+  int32 current_page = 1;
+  int32 page_size = 2;
+  int64 total_items = 3;
+  int32 total_pages = 4;
+  bool has_next = 5;
+  bool has_previous = 6;
+}
+
+message GetWatchlistResponse {
+  repeated Product products = 1;
+  PageInfo page_info = 2;
+  bool success = 3;
+  string message = 4;
+}
+
+// ==================== 4. Ask Question ====================
+
+message AskQuestionRequest {
+  int32 product_id = 1;
+  int32 user_id = 2; // Authenticated user ID (from JWT)
+  string question = 3;
+}
+
+message AskQuestionResponse {
+  bool success = 1;
+  string message = 2;
+  int32 question_id = 3;
+  int64 created_at = 4;
+}
+
+// ==================== 5. Get Product Questions ====================
+
+message Question {
+  int32 id = 1;
+  int32 product_id = 2;
+  int32 asker_id = 3;
+  string asker_name = 4;
+  string question = 5;
+  string answer = 6;
+  int32 answered_by = 7;
+  string answerer_name = 8;
+  int64 created_at = 9;
+  int64 answered_at = 10;
+}
+
+message GetProductQuestionsRequest {
+  int32 product_id = 1;
+  int32 page = 2; // Default: 1
+  int32 limit = 3; // Default: 20, Max: 100
+}
+
+message GetProductQuestionsResponse {
+  repeated Question questions = 1;
+  PageInfo page_info = 2;
+  bool success = 3;
+  string message = 4;
+}
+
+// ==================== 6. Get Product Bids ====================
+
+message Bid {
+  int32 id = 1;
+  int32 product_id = 2;
+  int32 bidder_id = 3;
+  string bidder_name_masked = 4; // Masked for privacy (e.g., "user***@example.com")
+  double amount = 5;
+  bool is_auto = 6;
+  int64 created_at = 7;
+  bool is_current_user = 8; // True if this bid belongs to current user
+}
+
+message GetProductBidsRequest {
+  int32 product_id = 1;
+  int32 user_id = 2; // Authenticated user ID (for showing own bids)
+  int32 page = 3; // Default: 1
+  int32 limit = 4; // Default: 20, Max: 100
+}
+
+message GetProductBidsResponse {
+  repeated Bid bids = 1;
+  PageInfo page_info = 2;
+  bool success = 3;
+  string message = 4;
+}
+
+// ==================== 7. Place Bid ====================
+
+message PlaceBidRequest {
+  int32 product_id = 1;
+  int32 user_id = 2; // Authenticated user ID (from JWT)
+  double bid_amount = 3;
+}
+
+message PlaceBidResponse {
+  bool success = 1;
+  string message = 2;
+  int32 bid_id = 3;
+  double current_price = 4; // Updated current price after bid
+  double next_min_bid = 5; // Minimum amount for next bid
+  int64 created_at = 6;
+  bool is_highest_bidder = 7;
+}
+
+// ==================== 8. Set Auto-Bid ====================
+
+message SetAutoBidRequest {
+  int32 product_id = 1;
+  int32 user_id = 2; // Authenticated user ID (from JWT)
+  double max_amount = 3; // Maximum amount user is willing to bid
+}
+
+message SetAutoBidResponse {
+  bool success = 1;
+  string message = 2;
+  int32 auto_bid_id = 3;
+  double max_amount = 4;
+  double current_bid = 5; // Current bid amount after auto-bid setup
+  int64 created_at = 6;
+}
+
+// ==================== 9. Get User's Bid History ====================
+
+message BidHistoryItem {
+  int32 bid_id = 1;
+  int32 product_id = 2;
+  string product_title = 3;
+  string product_primary_image = 4;
+  double bid_amount = 5;
+  double current_price = 6;
+  bool is_auto = 7;
+  bool is_winning = 8; // True if user is currently winning
+  string product_status = 9; // active, ended
+  int64 bid_created_at = 10;
+  int64 product_ends_at = 11;
+}
+
+message GetMyBidsRequest {
+  int32 user_id = 1; // Authenticated user ID (from JWT)
+  int32 page = 2; // Default: 1
+  int32 limit = 3; // Default: 20, Max: 100
+  string filter = 4; // Filter: all, winning, outbid, won, lost
+}
+
+message GetMyBidsResponse {
+  repeated BidHistoryItem bids = 1;
+  PageInfo page_info = 2;
+  bool success = 3;
+  string message = 4;
+}

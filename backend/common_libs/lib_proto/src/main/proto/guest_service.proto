@@ -1,0 +1,151 @@
+syntax = "proto3";
+
+package guest_service;
+
+option java_multiple_files = true;
+option java_package = "com.auction.proto.guest";
+option java_outer_classname = "GuestServiceProto";
+
+// Guest Service - Public APIs for unauthenticated users
+service GuestService {
+  // 1. Get categories with 2 levels (parent and children)
+  rpc GetCategories(GetCategoriesRequest) returns (GetCategoriesResponse);
+  
+  // 2. Get top 5 products ending soon
+  rpc GetTopEndingProducts(GetTopEndingProductsRequest) returns (GetTopProductsResponse);
+  
+  // 3. Get top 5 products with most bids
+  rpc GetTopBidCountProducts(GetTopBidCountProductsRequest) returns (GetTopProductsResponse);
+  
+  // 4. Get top 5 products with highest price
+  rpc GetTopPriceProducts(GetTopPriceProductsRequest) returns (GetTopProductsResponse);
+  
+  // 5. List products by category level 2 with filters and pagination
+  rpc ListProductsByCategory(ListProductsByCategoryRequest) returns (ListProductsByCategoryResponse);
+}
+
+// ==================== Category Messages ====================
+
+message Category {
+  int32 id = 1;
+  string name = 2;
+  int32 parent_id = 3;
+  int64 created_at = 4;
+  repeated Category children = 5; // Only for level 1 categories
+}
+
+message GetCategoriesRequest {
+  // Empty - get all categories with 2 levels
+}
+
+message GetCategoriesResponse {
+  repeated Category categories = 1; // Only parent categories (level 1) with children (level 2)
+  bool success = 2;
+  string message = 3;
+}
+
+// ==================== Product Messages ====================
+
+message ProductImage {
+  int32 id = 1;
+  int32 product_id = 2;
+  string url = 3;
+  bool is_primary = 4;
+  int64 created_at = 5;
+}
+
+message Product {
+  int32 id = 1;
+  int32 seller_id = 2;
+  int32 category_id = 3;
+  string category_name = 4;
+  string title = 5;
+  string description = 6;
+  double starting_price = 7;
+  double current_price = 8;
+  double step_price = 9;
+  double buy_now_price = 10;
+  int64 starts_at = 11;
+  int64 ends_at = 12;
+  bool is_auto_extend = 13;
+  int32 auto_extend_seconds = 14;
+  string status = 15; // active, ended, pending, cancelled
+  int32 views_count = 16;
+  int32 bids_count = 17;
+  int64 created_at = 18;
+  int64 updated_at = 19;
+  repeated ProductImage images = 20;
+  string seller_name = 21;
+  double seller_rating_percent = 22;
+  int32 seller_positive_reviews = 23;
+  string highest_bidder_masked = 24; // Masked bidder info for privacy
+  int64 time_remaining = 25; // Seconds remaining until end
+}
+
+// ==================== Top Products Messages ====================
+
+message GetTopEndingProductsRequest {
+  int32 limit = 1; // Default: 5, Max: 20
+}
+
+message GetTopBidCountProductsRequest {
+  int32 limit = 1; // Default: 5, Max: 20
+}
+
+message GetTopPriceProductsRequest {
+  int32 limit = 1; // Default: 5, Max: 20
+}
+
+message GetTopProductsResponse {
+  repeated Product products = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+// ==================== List Products by Category Messages ====================
+
+enum SortOrder {
+  SORT_ORDER_UNSPECIFIED = 0;
+  ENDING_SOON_DESC = 1;      // End time descending (ending soonest first)
+  ENDING_SOON_ASC = 2;       // End time ascending (ending latest first)
+  PRICE_ASC = 3;             // Price ascending (lowest first)
+  PRICE_DESC = 4;            // Price descending (highest first)
+  NEWEST_FIRST = 5;          // Created date descending (newest first)
+  OLDEST_FIRST = 6;          // Created date ascending (oldest first)
+  MOST_BIDS = 7;             // Bid count descending (most bids first)
+  MOST_VIEWS = 8;            // View count descending (most views first)
+}
+
+message ListProductsByCategoryRequest {
+  int32 category_id = 1; // Required: Level 2 category ID
+  
+  // Filter options
+  string search_keyword = 2; // Optional: Search by product title (supports Vietnamese)
+  double min_price = 3;      // Optional: Minimum current price
+  double max_price = 4;      // Optional: Maximum current price
+  string status = 5;         // Optional: Filter by status (active, ended, all), default: active
+  
+  // Sorting
+  SortOrder sort_order = 6;  // Default: ENDING_SOON_DESC
+  
+  // Pagination
+  int32 page = 7;            // Default: 1 (1-based indexing)
+  int32 limit = 8;           // Default: 20, Max: 100
+}
+
+message PageInfo {
+  int32 current_page = 1;    // Current page number (1-based)
+  int32 page_size = 2;       // Number of items per page
+  int64 total_items = 3;     // Total number of items
+  int32 total_pages = 4;     // Total number of pages
+  bool has_next = 5;         // Has next page
+  bool has_previous = 6;     // Has previous page
+}
+
+message ListProductsByCategoryResponse {
+  repeated Product products = 1;
+  PageInfo page_info = 2;
+  Category category = 3;     // Category information
+  bool success = 4;
+  string message = 5;
+}

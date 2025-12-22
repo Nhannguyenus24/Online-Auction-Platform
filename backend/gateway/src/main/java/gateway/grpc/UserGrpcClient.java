@@ -1,12 +1,32 @@
 package gateway.grpc;
 
-import com.auction.proto.auth.*;
-import io.swagger.v3.core.util.Json;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import com.auction.proto.auth.ChangePasswordRequest;
+import com.auction.proto.auth.ChangePasswordResponse;
+import com.auction.proto.auth.GetProfileRequest;
+import com.auction.proto.auth.GetProfileResponse;
+import com.auction.proto.auth.LoginRequest;
+import com.auction.proto.auth.LoginResponse;
+import com.auction.proto.auth.LoginWithGoogleRequest;
+import com.auction.proto.auth.LogoutRequest;
+import com.auction.proto.auth.LogoutResponse;
+import com.auction.proto.auth.ReactorAuthServiceGrpc;
+import com.auction.proto.auth.RefreshTokenRequest;
+import com.auction.proto.auth.RefreshTokenResponse;
+import com.auction.proto.auth.RegisterRequest;
+import com.auction.proto.auth.RegisterResponse;
+import com.auction.proto.auth.ReproduceOTPRequest;
+import com.auction.proto.auth.ReproduceOTPResponse;
+import com.auction.proto.auth.UpdateProfileRequest;
+import com.auction.proto.auth.UpdateProfileResponse;
+import com.auction.proto.auth.ValidateTokenRequest;
+import com.auction.proto.auth.ValidateTokenResponse;
+import com.auction.proto.auth.VerifyOTPRequest;
+import com.auction.proto.auth.VerifyOTPResponse;
 import com.auction.utils.JsonUtils;
 
 import io.grpc.ManagedChannel;
@@ -49,7 +69,7 @@ public class UserGrpcClient {
 
     // Register
     public Mono<RegisterResponse> register(RegisterRequest request) {
-        log.info("gRPC register request: {}", request);
+        log.info("gRPC register request: {}", JsonUtils.toJson(request));
         return authServiceStub.register(Mono.just(request));
     }
 
@@ -61,55 +81,55 @@ public class UserGrpcClient {
 
     // Refresh Token
     public Mono<RefreshTokenResponse> refreshToken(RefreshTokenRequest request) {
-        log.info("gRPC refreshToken request: {}", request);
+        log.info("gRPC refreshToken request: {}", JsonUtils.toJson(request));
         return authServiceStub.refreshToken(Mono.just(request));
     }
 
     // Logout
     public Mono<LogoutResponse> logout(LogoutRequest request) {
-        log.info("gRPC logout request: {}", request);
+        log.info("gRPC logout request: {}", JsonUtils.toJson(request));
         return authServiceStub.logout(Mono.just(request));
     }
 
     // Validate Token
     public Mono<ValidateTokenResponse> validateToken(ValidateTokenRequest request) {
-        log.info("gRPC validateToken request: {}", request);
+        log.info("gRPC validateToken request: {}", JsonUtils.toJson(request));
         return authServiceStub.validateToken(Mono.just(request));
     }
 
     // Change Password
     public Mono<ChangePasswordResponse> changePassword(ChangePasswordRequest request) {
-        log.info("gRPC changePassword request: {}", request);
+        log.info("gRPC changePassword request: {}", JsonUtils.toJson(request));
         return authServiceStub.changePassword(Mono.just(request));
     }
 
     // Verify OTP
     public Mono<VerifyOTPResponse> verifyOTP(VerifyOTPRequest request) {
-        log.info("gRPC verifyOTP request: {}", request);
+        log.info("gRPC verifyOTP request: {}", JsonUtils.toJson(request));
         return authServiceStub.verifyOTP(Mono.just(request));
     }
 
     // Reproduce OTP
     public Mono<ReproduceOTPResponse> reproduceOTP(ReproduceOTPRequest request) {
-        log.info("gRPC reproduceOTP request: {}", request);
+        log.info("gRPC reproduceOTP request: {}", JsonUtils.toJson(request));
         return authServiceStub.reproduceOTP(Mono.just(request));
     }
 
     // Get Profile
     public Mono<GetProfileResponse> getProfile(GetProfileRequest request) {
-        log.info("gRPC getProfile request: {}", request);
+        log.info("gRPC getProfile request: {}", JsonUtils.toJson(request));
         return authServiceStub.getProfile(Mono.just(request));
     }
 
     // Update Profile
     public Mono<UpdateProfileResponse> updateProfile(UpdateProfileRequest request) {
-        log.info("gRPC updateProfile request: {}", request);
+        log.info("gRPC updateProfile request: {}", JsonUtils.toJson(request));
         return authServiceStub.updateProfile(Mono.just(request));
     }
 
     // Login with Google
     public Mono<LoginResponse> loginWithGoogle(LoginWithGoogleRequest request) {
-        log.info("gRPC loginWithGoogle request: {}", request);
+        log.info("gRPC loginWithGoogle request: {}", JsonUtils.toJson(request));
         return authServiceStub.loginWithGoogle(Mono.just(request));
     }
 }
