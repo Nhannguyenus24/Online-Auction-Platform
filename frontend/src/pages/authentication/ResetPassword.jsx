@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import * as yup from "yup";
 import {
   Alert,
@@ -21,6 +22,7 @@ import {
   VisibilityOff,
 } from "@mui/icons-material";
 import AuthLayout from "../../layouts/AuthLayout";
+import { authApi } from "../../utils/api";
 
 const requirements = [
   { label: "At least 8 characters", test: (value) => value.length >= 8 },
@@ -48,6 +50,7 @@ const defaultValues = {
 };
 
 const ResetPassword = () => {
+  const navigate = useNavigate();
   const [formValues, setFormValues] = useState(defaultValues);
   const [formErrors, setFormErrors] = useState({});
   const [showPassword, setShowPassword] = useState({
@@ -56,6 +59,7 @@ const ResetPassword = () => {
   });
   const [status, setStatus] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const meetsRequirement = useMemo(
     () =>
@@ -110,11 +114,26 @@ const ResetPassword = () => {
 
     setSubmitting(true);
     setStatus(null);
+    setErrorMessage("");
 
-    setTimeout(() => {
+    try {
+      const response = await authApi.changePassword({
+        oldPassword: "", // For password reset flow, we might not need old password
+        newPassword: formValues.password,
+      });
+
       setSubmitting(false);
       setStatus("success");
-    }, 1400);
+      
+      // Redirect to login after 2 seconds
+      setTimeout(() => {
+        navigate("/login");
+      }, 2000);
+    } catch (error) {
+      setErrorMessage(error.response?.data?.message || error.message || "Failed to update password. Please try again.");
+      setStatus("error");
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -128,6 +147,11 @@ const ResetPassword = () => {
         {status === "success" && (
           <Alert severity="success" sx={{ py: 1 }}>
             Password updated. You can now sign in with the new credentials.
+          </Alert>
+        )}
+        {status === "error" && (
+          <Alert severity="error" sx={{ py: 1 }}>
+            {errorMessage}
           </Alert>
         )}
 

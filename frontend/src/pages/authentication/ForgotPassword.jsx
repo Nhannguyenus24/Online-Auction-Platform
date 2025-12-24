@@ -10,6 +10,7 @@ import {
 } from "@mui/material";
 import { Email, Update } from "@mui/icons-material";
 import AuthLayout from "../../layouts/AuthLayout";
+import { authApi } from "../../utils/api";
 
 const forgotSchema = yup.object({
   email: yup
@@ -27,6 +28,7 @@ const ForgotPassword = () => {
   const [formErrors, setFormErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState(null);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const validateField = async (field, valueOverride) => {
     if (!forgotSchema.fields[field]) return;
@@ -72,11 +74,23 @@ const ForgotPassword = () => {
 
     setSubmitting(true);
     setStatus(null);
+    setErrorMessage("");
 
-    setTimeout(() => {
+    try {
+      // Note: The API doesn't have a direct forgot-password endpoint
+      // We'll need to create one in the backend or use a different approach
+      // For now, we'll call reproduceOTP endpoint which sends a reset code
+      const response = await authApi.reproduceOTP({
+        email: formValues.email,
+      });
+
       setSubmitting(false);
       setStatus("sent");
-    }, 1200);
+    } catch (error) {
+      setErrorMessage(error.response?.data?.message || error.message || "Failed to send reset link. Please try again.");
+      setStatus("error");
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -93,6 +107,11 @@ const ForgotPassword = () => {
         {status === "sent" && (
           <Alert severity="success" sx={{ py: 1 }}>
             We emailed a reset link to {formValues.email}. It expires in 15 minutes.
+          </Alert>
+        )}
+        {status === "error" && (
+          <Alert severity="error" sx={{ py: 1 }}>
+            {errorMessage}
           </Alert>
         )}
 

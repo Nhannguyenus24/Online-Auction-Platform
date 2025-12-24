@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import * as yup from "yup";
 import {
   Alert,
@@ -18,6 +19,7 @@ import {
   VisibilityOff,
 } from "@mui/icons-material";
 import AuthLayout from "../../layouts/AuthLayout";
+import { authApi } from "../../utils/api";
 
 const loginSchema = yup.object({
   email: yup
@@ -37,11 +39,13 @@ const loginSchema = yup.object({
 const defaultValues = { email: "", password: "", remember: true };
 
 const Login = () => {
+  const navigate = useNavigate();
   const [formValues, setFormValues] = useState(defaultValues);
   const [formErrors, setFormErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState(null);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const validateField = async (field, valueOverride) => {
     if (!loginSchema.fields[field]) return;
@@ -87,11 +91,26 @@ const Login = () => {
 
     setSubmitting(true);
     setStatus(null);
+    setErrorMessage("");
 
-    setTimeout(() => {
-      setSubmitting(false);
+    try {
+      const response = await authApi.login({
+        email: formValues.email,
+        password: formValues.password,
+      });
+
       setStatus("success");
-    }, 1200);
+      setSubmitting(false);
+      
+      // Redirect to dashboard after 1 second
+      setTimeout(() => {
+        navigate("/");
+      }, 1000);
+    } catch (error) {
+      setErrorMessage(error.response?.data?.message || error.message || "Login failed. Please try again.");
+      setStatus("error");
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -108,6 +127,11 @@ const Login = () => {
         {status === "success" && (
           <Alert severity="success" sx={{ py: 1 }}>
             Sign-in successful. Redirecting to dashboard…
+          </Alert>
+        )}
+        {status === "error" && (
+          <Alert severity="error" sx={{ py: 1 }}>
+            {errorMessage}
           </Alert>
         )}
 

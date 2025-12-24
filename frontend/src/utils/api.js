@@ -48,3 +48,138 @@ const convertObjectToFormData = (obj) => {
 
   return formData;
 };
+
+// ===================== AUTHENTICATION APIS =====================
+
+export const authApi = {
+  /**
+   * Register a new user
+   * @param {Object} data - { email, password, fullName, phoneNumber, address }
+   * @returns {Promise} - { success, message, email, userId, otp, otpExpiryMinutes }
+   */
+  register: (data) => axiosInstance.post('/api/auth/register', data),
+
+  /**
+   * Login user
+   * @param {Object} data - { email, password }
+   * @returns {Promise} - { accessToken, user: { id, email, fullName, roles } }
+   */
+  login: (data) => {
+    return axiosInstance.post('/api/auth/login', data).then((response) => {
+      if (response.data.accessToken) {
+        localStorage.setItem('accessToken', response.data.accessToken);
+      }
+      return response.data;
+    });
+  },
+
+  /**
+   * Login with Google
+   * @param {Object} data - { googleIdToken, email, fullName, profilePicture }
+   * @returns {Promise} - { accessToken, user: { id, email, fullName, roles } }
+   */
+  loginWithGoogle: (data) => {
+    return axiosInstance.post('/api/auth/google', data).then((response) => {
+      if (response.data.accessToken) {
+        localStorage.setItem('accessToken', response.data.accessToken);
+      }
+      return response.data;
+    });
+  },
+
+  /**
+   * Verify OTP
+   * @param {Object} data - { email, otp }
+   * @returns {Promise} - { success, message }
+   */
+  verifyOTP: (data) => axiosInstance.post('/api/auth/verify-otp', data),
+
+  /**
+   * Reproduce OTP (resend OTP)
+   * @param {Object} data - { email }
+   * @returns {Promise} - { success, message }
+   */
+  reproduceOTP: (data) => axiosInstance.post('/api/auth/reproduce-otp', data),
+
+  /**
+   * Refresh access token
+   * @returns {Promise} - { accessToken, expiresIn }
+   */
+  refreshToken: () => {
+    return axiosInstance.post('/api/auth/refresh').then((response) => {
+      if (response.data.accessToken) {
+        localStorage.setItem('accessToken', response.data.accessToken);
+      }
+      return response.data;
+    });
+  },
+
+  /**
+   * Logout user
+   * @returns {Promise} - { success, message }
+   */
+  logout: () => {
+    return axiosInstance.post('/api/auth/logout').then((response) => {
+      localStorage.removeItem('accessToken');
+      return response.data;
+    }).catch(() => {
+      localStorage.removeItem('accessToken');
+    });
+  },
+
+  /**
+   * Validate token
+   * @param {string} token - Access token to validate
+   * @returns {Promise} - { valid, userId, roles, error }
+   */
+  validateToken: (token) => axiosInstance.get(`/api/auth/validate?token=${token}`),
+
+  /**
+   * Get user profile
+   * @returns {Promise} - { profile: { userId, email, fullName, phoneNumber, address, roles, isVerified, createdAt }, message }
+   */
+  getProfile: () => axiosInstance.get('/api/auth/profile'),
+
+  /**
+   * Update user profile
+   * @param {Object} data - { fullName, phoneNumber, address }
+   * @returns {Promise} - { success, message, profile }
+   */
+  updateProfile: (data) => axiosInstance.post('/api/auth/profile', data),
+
+  /**
+   * Change password
+   * @param {Object} data - { oldPassword, newPassword }
+   * @returns {Promise} - { success, message }
+   */
+  changePassword: (data) => axiosInstance.post('/api/auth/change-password', data),
+
+  /**
+   * Get authorization header
+   * @returns {Object} - { Authorization: "Bearer <token>" }
+   */
+  getAuthHeader: () => {
+    const token = localStorage.getItem('accessToken');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  },
+
+  /**
+   * Get access token
+   * @returns {string} - Access token or null
+   */
+  getAccessToken: () => localStorage.getItem('accessToken'),
+
+  /**
+   * Set access token
+   * @param {string} token - Access token
+   */
+  setAccessToken: (token) => {
+    if (token) {
+      localStorage.setItem('accessToken', token);
+    } else {
+      localStorage.removeItem('accessToken');
+    }
+  },
+};
+
+export default authApi;

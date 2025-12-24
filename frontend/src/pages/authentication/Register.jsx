@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import * as yup from "yup";
 import Grid from "@mui/material/Grid";
 import {
@@ -20,6 +21,7 @@ import {
 } from "@mui/material";
 import { VerifiedUser, Google } from "@mui/icons-material";
 import AuthLayout from "../../layouts/AuthLayout";
+import { authApi } from "../../utils/api";
 
 const registerSchema = yup.object({
   firstName: yup.string().required("First name is required."),
@@ -54,10 +56,12 @@ const defaultValues = {
 };
 
 const Register = () => {
+  const navigate = useNavigate();
   const [formValues, setFormValues] = useState(defaultValues);
   const [formErrors, setFormErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState(null);
+  const [errorMessage, setErrorMessage] = useState("");
   
   // OTP verification states
   const [showOTPDialog, setShowOTPDialog] = useState(false);
@@ -137,7 +141,27 @@ const Register = () => {
     event.preventDefault();
     const isValid = await validateForm();
     if (!isValid) return;
-    simulateAuth();
+
+    setSubmitting(true);
+    setStatus(null);
+    setErrorMessage("");
+
+    try {
+      const response = await authApi.register({
+        email: formValues.email,
+        password: formValues.password,
+        fullName: `${formValues.firstName} ${formValues.lastName}`,
+        phoneNumber: "",
+        address: "",
+      });
+
+      setRegisterData(response.data || response);
+      simulateAuth();
+    } catch (error) {
+      setErrorMessage(error.response?.data?.message || error.message || "Registration failed. Please try again.");
+      setStatus("error");
+      setSubmitting(false);
+    }
   };
 
   const handleGoogleSignup = () => {
@@ -168,37 +192,42 @@ const Register = () => {
     }
 
     setOtpSubmitting(true);
+    setOtpError("");
     
     try {
-      // Call API to verify OTP
-      const response = await fetch("/api/auth/verify-otp", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userId: registerData?.userId,
-          otp: otp,
-        }),
+      const response = await authApi.verifyOTP({
+        email: registerData?.email,
+        otp: otp,
       });
 
-      const data = await response.json();
-
-      if (data.success) {
+      if (response.data?.success || response.success) {
         setOtpSubmitting(false);
         setShowOTPDialog(false);
         setStatus("otp_verified");
-        // Optionally redirect to login or show success message
+        // Redirect to login after 2 seconds
         setTimeout(() => {
-          window.location.href = "/login";
+          navigate("/login");
         }, 2000);
       } else {
-        setOtpError(data.message || "Invalid OTP");
+        setOtpError(response.data?.message || response.message || "Invalid OTP");
         setOtpSubmitting(false);
       }
     } catch (error) {
-      setOtpError("Failed to verify OTP. Please try again.");
+      setOtpError(error.response?.data?.message || error.message || "Failed to verify OTP. Please try again.");
       setOtpSubmitting(false);
+    }
+  };
+
+  const handleResendOTP = async () => {
+    try {
+      await authApi.reproduceOTP({
+        email: registerData?.email,
+      });
+      setTimeLeft(300); // Reset timer to 5 minutes
+      setOtp("");
+      setOtpError("");
+    } catch (error) {
+      setOtpError(error.response?.data?.message || error.message || "Failed to resend OTP. Please try again.");
     }
   };
 
@@ -227,6 +256,12 @@ const Register = () => {
         {status === "success" && (
           <Alert severity="success" sx={{ py: 0.25, mb: 0 }}>
             Check your email to confirm ownership.
+          </Alert>
+        )}
+
+        {status === "error" && (
+          <Alert severity="error" sx={{ py: 0.25, mb: 0 }}>
+            {errorMessage}
           </Alert>
         )}
 
@@ -391,9 +426,13 @@ const Register = () => {
                 Time remaining: <strong>{formatTime(timeLeft)}</strong>
               </Typography>
               {timeLeft <= 0 && (
-                <Typography variant="caption" color="error">
-                  OTP Expired
-                </Typography>
+                <Button 
+                  size="small" 
+                  onClick={handleResendOTP}
+                  variant="text"
+                >
+                  Resend OTP
+                </Button>
               )}
             </Box>
 
