@@ -15,14 +15,14 @@ CREATE TABLE `users` (
 );
 
 CREATE TABLE `categories` (
-  `id` int PRIMARY KEY,
+  `id` int PRIMARY KEY AUTO_INCREMENT,
   `name` varchar(200) NOT NULL,
   `parent_id` int,
   `created_at` timestamp DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE `products` (
-  `id` int PRIMARY KEY,
+  `id` int PRIMARY KEY AUTO_INCREMENT,
   `seller_id` int NOT NULL,
   `category_id` int NOT NULL,
   `title` varchar(300) NOT NULL,
@@ -43,7 +43,7 @@ CREATE TABLE `products` (
 );
 
 CREATE TABLE `product_images` (
-  `id` int PRIMARY KEY,
+  `id` int PRIMARY KEY AUTO_INCREMENT,
   `product_id` int NOT NULL,
   `url` text NOT NULL,
   `is_primary` boolean DEFAULT false,
@@ -51,7 +51,7 @@ CREATE TABLE `product_images` (
 );
 
 CREATE TABLE `bids` (
-  `id` int PRIMARY KEY,
+  `id` int PRIMARY KEY AUTO_INCREMENT,
   `product_id` int NOT NULL,
   `bidder_id` int NOT NULL,
   `amount` numeric(18,2) NOT NULL,
@@ -60,7 +60,7 @@ CREATE TABLE `bids` (
 );
 
 CREATE TABLE `auto_bids` (
-  `id` int PRIMARY KEY,
+  `id` int PRIMARY KEY AUTO_INCREMENT,
   `product_id` int NOT NULL,
   `bidder_id` int NOT NULL,
   `max_amount` numeric(18,2) NOT NULL,
@@ -68,14 +68,14 @@ CREATE TABLE `auto_bids` (
 );
 
 CREATE TABLE `watchlists` (
-  `id` int PRIMARY KEY,
+  `id` int PRIMARY KEY AUTO_INCREMENT,
   `user_id` int NOT NULL,
   `product_id` int NOT NULL,
   `created_at` timestamp DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE `questions` (
-  `id` int PRIMARY KEY,
+  `id` int PRIMARY KEY AUTO_INCREMENT,
   `product_id` int NOT NULL,
   `asker_id` int NOT NULL,
   `question` text NOT NULL,
@@ -86,7 +86,7 @@ CREATE TABLE `questions` (
 );
 
 CREATE TABLE `upgrade_requests` (
-  `id` int PRIMARY KEY,
+  `id` int PRIMARY KEY AUTO_INCREMENT,
   `user_id` int NOT NULL,
   `requested_role` varchar(20) DEFAULT 'seller',
   `status` varchar(20) DEFAULT 'pending',
@@ -96,7 +96,7 @@ CREATE TABLE `upgrade_requests` (
 );
 
 CREATE TABLE `product_bans` (
-  `id` int PRIMARY KEY,
+  `id` int PRIMARY KEY AUTO_INCREMENT,
   `product_id` int NOT NULL,
   `user_id` int NOT NULL,
   `reason` text,
@@ -104,7 +104,7 @@ CREATE TABLE `product_bans` (
 );
 
 CREATE TABLE `reviews` (
-  `id` int PRIMARY KEY,
+  `id` int PRIMARY KEY AUTO_INCREMENT,
   `from_user_id` int NOT NULL,
   `to_user_id` int NOT NULL,
   `product_id` int,
@@ -114,7 +114,7 @@ CREATE TABLE `reviews` (
 );
 
 CREATE TABLE `orders` (
-  `id` int PRIMARY KEY,
+  `id` int PRIMARY KEY AUTO_INCREMENT,
   `product_id` int NOT NULL,
   `buyer_id` int NOT NULL,
   `seller_id` int NOT NULL,
@@ -127,7 +127,7 @@ CREATE TABLE `orders` (
 );
 
 CREATE TABLE `payments` (
-  `id` int PRIMARY KEY,
+  `id` int PRIMARY KEY AUTO_INCREMENT,
   `order_id` int NOT NULL,
   `provider` varchar(50) NOT NULL,
   `provider_type` varchar(50),
@@ -142,7 +142,7 @@ CREATE TABLE `payments` (
 );
 
 CREATE TABLE `notifications` (
-  `id` int PRIMARY KEY,
+  `id` int PRIMARY KEY AUTO_INCREMENT,
   `user_id` int,
   `type` varchar(100),
   `payload` text,
