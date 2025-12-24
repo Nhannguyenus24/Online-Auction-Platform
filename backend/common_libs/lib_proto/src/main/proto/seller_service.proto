@@ -1,0 +1,406 @@
+syntax = "proto3";
+
+package com.auctionplatform.seller;
+
+option java_multiple_files = true;
+option java_package = "com.auctionplatform.seller.grpc";
+option java_outer_classname = "SellerServiceProto";
+
+// ============================================================================
+// SELLER SERVICE DEFINITION
+// ============================================================================
+
+service SellerService {
+  // Dashboard / Profile endpoints
+  rpc GetSellerProfile(GetSellerProfileRequest) returns (SellerProfileResponse);
+  rpc GetActiveListings(GetActiveListingsRequest) returns (ProductListResponse);
+  rpc GetWinnerItems(GetWinnerItemsRequest) returns (ProductListResponse);
+  rpc GetTransactionHistory(GetTransactionHistoryRequest) returns (TransactionHistoryResponse);
+  rpc GetSellerRatings(GetSellerRatingsRequest) returns (RatingsResponse);
+
+  // Create Auction Listing
+  rpc CreateAuctionListing(CreateAuctionListingRequest) returns (CreateAuctionListingResponse);
+  
+  // Product Detail (owner view)
+  rpc GetProductDetails(GetProductDetailsRequest) returns (ProductDetailsResponse);
+  rpc AnswerQuestion(AnswerQuestionRequest) returns (AnswerQuestionResponse);
+  rpc RejectBidder(RejectBidderRequest) returns (RejectBidderResponse);
+  rpc AppendProductDescription(AppendProductDescriptionRequest) returns (AppendProductDescriptionResponse);
+  rpc CancelTransaction(CancelTransactionRequest) returns (CancelTransactionResponse);
+  rpc RateBidder(RateBidderRequest) returns (RateBidderResponse);
+
+  // Listings Management
+  rpc GetListings(GetListingsRequest) returns (ListingsResponse);
+  rpc UpdateListingDescription(UpdateListingDescriptionRequest) returns (UpdateListingDescriptionResponse);
+  rpc UpdateAutoExtendSettings(UpdateAutoExtendSettingsRequest) returns (UpdateAutoExtendSettingsResponse);
+
+  // Order Management
+  rpc GetOrders(GetOrdersRequest) returns (OrdersResponse);
+  rpc ConfirmPaymentReceipt(ConfirmPaymentReceiptRequest) returns (ConfirmPaymentReceiptResponse);
+  rpc ProvideShippingInvoice(ProvideShippingInvoiceRequest) returns (ProvideShippingInvoiceResponse);
+  rpc GetOrderConversation(GetOrderConversationRequest) returns (ConversationResponse);
+  rpc SendOrderMessage(SendOrderMessageRequest) returns (SendOrderMessageResponse);
+}
+
+// ============================================================================
+// DASHBOARD / PROFILE MESSAGES
+// ============================================================================
+
+message GetSellerProfileRequest {
+  int32 seller_id = 1;
+}
+
+message SellerProfileResponse {
+  int32 id = 1;
+  string email = 2;
+  string full_name = 3;
+  string phone = 4;
+  string address = 5;
+  int32 positive_reviews = 6;
+  int32 negative_reviews = 7;
+  float rating_percent = 8;
+  string created_at = 9;
+}
+
+message GetActiveListingsRequest {
+  int32 seller_id = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message GetWinnerItemsRequest {
+  int32 seller_id = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message ProductListResponse {
+  repeated ProductSummary products = 1;
+  int32 total_count = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message ProductSummary {
+  int32 id = 1;
+  string title = 2;
+  float current_price = 3;
+  string status = 4;
+  int32 views_count = 5;
+  int32 bids_count = 6;
+  string ends_at = 7;
+  string primary_image_url = 8;
+}
+
+message GetTransactionHistoryRequest {
+  int32 seller_id = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+  string filter = 4; // "completed", "pending", "cancelled"
+}
+
+message TransactionHistoryResponse {
+  repeated Transaction transactions = 1;
+  int32 total_count = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message Transaction {
+  int32 order_id = 1;
+  int32 product_id = 2;
+  string product_title = 3;
+  int32 buyer_id = 4;
+  string buyer_name = 5;
+  float amount = 6;
+  string status = 7;
+  string created_at = 8;
+  string updated_at = 9;
+}
+
+message GetSellerRatingsRequest {
+  int32 seller_id = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message RatingsResponse {
+  int32 positive_reviews = 1;
+  int32 negative_reviews = 2;
+  float rating_percent = 3;
+  repeated Review reviews = 4;
+  int32 total_count = 5;
+}
+
+message Review {
+  int32 id = 1;
+  int32 from_user_id = 2;
+  string from_user_name = 3;
+  int32 score = 4; // 1-5
+  string comment = 5;
+  string created_at = 6;
+}
+
+// ============================================================================
+// CREATE AUCTION LISTING MESSAGES
+// ============================================================================
+
+message CreateAuctionListingRequest {
+  int32 seller_id = 1;
+  string title = 2;
+  string description = 3;
+  int32 category_id = 4;
+  float starting_price = 5;
+  float step_price = 6;
+  float buy_now_price = 7;
+  string starts_at = 8;
+  string ends_at = 9;
+  bool is_auto_extend = 10;
+  int32 auto_extend_seconds = 11;
+  repeated string image_urls = 12;
+}
+
+message CreateAuctionListingResponse {
+  bool success = 1;
+  int32 product_id = 2;
+  string message = 3;
+}
+
+// ============================================================================
+// PRODUCT DETAIL (OWNER VIEW) MESSAGES
+// ============================================================================
+
+message GetProductDetailsRequest {
+  int32 product_id = 1;
+  int32 seller_id = 2;
+}
+
+message ProductDetailsResponse {
+  int32 id = 1;
+  string title = 2;
+  string description = 3;
+  int32 category_id = 4;
+  float starting_price = 5;
+  float current_price = 6;
+  float step_price = 7;
+  float buy_now_price = 8;
+  string starts_at = 9;
+  string ends_at = 10;
+  bool is_auto_extend = 11;
+  int32 auto_extend_seconds = 12;
+  string status = 13;
+  int32 views_count = 14;
+  int32 bids_count = 15;
+  repeated string image_urls = 16;
+  int32 highest_bidder_id = 17;
+  float highest_bid_amount = 18;
+  string created_at = 19;
+  string updated_at = 20;
+}
+
+message AnswerQuestionRequest {
+  int32 seller_id = 1;
+  int32 question_id = 2;
+  string answer = 3;
+}
+
+message AnswerQuestionResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message RejectBidderRequest {
+  int32 seller_id = 1;
+  int32 product_id = 2;
+  int32 bidder_id = 3;
+  string reason = 4;
+}
+
+message RejectBidderResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message AppendProductDescriptionRequest {
+  int32 seller_id = 1;
+  int32 product_id = 2;
+  string additional_description = 3;
+}
+
+message AppendProductDescriptionResponse {
+  bool success = 1;
+  string updated_description = 2;
+  string message = 3;
+}
+
+message CancelTransactionRequest {
+  int32 seller_id = 1;
+  int32 order_id = 2;
+  string reason = 3;
+}
+
+message CancelTransactionResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message RateBidderRequest {
+  int32 seller_id = 1;
+  int32 bidder_id = 2;
+  int32 order_id = 3;
+  int32 score = 4; // 1-5
+  string comment = 5;
+}
+
+message RateBidderResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// ============================================================================
+// LISTINGS MANAGEMENT MESSAGES
+// ============================================================================
+
+message GetListingsRequest {
+  int32 seller_id = 1;
+  string filter = 2; // "active", "expired", "all"
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message ListingsResponse {
+  repeated ListingDetail listings = 1;
+  int32 total_count = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message ListingDetail {
+  int32 id = 1;
+  string title = 2;
+  string status = 3;
+  float current_price = 4;
+  int32 bids_count = 5;
+  string ends_at = 6;
+  bool is_auto_extend = 7;
+  int32 auto_extend_seconds = 8;
+}
+
+message UpdateListingDescriptionRequest {
+  int32 seller_id = 1;
+  int32 product_id = 2;
+  string new_description = 3;
+}
+
+message UpdateListingDescriptionResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message UpdateAutoExtendSettingsRequest {
+  int32 seller_id = 1;
+  int32 product_id = 2;
+  bool is_auto_extend = 3;
+  int32 auto_extend_seconds = 4;
+}
+
+message UpdateAutoExtendSettingsResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// ============================================================================
+// ORDER MANAGEMENT MESSAGES
+// ============================================================================
+
+message GetOrdersRequest {
+  int32 seller_id = 1;
+  string status_filter = 2; // "pending", "completed", "cancelled", "all"
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message OrdersResponse {
+  repeated OrderDetail orders = 1;
+  int32 total_count = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message OrderDetail {
+  int32 id = 1;
+  int32 product_id = 2;
+  string product_title = 3;
+  int32 buyer_id = 4;
+  string buyer_name = 5;
+  float amount = 6;
+  string status = 7;
+  string payment_method = 8;
+  string created_at = 9;
+  string updated_at = 10;
+}
+
+message ConfirmPaymentReceiptRequest {
+  int32 seller_id = 1;
+  int32 order_id = 2;
+  string invoice_number = 3;
+  string payment_confirmation_notes = 4;
+}
+
+message ConfirmPaymentReceiptResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ProvideShippingInvoiceRequest {
+  int32 seller_id = 1;
+  int32 order_id = 2;
+  string shipping_provider = 3;
+  string tracking_number = 4;
+  string estimated_delivery_date = 5;
+}
+
+message ProvideShippingInvoiceResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message GetOrderConversationRequest {
+  int32 seller_id = 1;
+  string order_id = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message ConversationResponse {
+  string order_id = 1;
+  int32 bidder_id = 2;
+  string bidder_name = 3;
+  string product_title = 4;
+  repeated Message messages = 5;
+  int32 unread_count = 6;
+  int32 page = 7;
+  int32 page_size = 8;
+  int32 total_count = 9;
+}
+
+message Message {
+  int64 id = 1;
+  string sender_role = 2; // "SELLER", "BIDDER"
+  string sender_name = 3;
+  string content = 4;
+  string created_at = 5;
+}
+
+message SendOrderMessageRequest {
+  int32 seller_id = 1;
+  string order_id = 2;
+  string content = 3;
+}
+
+message SendOrderMessageResponse {
+  bool success = 1;
+  int64 message_id = 2;
+  string created_at = 3;
+  string message = 4;
+}
