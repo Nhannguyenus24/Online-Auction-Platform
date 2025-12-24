@@ -1,12 +1,22 @@
 package products.grpc;
 
-import com.auction.proto.guest.*;
-import org.springframework.grpc.server.service.GrpcService;
-import reactor.core.publisher.Mono;
-import products.service.GuestService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.grpc.server.service.GrpcService;
+
+import com.auction.proto.guest.GetCategoriesRequest;
+import com.auction.proto.guest.GetCategoriesResponse;
+import com.auction.proto.guest.GetTopBidCountProductsRequest;
+import com.auction.proto.guest.GetTopEndingProductsRequest;
+import com.auction.proto.guest.GetTopPriceProductsRequest;
+import com.auction.proto.guest.GetTopProductsResponse;
+import com.auction.proto.guest.ListProductsByCategoryRequest;
+import com.auction.proto.guest.ListProductsByCategoryResponse;
+import com.auction.proto.guest.ReactorGuestServiceGrpc;
 import com.auction.utils.JsonUtils;
+
+import products.service.GuestService;
+import reactor.core.publisher.Mono;
 
 /**
  * gRPC implementation of GuestService for public unauthenticated operations
@@ -115,7 +125,7 @@ public class GuestGrpcService extends ReactorGuestServiceGrpc.GuestServiceImplBa
                             req.getMinPrice(),
                             req.getMaxPrice(),
                             req.getStatus(),
-                            req.getSortOrder(),
+                            req.getSortOrder().name(),
                             req.getPage(),
                             req.getLimit()
                         )
