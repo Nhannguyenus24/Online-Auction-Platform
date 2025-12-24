@@ -1,0 +1,127 @@
+syntax = "proto3";
+
+package com.auction.proto.admin;
+
+option java_multiple_files = true;
+option java_package = "com.auction.proto.admin.product";
+option java_outer_classname = "AdminProductServiceProto";
+
+// Category Messages
+message Category {
+  int32 id = 1;
+  string name = 2;
+  int32 parent_id = 3;
+  int64 created_at = 4; // Timestamp in milliseconds
+}
+
+message CreateCategoryRequest {
+  string name = 1;
+  int32 parent_id = 2; // Optional: parent category id for nested categories
+}
+
+message CreateCategoryResponse {
+  bool success = 1;
+  string message = 2;
+  int32 category_id = 3;
+}
+
+message UpdateCategoryRequest {
+  int32 category_id = 1;
+  string name = 2;
+  int32 parent_id = 3;
+}
+
+message UpdateCategoryResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message DeleteCategoryRequest {
+  int32 category_id = 1;
+}
+
+message DeleteCategoryResponse {
+  bool success = 1;
+  string message = 2; // Message explaining why deletion failed (if it did)
+  bool has_products = 3; // True if category has products (cannot delete)
+}
+
+
+// Product Messages
+message ProductInfo {
+  int32 id = 1;
+  string title = 2;
+  int32 seller_id = 3;
+  string seller_name = 4;
+  int32 category_id = 5;
+  string category_name = 6;
+  double starting_price = 7;
+  double current_price = 8;
+  string status = 9; // "active", "expired", "sold", "cancelled"
+  int64 starts_at = 10; // Timestamp in milliseconds
+  int64 ends_at = 11; // Timestamp in milliseconds
+  int32 views_count = 12;
+  int32 bids_count = 13;
+  int64 created_at = 14;
+}
+
+message RemoveProductRequest {
+  int32 product_id = 1;
+  int32 admin_id = 2;
+  string reason = 3; // Reason for removing the product
+}
+
+message RemoveProductResponse {
+  bool success = 1;
+  string message = 2;
+  string previous_status = 3; // Status of product before removal
+}
+
+message BanProductRequest {
+  int32 product_id = 1;
+  int32 admin_id = 2; // Admin user id who is banning the product
+  string reason = 3; // Reason for banning the product
+}
+
+message BanProductResponse {
+  bool success = 1;
+  string message = 2;
+  int32 ban_id = 3; // ID of the product ban record created
+}
+
+message GetBannedProductsRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+}
+
+message BannedProduct {
+  int32 ban_id = 1;
+  int32 product_id = 2;
+  string product_title = 3;
+  int32 seller_id = 4;
+  string seller_name = 5;
+  int32 admin_id = 6;
+  string admin_name = 7;
+  string reason = 8;
+  int64 created_at = 9; // Timestamp in milliseconds
+}
+
+message GetBannedProductsResponse {
+  repeated BannedProduct banned_products = 1;
+  int32 total_count = 2;
+  int32 page = 3;
+  int32 total_pages = 4;
+}
+
+// Admin Product Service
+service AdminProductService {
+  // Category Management
+  rpc CreateCategory(CreateCategoryRequest) returns (CreateCategoryResponse);
+  rpc UpdateCategory(UpdateCategoryRequest) returns (UpdateCategoryResponse);
+  rpc DeleteCategory(DeleteCategoryRequest) returns (DeleteCategoryResponse);
+  
+  // Product Management
+  rpc RemoveProduct(RemoveProductRequest) returns (RemoveProductResponse);
+  rpc BanProduct(BanProductRequest) returns (BanProductResponse);
+  rpc GetBannedProducts(GetBannedProductsRequest) returns (GetBannedProductsResponse);
+}

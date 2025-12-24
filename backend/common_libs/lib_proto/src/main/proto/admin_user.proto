@@ -1,0 +1,130 @@
+syntax = "proto3";
+
+package com.auction.proto.admin;
+
+option java_multiple_files = true;
+option java_package = "com.auction.proto.admin.user";
+option java_outer_classname = "AdminUserServiceProto";
+
+// User Statistics Request/Response Messages
+message UserStatisticsRequest {
+  // Optional filter parameters
+  string role_filter = 1; // Optional: filter by role (bidder, seller, admin)
+}
+
+message UserStatisticsResponse {
+  int32 total_users = 1;
+  int32 total_bidders = 2;
+  int32 total_sellers = 3;
+  int32 total_admins = 4;
+  int32 verified_users = 5;
+  int32 unverified_users = 6;
+  double average_rating = 7;
+}
+
+// Registration Statistics Request - Get user registrations by time period
+message RegistrationStatisticsRequest {
+  string period = 1; // "daily", "monthly", "yearly"
+  int32 limit = 2; // Number of periods to return (e.g., last 30 days, last 12 months)
+}
+
+message RegistrationStatisticsResponse {
+  repeated DailyRegistration daily = 1;
+  repeated MonthlyRegistration monthly = 2;
+  repeated YearlyRegistration yearly = 3;
+}
+
+message DailyRegistration {
+  string date = 1; // Format: YYYY-MM-DD
+  int32 count = 2;
+}
+
+message MonthlyRegistration {
+  string month = 1; // Format: YYYY-MM
+  int32 count = 2;
+}
+
+message YearlyRegistration {
+  string year = 1; // Format: YYYY
+  int32 count = 2;
+}
+
+// Upgrade Request Messages
+message UpgradeRequest {
+  int32 id = 1;
+  int32 user_id = 2;
+  string user_email = 3;
+  string user_full_name = 4;
+  string requested_role = 5; // e.g., "seller"
+  string status = 6; // "pending", "approved", "rejected"
+  int64 created_at = 7; // Timestamp in milliseconds
+  int64 reviewed_at = 8; // Timestamp in milliseconds
+}
+
+message GetUpgradeRequestsRequest {
+  string status_filter = 1; // Optional: "pending", "approved", "rejected"
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message GetUpgradeRequestsResponse {
+  repeated UpgradeRequest upgrade_requests = 1;
+  int32 total_count = 2;
+  int32 page = 3;
+  int32 total_pages = 4;
+}
+
+message ApproveUpgradeRequestRequest {
+  int32 request_id = 1;
+  int32 admin_id = 2;
+  string action = 3; // "approve" or "reject"
+  string reason = 4; // Optional: reason for rejection
+}
+
+message ApproveUpgradeRequestResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// Profit Statistics Messages - Profit = 30% of successful paid transactions
+message ProfitStatisticsRequest {
+  string month = 1; // Optional: specific month in format YYYY-MM (e.g., "2024-12")
+  string year = 2; // Optional: specific year in format YYYY (e.g., "2024")
+}
+
+message ProfitStatisticsResponse {
+  MonthlyProfit monthly_profit = 1; // If month was specified
+  YearlyProfit yearly_profit = 2; // If year was specified
+}
+
+message MonthlyProfit {
+  string month = 1; // Format: YYYY-MM
+  double total_sales = 2; // Total sales amount (sum of order amounts with successful payment)
+  double profit = 3; // 30% of total_sales
+  int32 completed_orders = 4; // Number of orders with successful payment
+}
+
+message YearlyProfit {
+  string year = 1; // Format: YYYY
+  double total_sales = 2; // Total sales amount (sum of order amounts with successful payment)
+  double profit = 3; // 30% of total_sales
+  int32 completed_orders = 4; // Number of orders with successful payment
+}
+
+// Admin User Service
+service AdminUserService {
+  // Get overall user statistics
+  rpc GetUserStatistics(UserStatisticsRequest) returns (UserStatisticsResponse);
+  
+  // Get registration statistics by period (daily, monthly, yearly)
+  rpc GetRegistrationStatistics(RegistrationStatisticsRequest) returns (RegistrationStatisticsResponse);
+  
+  // Get all upgrade requests (bidder -> seller)
+  rpc GetUpgradeRequests(GetUpgradeRequestsRequest) returns (GetUpgradeRequestsResponse);
+  
+  // Approve or reject an upgrade request
+  rpc ApproveUpgradeRequest(ApproveUpgradeRequestRequest) returns (ApproveUpgradeRequestResponse);
+  
+  // Get profit statistics by month or year (profit = 30% of successful paid orders)
+  rpc GetProfitStatistics(ProfitStatisticsRequest) returns (ProfitStatisticsResponse);
+}
