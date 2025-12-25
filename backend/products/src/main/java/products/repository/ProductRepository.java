@@ -273,4 +273,140 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
         @Param("limit") int limit,
         @Param("offset") int offset);
     
+    // ==================== Bidder Service Methods ====================
+    
+    // Get product details with seller info, images, and user-specific data
+    @Query("""
+        SELECT p.id, p.seller_id, p.category_id, c.name as category_name, 
+               p.title, p.description, p.starting_price, p.current_price, 
+               p.step_price, p.buy_now_price, p.starts_at, p.ends_at, 
+               p.is_auto_extend, p.auto_extend_seconds, p.status, p.views_count, 
+               p.bids_count, p.created_at, p.updated_at, 
+               u.id as seller_id, u.full_name as seller_name, u.email as seller_email,
+               u.rating_percent as seller_rating_percent, u.positive_reviews as seller_positive_reviews,
+               u.negative_reviews as seller_negative_reviews
+        FROM products p
+        LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN users u ON p.seller_id = u.id
+        WHERE p.id = :productId
+        """)
+    Mono<Map> getProductDetailsForBidder(@Param("productId") Integer productId);
+    
+    // Get related products in same category
+    @Query("""
+        SELECT p.id, p.seller_id, p.category_id, c.name as category_name, 
+               p.title, p.description, p.starting_price, p.current_price, 
+               p.step_price, p.buy_now_price, p.starts_at, p.ends_at, 
+               p.is_auto_extend, p.auto_extend_seconds, p.status, p.views_count, 
+               p.bids_count, p.created_at, p.updated_at, u.full_name as seller_name,
+               u.rating_percent as seller_rating_percent, u.positive_reviews as seller_positive_reviews
+        FROM products p
+        LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN users u ON p.seller_id = u.id
+        WHERE p.category_id = :categoryId AND p.id != :productId AND p.status = 'active'
+        ORDER BY p.created_at DESC
+        LIMIT :limit
+        """)
+    Flux<Map> getRelatedProducts(@Param("categoryId") Integer categoryId, @Param("productId") Integer productId, @Param("limit") int limit);
+    
+    // Get user's watchlist with pagination
+    @Query("""
+        SELECT p.id, p.seller_id, p.category_id, c.name as category_name, 
+               p.title, p.description, p.starting_price, p.current_price, 
+               p.step_price, p.buy_now_price, p.starts_at, p.ends_at, 
+               p.is_auto_extend, p.auto_extend_seconds, p.status, p.views_count, 
+               p.bids_count, p.created_at, p.updated_at, u.full_name as seller_name,
+               u.rating_percent as seller_rating_percent, u.positive_reviews as seller_positive_reviews
+        FROM watchlists w
+        LEFT JOIN products p ON w.product_id = p.id
+        LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN users u ON p.seller_id = u.id
+        WHERE w.user_id = :userId AND (COALESCE(:status, '') = '' OR p.status = :status)
+        ORDER BY w.created_at DESC
+        LIMIT :limit OFFSET :offset
+        """)
+    Flux<Map> getWatchlist(@Param("userId") Integer userId, @Param("status") String status, @Param("limit") int limit, @Param("offset") int offset);
+    
+    // Count watchlist items
+    @Query("""
+        SELECT COUNT(*) FROM watchlists w
+        LEFT JOIN products p ON w.product_id = p.id
+        WHERE w.user_id = :userId AND (COALESCE(:status, '') = '' OR p.status = :status)
+        """)
+    Mono<Integer> countWatchlist(@Param("userId") Integer userId, @Param("status") String status);
+    
+    // Check if product in watchlist
+    @Query("SELECT COUNT(*) > 0 FROM watchlists WHERE user_id = :userId AND product_id = :productId")
+    Mono<Boolean> isInWatchlist(@Param("userId") Integer userId, @Param("productId") Integer productId);
+    
+    // Get product bids with pagination
+    @Query("""
+        SELECT b.id, b.product_id, b.bidder_id, 
+               CONCAT(SUBSTRING(u.email, 1, 3), '***@', SUBSTRING(u.email, LOCATE('@', u.email) + 1)) as bidder_name_masked,
+               b.amount, b.is_auto, b.created_at
+        FROM bids b
+        LEFT JOIN users u ON b.bidder_id = u.id
+        WHERE b.product_id = :productId
+        ORDER BY b.amount DESC
+        LIMIT :limit OFFSET :offset
+        """)
+    Flux<Map> getProductBids(@Param("productId") Integer productId, @Param("limit") int limit, @Param("offset") int offset);
+    
+    // Count product bids
+    @Query("SELECT COUNT(*) FROM bids WHERE product_id = :productId")
+    Mono<Integer> countProductBids(@Param("productId") Integer productId);
+    
+    // Get product questions with pagination
+    @Query("""
+        SELECT q.id, q.product_id, q.asker_id, u.full_name as asker_name,
+               q.question, q.answer, q.answered_by, u2.full_name as answerer_name,
+               q.created_at, q.answered_at
+        FROM questions q
+        LEFT JOIN users u ON q.asker_id = u.id
+        LEFT JOIN users u2 ON q.answered_by = u2.id
+        WHERE q.product_id = :productId
+        ORDER BY q.created_at DESC
+        LIMIT :limit OFFSET :offset
+        """)
+    Flux<Map> getProductQuestions(@Param("productId") Integer productId, @Param("limit") int limit, @Param("offset") int offset);
+    
+    // Count product questions
+    @Query("SELECT COUNT(*) FROM questions WHERE product_id = :productId")
+    Mono<Integer> countProductQuestions(@Param("productId") Integer productId);
+    
+    // Get user's bids with pagination
+    @Query("""
+        SELECT b.id as bid_id, b.product_id, p.title as product_title,
+               pi.url as product_primary_image, b.amount as bid_amount, p.current_price,
+               b.is_auto, (b.amount = (SELECT MAX(amount) FROM bids WHERE product_id = p.id)) as is_winning,
+               p.status, b.created_at as bid_created_at, p.ends_at as product_ends_at
+        FROM bids b
+        LEFT JOIN products p ON b.product_id = p.id
+        LEFT JOIN product_images pi ON p.id = pi.product_id AND pi.is_primary = true
+        WHERE b.bidder_id = :userId
+        ORDER BY b.created_at DESC
+        LIMIT :limit OFFSET :offset
+        """)
+    Flux<Map> getMyBids(@Param("userId") Integer userId, @Param("limit") int limit, @Param("offset") int offset);
+    
+    // Count user's bids
+    @Query("SELECT COUNT(*) FROM bids WHERE bidder_id = :userId")
+    Mono<Integer> countMyBids(@Param("userId") Integer userId);
+    
+    // Check if user is highest bidder
+    @Query("""
+        SELECT COUNT(*) > 0 FROM bids 
+        WHERE product_id = :productId AND bidder_id = :userId 
+        AND amount = (SELECT MAX(amount) FROM bids WHERE product_id = :productId)
+        """)
+    Mono<Boolean> isHighestBidder(@Param("productId") Integer productId, @Param("userId") Integer userId);
+    
+    // Get user's auto bid for a product
+    @Query("""
+        SELECT id, product_id, bidder_id, max_amount, created_at 
+        FROM auto_bids 
+        WHERE product_id = :productId AND bidder_id = :userId
+        """)
+    Mono<Map> getUserAutoBid(@Param("productId") Integer productId, @Param("userId") Integer userId);
+    
 }
