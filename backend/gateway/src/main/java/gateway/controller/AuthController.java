@@ -43,6 +43,19 @@ public class AuthController {
     public Mono<ResponseEntity<Map<String, Object>>> register(@RequestBody com.auction.entities.dto.RegisterRequest request) {
         log.info("Register request for email: {}", request.getEmail());
         
+        // Validate reCAPTCHA token
+        if (request.getRecaptchaToken() == null || request.getRecaptchaToken().trim().isEmpty()) {
+            log.warn("Register request rejected: reCAPTCHA token is missing");
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "reCAPTCHA verification is required");
+            return Mono.just(ResponseEntity.badRequest().body(error));
+        }
+        
+        // TODO: Add reCAPTCHA verification with Google API
+        // For now, we just check that the token exists
+        log.info("reCAPTCHA token received: {}", request.getRecaptchaToken().substring(0, Math.min(20, request.getRecaptchaToken().length())) + "...");
+        
         RegisterRequest grpcRequest = RegisterRequest.newBuilder()
                 .setEmail(request.getEmail())
                 .setPassword(request.getPassword())

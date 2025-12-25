@@ -534,7 +534,7 @@ const BidderCheckoutPage = () => {
                         <Button variant="outlined" onClick={() => navigate('/bidder')}>
                           Back to Home
                         </Button>
-                        <Button variant="contained" onClick={() => navigate('/bidder/history')}>
+                        <Button variant="contained" onClick={() => navigate('/bidder/order-history')}>
                           View Order History
                         </Button>
                       </Stack>

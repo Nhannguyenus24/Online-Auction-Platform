@@ -1,6 +1,7 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import * as yup from "yup";
+import ReCAPTCHA from "react-google-recaptcha";
 import Grid from "@mui/material/Grid";
 import {
   Alert,
@@ -26,10 +27,7 @@ import { authApi } from "../../utils/api";
 const registerSchema = yup.object({
   firstName: yup.string().required("First name is required."),
   lastName: yup.string().required("Last name is required."),
-  email: yup
-    .string()
-    .email("Enter a valid email address.")
-    .required("Email is required."),
+  email: yup.string().email("Enter a valid email address.").required("Email is required."),
   password: yup
     .string()
     .matches(
@@ -41,9 +39,7 @@ const registerSchema = yup.object({
     .string()
     .oneOf([yup.ref("password"), null], "Passwords must match.")
     .required("Confirm your password."),
-  acceptTerms: yup
-    .boolean()
-    .oneOf([true], "You must accept the Terms of Service."),
+  acceptTerms: yup.boolean().oneOf([true], "You must accept the Terms of Service."),
 });
 
 const defaultValues = {
@@ -62,7 +58,13 @@ const Register = () => {
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
-  
+
+  // reCAPTCHA states
+  const [recaptchaToken, setRecaptchaToken] = useState(null);
+  const [recaptchaError, setRecaptchaError] = useState("");
+  const recaptchaRef = useRef(null);
+  const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
+
   // OTP verification states
   const [showOTPDialog, setShowOTPDialog] = useState(false);
   const [otp, setOtp] = useState("");
@@ -137,14 +139,37 @@ const Register = () => {
     }, 1400);
   };
 
+  const handleRecaptchaChange = (token) => {
+    console.log("reCAPTCHA token received:", token ? token.substring(0, 20) + "..." : "null");
+    setRecaptchaToken(token);
+    setRecaptchaError("");
+  };
+
+  const handleRecaptchaExpired = () => {
+    setRecaptchaToken(null);
+    setRecaptchaError("reCAPTCHA has expired. Please verify again.");
+  };
+
+  const handleRecaptchaError = () => {
+    setRecaptchaToken(null);
+    setRecaptchaError("reCAPTCHA verification failed. Please try again.");
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     const isValid = await validateForm();
     if (!isValid) return;
 
+    // Validate reCAPTCHA
+    if (!recaptchaToken) {
+      setRecaptchaError("Please complete the reCAPTCHA verification.");
+      return;
+    }
+
     setSubmitting(true);
     setStatus(null);
     setErrorMessage("");
+    setRecaptchaError("");
 
     try {
       const response = await authApi.register({
@@ -153,14 +178,29 @@ const Register = () => {
         fullName: `${formValues.firstName} ${formValues.lastName}`,
         phoneNumber: "",
         address: "",
+        recaptchaToken: recaptchaToken,
       });
 
       setRegisterData(response.data || response);
       simulateAuth();
+      // Reset reCAPTCHA after successful submission
+      if (recaptchaRef.current) {
+        recaptchaRef.current.reset();
+        setRecaptchaToken(null);
+      }
     } catch (error) {
-      setErrorMessage(error.response?.data?.message || error.message || "Registration failed. Please try again.");
+      setErrorMessage(
+        error.response?.data?.message ||
+          error.message ||
+          "Registration failed. Please try again."
+      );
       setStatus("error");
       setSubmitting(false);
+      // Reset reCAPTCHA on error
+      if (recaptchaRef.current) {
+        recaptchaRef.current.reset();
+        setRecaptchaToken(null);
+      }
     }
   };
 
@@ -193,7 +233,7 @@ const Register = () => {
 
     setOtpSubmitting(true);
     setOtpError("");
-    
+
     try {
       const response = await authApi.verifyOTP({
         email: registerData?.email,
@@ -213,7 +253,11 @@ const Register = () => {
         setOtpSubmitting(false);
       }
     } catch (error) {
-      setOtpError(error.response?.data?.message || error.message || "Failed to verify OTP. Please try again.");
+      setOtpError(
+        error.response?.data?.message ||
+          error.message ||
+          "Failed to verify OTP. Please try again."
+      );
       setOtpSubmitting(false);
     }
   };
@@ -227,7 +271,11 @@ const Register = () => {
       setOtp("");
       setOtpError("");
     } catch (error) {
-      setOtpError(error.response?.data?.message || error.message || "Failed to resend OTP. Please try again.");
+      setOtpError(
+        error.response?.data?.message ||
+          error.message ||
+          "Failed to resend OTP. Please try again."
+      );
     }
   };
 
@@ -248,9 +296,7 @@ const Register = () => {
       title="Create an account"
       subtitle="Verify sellers faster, manage watchlists, and unlock premium analytics."
       icon={<VerifiedUser color="primary" fontSize="large" />}
-      footerLinks={[
-        { label: "Already have an account? Sign in", to: "/login" },
-      ]}
+      footerLinks={[{ label: "Already have an account? Sign in", to: "/login" }]}
     >
       <Stack component="form" spacing={1.5} onSubmit={handleSubmit}>
         {status === "success" && (
@@ -332,7 +378,11 @@ const Register = () => {
             value={strength}
             sx={{ height: 4, borderRadius: 1 }}
           />
-          <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.65rem", lineHeight: 1.2 }}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ fontSize: "0.65rem", lineHeight: 1.2 }}
+          >
             Use at least 8 characters with letters and numbers.
           </Typography>
         </Stack>
@@ -361,7 +411,11 @@ const Register = () => {
           label={
             <Typography variant="caption" sx={{ fontSize: "0.75rem", lineHeight: 1.3 }}>
               I agree to the{" "}
-              <Button size="small" sx={{ px: 0, fontSize: "0.75rem", py: 0, minWidth: "auto" }} variant="text">
+              <Button
+                size="small"
+                sx={{ px: 0, fontSize: "0.75rem", py: 0, minWidth: "auto" }}
+                variant="text"
+              >
                 Terms of Service
               </Button>{" "}
               and compliance policy.
@@ -375,11 +429,37 @@ const Register = () => {
           </Typography>
         )}
 
+        <Box sx={{ display: "flex", justifyContent: "center", my: 1 }}>
+          <ReCAPTCHA
+            ref={recaptchaRef}
+            sitekey={recaptchaSiteKey}
+            onChange={handleRecaptchaChange}
+            onExpired={handleRecaptchaExpired}
+            onError={handleRecaptchaError}
+            size="normal"
+            theme="light"
+            badge="bottomright"
+          />
+        </Box>
+        {recaptchaSiteKey === "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI" && (
+          <Alert severity="warning" sx={{ py: 0.25, mb: 0 }}>
+            <Typography variant="caption">
+              ⚠️ Using test key - challenges won't appear. Add VITE_RECAPTCHA_SITE_KEY to .env
+              for real challenges.
+            </Typography>
+          </Alert>
+        )}
+        {recaptchaError && (
+          <Typography variant="caption" color="error" sx={{ mt: -0.5, mb: 0.5 }}>
+            {recaptchaError}
+          </Typography>
+        )}
+
         <Button
           type="submit"
           variant="contained"
           size="medium"
-          disabled={submitting}
+          disabled={submitting || !recaptchaToken}
         >
           {submitting ? "Creating account..." : "Create account"}
         </Button>
@@ -401,12 +481,14 @@ const Register = () => {
       {/* OTP Verification Dialog */}
       <Dialog open={showOTPDialog} onClose={handleCloseOTPDialog} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ pb: 1 }}>
-          <Typography variant="h6" sx={{ fontWeight: 600 }}>
-            Verify Your Email
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            Enter the 6-digit OTP sent to your email
-          </Typography>
+          <Box>
+            <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
+              Verify Your Email
+            </Typography>
+            <Typography variant="caption" color="text.secondary" component="div">
+              Enter the 6-digit OTP sent to your email
+            </Typography>
+          </Box>
         </DialogTitle>
         <DialogContent sx={{ pt: 2 }}>
           <Stack spacing={2}>
@@ -415,39 +497,35 @@ const Register = () => {
               placeholder="000000"
               value={otp}
               onChange={handleOTPChange}
-              inputProps={{ maxLength: 6, style: { textAlign: "center", fontSize: "24px", letterSpacing: "8px" } }}
+              inputProps={{
+                maxLength: 6,
+                style: { textAlign: "center", fontSize: "24px", letterSpacing: "8px" },
+              }}
               error={Boolean(otpError)}
               helperText={otpError}
               disabled={otpSubmitting || timeLeft <= 0}
             />
 
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <Box
+              sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
+            >
               <Typography variant="body2" color={timeLeft <= 60 ? "error" : "text.secondary"}>
                 Time remaining: <strong>{formatTime(timeLeft)}</strong>
               </Typography>
               {timeLeft <= 0 && (
-                <Button 
-                  size="small" 
-                  onClick={handleResendOTP}
-                  variant="text"
-                >
+                <Button size="small" onClick={handleResendOTP} variant="text">
                   Resend OTP
                 </Button>
               )}
             </Box>
 
             {timeLeft <= 0 && (
-              <Alert severity="error">
-                OTP has expired. Please request a new one.
-              </Alert>
+              <Alert severity="error">OTP has expired. Please request a new one.</Alert>
             )}
           </Stack>
         </DialogContent>
         <DialogActions sx={{ p: 2, pt: 1 }}>
-          <Button 
-            onClick={handleCloseOTPDialog} 
-            disabled={otpSubmitting}
-          >
+          <Button onClick={handleCloseOTPDialog} disabled={otpSubmitting}>
             Cancel
           </Button>
           <Button

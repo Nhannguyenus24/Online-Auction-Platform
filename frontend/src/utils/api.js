@@ -54,7 +54,7 @@ const convertObjectToFormData = (obj) => {
 export const authApi = {
   /**
    * Register a new user
-   * @param {Object} data - { email, password, fullName, phoneNumber, address }
+   * @param {Object} data - { email, password, fullName, phoneNumber, address, recaptchaToken }
    * @returns {Promise} - { success, message, email, userId, otp, otpExpiryMinutes }
    */
   register: (data) => axiosInstance.post('/api/auth/register', data),

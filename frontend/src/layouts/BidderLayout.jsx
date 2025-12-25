@@ -20,6 +20,7 @@ import {
   ShoppingCart as ShoppingCartIcon,
   Chat as ChatIcon,
   Menu as MenuIcon,
+  Receipt as ReceiptIcon,
 } from '@mui/icons-material';
 
 const DRAWER_WIDTH = 260;
@@ -41,6 +42,7 @@ const BidderLayout = () => {
     { title: 'Dashboard', path: '/bidder/home', icon: <HomeIcon /> },
     { title: 'Watch List', path: '/bidder/watchlist', icon: <FavoriteIcon /> },
     { title: 'Auction History', path: '/bidder/auction-history', icon: <HistoryIcon /> },
+    { title: 'Order History', path: '/bidder/order-history', icon: <ReceiptIcon /> },
     { title: 'Chat', path: '/bidder/chat', icon: <ChatIcon /> },
     { title: 'Profile', path: '/bidder/profile', icon: <PersonIcon /> },
   ];

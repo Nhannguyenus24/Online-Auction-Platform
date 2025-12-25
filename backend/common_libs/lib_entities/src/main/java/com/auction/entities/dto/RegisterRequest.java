@@ -13,4 +13,5 @@ public class RegisterRequest {
     private String fullName;
     private String phoneNumber;
     private String address;
+    private String recaptchaToken;
 }

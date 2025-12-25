@@ -1,21 +1,7 @@
 import { Link as RouterLink } from "react-router-dom";
 import Grid from "@mui/material/Grid";
-import {
-  Box,
-  Paper,
-  Stack,
-  Typography,
-  Link,
-  Chip,
-  Divider,
-  alpha,
-} from "@mui/material";
-import {
-  Gavel,
-  AccessTime,
-  VerifiedUser,
-  Security,
-} from "@mui/icons-material";
+import { Box, Paper, Stack, Typography, Link, Chip, Divider, alpha } from "@mui/material";
+import { Gavel, AccessTime, VerifiedUser, Security } from "@mui/icons-material";
 
 const heroHighlights = [
   {
@@ -78,8 +64,8 @@ const AuthLayout = ({ title, subtitle, icon, footerLinks = [], children }) => (
               Secure, fast, and transparent bidding experience
             </Typography>
             <Typography variant="body1" sx={{ opacity: 0.8 }}>
-              Manage listings, monitor bids, and stay ahead with insights built
-              for serious sellers and collectors.
+              Manage listings, monitor bids, and stay ahead with insights built for serious
+              sellers and collectors.
             </Typography>
           </Stack>
 
@@ -92,12 +78,7 @@ const AuthLayout = ({ title, subtitle, icon, footerLinks = [], children }) => (
 
           <Stack spacing={2}>
             {heroHighlights.map((item) => (
-              <Stack
-                key={item.label}
-                direction="row"
-                alignItems="center"
-                spacing={1.5}
-              >
+              <Stack key={item.label} direction="row" alignItems="center" spacing={1.5}>
                 <Chip
                   icon={item.icon}
                   size="small"
@@ -114,9 +95,7 @@ const AuthLayout = ({ title, subtitle, icon, footerLinks = [], children }) => (
           <Stack direction="row" spacing={1} alignItems="center">
             <Security fontSize="large" />
             <Stack spacing={0}>
-              <Typography variant="subtitle2">
-                2FA & transaction monitoring
-              </Typography>
+              <Typography variant="subtitle2">2FA & transaction monitoring</Typography>
               <Typography variant="body2" sx={{ opacity: 0.7 }}>
                 Every session is protected with adaptive security checks.
               </Typography>
@@ -146,17 +125,8 @@ const AuthLayout = ({ title, subtitle, icon, footerLinks = [], children }) => (
           }}
         >
           <Stack spacing={1} mb={2.5}>
-            <Stack direction="row" spacing={1.5} alignItems="center">
-              {icon}
-              <Typography variant="overline" color="text.secondary">
-                Access Portal
-              </Typography>
-            </Stack>
             <Typography variant="h5" fontWeight={600}>
               {title}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {subtitle}
             </Typography>
           </Stack>
 
