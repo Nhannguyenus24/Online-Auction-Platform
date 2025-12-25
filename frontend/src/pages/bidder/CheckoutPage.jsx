@@ -34,11 +34,11 @@ import {
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { useNavigate } from 'react-router-dom';
+import { useForm, Controller } from 'react-hook-form';
 import { formatPrice } from '../../utils/formatNumber';
 import Page from '../../components/Page';
 
-// Initialize Stripe (replace with your publishable key)
-const stripePromise = loadStripe('pk_test_YOUR_PUBLISHABLE_KEY');
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 // Mock cart data
 const mockCartItems = [
@@ -69,13 +69,22 @@ const CheckoutForm = ({ cartItems, onSuccess }) => {
   const handleSubmit = async (event) => {
     event.preventDefault();
     
-    if (!stripe || !elements) return;
+    if (!stripe || !elements) {
+      setError('Stripe is not ready. Please wait a moment and try again.');
+      return;
+    }
 
     setProcessing(true);
     setError(null);
 
     try {
       const cardElement = elements.getElement(CardElement);
+      
+      if (!cardElement) {
+        setError('Card element not found. Please refresh the page.');
+        setProcessing(false);
+        return;
+      }
       
       // Create payment method
       const { error: stripeError, paymentMethod } = await stripe.createPaymentMethod({
@@ -84,7 +93,12 @@ const CheckoutForm = ({ cartItems, onSuccess }) => {
       });
 
       if (stripeError) {
-        setError(stripeError.message);
+        // Filter out API key errors in development
+        if (stripeError.message.includes('Invalid API Key')) {
+          setError('Please configure a valid Stripe API key. This is a development placeholder.');
+        } else {
+          setError(stripeError.message);
+        }
         setProcessing(false);
         return;
       }
@@ -97,7 +111,12 @@ const CheckoutForm = ({ cartItems, onSuccess }) => {
       
       onSuccess();
     } catch (err) {
-      setError(err.message);
+      // Filter out API key errors in development
+      if (err.message && err.message.includes('Invalid API Key')) {
+        setError('Please configure a valid Stripe API key. This is a development placeholder.');
+      } else {
+        setError(err.message || 'An error occurred. Please try again.');
+      }
     } finally {
       setProcessing(false);
     }
@@ -119,6 +138,9 @@ const CheckoutForm = ({ cartItems, onSuccess }) => {
     },
   };
 
+  // Don't show API key errors in development
+  const shouldShowError = error && !error.includes('Invalid API Key');
+
   return (
     <form onSubmit={handleSubmit}>
       <Box
@@ -133,7 +155,7 @@ const CheckoutForm = ({ cartItems, onSuccess }) => {
         <CardElement options={cardElementOptions} />
       </Box>
       
-      {error && (
+      {shouldShowError && (
         <Alert severity="error" sx={{ mt: 2 }}>
           {error}
         </Alert>
@@ -157,14 +179,21 @@ const BidderCheckoutPage = () => {
   const navigate = useNavigate();
   const [activeStep, setActiveStep] = useState(0);
   const [cartItems, setCartItems] = useState(mockCartItems);
-  const [paymentMethod, setPaymentMethod] = useState('stripe');
   const [orderId, setOrderId] = useState('');
-  const [shippingInfo, setShippingInfo] = useState({
-    fullName: '',
-    phone: '',
-    address: '',
-    city: '',
-    postalCode: '',
+
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+    getValues,
+  } = useForm({
+    defaultValues: {
+      fullName: '',
+      phone: '',
+      address: '',
+      city: '',
+      postalCode: '',
+    },
   });
 
   const steps = ['Shopping Cart', 'Shipping Info', 'Payment', 'Confirmation'];
@@ -177,13 +206,16 @@ const BidderCheckoutPage = () => {
     setCartItems(cartItems.filter(item => item.id !== id));
   };
 
+  const onSubmitShipping = () => {
+    // Shipping form is valid, proceed to next step
+    setActiveStep((prevStep) => prevStep + 1);
+  };
+
   const handleNext = () => {
     if (activeStep === 1) {
-      // Validate shipping info
-      if (!shippingInfo.fullName || !shippingInfo.phone || !shippingInfo.address) {
-        alert('Please fill in all required fields');
-        return;
-      }
+      // Trigger form validation
+      handleSubmit(onSubmitShipping)();
+      return;
     }
     setActiveStep((prevStep) => prevStep + 1);
   };
@@ -196,10 +228,6 @@ const BidderCheckoutPage = () => {
     const newOrderId = Math.random().toString(36).substr(2, 9).toUpperCase();
     setOrderId(newOrderId);
     setActiveStep(3);
-  };
-
-  const handleShippingChange = (field) => (event) => {
-    setShippingInfo({ ...shippingInfo, [field]: event.target.value });
   };
 
   if (cartItems.length === 0 && activeStep === 0) {
@@ -256,9 +284,9 @@ const BidderCheckoutPage = () => {
             </CardContent>
           </Card>
 
-          <Grid container spacing={3}>
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3, alignItems: 'flex-start' }}>
             {/* Main Content */}
-            <Grid item xs={12} md={8}>
+            <Box sx={{ flex: 1, minWidth: 0, width: { xs: '100%', md: 'auto' } }}>
               <Card>
                 <CardContent sx={{ p: 4 }}>
                   {/* Step 0: Cart Items */}
@@ -328,7 +356,7 @@ const BidderCheckoutPage = () => {
 
                   {/* Step 1: Shipping Information */}
                   {activeStep === 1 && (
-                    <Box>
+                    <Box component="form" onSubmit={handleSubmit(onSubmitShipping)}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
                         <LocalShipping color="primary" />
                         <Typography variant="h5" fontWeight="bold">
@@ -337,63 +365,113 @@ const BidderCheckoutPage = () => {
                       </Box>
                       <Divider sx={{ mb: 3 }} />
 
-                      <Grid container spacing={2}>
-                        <Grid item xs={12}>
-                          <TextField
-                            fullWidth
-                            label="Full Name"
-                            required
-                            value={shippingInfo.fullName}
-                            onChange={handleShippingChange('fullName')}
-                          />
-                        </Grid>
-                        <Grid item xs={12} sm={6}>
-                          <TextField
-                            fullWidth
-                            label="Phone Number"
-                            required
-                            value={shippingInfo.phone}
-                            onChange={handleShippingChange('phone')}
-                          />
-                        </Grid>
-                        <Grid item xs={12} sm={6}>
-                          <TextField
-                            fullWidth
-                            label="City"
-                            required
-                            value={shippingInfo.city}
-                            onChange={handleShippingChange('city')}
-                          />
-                        </Grid>
-                        <Grid item xs={12}>
-                          <TextField
-                            fullWidth
-                            label="Address"
-                            required
-                            multiline
-                            rows={3}
-                            value={shippingInfo.address}
-                            onChange={handleShippingChange('address')}
-                          />
-                        </Grid>
-                        <Grid item xs={12} sm={6}>
-                          <TextField
-                            fullWidth
-                            label="Postal Code"
-                            value={shippingInfo.postalCode}
-                            onChange={handleShippingChange('postalCode')}
-                          />
-                        </Grid>
-                      </Grid>
+                      {/* Shipping Information Fields */}
+                      <Stack spacing={2}>
+                        <Controller
+                          name="fullName"
+                          control={control}
+                          rules={{
+                            required: 'Full Name is required',
+                            minLength: {
+                              value: 2,
+                              message: 'Full Name must be at least 2 characters',
+                            },
+                          }}
+                          render={({ field }) => (
+                            <TextField
+                              {...field}
+                              fullWidth
+                              label="Full Name"
+                              required
+                              error={!!errors.fullName}
+                              helperText={errors.fullName?.message}
+                            />
+                          )}
+                        />
+                        <Controller
+                          name="phone"
+                          control={control}
+                          rules={{
+                            required: 'Phone Number is required',
+                            pattern: {
+                              value: /^[0-9+\-\s()]+$/,
+                              message: 'Please enter a valid phone number',
+                            },
+                          }}
+                          render={({ field }) => (
+                            <TextField
+                              {...field}
+                              fullWidth
+                              label="Phone Number"
+                              required
+                              error={!!errors.phone}
+                              helperText={errors.phone?.message}
+                            />
+                          )}
+                        />
+                        <Controller
+                          name="city"
+                          control={control}
+                          rules={{
+                            required: 'City is required',
+                          }}
+                          render={({ field }) => (
+                            <TextField
+                              {...field}
+                              fullWidth
+                              label="City"
+                              required
+                              error={!!errors.city}
+                              helperText={errors.city?.message}
+                            />
+                          )}
+                        />
+                        <Controller
+                          name="address"
+                          control={control}
+                          rules={{
+                            required: 'Address is required',
+                            minLength: {
+                              value: 5,
+                              message: 'Address must be at least 5 characters',
+                            },
+                          }}
+                          render={({ field }) => (
+                            <TextField
+                              {...field}
+                              fullWidth
+                              label="Address"
+                              required
+                              multiline
+                              rows={3}
+                              error={!!errors.address}
+                              helperText={errors.address?.message}
+                            />
+                          )}
+                        />
+                        <Controller
+                          name="postalCode"
+                          control={control}
+                          render={({ field }) => (
+                            <TextField
+                              {...field}
+                              fullWidth
+                              label="Postal Code"
+                              error={!!errors.postalCode}
+                              helperText={errors.postalCode?.message}
+                            />
+                          )}
+                        />
+                      </Stack>
 
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
                         <Button onClick={handleBack}>
                           Back
                         </Button>
                         <Button
+                          type="submit"
                           variant="contained"
                           size="large"
-                          onClick={handleNext}
                           sx={{ minWidth: 200 }}
                         >
                           Continue to Payment
@@ -413,50 +491,23 @@ const BidderCheckoutPage = () => {
                       </Box>
                       <Divider sx={{ mb: 3 }} />
 
-                      <FormControl component="fieldset" fullWidth sx={{ mb: 3 }}>
-                        <FormLabel component="legend">Select Payment Method</FormLabel>
-                        <RadioGroup
-                          value={paymentMethod}
-                          onChange={(e) => setPaymentMethod(e.target.value)}
-                        >
-                          <FormControlLabel
-                            value="stripe"
-                            control={<Radio />}
-                            label={
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <CreditCard />
-                                <Typography>Credit/Debit Card (Stripe)</Typography>
-                              </Box>
-                            }
-                          />
-                          <FormControlLabel
-                            value="momo"
-                            control={<Radio />}
-                            label="MoMo Wallet"
-                            disabled
-                          />
-                          <FormControlLabel
-                            value="zalopay"
-                            control={<Radio />}
-                            label="ZaloPay"
-                            disabled
-                          />
-                        </RadioGroup>
-                      </FormControl>
-
-                      {paymentMethod === 'stripe' && (
-                        <Box>
-                          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                            Enter your card details
+                      <Box sx={{ mb: 3 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                          <CreditCard color="primary" />
+                          <Typography variant="h6" fontWeight={600}>
+                            Credit/Debit Card (Stripe)
                           </Typography>
-                          <Elements stripe={stripePromise}>
-                            <CheckoutForm 
-                              cartItems={cartItems} 
-                              onSuccess={handlePaymentSuccess}
-                            />
-                          </Elements>
                         </Box>
-                      )}
+                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                          Enter your card details
+                        </Typography>
+                        <Elements stripe={stripePromise}>
+                          <CheckoutForm 
+                            cartItems={cartItems} 
+                            onSuccess={handlePaymentSuccess}
+                          />
+                        </Elements>
+                      </Box>
 
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
                         <Button onClick={handleBack}>
@@ -491,11 +542,11 @@ const BidderCheckoutPage = () => {
                   )}
                 </CardContent>
               </Card>
-            </Grid>
+            </Box>
 
             {/* Order Summary */}
-            <Grid item xs={12} md={4}>
-              <Card sx={{ position: 'sticky', top: 20 }}>
+            <Box sx={{ width: { xs: '100%', md: 400 }, position: { md: 'sticky' }, top: { md: 20 } }}>
+              <Card>
                 <CardContent sx={{ p: 3 }}>
                   <Typography variant="h6" fontWeight="bold" gutterBottom>
                     Order Summary
@@ -532,16 +583,16 @@ const BidderCheckoutPage = () => {
                     </Typography>
                   </Box>
 
-                  {activeStep === 1 && shippingInfo.fullName && (
+                  {activeStep === 1 && getValues('fullName') && (
                     <Box sx={{ mt: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
                       <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
                         Shipping To:
                       </Typography>
-                      <Typography variant="body2">{shippingInfo.fullName}</Typography>
-                      <Typography variant="body2">{shippingInfo.phone}</Typography>
-                      <Typography variant="body2">{shippingInfo.address}</Typography>
+                      <Typography variant="body2">{getValues('fullName')}</Typography>
+                      <Typography variant="body2">{getValues('phone')}</Typography>
+                      <Typography variant="body2">{getValues('address')}</Typography>
                       <Typography variant="body2">
-                        {shippingInfo.city} {shippingInfo.postalCode}
+                        {getValues('city')} {getValues('postalCode')}
                       </Typography>
                     </Box>
                   )}
@@ -553,8 +604,8 @@ const BidderCheckoutPage = () => {
                   </Alert>
                 </CardContent>
               </Card>
-            </Grid>
-          </Grid>
+            </Box>
+          </Box>
         </Container>
       </Box>
     </Page>

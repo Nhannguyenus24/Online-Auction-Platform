@@ -37,6 +37,7 @@ import {
   Gavel,
   ChevronLeft,
   ChevronRight,
+  ShoppingCart,
 } from '@mui/icons-material';
 import Page from '../../components/Page';
 import { formatPrice } from '../../utils/formatNumber';
@@ -413,13 +414,30 @@ const BidderAuctionHistoryPage = () => {
                             )}
                           </TableCell>
                           <TableCell align="center">
-                            <IconButton
-                              size="small"
-                              onClick={() => navigate(`/product/${bid.productId}`)}
-                              title="View Product"
-                            >
-                              <Visibility fontSize="small" />
-                            </IconButton>
+                            <Stack direction="row" spacing={1} justifyContent="center">
+                              <IconButton
+                                size="small"
+                                onClick={() => navigate(`/product/${bid.productId}`)}
+                                title="View Product"
+                              >
+                                <Visibility fontSize="small" />
+                              </IconButton>
+                              {true && (
+                                <Button
+                                  variant="contained"
+                                  size="small"
+                                  startIcon={<ShoppingCart />}
+                                  onClick={() => navigate(`/bidder/checkout/${bid.productId}`)}
+                                  sx={{
+                                    textTransform: 'none',
+                                    fontWeight: 600,
+                                    px: 2,
+                                  }}
+                                >
+                                  Checkout
+                                </Button>
+                              )}
+                            </Stack>
                           </TableCell>
                         </TableRow>
                       );
