@@ -129,7 +129,7 @@ INSERT INTO `watchlists` (`id`, `user_id`, `product_id`) VALUES
 -- =====================
 -- INSERT QUESTIONS
 -- =====================
-INSERT INTO `questions` (`id`, `product_id`, `asker_id`, `question`, `answer`, `answered_by`) VALUES
+INSERT INTO `questions` (`id`, `product_id`, `asker_id`, `question`, `answer`, `answered_by`, `answered_at`) VALUES
 (1, 1, 4, 'Is this phone still under warranty?', 'Yes, it comes with 1 year Apple warranty from the purchase date.', 2, NOW()),
 (2, 1, 5, 'Can you ship internationally?', 'Yes, I can ship to most countries. Shipping cost will depend on location.', 2, NOW()),
 (3, 2, 4, 'What is the condition of the keyboard?', 'The keyboard is in perfect condition, no issues at all.', 2, NOW()),

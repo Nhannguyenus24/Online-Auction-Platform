@@ -123,28 +123,14 @@ VITE_APP_NAME=Online Auction Platform
 
 ## 🚀 Running the Application
 
-### Option 1: Using Docker Compose (Recommended)
+### Step 1: Using Docker Compose (for database)
 
 ```bash
 # Build and start all services
 docker-compose up --build
-
-# Or run in detached mode
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Stop all services
-docker-compose down
 ```
 
-The application will be available at:
-- Frontend: http://localhost:3000
-- API Gateway: http://localhost:8080
-- Swagger UI: http://localhost:8080/swagger-ui.html
-
-### Option 2: Manual Setup
+### Step 2: Service setup
 
 #### Backend Services
 
@@ -183,10 +169,6 @@ npm run build
 
 Once the backend services are running, access the Swagger documentation at:
 - Gateway: http://localhost:8080/swagger-ui.html
-- User Service: http://localhost:8081/swagger-ui.html
-- Products Service: http://localhost:8082/swagger-ui.html
-- Chat Service: http://localhost:8083/swagger-ui.html
-- Notification Service: http://localhost:8084/swagger-ui.html
 
 ## 👥 User Roles
 
