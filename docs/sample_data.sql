@@ -3,16 +3,17 @@
 
 -- =====================
 -- INSERT USERS
+-- password: String1234
 -- =====================
 INSERT INTO `users` (`id`, `email`, `password_hash`, `full_name`, `role`, `phone`, `address`, `is_email_verified`, `positive_reviews`, `negative_reviews`, `rating_percent`) VALUES
-(1, 'nhannguyentrong355@gmail.com', '$2a$10$DBbPMziEIn7at7ZjykJ/8uN3v4oW9ibXDcMt91EkowlGtdAkwFusG', 'Admin User', 'admin', '+84901234567', '123 Admin Street, Ho Chi Minh City', 1, 50, 1, 98.03),
-(2, 'seller1@example.com', '$2a$10$DBbPMziEIn7at7ZjykJ/8uN3v4oW9ibXDcMt91EkowlGtdAkwFusG', 'Nguyen Van A', 'seller', '+84912345678', '456 Seller Avenue, Ho Chi Minh City', 1, 45, 2, 95.74),
-(3, 'seller2@example.com', '$2a$10$DBbPMziEIn7at7ZjykJ/8uN3v4oW9ibXDcMt91EkowlGtdAkwFusG', 'Tran Thi B', 'seller', '+84923456789', '789 Merchant Road, Hanoi', 1, 38, 1, 97.43),
-(4, 'bidder1@example.com', '$2a$10$DBbPMziEIn7at7ZjykJ/8uN3v4oW9ibXDcMt91EkowlGtdAkwFusG', 'Pham Van C', 'bidder', '+84934567890', '321 Buyer Lane, Da Nang', 1, 15, 0, 100.00),
-(5, 'bidder2@example.com', '$2a$10$DBbPMziEIn7at7ZjykJ/8uN3v4oW9ibXDcMt91EkowlGtdAkwFusG', 'Le Thi D', 'bidder', '+84945678901', '654 Customer Street, Can Tho', 1, 22, 1, 95.65),
-(6, 'bidder3@example.com', '$2a$10$DBbPMziEIn7at7ZjykJ/8uN3v4oW9ibXDcMt91EkowlGtdAkwFusG', 'Hoang Van E', 'bidder', '+84956789012', '987 Shopper Court, Hai Phong', 1, 18, 0, 100.00),
-(7, 'seller3@example.com', '$2a$10$DBbPMziEIn7at7ZjykJ/8uN3v4oW9ibXDcMt91EkowlGtdAkwFusG', 'Ngo Thi F', 'seller', '+84967890123', '111 Shop Place, Nha Trang', 1, 52, 3, 94.54),
-(8, 'bidder4@example.com', '$2a$10$DBbPMziEIn7at7ZjykJ/8uN3v4oW9ibXDcMt91EkowlGtdAkwFusG', 'Do Van G', 'bidder', '+84978901234', '222 Auction Street, Vung Tau', 0, 5, 0, 100.00);
+(1, 'nhannguyentrong355@gmail.com', '$2a$10$B9Nb3RVgybru2vvyVNRqrejtZG0V1o9XK8QUlm4lcwybozRwzbYEe', 'Admin User', 'admin', '+84901234567', '123 Admin Street, Ho Chi Minh City', 1, 50, 1, 98.03),
+(2, 'seller1@example.com', '$2a$10$B9Nb3RVgybru2vvyVNRqrejtZG0V1o9XK8QUlm4lcwybozRwzbYEe', 'Nguyen Van A', 'seller', '+84912345678', '456 Seller Avenue, Ho Chi Minh City', 1, 45, 2, 95.74),
+(3, 'seller2@example.com', '$2a$10$B9Nb3RVgybru2vvyVNRqrejtZG0V1o9XK8QUlm4lcwybozRwzbYEe', 'Tran Thi B', 'seller', '+84923456789', '789 Merchant Road, Hanoi', 1, 38, 1, 97.43),
+(4, 'bidder1@example.com', '$2a$10$B9Nb3RVgybru2vvyVNRqrejtZG0V1o9XK8QUlm4lcwybozRwzbYEe', 'Pham Van C', 'bidder', '+84934567890', '321 Buyer Lane, Da Nang', 1, 15, 0, 100.00),
+(5, 'bidder2@example.com', '$2a$10$B9Nb3RVgybru2vvyVNRqrejtZG0V1o9XK8QUlm4lcwybozRwzbYEe', 'Le Thi D', 'bidder', '+84945678901', '654 Customer Street, Can Tho', 1, 22, 1, 95.65),
+(6, 'bidder3@example.com', '$2a$10$B9Nb3RVgybru2vvyVNRqrejtZG0V1o9XK8QUlm4lcwybozRwzbYEe', 'Hoang Van E', 'bidder', '+84956789012', '987 Shopper Court, Hai Phong', 1, 18, 0, 100.00),
+(7, 'seller3@example.com', '$2a$10$B9Nb3RVgybru2vvyVNRqrejtZG0V1o9XK8QUlm4lcwybozRwzbYEe', 'Ngo Thi F', 'seller', '+84967890123', '111 Shop Place, Nha Trang', 1, 52, 3, 94.54),
+(8, 'bidder4@example.com', '$2a$10$B9Nb3RVgybru2vvyVNRqrejtZG0V1o9XK8QUlm4lcwybozRwzbYEe', 'Do Van G', 'bidder', '+84978901234', '222 Auction Street, Vung Tau', 0, 5, 0, 100.00);
 
 -- =====================
 -- INSERT CATEGORIES
@@ -191,28 +192,28 @@ INSERT INTO `notifications` (`id`, `user_id`, `type`, `payload`, `is_read`) VALU
 -- INSERT CONVERSATIONS (Chat Service)
 -- =====================
 INSERT INTO `conversations` (`id`, `order_id`, `seller_id`, `seller_name`, `seller_avatar`, `bidder_id`, `bidder_name`, `bidder_avatar`, `product_title`, `product_image`, `status`, `amount`, `last_message_content`, `last_message_sender_role`, `last_message_time`, `unread_count_seller`, `unread_count_bidder`) VALUES
-(1, 'order_1', '2', 'Nguyen Van A', 'https://example.com/avatars/seller1.jpg', '6', 'Hoang Van E', 'https://example.com/avatars/bidder3.jpg', 'iPhone 14 Pro Max 256GB', 'https://example.com/images/iphone14pro_1.jpg', 'completed', 950.00, 'Thank you for the purchase!', 'SELLER', NOW(), 0, 0),
-(2, 'order_2', '2', 'Nguyen Van A', 'https://example.com/avatars/seller1.jpg', '5', 'Le Thi D', 'https://example.com/avatars/bidder2.jpg', 'Wooden Dining Table Set', 'https://example.com/images/dining_table_1.jpg', 'completed', 380.00, 'Please confirm receipt of the table.', 'SELLER', NOW(), 1, 0),
-(3, 'order_3', '7', 'Ngo Thi F', 'https://example.com/avatars/seller3.jpg', '4', 'Pham Van C', 'https://example.com/avatars/bidder1.jpg', 'Stainless Steel Refrigerator', 'https://example.com/images/lg_fridge_1.jpg', 'pending_payment', 720.00, 'Waiting for payment confirmation.', 'SELLER', NOW(), 0, 1),
-(4, 'order_4', '7', 'Ngo Thi F', 'https://example.com/avatars/seller3.jpg', '6', 'Hoang Van E', 'https://example.com/avatars/bidder3.jpg', 'Mountain Bike - Trek X-Caliber', 'https://example.com/images/trek_bike_1.jpg', 'shipped', 500.00, 'Your order has been shipped. Tracking: TRK123456', 'SELLER', NOW(), 0, 0),
-(5, 'order_5', '3', 'Tran Thi B', 'https://example.com/avatars/seller2.jpg', '4', 'Pham Van C', 'https://example.com/avatars/bidder1.jpg', 'Vintage Book Collection', 'https://example.com/images/vintage_books_1.jpg', 'completed', 95.00, 'Perfect condition books! Thank you.', 'BIDDER', NOW(), 0, 0);
+(1, 1, '2', 'Nguyen Van A', 'https://example.com/avatars/seller1.jpg', '6', 'Hoang Van E', 'https://example.com/avatars/bidder3.jpg', 'iPhone 14 Pro Max 256GB', 'https://example.com/images/iphone14pro_1.jpg', 'completed', 950.00, 'Thank you for the purchase!', 'SELLER', NOW(), 0, 0),
+(2, 2, '2', 'Nguyen Van A', 'https://example.com/avatars/seller1.jpg', '5', 'Le Thi D', 'https://example.com/avatars/bidder2.jpg', 'Wooden Dining Table Set', 'https://example.com/images/dining_table_1.jpg', 'completed', 380.00, 'Please confirm receipt of the table.', 'SELLER', NOW(), 1, 0),
+(3, 3, '7', 'Ngo Thi F', 'https://example.com/avatars/seller3.jpg', '4', 'Pham Van C', 'https://example.com/avatars/bidder1.jpg', 'Stainless Steel Refrigerator', 'https://example.com/images/lg_fridge_1.jpg', 'pending_payment', 720.00, 'Waiting for payment confirmation.', 'SELLER', NOW(), 0, 1),
+(4, 4, '7', 'Ngo Thi F', 'https://example.com/avatars/seller3.jpg', '6', 'Hoang Van E', 'https://example.com/avatars/bidder3.jpg', 'Mountain Bike - Trek X-Caliber', 'https://example.com/images/trek_bike_1.jpg', 'shipped', 500.00, 'Your order has been shipped. Tracking: TRK123456', 'SELLER', NOW(), 0, 0),
+(5, 5, '3', 'Tran Thi B', 'https://example.com/avatars/seller2.jpg', '4', 'Pham Van C', 'https://example.com/avatars/bidder1.jpg', 'Vintage Book Collection', 'https://example.com/images/vintage_books_1.jpg', 'completed', 95.00, 'Perfect condition books! Thank you.', 'BIDDER', NOW(), 0, 0);
 
 -- =====================
 -- INSERT MESSAGES (Chat Service)
 -- =====================
 INSERT INTO `messages` (`id`, `order_id`, `sender_role`, `sender_name`, `sender_email`, `content`) VALUES
-(1, 'order_1', 'SELLER', 'Nguyen Van A', 'seller1@example.com', 'Hi, your item has been packed and will be shipped today.'),
-(2, 'order_1', 'BIDDER', 'Hoang Van E', 'bidder3@example.com', 'Great! Thanks for the quick packing.'),
-(3, 'order_1', 'SELLER', 'Nguyen Van A', 'seller1@example.com', 'Thank you for the purchase!'),
-(4, 'order_2', 'SELLER', 'Nguyen Van A', 'seller1@example.com', 'Your dining table has been carefully packaged.'),
-(5, 'order_2', 'SELLER', 'Nguyen Van A', 'seller1@example.com', 'Please confirm receipt of the table.'),
-(6, 'order_3', 'SELLER', 'Ngo Thi F', 'seller3@example.com', 'Your refrigerator is ready to ship. Please arrange payment.'),
-(7, 'order_3', 'BIDDER', 'Pham Van C', 'bidder1@example.com', 'I will transfer payment today. Please wait.'),
-(8, 'order_3', 'SELLER', 'Ngo Thi F', 'seller3@example.com', 'Waiting for payment confirmation.'),
-(9, 'order_4', 'SELLER', 'Ngo Thi F', 'seller3@example.com', 'Your bike is being prepared for shipment.'),
-(10, 'order_4', 'SELLER', 'Ngo Thi F', 'seller3@example.com', 'Your order has been shipped. Tracking: TRK123456'),
-(11, 'order_5', 'SELLER', 'Tran Thi B', 'seller2@example.com', 'Your books are carefully packaged and ready to ship.'),
-(12, 'order_5', 'BIDDER', 'Pham Van C', 'bidder1@example.com', 'Perfect condition books! Thank you.');
+(1, 1, 'SELLER', 'Nguyen Van A', 'seller1@example.com', 'Hi, your item has been packed and will be shipped today.'),
+(2, 1, 'BIDDER', 'Hoang Van E', 'bidder3@example.com', 'Great! Thanks for the quick packing.'),
+(3, 1, 'SELLER', 'Nguyen Van A', 'seller1@example.com', 'Thank you for the purchase!'),
+(4, 2, 'SELLER', 'Nguyen Van A', 'seller1@example.com', 'Your dining table has been carefully packaged.'),
+(5, 2, 'SELLER', 'Nguyen Van A', 'seller1@example.com', 'Please confirm receipt of the table.'),
+(6, 3, 'SELLER', 'Ngo Thi F', 'seller3@example.com', 'Your refrigerator is ready to ship. Please arrange payment.'),
+(7, 3, 'BIDDER', 'Pham Van C', 'bidder1@example.com', 'I will transfer payment today. Please wait.'),
+(8, 3, 'SELLER', 'Ngo Thi F', 'seller3@example.com', 'Waiting for payment confirmation.'),
+(9, 4, 'SELLER', 'Ngo Thi F', 'seller3@example.com', 'Your bike is being prepared for shipment.'),
+(10, 4, 'SELLER', 'Ngo Thi F', 'seller3@example.com', 'Your order has been shipped. Tracking: TRK123456'),
+(11, 5, 'SELLER', 'Tran Thi B', 'seller2@example.com', 'Your books are carefully packaged and ready to ship.'),
+(12, 5, 'BIDDER', 'Pham Van C', 'bidder1@example.com', 'Perfect condition books! Thank you.');
 
 -- =====================
 -- SUMMARY OF TEST DATA

@@ -208,7 +208,7 @@ public class RatingService {
                             .setProductTitle("")
                             .setScore(review.getScore())
                             .setComment(review.getComment() != null ? review.getComment() : "")
-                            .setCreatedAt(review.getCreatedAt() != null ? review.getCreatedAt().getTime() : 0)
+                            .setCreatedAt(review.getCreatedAt() != null ? review.getCreatedAt().getSecond() : 0)
                             .build();
                 })
                 .switchIfEmpty(Mono.just(RatingDetail.newBuilder()

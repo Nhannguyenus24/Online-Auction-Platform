@@ -106,7 +106,7 @@ public class AuthController {
                     userInfo.put("id", loginResponse.getUserInfo().getId());
                     userInfo.put("email", loginResponse.getUserInfo().getEmail());
                     userInfo.put("fullName", loginResponse.getUserInfo().getFullName());
-                    userInfo.put("roles", loginResponse.getUserInfo().getRolesList());
+                    userInfo.put("role", loginResponse.getUserInfo().getRole());
                     result.put("user", userInfo);
                     
                     log.info("Login successful for user: {}", request.getEmail());
@@ -334,7 +334,7 @@ public class AuthController {
                     
                     if (validateResponse.getIsValid()) {
                         result.put("userId", validateResponse.getUserId());
-                        result.put("roles", validateResponse.getRolesList());
+                        result.put("role", validateResponse.getRole());
                     } else {
                         result.put("error", validateResponse.getErrorMessage());
                     }
@@ -374,7 +374,7 @@ public class AuthController {
                         profile.put("fullName", profileResponse.getFullName());
                         profile.put("phoneNumber", profileResponse.getPhoneNumber());
                         profile.put("address", profileResponse.getAddress());
-                        profile.put("roles", profileResponse.getRolesList());
+                        profile.put("role", profileResponse.getRole());
                         profile.put("isVerified", profileResponse.getIsVerified());
                         profile.put("createdAt", profileResponse.getCreatedAt());
                         result.put("profile", profile);
@@ -427,7 +427,7 @@ public class AuthController {
                         profileData.put("fullName", profile.getFullName());
                         profileData.put("phoneNumber", profile.getPhoneNumber());
                         profileData.put("address", profile.getAddress());
-                        profileData.put("roles", profile.getRolesList());
+                        profileData.put("role", profile.getRole());
                         profileData.put("isVerified", profile.getIsVerified());
                         profileData.put("createdAt", profile.getCreatedAt());
                         result.put("profile", profileData);
@@ -480,7 +480,7 @@ public class AuthController {
                     userInfo.put("id", loginResponse.getUserInfo().getId());
                     userInfo.put("email", loginResponse.getUserInfo().getEmail());
                     userInfo.put("fullName", loginResponse.getUserInfo().getFullName());
-                    userInfo.put("roles", loginResponse.getUserInfo().getRolesList());
+                    userInfo.put("role", loginResponse.getUserInfo().getRole());
                     result.put("user", userInfo);
                     
                     log.info("Google login successful for user: {}", request.getEmail());

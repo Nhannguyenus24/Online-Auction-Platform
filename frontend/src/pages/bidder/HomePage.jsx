@@ -76,7 +76,7 @@ const BidderHomePage = () => {
 
   const handleCompleteOrder = (product) => {
     // Generate orderId from productId (in real app, this would come from API)
-    const orderId = `ORD-${String(product.productId || product.id).padStart(3, '0')}`;
+    const orderId = `order_${String(product.productId || product.id).padStart(3, '0')}`;
     navigate(`/bidder/order-completion/${orderId}`);
   };
 

@@ -62,7 +62,7 @@ public class AuthGrpcService extends ReactorAuthServiceGrpc.AuthServiceImplBase 
                         .setId(String.valueOf(result.userId()))
                         .setEmail(result.email())
                         .setFullName(result.fullName())
-                        .addRoles(result.role())
+                        .setRole(result.role())
                         .build())
                     .build())
                 .onErrorResume(e -> {
@@ -123,7 +123,8 @@ public class AuthGrpcService extends ReactorAuthServiceGrpc.AuthServiceImplBase 
                         return ValidateTokenResponse.newBuilder()
                             .setIsValid(true)
                             .setUserId(String.valueOf(result.userId()))
-                            .addRoles(result.role())
+                            .setRole(result.role())
+
                             .build();
                     } else {
                         return ValidateTokenResponse.newBuilder()
@@ -205,7 +206,7 @@ public class AuthGrpcService extends ReactorAuthServiceGrpc.AuthServiceImplBase 
                                         .setFullName(profile.fullName() != null ? profile.fullName() : "")
                                         .setPhoneNumber(profile.phone() != null ? profile.phone() : "")
                                         .setAddress(profile.address() != null ? profile.address() : "")
-                                        .addRoles(profile.role())
+                                        .setRole(profile.role())
                                         .setIsVerified(profile.isVerified() != null ? profile.isVerified() : false)
                                         .setCreatedAt(profile.createdAt())
                                         .setMessage("Profile retrieved successfully")
@@ -246,7 +247,7 @@ public class AuthGrpcService extends ReactorAuthServiceGrpc.AuthServiceImplBase 
                                         .setFullName(profile.fullName() != null ? profile.fullName() : "")
                                         .setPhoneNumber(profile.phone() != null ? profile.phone() : "")
                                         .setAddress(profile.address() != null ? profile.address() : "")
-                                        .addRoles(profile.role())
+                                        .setRole(profile.role())
                                         .setIsVerified(profile.isVerified() != null ? profile.isVerified() : false)
                                         .setCreatedAt(profile.createdAt())
                                         .build())
@@ -286,7 +287,7 @@ public class AuthGrpcService extends ReactorAuthServiceGrpc.AuthServiceImplBase 
                                     .setId(String.valueOf(result.userId()))
                                     .setEmail(result.email())
                                     .setFullName(result.fullName())
-                                    .addRoles(result.role())
+                                    .setRole(result.role())
                                     .build())
                             .build())
                     .onErrorResume(e -> {

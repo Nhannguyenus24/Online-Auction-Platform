@@ -59,7 +59,8 @@ public class WebSecurityConfig {
                     "/v3/api-docs/**",
                     "/api-docs/**",
                     "/api-docs",
-                    "/actuator/**"
+                    "/actuator/**",
+                    "/api/guest"
                 ).permitAll()
                 
                 // Role-based access control

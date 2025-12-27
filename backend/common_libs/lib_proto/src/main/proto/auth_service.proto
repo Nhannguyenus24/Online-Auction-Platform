@@ -79,7 +79,7 @@ message UserInfo {
   string id = 1;
   string email = 2;
   string full_name = 3;
-  repeated string roles = 4;
+  string role = 4;
 }
 
 // 3. REFRESH TOKEN
@@ -112,7 +112,7 @@ message ValidateTokenRequest {
 message ValidateTokenResponse {
   bool is_valid = 1;
   string user_id = 2;
-  repeated string roles = 3;
+  string role = 3;
   string error_message = 4;
 }
 
@@ -160,7 +160,7 @@ message GetProfileResponse {
   string full_name = 3;
   string phone_number = 4;
   string address = 5;
-  repeated string roles = 6;
+  string role = 6;
   bool is_verified = 7;
   string created_at = 8;
   string message = 9;
