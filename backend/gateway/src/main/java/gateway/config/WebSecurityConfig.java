@@ -40,37 +40,42 @@ public class WebSecurityConfig {
             // Security headers
             .headers(headers -> headers
                 .contentSecurityPolicy(csp -> csp
-                    .policyDirectives("default-src 'self'")
+                    .policyDirectives("default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'")
                 )
-                .frameOptions(frame -> frame.deny())
+                .frameOptions(frame -> frame.sameOrigin())
             )
             
             // Authorization rules
-            .authorizeHttpRequests(auth -> auth
-                // Public endpoints - no authentication required
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers(
-                    "/api/gateway/health",
-                    "/api/gateway/info", 
-                    "/api/gateway/routes",
-                    "/api/auth/**",
-                    "/swagger-ui/**",
-                    "/swagger-ui.html",
-                    "/v3/api-docs/**",
-                    "/api-docs/**",
-                    "/api-docs",
-                    "/actuator/**",
-                    "/api/guest"
-                ).permitAll()
-                
-                // Role-based access control
-                .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                .requestMatchers("/api/seller/**").hasRole("SELLER")
-                .requestMatchers("/api/bidder/**").hasRole("BIDDER")
-                
-                // All other requests require authentication
-                .anyRequest().authenticated()
-            )
+            .authorizeHttpRequests(auth -> {
+                log.info("Configuring authorization rules");
+                auth
+                    // Public endpoints - no authentication required
+                    .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                    .requestMatchers(
+                        "/api/gateway/health",
+                        "/api/gateway/info", 
+                        "/api/gateway/routes",
+                        "/api/auth/**",
+                        "/swagger-ui/**",
+                        "/swagger-ui.html",
+                        "/v3/api-docs/**",
+                        "/api-docs/**",
+                        "/api-docs",
+                        "/actuator/**",
+                        "/api/guest/**"
+                    ).permitAll()
+                    
+                    // Role-based access control with hierarchy
+                    // Admin can access everything
+                    .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                    // Admin and Seller can access seller endpoints
+                    .requestMatchers("/api/seller/**").hasAnyRole("ADMIN", "SELLER")
+                    // Admin, Seller, and Bidder can access bidder endpoints
+                    .requestMatchers("/api/bidder/**").hasAnyRole("ADMIN", "SELLER", "BIDDER")
+                    
+                    // All other requests require authentication
+                    .anyRequest().authenticated();
+            })
             
             // Add custom JWT filter instead of oauth2ResourceServer
             .addFilterBefore(jwtAuthenticationFilter(jwtUtils), BasicAuthenticationFilter.class);

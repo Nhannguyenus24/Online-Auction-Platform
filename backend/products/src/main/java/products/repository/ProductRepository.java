@@ -1,14 +1,18 @@
 package products.repository;
 
-import com.auction.entities.database.Product;
-import org.springframework.data.domain.Pageable;
+import java.util.Map;
+
 import org.springframework.data.r2dbc.repository.Query;
 import org.springframework.data.r2dbc.repository.R2dbcRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+
+import com.auction.entities.database.Product;
+
+import products.dto.ImageRowDto;
+import products.dto.ProductRowDto;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import java.util.Map;
 
 @Repository
 public interface ProductRepository extends R2dbcRepository<Product, Integer>{
@@ -44,7 +48,7 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
         LEFT JOIN categories c ON p.category_id = c.id
         WHERE p.id = :productId
         """)
-    Mono<Map> getProductInfo(@Param("productId") Integer productId);
+    Mono<Map<String, Object>> getProductInfo(@Param("productId") Integer productId);
     
     // Get all banned products with pagination
     @Query("""
@@ -58,7 +62,7 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
         ORDER BY pb.created_at DESC
         LIMIT :pageSize OFFSET :offset
         """)
-    Flux<Map> getBannedProducts(@Param("pageSize") int pageSize, @Param("offset") int offset);
+    Flux<Map<String, Object>> getBannedProducts(@Param("pageSize") int pageSize, @Param("offset") int offset);
     
     // Count total banned products
     @Query("SELECT COUNT(*) FROM product_bans")
@@ -104,7 +108,7 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
         ORDER BY p.ends_at ASC
         LIMIT :limit
         """)
-    Flux<Map> getTopEndingProducts(@Param("limit") int limit);
+    Flux<ProductRowDto> getTopEndingProducts(@Param("limit") int limit);
     
     // Get top products with most bids
     @Query("""
@@ -117,11 +121,12 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
         LEFT JOIN users u ON p.seller_id = u.id
+        LEFT JOIN product_images i ON p.id = i.product_id
         WHERE p.status = 'active'
         ORDER BY p.bids_count DESC
         LIMIT :limit
         """)
-    Flux<Map> getTopBidCountProducts(@Param("limit") int limit);
+    Flux<ProductRowDto> getTopBidCountProducts(@Param("limit") int limit);
     
     // Get top products with highest price
     @Query("""
@@ -138,7 +143,7 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
         ORDER BY p.current_price DESC
         LIMIT :limit
         """)
-    Flux<Map> getTopPriceProducts(@Param("limit") int limit);
+    Flux<ProductRowDto> getTopPriceProducts(@Param("limit") int limit);
     
     // List products by category with filters
     @Query("""
@@ -157,7 +162,7 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
               AND p.current_price <= COALESCE(:maxPrice, 9999999)
               AND (COALESCE(:searchKeyword, '') = '' OR MATCH(p.title) AGAINST(:searchKeyword IN BOOLEAN MODE))
         """)
-    Flux<Map> listProductsByCategory(
+    Flux<Map<String, Object>> listProductsByCategory(
         @Param("categoryId") Integer categoryId,
         @Param("status") String status,
         @Param("minPrice") Double minPrice,
@@ -182,7 +187,7 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
     
     // Get product images by product id
     @Query("SELECT id, product_id, url, is_primary, created_at FROM product_images WHERE product_id = :productId ORDER BY is_primary DESC")
-    Flux<Map> getProductImages(@Param("productId") Integer productId);
+    Flux<ImageRowDto> getProductImages(@Param("productId") Integer productId);
     
     // Get highest bidder info (masked) for a product
     @Query("""
@@ -194,7 +199,7 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
               ORDER BY b.amount DESC LIMIT 1) as highest
         GROUP BY bidder_email
         """)
-    Mono<Map> getHighestBidderMasked(@Param("productId") Integer productId);
+    Mono<Map<String, Object>> getHighestBidderMasked(@Param("productId") Integer productId);
     
     // Append text to product description
     @Query("UPDATE products SET description = CONCAT(COALESCE(description, ''), :appendText), updated_at = CURRENT_TIMESTAMP WHERE id = :productId")
@@ -251,7 +256,7 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
               AND (COALESCE(:status, '') = '' OR p.status = :status)
               AND p.current_price >= COALESCE(:minPrice, 0)
               AND p.current_price <= COALESCE(:maxPrice, 999999999)
-              AND (COALESCE(:searchKeyword, '') = '' OR MATCH(p.title, p.description) AGAINST(:searchKeyword IN BOOLEAN MODE))
+              AND (COALESCE(:searchKeyword, '') = '' OR MATCH(p.title) AGAINST(:searchKeyword IN BOOLEAN MODE))
         ORDER BY 
             CASE WHEN :sortOrder = 'ENDING_SOON_DESC' THEN p.ends_at END ASC,
             CASE WHEN :sortOrder = 'ENDING_SOON_ASC' THEN p.ends_at END DESC,
@@ -263,7 +268,7 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
             CASE WHEN :sortOrder = 'MOST_VIEWS' THEN p.views_count END DESC
         LIMIT :limit OFFSET :offset
         """)
-    Flux<Map> listProductsByCategoryAdvanced(
+    Flux<ProductRowDto> listProductsByCategoryAdvanced(
         @Param("categoryId") Integer categoryId,
         @Param("searchKeyword") String searchKeyword,
         @Param("minPrice") Double minPrice,
@@ -290,7 +295,7 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
         LEFT JOIN users u ON p.seller_id = u.id
         WHERE p.id = :productId
         """)
-    Mono<Map> getProductDetailsForBidder(@Param("productId") Integer productId);
+    Mono<Map<String, Object>> getProductDetailsForBidder(@Param("productId") Integer productId);
     
     // Get related products in same category
     @Query("""
@@ -307,14 +312,14 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
         ORDER BY p.created_at DESC
         LIMIT :limit
         """)
-    Flux<Map> getRelatedProducts(@Param("categoryId") Integer categoryId, @Param("productId") Integer productId, @Param("limit") int limit);
+    Flux<ProductRowDto> getRelatedProducts(@Param("categoryId") Integer categoryId, @Param("productId") Integer productId, @Param("limit") int limit);
     
     // Get user's watchlist with pagination
     @Query("""
-        SELECT p.id, p.seller_id, p.category_id, c.name as category_name, 
-               p.title, p.description, p.starting_price, p.current_price, 
-               p.step_price, p.buy_now_price, p.starts_at, p.ends_at, 
-               p.is_auto_extend, p.auto_extend_seconds, p.status, p.views_count, 
+            SELECT p.id, p.seller_id, p.category_id, c.name as category_name,
+               p.title, p.description, p.starting_price, p.current_price,
+               p.step_price, p.buy_now_price, p.starts_at, p.ends_at,
+               p.is_auto_extend, p.auto_extend_seconds, p.status, p.views_count,
                p.bids_count, p.created_at, p.updated_at, u.full_name as seller_name,
                u.rating_percent as seller_rating_percent, u.positive_reviews as seller_positive_reviews
         FROM watchlists w
@@ -325,7 +330,7 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
         ORDER BY w.created_at DESC
         LIMIT :limit OFFSET :offset
         """)
-    Flux<Map> getWatchlist(@Param("userId") Integer userId, @Param("status") String status, @Param("limit") int limit, @Param("offset") int offset);
+    Flux<ProductRowDto> getWatchlist(@Param("userId") Integer userId, @Param("status") String status, @Param("limit") int limit, @Param("offset") int offset);
     
     // Count watchlist items
     @Query("""
@@ -336,8 +341,16 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
     Mono<Integer> countWatchlist(@Param("userId") Integer userId, @Param("status") String status);
     
     // Check if product in watchlist
-    @Query("SELECT COUNT(*) > 0 FROM watchlists WHERE user_id = :userId AND product_id = :productId")
+    @Query("SELECT IF(COUNT(*) > 0, TRUE, FALSE) FROM watchlists WHERE user_id = :userId AND product_id = :productId")
     Mono<Boolean> isInWatchlist(@Param("userId") Integer userId, @Param("productId") Integer productId);
+    
+    // Add product to watchlist
+    @Query("INSERT INTO watchlists (user_id, product_id, created_at) VALUES (:userId, :productId, CURRENT_TIMESTAMP)")
+    Mono<Void> addToWatchlist(@Param("userId") Integer userId, @Param("productId") Integer productId);
+    
+    // Remove product from watchlist
+    @Query("DELETE FROM watchlists WHERE user_id = :userId AND product_id = :productId")
+    Mono<Void> removeFromWatchlist(@Param("userId") Integer userId, @Param("productId") Integer productId);
     
     // Get product bids with pagination
     @Query("""
@@ -350,7 +363,7 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
         ORDER BY b.amount DESC
         LIMIT :limit OFFSET :offset
         """)
-    Flux<Map> getProductBids(@Param("productId") Integer productId, @Param("limit") int limit, @Param("offset") int offset);
+    Flux<Map<String, Object>> getProductBids(@Param("productId") Integer productId, @Param("limit") int limit, @Param("offset") int offset);
     
     // Count product bids
     @Query("SELECT COUNT(*) FROM bids WHERE product_id = :productId")
@@ -368,7 +381,7 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
         ORDER BY q.created_at DESC
         LIMIT :limit OFFSET :offset
         """)
-    Flux<Map> getProductQuestions(@Param("productId") Integer productId, @Param("limit") int limit, @Param("offset") int offset);
+    Flux<Map<String, Object>> getProductQuestions(@Param("productId") Integer productId, @Param("limit") int limit, @Param("offset") int offset);
     
     // Count product questions
     @Query("SELECT COUNT(*) FROM questions WHERE product_id = :productId")
@@ -382,12 +395,11 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
                p.status, b.created_at as bid_created_at, p.ends_at as product_ends_at
         FROM bids b
         LEFT JOIN products p ON b.product_id = p.id
-        LEFT JOIN product_images pi ON p.id = pi.product_id AND pi.is_primary = true
         WHERE b.bidder_id = :userId
         ORDER BY b.created_at DESC
         LIMIT :limit OFFSET :offset
         """)
-    Flux<Map> getMyBids(@Param("userId") Integer userId, @Param("limit") int limit, @Param("offset") int offset);
+    Flux<Map<String, Object>> getMyBids(@Param("userId") Integer userId, @Param("limit") int limit, @Param("offset") int offset);
     
     // Count user's bids
     @Query("SELECT COUNT(*) FROM bids WHERE bidder_id = :userId")
@@ -407,6 +419,6 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
         FROM auto_bids 
         WHERE product_id = :productId AND bidder_id = :userId
         """)
-    Mono<Map> getUserAutoBid(@Param("productId") Integer productId, @Param("userId") Integer userId);
+    Mono<Map<String, Object>> getUserAutoBid(@Param("productId") Integer productId, @Param("userId") Integer userId);
     
 }

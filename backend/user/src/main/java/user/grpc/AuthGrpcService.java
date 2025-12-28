@@ -58,6 +58,7 @@ public class AuthGrpcService extends ReactorAuthServiceGrpc.AuthServiceImplBase 
                     .setAccessToken(result.accessToken())
                     .setRefreshToken(result.refreshToken())
                     .setMessage("Login success")
+                    .setSuccess(true)
                     .setUserInfo(UserInfo.newBuilder()
                         .setId(String.valueOf(result.userId()))
                         .setEmail(result.email())
@@ -69,6 +70,7 @@ public class AuthGrpcService extends ReactorAuthServiceGrpc.AuthServiceImplBase 
                     log.error("Login error: {}", e.getMessage());
                     return Mono.just(LoginResponse.newBuilder()
                             .setMessage("Login failed: " + e.getMessage())
+                            .setSuccess(false)
                             .build());
                 })
         );

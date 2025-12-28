@@ -5,6 +5,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.auction.proto.guest.*;
+import com.auction.utils.JsonUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -13,13 +15,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import com.auction.proto.guest.GetCategoriesRequest;
-import com.auction.proto.guest.GetTopBidCountProductsRequest;
-import com.auction.proto.guest.GetTopEndingProductsRequest;
-import com.auction.proto.guest.GetTopPriceProductsRequest;
-import com.auction.proto.guest.ListProductsByCategoryRequest;
-import com.auction.proto.guest.SortOrder;
 
 import gateway.grpc.GuestGrpcClient;
 import io.swagger.v3.oas.annotations.Operation;
@@ -50,23 +45,22 @@ public class GuestController {
                     Map<String, Object> result = new HashMap<>();
                     result.put("success", response.getSuccess());
                     result.put("message", response.getMessage());
-                    
+
                     if (response.getSuccess()) {
                         List<Map<String, Object>> categories = new ArrayList<>();
                         response.getCategoriesList().forEach(category -> {
+                            if (category.getParentId() == 0) return;
                             Map<String, Object> categoryMap = new HashMap<>();
                             categoryMap.put("id", category.getId());
                             categoryMap.put("name", category.getName());
-                            categoryMap.put("parentId", category.getParentId());
                             categoryMap.put("createdAt", category.getCreatedAt());
-                            
+
                             // Add children
                             List<Map<String, Object>> children = new ArrayList<>();
                             category.getChildrenList().forEach(child -> {
                                 Map<String, Object> childMap = new HashMap<>();
                                 childMap.put("id", child.getId());
                                 childMap.put("name", child.getName());
-                                childMap.put("parentId", child.getParentId());
                                 childMap.put("createdAt", child.getCreatedAt());
                                 children.add(childMap);
                             });
@@ -74,8 +68,8 @@ public class GuestController {
                             categories.add(categoryMap);
                         });
                         result.put("categories", categories);
-                        
-                        log.info("Get categories successful, count: {}", categories.size());
+
+                        log.info("Get categories successful: {}", JsonUtils.toJson(response));
                         return ResponseEntity.ok(result);
                     } else {
                         return ResponseEntity.badRequest().body(result);
@@ -218,9 +212,13 @@ public class GuestController {
         }
         if (minPrice != null) {
             requestBuilder.setMinPrice(minPrice);
+        } else {
+            requestBuilder.setMinPrice(0.0);
         }
         if (maxPrice != null) {
             requestBuilder.setMaxPrice(maxPrice);
+        } else {
+            requestBuilder.setMaxPrice(99999999.0);
         }
 
         return guestGrpcClient.listProductsByCategory(requestBuilder.build())

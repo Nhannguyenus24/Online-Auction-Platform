@@ -1,14 +1,19 @@
 package products.service;
 
+import java.time.ZoneOffset;
+import java.util.List;
+
 import org.springframework.stereotype.Service;
 
 import com.auction.proto.guest.Category;
 import com.auction.proto.guest.PageInfo;
 import com.auction.proto.guest.Product;
-import products.repository.ProductRepository;
-import products.repository.CategoryRepository;
-import products.dto.ProductRowDto;
+import com.auction.proto.guest.ProductImage;
 
+import products.dto.ImageRowDto;
+import products.dto.ProductRowDto;
+import products.repository.CategoryRepository;
+import products.repository.ProductRepository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -16,7 +21,6 @@ import reactor.core.publisher.Mono;
 public class GuestService {
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
-
     public GuestService(ProductRepository productRepository, CategoryRepository categoryRepository) {
         this.productRepository = productRepository;
         this.categoryRepository = categoryRepository;
@@ -29,17 +33,32 @@ public class GuestService {
 
     public Flux<Product> getTopEndingProducts(int limit) {
         return productRepository.getTopEndingProducts(limit)
-            .map(this::mapRowToProduct);
+            .flatMap(dto -> 
+                productRepository.getProductImages(dto.id())
+                    .map(this::mapToProductImage)
+                    .collectList()
+                    .map(images -> mapRowToProductWithImages(dto, images))
+            );
     }
 
     public Flux<Product> getTopBidCountProducts(int limit) {
         return productRepository.getTopBidCountProducts(limit)
-            .map(this::mapRowToProduct);
+            .flatMap(dto -> 
+                productRepository.getProductImages(dto.id())
+                    .map(this::mapToProductImage)
+                    .collectList()
+                    .map(images -> mapRowToProductWithImages(dto, images))
+            );
     }
 
     public Flux<Product> getTopPriceProducts(int limit) {
         return productRepository.getTopPriceProducts(limit)
-            .map(this::mapRowToProduct);
+            .flatMap(dto -> 
+                productRepository.getProductImages(dto.id())
+                    .map(this::mapToProductImage)
+                    .collectList()
+                    .map(images -> mapRowToProductWithImages(dto, images))
+            );
     }
 
     public Mono<ProductListResult> listProductsByCategory(int categoryId, String searchKeyword, 
@@ -59,7 +78,7 @@ public class GuestService {
                 sortOrder,
                 limit,
                 offset
-            ).map(ProductRowDto::fromMap).collectList(),
+            ).collectList(),
             productRepository.countProductsByCategory(
                 categoryId,
                 status.isEmpty() ? null : status,
@@ -67,27 +86,33 @@ public class GuestService {
                 maxPrice,
                 searchKeyword.isEmpty() ? null : searchKeyword
             )
-        ).map(tuple -> {
+        ).flatMap(tuple -> {
             var categoryEntity = tuple.getT1();
             var productRows = tuple.getT2();
             var totalCount = tuple.getT3();
             
-            var products = productRows.stream()
-                .map(this::mapDtoToProduct)
-                .toList();
+            // Fetch images for all products and collect into List<Product>
+            var productsMono = Flux.fromIterable(productRows)
+                .flatMap(productRowDto -> 
+                    productRepository.getProductImages(productRowDto.id())
+                        .map(this::mapToProductImage)
+                        .collectList()
+                        .map(images -> mapRowToProductWithImages(productRowDto, images))
+                )
+                .collectList();
             
-            var pageInfo = PageInfo.newBuilder()
-                .setCurrentPage(page)
-                .setPageSize(limit)
-                .setTotalItems(totalCount)
-                .setTotalPages((totalCount + limit - 1) / limit)
-                .setHasNext(page * limit < totalCount)
-                .setHasPrevious(page > 1)
-                .build();
-            
-            var category = mapEntityToCategory(categoryEntity);
-            
-            return new ProductListResult(products, pageInfo, category);
+            return productsMono.map(products -> {
+                var pageInfo = PageInfo.newBuilder()
+                        .setCurrentPage(page)
+                        .setPageSize(limit)
+                        .setTotalItems(totalCount)
+                        .setTotalPages((totalCount + limit - 1) / limit)
+                        .setHasNext(page * limit < totalCount)
+                        .setHasPrevious(page > 1)
+                        .build();
+                var category = mapEntityToCategory(categoryEntity);
+                return new ProductListResult(products, pageInfo, category);
+            });
         });
     }
 
@@ -97,15 +122,11 @@ public class GuestService {
             .setId(entity.getId())
             .setName(entity.getName())
             .setParentId(entity.getParentId() != null ? entity.getParentId() : 0)
+            .setCreatedAt(entity.getCreatedAt().toEpochSecond(ZoneOffset.UTC))
             .build();
     }
 
-    private Product mapRowToProduct(java.util.Map<String, Object> row) {
-        ProductRowDto dto = ProductRowDto.fromMap(row);
-        return mapDtoToProduct(dto);
-    }
-
-    private Product mapDtoToProduct(ProductRowDto dto) {
+    private Product mapRowToProductWithImages(ProductRowDto dto, List<ProductImage> images) {
         return Product.newBuilder()
             .setId(dto.id())
             .setSellerId(dto.sellerId())
@@ -117,8 +138,10 @@ public class GuestService {
             .setCurrentPrice(dto.currentPrice())
             .setStepPrice(dto.stepPrice())
             .setBuyNowPrice(dto.buyNowPrice())
-            .setStartsAt(dto.startsAt())
-            .setEndsAt(dto.endsAt())
+            .setStartsAt(dto.startsAt().toEpochSecond())
+            .setEndsAt(dto.endsAt().toEpochSecond())
+            .setCreatedAt(dto.createdAt().toEpochSecond())
+            .setUpdatedAt(dto.updatedAt().toEpochSecond())
             .setIsAutoExtend(dto.isAutoExtend())
             .setAutoExtendSeconds(dto.autoExtendSeconds())
             .setStatus(dto.status())
@@ -127,9 +150,19 @@ public class GuestService {
             .setSellerName(dto.sellerName())
             .setSellerRatingPercent(dto.sellerRatingPercent())
             .setSellerPositiveReviews(dto.sellerPositiveReviews())
+            .addAllImages(images)
             .build();
     }
 
+    private ProductImage mapToProductImage(ImageRowDto dto) {
+        return ProductImage.newBuilder()
+            .setId(dto.id())
+            .setProductId(dto.product_id())
+            .setUrl(dto.url())
+            .setIsPrimary(dto.is_primary())
+            .setCreatedAt(dto.created_at().toEpochSecond())
+            .build();
+    }
     // Helper records for return types
-    public record ProductListResult(java.util.List<Product> products, PageInfo pageInfo, Category category) {}
+    public record ProductListResult(List<Product> products, PageInfo pageInfo, Category category) {}
 }

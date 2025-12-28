@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.time.Duration;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,7 +37,6 @@ import gateway.grpc.BidderGrpcClient;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping("/api/bidder")
@@ -56,10 +56,10 @@ public class BidderController {
 
     @GetMapping("/products/{productId}")
     @Operation(summary = "Get product details", description = "Get detailed product information including watchlist and auto-bid status. Requires authentication.")
-    public Mono<ResponseEntity<Map<String, Object>>> getProductDetails(
-            @Parameter(description = "Product ID", required = true) 
+    public ResponseEntity<Map<String, Object>> getProductDetails(
+            @Parameter(description = "Product ID", required = true)
             @PathVariable int productId) {
-        
+
         int userId = getUserId();
         log.info("Get product details request - productId: {}, userId: {}", productId, userId);
 
@@ -68,37 +68,36 @@ public class BidderController {
                 .setUserId(userId)
                 .build();
 
-        return bidderGrpcClient.getProductDetails(grpcRequest)
-                .map(response -> {
-                    Map<String, Object> result = new HashMap<>();
-                    result.put("success", response.getSuccess());
-                    result.put("message", response.getMessage());
-                    
-                    if (response.getSuccess() && response.hasProduct()) {
-                        result.put("product", mapUserProduct(response.getProduct()));
-                        log.info("Get product details successful - productId: {}", productId);
-                        return ResponseEntity.ok(result);
-                    } else {
-                        return ResponseEntity.badRequest().body(result);
-                    }
-                })
-                .onErrorResume(e -> {
-                    log.error("Get product details error: {}", e.getMessage(), e);
-                    Map<String, Object> error = new HashMap<>();
-                    error.put("success", false);
-                    error.put("message", "Failed to get product details: " + e.getMessage());
-                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error));
-                });
+        try {
+            var response = bidderGrpcClient.getProductDetails(grpcRequest).block();
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", response.getSuccess());
+            result.put("message", response.getMessage());
+
+            if (response.getSuccess() && response.hasProduct()) {
+                result.put("product", mapUserProduct(response.getProduct()));
+                log.info("Get product details successful - productId: {}", productId);
+                return ResponseEntity.ok(result);
+            } else {
+                return ResponseEntity.badRequest().body(result);
+            }
+        } catch (Exception e) {
+            log.error("Get product details error: {}", e.getMessage(), e);
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Failed to get product details: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
     }
 
     @GetMapping("/products/{productId}/related")
     @Operation(summary = "Get related products", description = "Get related products in the same category. Requires authentication.")
-    public Mono<ResponseEntity<Map<String, Object>>> getRelatedProducts(
-            @Parameter(description = "Product ID", required = true) 
+    public ResponseEntity<Map<String, Object>> getRelatedProducts(
+            @Parameter(description = "Product ID", required = true)
             @PathVariable int productId,
-            @Parameter(description = "Number of products to return (max 20)") 
+            @Parameter(description = "Number of products to return (max 20)")
             @RequestParam(defaultValue = "5") int limit) {
-        
+
         int userId = getUserId();
         log.info("Get related products request - productId: {}, userId: {}, limit: {}", productId, userId, limit);
 
@@ -108,35 +107,34 @@ public class BidderController {
                 .setLimit(limit)
                 .build();
 
-        return bidderGrpcClient.getRelatedProducts(grpcRequest)
-                .map(response -> {
-                    Map<String, Object> result = new HashMap<>();
-                    result.put("success", response.getSuccess());
-                    result.put("message", response.getMessage());
-                    
-                    List<Map<String, Object>> products = new ArrayList<>();
-                    response.getProductsList().forEach(product -> {
-                        products.add(mapUserProduct(product));
-                    });
-                    result.put("products", products);
-                    
-                    log.info("Get related products successful, count: {}", products.size());
-                    return ResponseEntity.ok(result);
-                })
-                .onErrorResume(e -> {
-                    log.error("Get related products error: {}", e.getMessage(), e);
-                    Map<String, Object> error = new HashMap<>();
-                    error.put("success", false);
-                    error.put("message", "Failed to get related products: " + e.getMessage());
-                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error));
-                });
+        try {
+            var response = bidderGrpcClient.getRelatedProducts(grpcRequest).block();
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", response.getSuccess());
+            result.put("message", response.getMessage());
+
+            List<Map<String, Object>> products = new ArrayList<>();
+            response.getProductsList().forEach(product -> {
+                products.add(mapUserProduct(product));
+            });
+            result.put("products", products);
+
+            log.info("Get related products successful, count: {}", products.size());
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Get related products error: {}", e.getMessage(), e);
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Failed to get related products: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
     }
 
     @PostMapping("/watchlist")
     @Operation(summary = "Add to watchlist", description = "Add a product to user's watchlist. Requires authentication.")
-    public Mono<ResponseEntity<Map<String, Object>>> addToWatchlist(
+    public ResponseEntity<Map<String, Object>> addToWatchlist(
             @RequestBody Map<String, Integer> requestBody) {
-        
+
         int userId = getUserId();
         int productId = requestBody.get("productId");
         log.info("Add to watchlist request - productId: {}, userId: {}", productId, userId);
@@ -146,35 +144,34 @@ public class BidderController {
                 .setUserId(userId)
                 .build();
 
-        return bidderGrpcClient.addToWatchlist(grpcRequest)
-                .map(response -> {
-                    Map<String, Object> result = new HashMap<>();
-                    result.put("success", response.getSuccess());
-                    result.put("message", response.getMessage());
-                    result.put("watchlistId", response.getWatchlistId());
-                    
-                    if (response.getSuccess()) {
-                        log.info("Add to watchlist successful - productId: {}", productId);
-                        return ResponseEntity.ok(result);
-                    } else {
-                        return ResponseEntity.badRequest().body(result);
-                    }
-                })
-                .onErrorResume(e -> {
-                    log.error("Add to watchlist error: {}", e.getMessage(), e);
-                    Map<String, Object> error = new HashMap<>();
-                    error.put("success", false);
-                    error.put("message", "Failed to add to watchlist: " + e.getMessage());
-                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error));
-                });
+        try {
+            var response = bidderGrpcClient.addToWatchlist(grpcRequest).block();
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", response.getSuccess());
+            result.put("message", response.getMessage());
+            result.put("watchlistId", response.getWatchlistId());
+
+            if (response.getSuccess()) {
+                log.info("Add to watchlist successful - productId: {}", productId);
+                return ResponseEntity.ok(result);
+            } else {
+                return ResponseEntity.badRequest().body(result);
+            }
+        } catch (Exception e) {
+            log.error("Add to watchlist error: {}", e.getMessage(), e);
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Failed to add to watchlist: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
     }
 
     @DeleteMapping("/watchlist/{productId}")
     @Operation(summary = "Remove from watchlist", description = "Remove a product from user's watchlist. Requires authentication.")
-    public Mono<ResponseEntity<Map<String, Object>>> removeFromWatchlist(
-            @Parameter(description = "Product ID", required = true) 
+    public ResponseEntity<Map<String, Object>> removeFromWatchlist(
+            @Parameter(description = "Product ID", required = true)
             @PathVariable int productId) {
-        
+
         int userId = getUserId();
         log.info("Remove from watchlist request - productId: {}, userId: {}", productId, userId);
 
@@ -183,38 +180,37 @@ public class BidderController {
                 .setUserId(userId)
                 .build();
 
-        return bidderGrpcClient.removeFromWatchlist(grpcRequest)
-                .map(response -> {
-                    Map<String, Object> result = new HashMap<>();
-                    result.put("success", response.getSuccess());
-                    result.put("message", response.getMessage());
-                    
-                    if (response.getSuccess()) {
-                        log.info("Remove from watchlist successful - productId: {}", productId);
-                        return ResponseEntity.ok(result);
-                    } else {
-                        return ResponseEntity.badRequest().body(result);
-                    }
-                })
-                .onErrorResume(e -> {
-                    log.error("Remove from watchlist error: {}", e.getMessage(), e);
-                    Map<String, Object> error = new HashMap<>();
-                    error.put("success", false);
-                    error.put("message", "Failed to remove from watchlist: " + e.getMessage());
-                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error));
-                });
+        try {
+            var response = bidderGrpcClient.removeFromWatchlist(grpcRequest).block();
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", response.getSuccess());
+            result.put("message", response.getMessage());
+
+            if (response.getSuccess()) {
+                log.info("Remove from watchlist successful - productId: {}", productId);
+                return ResponseEntity.ok(result);
+            } else {
+                return ResponseEntity.badRequest().body(result);
+            }
+        } catch (Exception e) {
+            log.error("Remove from watchlist error: {}", e.getMessage(), e);
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Failed to remove from watchlist: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
     }
 
     @GetMapping("/watchlist")
     @Operation(summary = "Get watchlist", description = "Get user's watchlist with pagination. Requires authentication.")
-    public Mono<ResponseEntity<Map<String, Object>>> getWatchlist(
-            @Parameter(description = "Page number (1-based)") 
+    public ResponseEntity<Map<String, Object>> getWatchlist(
+            @Parameter(description = "Page number (1-based)")
             @RequestParam(defaultValue = "1") int page,
-            @Parameter(description = "Number of items per page (max 100)") 
+            @Parameter(description = "Number of items per page (max 100)")
             @RequestParam(defaultValue = "20") int limit,
-            @Parameter(description = "Product status filter (active, ended, all)") 
+            @Parameter(description = "Product status filter (active, ended, all)")
             @RequestParam(defaultValue = "active") String status) {
-        
+
         int userId = getUserId();
         log.info("Get watchlist request - userId: {}, page: {}, limit: {}", userId, page, limit);
 
@@ -225,38 +221,42 @@ public class BidderController {
                 .setStatus(status)
                 .build();
 
-        return bidderGrpcClient.getWatchlist(grpcRequest)
-                .map(response -> {
-                    Map<String, Object> result = new HashMap<>();
-                    result.put("success", response.getSuccess());
-                    result.put("message", response.getMessage());
-                    
-                    List<Map<String, Object>> products = new ArrayList<>();
-                    response.getProductsList().forEach(product -> {
-                        products.add(mapUserProduct(product));
-                    });
-                    result.put("products", products);
-                    result.put("pageInfo", mapPageInfo(response.getPageInfo()));
-                    
-                    log.info("Get watchlist successful, count: {}", products.size());
-                    return ResponseEntity.ok(result);
-                })
-                .onErrorResume(e -> {
-                    log.error("Get watchlist error: {}", e.getMessage(), e);
-                    Map<String, Object> error = new HashMap<>();
-                    error.put("success", false);
-                    error.put("message", "Failed to get watchlist: " + e.getMessage());
-                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error));
-                });
+        try {
+            log.info("Calling gRPC client.getWatchlist...");
+            var response = bidderGrpcClient.getWatchlist(grpcRequest)
+                .timeout(Duration.ofSeconds(30))
+                .block();
+            log.info("Got response from gRPC: success={}", response.getSuccess());
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", response.getSuccess());
+            result.put("message", response.getMessage());
+
+            List<Map<String, Object>> products = new ArrayList<>();
+            response.getProductsList().forEach(product -> {
+                products.add(mapUserProduct(product));
+            });
+            result.put("products", products);
+            result.put("pageInfo", mapPageInfo(response.getPageInfo()));
+
+            log.info("Get watchlist successful, count: {}", products.size());
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Get watchlist error: {}", e.getMessage(), e);
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Failed to get watchlist: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
     }
 
     @PostMapping("/products/{productId}/questions")
     @Operation(summary = "Ask question", description = "Ask a question about a product. Requires authentication.")
-    public Mono<ResponseEntity<Map<String, Object>>> askQuestion(
-            @Parameter(description = "Product ID", required = true) 
+    public ResponseEntity<Map<String, Object>> askQuestion(
+            @Parameter(description = "Product ID", required = true)
             @PathVariable int productId,
             @RequestBody Map<String, String> requestBody) {
-        
+
         int userId = getUserId();
         String question = requestBody.get("question");
         log.info("Ask question request - productId: {}, userId: {}", productId, userId);
@@ -267,40 +267,39 @@ public class BidderController {
                 .setQuestion(question)
                 .build();
 
-        return bidderGrpcClient.askQuestion(grpcRequest)
-                .map(response -> {
-                    Map<String, Object> result = new HashMap<>();
-                    result.put("success", response.getSuccess());
-                    result.put("message", response.getMessage());
-                    result.put("questionId", response.getQuestionId());
-                    result.put("createdAt", response.getCreatedAt());
-                    
-                    if (response.getSuccess()) {
-                        log.info("Ask question successful - productId: {}", productId);
-                        return ResponseEntity.ok(result);
-                    } else {
-                        return ResponseEntity.badRequest().body(result);
-                    }
-                })
-                .onErrorResume(e -> {
-                    log.error("Ask question error: {}", e.getMessage(), e);
-                    Map<String, Object> error = new HashMap<>();
-                    error.put("success", false);
-                    error.put("message", "Failed to ask question: " + e.getMessage());
-                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error));
-                });
+        try {
+            var response = bidderGrpcClient.askQuestion(grpcRequest).block();
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", response.getSuccess());
+            result.put("message", response.getMessage());
+            result.put("questionId", response.getQuestionId());
+            result.put("createdAt", response.getCreatedAt());
+
+            if (response.getSuccess()) {
+                log.info("Ask question successful - productId: {}", productId);
+                return ResponseEntity.ok(result);
+            } else {
+                return ResponseEntity.badRequest().body(result);
+            }
+        } catch (Exception e) {
+            log.error("Ask question error: {}", e.getMessage(), e);
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Failed to ask question: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
     }
 
     @GetMapping("/products/{productId}/questions")
     @Operation(summary = "Get product questions", description = "Get questions and answers for a product. Requires authentication.")
-    public Mono<ResponseEntity<Map<String, Object>>> getProductQuestions(
-            @Parameter(description = "Product ID", required = true) 
+    public ResponseEntity<Map<String, Object>> getProductQuestions(
+            @Parameter(description = "Product ID", required = true)
             @PathVariable int productId,
-            @Parameter(description = "Page number (1-based)") 
+            @Parameter(description = "Page number (1-based)")
             @RequestParam(defaultValue = "1") int page,
-            @Parameter(description = "Number of items per page (max 100)") 
+            @Parameter(description = "Number of items per page (max 100)")
             @RequestParam(defaultValue = "20") int limit) {
-        
+
         log.info("Get product questions request - productId: {}, page: {}, limit: {}", productId, page, limit);
 
         GetProductQuestionsRequest grpcRequest = GetProductQuestionsRequest.newBuilder()
@@ -309,52 +308,51 @@ public class BidderController {
                 .setLimit(limit)
                 .build();
 
-        return bidderGrpcClient.getProductQuestions(grpcRequest)
-                .map(response -> {
-                    Map<String, Object> result = new HashMap<>();
-                    result.put("success", response.getSuccess());
-                    result.put("message", response.getMessage());
-                    
-                    List<Map<String, Object>> questions = new ArrayList<>();
-                    response.getQuestionsList().forEach(question -> {
-                        Map<String, Object> questionMap = new HashMap<>();
-                        questionMap.put("id", question.getId());
-                        questionMap.put("productId", question.getProductId());
-                        questionMap.put("askerId", question.getAskerId());
-                        questionMap.put("askerName", question.getAskerName());
-                        questionMap.put("question", question.getQuestion());
-                        questionMap.put("answer", question.getAnswer());
-                        questionMap.put("answeredBy", question.getAnsweredBy());
-                        questionMap.put("answererName", question.getAnswererName());
-                        questionMap.put("createdAt", question.getCreatedAt());
-                        questionMap.put("answeredAt", question.getAnsweredAt());
-                        questions.add(questionMap);
-                    });
-                    result.put("questions", questions);
-                    result.put("pageInfo", mapPageInfo(response.getPageInfo()));
-                    
-                    log.info("Get product questions successful, count: {}", questions.size());
-                    return ResponseEntity.ok(result);
-                })
-                .onErrorResume(e -> {
-                    log.error("Get product questions error: {}", e.getMessage(), e);
-                    Map<String, Object> error = new HashMap<>();
-                    error.put("success", false);
-                    error.put("message", "Failed to get product questions: " + e.getMessage());
-                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error));
-                });
+        try {
+            var response = bidderGrpcClient.getProductQuestions(grpcRequest).block();
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", response.getSuccess());
+            result.put("message", response.getMessage());
+
+            List<Map<String, Object>> questions = new ArrayList<>();
+            response.getQuestionsList().forEach(question -> {
+                Map<String, Object> questionMap = new HashMap<>();
+                questionMap.put("id", question.getId());
+                questionMap.put("productId", question.getProductId());
+                questionMap.put("askerId", question.getAskerId());
+                questionMap.put("askerName", question.getAskerName());
+                questionMap.put("question", question.getQuestion());
+                questionMap.put("answer", question.getAnswer());
+                questionMap.put("answeredBy", question.getAnsweredBy());
+                questionMap.put("answererName", question.getAnswererName());
+                questionMap.put("createdAt", question.getCreatedAt());
+                questionMap.put("answeredAt", question.getAnsweredAt());
+                questions.add(questionMap);
+            });
+            result.put("questions", questions);
+            result.put("pageInfo", mapPageInfo(response.getPageInfo()));
+
+            log.info("Get product questions successful, count: {}", questions.size());
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Get product questions error: {}", e.getMessage(), e);
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Failed to get product questions: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
     }
 
     @GetMapping("/products/{productId}/bids")
     @Operation(summary = "Get product bids", description = "Get bid history for a product. Requires authentication.")
-    public Mono<ResponseEntity<Map<String, Object>>> getProductBids(
-            @Parameter(description = "Product ID", required = true) 
+    public ResponseEntity<Map<String, Object>> getProductBids(
+            @Parameter(description = "Product ID", required = true)
             @PathVariable int productId,
-            @Parameter(description = "Page number (1-based)") 
+            @Parameter(description = "Page number (1-based)")
             @RequestParam(defaultValue = "1") int page,
-            @Parameter(description = "Number of items per page (max 100)") 
+            @Parameter(description = "Number of items per page (max 100)")
             @RequestParam(defaultValue = "20") int limit) {
-        
+
         int userId = getUserId();
         log.info("Get product bids request - productId: {}, userId: {}, page: {}, limit: {}", productId, userId, page, limit);
 
@@ -365,47 +363,46 @@ public class BidderController {
                 .setLimit(limit)
                 .build();
 
-        return bidderGrpcClient.getProductBids(grpcRequest)
-                .map(response -> {
-                    Map<String, Object> result = new HashMap<>();
-                    result.put("success", response.getSuccess());
-                    result.put("message", response.getMessage());
-                    
-                    List<Map<String, Object>> bids = new ArrayList<>();
-                    response.getBidsList().forEach(bid -> {
-                        Map<String, Object> bidMap = new HashMap<>();
-                        bidMap.put("id", bid.getId());
-                        bidMap.put("productId", bid.getProductId());
-                        bidMap.put("bidderId", bid.getBidderId());
-                        bidMap.put("bidderNameMasked", bid.getBidderNameMasked());
-                        bidMap.put("amount", bid.getAmount());
-                        bidMap.put("isAuto", bid.getIsAuto());
-                        bidMap.put("createdAt", bid.getCreatedAt());
-                        bidMap.put("isCurrentUser", bid.getIsCurrentUser());
-                        bids.add(bidMap);
-                    });
-                    result.put("bids", bids);
-                    result.put("pageInfo", mapPageInfo(response.getPageInfo()));
-                    
-                    log.info("Get product bids successful, count: {}", bids.size());
-                    return ResponseEntity.ok(result);
-                })
-                .onErrorResume(e -> {
-                    log.error("Get product bids error: {}", e.getMessage(), e);
-                    Map<String, Object> error = new HashMap<>();
-                    error.put("success", false);
-                    error.put("message", "Failed to get product bids: " + e.getMessage());
-                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error));
-                });
+        try {
+            var response = bidderGrpcClient.getProductBids(grpcRequest).block();
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", response.getSuccess());
+            result.put("message", response.getMessage());
+
+            List<Map<String, Object>> bids = new ArrayList<>();
+            response.getBidsList().forEach(bid -> {
+                Map<String, Object> bidMap = new HashMap<>();
+                bidMap.put("id", bid.getId());
+                bidMap.put("productId", bid.getProductId());
+                bidMap.put("bidderId", bid.getBidderId());
+                bidMap.put("bidderNameMasked", bid.getBidderNameMasked());
+                bidMap.put("amount", bid.getAmount());
+                bidMap.put("isAuto", bid.getIsAuto());
+                bidMap.put("createdAt", bid.getCreatedAt());
+                bidMap.put("isCurrentUser", bid.getIsCurrentUser());
+                bids.add(bidMap);
+            });
+            result.put("bids", bids);
+            result.put("pageInfo", mapPageInfo(response.getPageInfo()));
+
+            log.info("Get product bids successful, count: {}", bids.size());
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Get product bids error: {}", e.getMessage(), e);
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Failed to get product bids: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
     }
 
     @PostMapping("/products/{productId}/bids")
     @Operation(summary = "Place bid", description = "Place a bid on a product. Requires authentication.")
-    public Mono<ResponseEntity<Map<String, Object>>> placeBid(
-            @Parameter(description = "Product ID", required = true) 
+    public ResponseEntity<Map<String, Object>> placeBid(
+            @Parameter(description = "Product ID", required = true)
             @PathVariable int productId,
             @RequestBody Map<String, Double> requestBody) {
-        
+
         int userId = getUserId();
         double bidAmount = requestBody.get("bidAmount");
         log.info("Place bid request - productId: {}, userId: {}, amount: {}", productId, userId, bidAmount);
@@ -416,40 +413,39 @@ public class BidderController {
                 .setBidAmount(bidAmount)
                 .build();
 
-        return bidderGrpcClient.placeBid(grpcRequest)
-                .map(response -> {
-                    Map<String, Object> result = new HashMap<>();
-                    result.put("success", response.getSuccess());
-                    result.put("message", response.getMessage());
-                    result.put("bidId", response.getBidId());
-                    result.put("currentPrice", response.getCurrentPrice());
-                    result.put("nextMinBid", response.getNextMinBid());
-                    result.put("createdAt", response.getCreatedAt());
-                    result.put("isHighestBidder", response.getIsHighestBidder());
-                    
-                    if (response.getSuccess()) {
-                        log.info("Place bid successful - productId: {}, bidId: {}", productId, response.getBidId());
-                        return ResponseEntity.ok(result);
-                    } else {
-                        return ResponseEntity.badRequest().body(result);
-                    }
-                })
-                .onErrorResume(e -> {
-                    log.error("Place bid error: {}", e.getMessage(), e);
-                    Map<String, Object> error = new HashMap<>();
-                    error.put("success", false);
-                    error.put("message", "Failed to place bid: " + e.getMessage());
-                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error));
-                });
+        try {
+            var response = bidderGrpcClient.placeBid(grpcRequest).block();
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", response.getSuccess());
+            result.put("message", response.getMessage());
+            result.put("bidId", response.getBidId());
+            result.put("currentPrice", response.getCurrentPrice());
+            result.put("nextMinBid", response.getNextMinBid());
+            result.put("createdAt", response.getCreatedAt());
+            result.put("isHighestBidder", response.getIsHighestBidder());
+
+            if (response.getSuccess()) {
+                log.info("Place bid successful - productId: {}, bidId: {}", productId, response.getBidId());
+                return ResponseEntity.ok(result);
+            } else {
+                return ResponseEntity.badRequest().body(result);
+            }
+        } catch (Exception e) {
+            log.error("Place bid error: {}", e.getMessage(), e);
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Failed to place bid: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
     }
 
     @PostMapping("/products/{productId}/auto-bid")
     @Operation(summary = "Set auto-bid", description = "Set up automatic bidding for a product. Requires authentication.")
-    public Mono<ResponseEntity<Map<String, Object>>> setAutoBid(
-            @Parameter(description = "Product ID", required = true) 
+    public ResponseEntity<Map<String, Object>> setAutoBid(
+            @Parameter(description = "Product ID", required = true)
             @PathVariable int productId,
             @RequestBody Map<String, Double> requestBody) {
-        
+
         int userId = getUserId();
         double maxAmount = requestBody.get("maxAmount");
         log.info("Set auto-bid request - productId: {}, userId: {}, maxAmount: {}", productId, userId, maxAmount);
@@ -460,42 +456,41 @@ public class BidderController {
                 .setMaxAmount(maxAmount)
                 .build();
 
-        return bidderGrpcClient.setAutoBid(grpcRequest)
-                .map(response -> {
-                    Map<String, Object> result = new HashMap<>();
-                    result.put("success", response.getSuccess());
-                    result.put("message", response.getMessage());
-                    result.put("autoBidId", response.getAutoBidId());
-                    result.put("maxAmount", response.getMaxAmount());
-                    result.put("currentBid", response.getCurrentBid());
-                    result.put("createdAt", response.getCreatedAt());
-                    
-                    if (response.getSuccess()) {
-                        log.info("Set auto-bid successful - productId: {}, autoBidId: {}", productId, response.getAutoBidId());
-                        return ResponseEntity.ok(result);
-                    } else {
-                        return ResponseEntity.badRequest().body(result);
-                    }
-                })
-                .onErrorResume(e -> {
-                    log.error("Set auto-bid error: {}", e.getMessage(), e);
-                    Map<String, Object> error = new HashMap<>();
-                    error.put("success", false);
-                    error.put("message", "Failed to set auto-bid: " + e.getMessage());
-                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error));
-                });
+        try {
+            var response = bidderGrpcClient.setAutoBid(grpcRequest).block();
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", response.getSuccess());
+            result.put("message", response.getMessage());
+            result.put("autoBidId", response.getAutoBidId());
+            result.put("maxAmount", response.getMaxAmount());
+            result.put("currentBid", response.getCurrentBid());
+            result.put("createdAt", response.getCreatedAt());
+
+            if (response.getSuccess()) {
+                log.info("Set auto-bid successful - productId: {}, autoBidId: {}", productId, response.getAutoBidId());
+                return ResponseEntity.ok(result);
+            } else {
+                return ResponseEntity.badRequest().body(result);
+            }
+        } catch (Exception e) {
+            log.error("Set auto-bid error: {}", e.getMessage(), e);
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Failed to set auto-bid: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
     }
 
     @GetMapping("/bids")
     @Operation(summary = "Get my bids", description = "Get user's bid history with pagination and filters. Requires authentication.")
-    public Mono<ResponseEntity<Map<String, Object>>> getMyBids(
-            @Parameter(description = "Page number (1-based)") 
+    public ResponseEntity<Map<String, Object>> getMyBids(
+            @Parameter(description = "Page number (1-based)")
             @RequestParam(defaultValue = "1") int page,
-            @Parameter(description = "Number of items per page (max 100)") 
+            @Parameter(description = "Number of items per page (max 100)")
             @RequestParam(defaultValue = "20") int limit,
-            @Parameter(description = "Filter (all, winning, outbid, won, lost)") 
+            @Parameter(description = "Filter (all, winning, outbid, won, lost)")
             @RequestParam(defaultValue = "all") String filter) {
-        
+
         int userId = getUserId();
         log.info("Get my bids request - userId: {}, page: {}, limit: {}, filter: {}", userId, page, limit, filter);
 
@@ -506,41 +501,40 @@ public class BidderController {
                 .setFilter(filter)
                 .build();
 
-        return bidderGrpcClient.getMyBids(grpcRequest)
-                .map(response -> {
-                    Map<String, Object> result = new HashMap<>();
-                    result.put("success", response.getSuccess());
-                    result.put("message", response.getMessage());
-                    
-                    List<Map<String, Object>> bids = new ArrayList<>();
-                    response.getBidsList().forEach(bid -> {
-                        Map<String, Object> bidMap = new HashMap<>();
-                        bidMap.put("bidId", bid.getBidId());
-                        bidMap.put("productId", bid.getProductId());
-                        bidMap.put("productTitle", bid.getProductTitle());
-                        bidMap.put("productPrimaryImage", bid.getProductPrimaryImage());
-                        bidMap.put("bidAmount", bid.getBidAmount());
-                        bidMap.put("currentPrice", bid.getCurrentPrice());
-                        bidMap.put("isAuto", bid.getIsAuto());
-                        bidMap.put("isWinning", bid.getIsWinning());
-                        bidMap.put("productStatus", bid.getProductStatus());
-                        bidMap.put("bidCreatedAt", bid.getBidCreatedAt());
-                        bidMap.put("productEndsAt", bid.getProductEndsAt());
-                        bids.add(bidMap);
-                    });
-                    result.put("bids", bids);
-                    result.put("pageInfo", mapPageInfo(response.getPageInfo()));
-                    
-                    log.info("Get my bids successful, count: {}", bids.size());
-                    return ResponseEntity.ok(result);
-                })
-                .onErrorResume(e -> {
-                    log.error("Get my bids error: {}", e.getMessage(), e);
-                    Map<String, Object> error = new HashMap<>();
-                    error.put("success", false);
-                    error.put("message", "Failed to get my bids: " + e.getMessage());
-                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error));
-                });
+        try {
+            var response = bidderGrpcClient.getMyBids(grpcRequest).block();
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", response.getSuccess());
+            result.put("message", response.getMessage());
+
+            List<Map<String, Object>> bids = new ArrayList<>();
+            response.getBidsList().forEach(bid -> {
+                Map<String, Object> bidMap = new HashMap<>();
+                bidMap.put("bidId", bid.getBidId());
+                bidMap.put("productId", bid.getProductId());
+                bidMap.put("productTitle", bid.getProductTitle());
+                bidMap.put("productPrimaryImage", bid.getProductPrimaryImage());
+                bidMap.put("bidAmount", bid.getBidAmount());
+                bidMap.put("currentPrice", bid.getCurrentPrice());
+                bidMap.put("isAuto", bid.getIsAuto());
+                bidMap.put("isWinning", bid.getIsWinning());
+                bidMap.put("productStatus", bid.getProductStatus());
+                bidMap.put("bidCreatedAt", bid.getBidCreatedAt());
+                bidMap.put("productEndsAt", bid.getProductEndsAt());
+                bids.add(bidMap);
+            });
+            result.put("bids", bids);
+            result.put("pageInfo", mapPageInfo(response.getPageInfo()));
+
+            log.info("Get my bids successful, count: {}", bids.size());
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Get my bids error: {}", e.getMessage(), e);
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Failed to get my bids: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
     }
 
     // Helper methods

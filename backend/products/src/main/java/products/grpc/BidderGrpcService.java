@@ -31,6 +31,7 @@ public class BidderGrpcService extends ReactorUserServiceGrpc.UserServiceImplBas
                             .setSuccess(true)
                             .setMessage("Product details retrieved successfully")
                             .build())
+                        .doOnNext(resp -> log.info("Raw get product details response: {}", JsonUtils.toJson(resp)))
                         .onErrorResume(e -> {
                             log.error("Get product details error: {}", e.getMessage());
                             return Mono.just(GetProductDetailsResponse.newBuilder()
@@ -52,6 +53,7 @@ public class BidderGrpcService extends ReactorUserServiceGrpc.UserServiceImplBas
                             .setSuccess(true)
                             .setMessage("Related products retrieved successfully")
                             .build())
+                        .doOnNext(resp -> log.info("Raw get related products response: {}", JsonUtils.toJson(resp)))
                         .onErrorResume(e -> {
                             log.error("Get related products error: {}", e.getMessage());
                             return Mono.just(GetRelatedProductsResponse.newBuilder()
@@ -72,6 +74,7 @@ public class BidderGrpcService extends ReactorUserServiceGrpc.UserServiceImplBas
                             .setMessage("Product added to watchlist successfully")
                             .setWatchlistId(watchlistId)
                             .build())
+                        .doOnNext(resp -> log.info("Raw add to watchlist response: {}", JsonUtils.toJson(resp)))
                         .onErrorResume(e -> {
                             log.error("Add to watchlist error: {}", e.getMessage());
                             return Mono.just(AddToWatchlistResponse.newBuilder()
@@ -91,6 +94,7 @@ public class BidderGrpcService extends ReactorUserServiceGrpc.UserServiceImplBas
                             .setSuccess(true)
                             .setMessage(message)
                             .build())
+                        .doOnNext(resp -> log.info("Raw remove from watchlist response: {}", JsonUtils.toJson(resp)))
                         .onErrorResume(e -> {
                             log.error("Remove from watchlist error: {}", e.getMessage());
                             return Mono.just(RemoveFromWatchlistResponse.newBuilder()
@@ -112,6 +116,7 @@ public class BidderGrpcService extends ReactorUserServiceGrpc.UserServiceImplBas
                             .setSuccess(true)
                             .setMessage("Watchlist retrieved successfully")
                             .build())
+                        .doOnNext(resp -> log.info("Raw get watchlist response: {}", JsonUtils.toJson(resp)))
                         .onErrorResume(e -> {
                             log.error("Get watchlist error: {}", e.getMessage());
                             return Mono.just(GetWatchlistResponse.newBuilder()
@@ -133,6 +138,7 @@ public class BidderGrpcService extends ReactorUserServiceGrpc.UserServiceImplBas
                             .setQuestionId(result.questionId())
                             .setCreatedAt(result.createdAt())
                             .build())
+                        .doOnNext(resp -> log.info("Raw ask question response: {}", JsonUtils.toJson(resp)))
                         .onErrorResume(e -> {
                             log.error("Ask question error: {}", e.getMessage());
                             return Mono.just(AskQuestionResponse.newBuilder()
@@ -154,6 +160,7 @@ public class BidderGrpcService extends ReactorUserServiceGrpc.UserServiceImplBas
                             .setSuccess(true)
                             .setMessage("Product questions retrieved successfully")
                             .build())
+                        .doOnNext(resp -> log.info("Raw get product questions response: {}", JsonUtils.toJson(resp)))
                         .onErrorResume(e -> {
                             log.error("Get product questions error: {}", e.getMessage());
                             return Mono.just(GetProductQuestionsResponse.newBuilder()
@@ -175,6 +182,7 @@ public class BidderGrpcService extends ReactorUserServiceGrpc.UserServiceImplBas
                             .setSuccess(true)
                             .setMessage("Product bids retrieved successfully")
                             .build())
+                        .doOnNext(resp -> log.info("Raw get product bids response: {}", JsonUtils.toJson(resp)))
                         .onErrorResume(e -> {
                             log.error("Get product bids error: {}", e.getMessage());
                             return Mono.just(GetProductBidsResponse.newBuilder()
@@ -199,6 +207,7 @@ public class BidderGrpcService extends ReactorUserServiceGrpc.UserServiceImplBas
                             .setCreatedAt(result.createdAt())
                             .setIsHighestBidder(result.isHighestBidder())
                             .build())
+                        .doOnNext(resp -> log.info("Raw place bid response: {}", JsonUtils.toJson(resp)))
                         .onErrorResume(e -> {
                             log.error("Place bid error: {}", e.getMessage());
                             return Mono.just(PlaceBidResponse.newBuilder()
@@ -222,6 +231,7 @@ public class BidderGrpcService extends ReactorUserServiceGrpc.UserServiceImplBas
                             .setCurrentBid(result.currentBid())
                             .setCreatedAt(result.createdAt())
                             .build())
+                        .doOnNext(resp -> log.info("Raw set auto bid response: {}", JsonUtils.toJson(resp)))
                         .onErrorResume(e -> {
                             log.error("Set auto bid error: {}", e.getMessage());
                             return Mono.just(SetAutoBidResponse.newBuilder()
@@ -243,6 +253,7 @@ public class BidderGrpcService extends ReactorUserServiceGrpc.UserServiceImplBas
                             .setSuccess(true)
                             .setMessage("Bid history retrieved successfully")
                             .build())
+                        .doOnNext(resp -> log.info("Raw get my bids response: {}", JsonUtils.toJson(resp)))
                         .onErrorResume(e -> {
                             log.error("Get my bids error: {}", e.getMessage());
                             return Mono.just(GetMyBidsResponse.newBuilder()

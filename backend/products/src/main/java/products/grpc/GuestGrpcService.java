@@ -1,22 +1,18 @@
 package products.grpc;
 
+import com.auction.proto.guest.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.grpc.server.service.GrpcService;
-
-import com.auction.proto.guest.GetCategoriesRequest;
-import com.auction.proto.guest.GetCategoriesResponse;
-import com.auction.proto.guest.GetTopBidCountProductsRequest;
-import com.auction.proto.guest.GetTopEndingProductsRequest;
-import com.auction.proto.guest.GetTopPriceProductsRequest;
-import com.auction.proto.guest.GetTopProductsResponse;
-import com.auction.proto.guest.ListProductsByCategoryRequest;
-import com.auction.proto.guest.ListProductsByCategoryResponse;
-import com.auction.proto.guest.ReactorGuestServiceGrpc;
+import java.util.Collections;
 import com.auction.utils.JsonUtils;
 
 import products.service.GuestService;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * gRPC implementation of GuestService for public unauthenticated operations
@@ -31,24 +27,61 @@ public class GuestGrpcService extends ReactorGuestServiceGrpc.GuestServiceImplBa
         this.guestService = guestService;
     }
 
-    @Override
     public Mono<GetCategoriesResponse> getCategories(Mono<GetCategoriesRequest> request) {
-        return request.doOnNext(req -> log.info("Raw get categories request: {}", JsonUtils.toJson(req)))
+        return request
+                .doOnNext(req -> log.info("Raw get categories request: {}", JsonUtils.toJson(req)))
                 .flatMap(req ->
-                    guestService.getCategories()
-                        .collectList()
-                        .map(categories -> GetCategoriesResponse.newBuilder()
-                            .addAllCategories(categories)
-                            .setSuccess(true)
-                            .setMessage("Categories retrieved successfully")
-                            .build())
-                        .onErrorResume(e -> {
-                            log.error("Get categories error: {}", e.getMessage());
-                            return Mono.just(GetCategoriesResponse.newBuilder()
-                                .setSuccess(false)
-                                .setMessage("Failed to get categories: " + e.getMessage())
-                                .build());
-                        })
+                        guestService.getCategories()
+                                .collectList() // Collect all categories into a list
+                                .map(categoriesList -> {
+                                    // Map parentId -> list of children
+                                    Map<Integer, List<Category>> childrenMap = categoriesList.stream()
+                                            .filter(cat -> cat.getParentId() != 0) // non-top-level
+                                            .collect(Collectors.groupingBy(Category::getParentId));
+
+                                    // Build top-level categories with children
+                                    List<Category> topLevelCategories = categoriesList.stream()
+                                            .filter(cat -> cat.getParentId() == 0) // top-level
+                                            .map(parent -> {
+                                                // Build parent category
+                                                Category.Builder parentBuilder = Category.newBuilder()
+                                                        .setId(parent.getId())
+                                                        .setName(parent.getName())
+                                                        .setParentId(parent.getParentId())
+                                                        .setCreatedAt(parent.getCreatedAt());
+
+                                                // Add children if any
+                                                List<Category> children = childrenMap.getOrDefault(parent.getId(), Collections.emptyList());
+                                                for (Category child : children) {
+                                                    parentBuilder.addChildren(
+                                                            Category.newBuilder()
+                                                                    .setId(child.getId())
+                                                                    .setName(child.getName())
+                                                                    .setParentId(child.getParentId())
+                                                                    .setCreatedAt(child.getCreatedAt())
+                                                                    .build()
+                                                    );
+                                                }
+
+                                                return parentBuilder.build();
+                                            })
+                                            .toList();
+                                    return GetCategoriesResponse.newBuilder()
+                                            .addAllCategories(topLevelCategories)
+                                            .setSuccess(true)
+                                            .setMessage("Categories retrieved successfully")
+                                            .build();
+                                })
+                                .doOnNext(response -> log.info("Raw get categories response: {}", JsonUtils.toJson(response)))
+                                .onErrorResume(e -> {
+                                    log.error("Get categories error: {}", e.getMessage(), e);
+                                    return Mono.just(
+                                            GetCategoriesResponse.newBuilder()
+                                                    .setSuccess(false)
+                                                    .setMessage("Failed to get categories: " + e.getMessage())
+                                                    .build()
+                                    );
+                                })
                 );
     }
 
@@ -63,6 +96,7 @@ public class GuestGrpcService extends ReactorGuestServiceGrpc.GuestServiceImplBa
                             .setSuccess(true)
                             .setMessage("Top ending products retrieved successfully")
                             .build())
+                        .doOnNext(response -> log.info("Raw top ending products response: {}", JsonUtils.toJson(response)))
                         .onErrorResume(e -> {
                             log.error("Get top ending products error: {}", e.getMessage());
                             return Mono.just(GetTopProductsResponse.newBuilder()
@@ -84,6 +118,7 @@ public class GuestGrpcService extends ReactorGuestServiceGrpc.GuestServiceImplBa
                             .setSuccess(true)
                             .setMessage("Top bid count products retrieved successfully")
                             .build())
+                        .doOnNext(resp -> log.info("Raw top bid count response: {}", JsonUtils.toJson(resp)))
                         .onErrorResume(e -> {
                             log.error("Get top bid count products error: {}", e.getMessage());
                             return Mono.just(GetTopProductsResponse.newBuilder()
@@ -105,6 +140,7 @@ public class GuestGrpcService extends ReactorGuestServiceGrpc.GuestServiceImplBa
                             .setSuccess(true)
                             .setMessage("Top price products retrieved successfully")
                             .build())
+                        .doOnNext(resp -> log.info("Raw get top price response: {}", JsonUtils.toJson(resp)))
                         .onErrorResume(e -> {
                             log.error("Get top price products error: {}", e.getMessage());
                             return Mono.just(GetTopProductsResponse.newBuilder()
@@ -136,6 +172,7 @@ public class GuestGrpcService extends ReactorGuestServiceGrpc.GuestServiceImplBa
                             .setSuccess(true)
                             .setMessage("Products retrieved successfully")
                             .build())
+                        .doOnNext(resp -> log.info("Raw list products filter response: {}", JsonUtils.toJson(resp)))
                         .onErrorResume(e -> {
                             log.error("List products by category error: {}", e.getMessage());
                             return Mono.just(ListProductsByCategoryResponse.newBuilder()

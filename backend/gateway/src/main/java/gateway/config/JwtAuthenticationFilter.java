@@ -3,7 +3,6 @@ package gateway.config;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,18 +32,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     public  JwtAuthenticationFilter(JwtUtils jwtUtils) {
         this.jwtUtils = jwtUtils;
     }
-    // List of public endpoints that don't require JWT validation
-    private static final List<String> PUBLIC_PATHS = List.of(
-        "/api/gateway/health",
-        "/api/auth/register",
-        "/api/auth/login",
-        "/api/auth/refresh",
-        "/api/auth/verify-email",
-        "/swagger-ui",
-        "/v3/api-docs",
-        "/api-docs",
-        "/api/guest"
-    );
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, 
@@ -53,19 +40,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         
         String path = request.getRequestURI();
-        
-        // Skip JWT validation for public endpoints
-        if (isPublicPath(path)) {
-            filterChain.doFilter(request, response);
-            return;
-        }
 
         // Get Authorization header
         String authHeader = request.getHeader("Authorization");
         
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             try {
-                String token = authHeader.substring(7); // Remove "Bearer " prefix
+                String token = authHeader.substring(7);
                 
                 // Validate and decode JWT using JwtUtils
                 JWTClaimsSet claims = jwtUtils.validateToken(token);
@@ -80,6 +61,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     // Add ROLE_ prefix if not already present
                     String roleName = role.startsWith("ROLE_") ? role : "ROLE_" + role.toUpperCase();
                     authorities.add(new SimpleGrantedAuthority(roleName));
+                    log.info("Added authority: {} for user: {}", roleName, userId);
                 }
                 
                 // Create authentication token
@@ -90,22 +72,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 );
                 
                 SecurityContextHolder.getContext().setAuthentication(auth);
-                log.debug("JWT validated for user: {} with role: {}", userId, role);
+                log.info("JWT validated for user: {} with role: {} (authorities: {})", userId, role, authorities);
                 
             } catch (Exception e) {
                 log.warn("JWT validation failed: {}", e.getMessage());
                 // Don't set authentication, let Spring Security handle the error
             }
         }
-        
         filterChain.doFilter(request, response);
-    }
-
-    /**
-     * Check if the request path is public (doesn't require JWT)
-     */
-    private boolean isPublicPath(String path) {
-        return PUBLIC_PATHS.stream()
-            .anyMatch(path::startsWith);
     }
 }

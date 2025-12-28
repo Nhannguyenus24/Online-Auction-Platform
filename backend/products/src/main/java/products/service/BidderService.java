@@ -1,23 +1,24 @@
 package products.service;
 
+import java.util.List;
+
 import org.springframework.stereotype.Service;
 
 import com.auction.proto.user.Bid;
 import com.auction.proto.user.BidHistoryItem;
 import com.auction.proto.user.PageInfo;
 import com.auction.proto.user.Product;
+import com.auction.proto.user.ProductImage;
 import com.auction.proto.user.Question;
-import com.auction.proto.user.SellerInfo;
-import products.repository.ProductRepository;
-import products.dto.ProductRowDto;
-import products.dto.BidRowDto;
-import products.dto.QuestionRowDto;
-import products.dto.BidHistoryRowDto;
-import products.dto.AutoBidRowDto;
 
+import products.dto.BidHistoryRowDto;
+import products.dto.BidRowDto;
+import products.dto.ImageRowDto;
+import products.dto.ProductRowDto;
+import products.dto.QuestionRowDto;
+import products.repository.ProductRepository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import java.util.Map;
 
 @Service
 public class BidderService {
@@ -40,63 +41,91 @@ public class BidderService {
                 var autoBidOpt = tuple.getT2();
                 
                 var productDto = ProductRowDto.fromMap(productMap);
-                double userMaxAutoBid = autoBidOpt
-                    .map(map -> ((Number) map.getOrDefault("max_amount", 0)).doubleValue())
-                    .orElse(0.0);
-                
-                return mapDtoToProductWithUserData(productDto, isInWatchlist, isHighestBidder, userMaxAutoBid);
+//                double userMaxAutoBid = autoBidOpt
+//                    .map(map -> ((Number) map.getOrDefault("max_amount", 0)).doubleValue())
+//                    .orElse(0.0);
+                return mapDtoToProductWithUserData(productDto, isInWatchlist, isHighestBidder, 0.0);
+//                return mapDtoToProductWithUserData(productDto, isInWatchlist, isHighestBidder, userMaxAutoBid);
             });
     }
 
     public Flux<Product> getRelatedProducts(int productId, int userId, int limit) {
         return productRepository.findById(productId)
-            .flatMapMany(product -> 
-                productRepository.getRelatedProducts(product.getCategoryId(), productId, limit)
-                    .map(ProductRowDto::fromMap)
-                    .map(this::mapDtoToProduct)
-            );
+                .flatMapMany(product ->
+                        productRepository.getRelatedProducts(
+                                        product.getCategoryId(),
+                                        productId,
+                                        limit
+                                )
+                                .flatMap(dto ->
+                                        productRepository.getProductImages(dto.id())
+                                                .map(this::mapToProductImage)
+                                                .collectList()
+                                                .map(images -> mapRowToProductWithImages(dto, images))
+                                )
+                );
     }
 
+
     public Mono<Integer> addToWatchlist(int productId, int userId) {
-        // TODO: Implement insert logic with repository
-        return Mono.just(1);
+//        return productRepository.isInWatchlist(userId, productId)
+//            .flatMap(isInWatchlist -> {
+//                if (isInWatchlist) {
+//                    return Mono.error(new IllegalStateException("Product already in watchlist"));
+//                }
+//                return productRepository.addToWatchlist(userId, productId)
+//                    .thenReturn(1);
+//            });
+        return productRepository.addToWatchlist(userId, productId)
+                .thenReturn(1);
     }
 
     public Mono<String> removeFromWatchlist(int productId, int userId) {
-        // TODO: Implement delete logic with repository
-        return Mono.just("Removed from watchlist");
+//        return productRepository.isInWatchlist(userId, productId)
+//            .flatMap(isInWatchlist -> {
+//                if (!isInWatchlist) {
+//                    return Mono.error(new IllegalStateException("Product not in watchlist"));
+//                }
+//                return productRepository.removeFromWatchlist(userId, productId)
+//                    .thenReturn("Removed from watchlist");
+//            });
+        return productRepository.removeFromWatchlist(userId, productId)
+                .thenReturn("Removed from watchlist");
     }
 
     public Mono<WatchlistResult> getWatchlist(int userId, int page, int limit, String status) {
         int offset = (page - 1) * limit;
-        
-        return Mono.zip(
-            productRepository.getWatchlist(
-                userId,
-                status.isEmpty() ? null : status,
-                limit,
-                offset
-            ).map(ProductRowDto::fromMap).collectList(),
-            productRepository.countWatchlist(userId, status.isEmpty() ? null : status)
-        ).map(tuple -> {
-            var productDtos = tuple.getT1();
-            var totalCount = tuple.getT2();
-            
-            var products = productDtos.stream()
-                .map(this::mapDtoToProduct)
-                .toList();
-            
-            var pageInfo = PageInfo.newBuilder()
-                .setCurrentPage(page)
-                .setPageSize(limit)
-                .setTotalItems(totalCount)
-                .setTotalPages((totalCount + limit - 1) / limit)
-                .setHasNext(page * limit < totalCount)
-                .setHasPrevious(page > 1)
-                .build();
-            
-            return new WatchlistResult(products, pageInfo);
-        });
+        return productRepository.getWatchlist(
+                        userId,
+                        status.isEmpty() ? null : status,
+                        limit,
+                        offset
+                )
+                .collectList()
+                .flatMap(productDtos -> {
+                    int totalCount = productDtos.size();
+                    
+                    return Flux.fromIterable(productDtos)
+                            .flatMap(productRowDto ->
+                                    productRepository.getProductImages(productRowDto.id())
+                                            .map(this::mapToProductImage)
+                                            .collectList()
+                                            .map(images -> mapRowToProductWithImages(productRowDto, images))
+                            )
+                            .collectList()
+                            .map(products -> {
+                                var pageInfo = PageInfo.newBuilder()
+                                        .setCurrentPage(page)
+                                        .setPageSize(limit)
+                                        .setTotalItems(totalCount)
+                                        .setTotalPages((totalCount + limit - 1) / limit)
+                                        .setHasNext(page * limit < totalCount)
+                                        .setHasPrevious(page > 1)
+                                        .build();
+                                
+                                return new WatchlistResult(products, pageInfo);
+                            });
+                });
     }
 
     public Mono<QuestionResult> askQuestion(int productId, int userId, String question) {
@@ -202,26 +231,29 @@ public class BidderService {
     }
     
     // Helper mapping methods
-    private Product mapDtoToProduct(ProductRowDto dto) {
+    private Product mapRowToProductWithImages(ProductRowDto dto, List<ProductImage> images) {
         return Product.newBuilder()
-            .setId(dto.id())
-            .setSellerId(dto.sellerId())
-            .setCategoryId(dto.categoryId())
-            .setCategoryName(dto.categoryName())
-            .setTitle(dto.title())
-            .setDescription(dto.description())
-            .setStartingPrice(dto.startingPrice())
-            .setCurrentPrice(dto.currentPrice())
-            .setStepPrice(dto.stepPrice())
-            .setBuyNowPrice(dto.buyNowPrice())
-            .setStartsAt(dto.startsAt())
-            .setEndsAt(dto.endsAt())
-            .setIsAutoExtend(dto.isAutoExtend())
-            .setAutoExtendSeconds(dto.autoExtendSeconds())
-            .setStatus(dto.status())
-            .setViewsCount(dto.viewsCount())
-            .setBidsCount(dto.bidsCount())
-            .build();
+                .setId(dto.id())
+                .setSellerId(dto.sellerId())
+                .setCategoryId(dto.categoryId())
+                .setCategoryName(dto.categoryName())
+                .setTitle(dto.title())
+                .setDescription(dto.description())
+                .setStartingPrice(dto.startingPrice())
+                .setCurrentPrice(dto.currentPrice())
+                .setStepPrice(dto.stepPrice())
+                .setBuyNowPrice(dto.buyNowPrice())
+                .setStartsAt(dto.startsAt().toEpochSecond())
+                .setEndsAt(dto.endsAt().toEpochSecond())
+                .setCreatedAt(dto.createdAt().toEpochSecond())
+                .setUpdatedAt(dto.updatedAt().toEpochSecond())
+                .setIsAutoExtend(dto.isAutoExtend())
+                .setAutoExtendSeconds(dto.autoExtendSeconds())
+                .setStatus(dto.status())
+                .setViewsCount(dto.viewsCount())
+                .setBidsCount(dto.bidsCount())
+                .addAllImages(images)
+                .build();
     }
     
     private Product mapDtoToProductWithUserData(ProductRowDto dto, boolean isInWatchlist, 
@@ -237,8 +269,8 @@ public class BidderService {
             .setCurrentPrice(dto.currentPrice())
             .setStepPrice(dto.stepPrice())
             .setBuyNowPrice(dto.buyNowPrice())
-            .setStartsAt(dto.startsAt())
-            .setEndsAt(dto.endsAt())
+            .setStartsAt(dto.startsAt().toEpochSecond())
+            .setEndsAt(dto.endsAt().toEpochSecond())
             .setIsAutoExtend(dto.isAutoExtend())
             .setAutoExtendSeconds(dto.autoExtendSeconds())
             .setStatus(dto.status())
@@ -294,8 +326,18 @@ public class BidderService {
             .build();
     }
 
+    private ProductImage mapToProductImage(ImageRowDto dto) {
+        return ProductImage.newBuilder()
+                .setId(dto.id())
+                .setProductId(dto.product_id())
+                .setUrl(dto.url())
+                .setIsPrimary(dto.is_primary())
+                .setCreatedAt(dto.created_at().toEpochSecond())
+                .build();
+    }
+
     // Helper records for return types
-    public record WatchlistResult(java.util.List<Product> products, PageInfo pageInfo) {}
+    public record WatchlistResult(List<Product> products, PageInfo pageInfo) {}
     public record QuestionResult(int questionId, long createdAt) {}
     public record QuestionsResult(java.util.List<Question> questions, PageInfo pageInfo) {}
     public record BidsResult(java.util.List<Bid> bids, PageInfo pageInfo) {}

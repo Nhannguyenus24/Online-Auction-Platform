@@ -90,6 +90,13 @@ public class AuthController {
 
         return userGrpcClient.login(grpcRequest)
                 .map(loginResponse -> {
+                    if (!loginResponse.getSuccess()) {
+                        log.error("Login error: {}", loginResponse.getMessage());
+                        Map<String, Object> error = new HashMap<>();
+                        error.put("message", loginResponse.getMessage());
+                        error.put("success", false);
+                        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+                    }
                     // Set refresh token in httpOnly cookie
                     Cookie refreshTokenCookie = new Cookie("refreshToken", loginResponse.getRefreshToken());
                     refreshTokenCookie.setHttpOnly(true);
@@ -101,7 +108,7 @@ public class AuthController {
                     // Return access token and user info
                     Map<String, Object> result = new HashMap<>();
                     result.put("accessToken", loginResponse.getAccessToken());
-                    
+                    result.put("success", true);
                     Map<String, Object> userInfo = new HashMap<>();
                     userInfo.put("id", loginResponse.getUserInfo().getId());
                     userInfo.put("email", loginResponse.getUserInfo().getEmail());
@@ -116,6 +123,7 @@ public class AuthController {
                     log.error("Login error: {}", e.getMessage());
                     Map<String, Object> error = new HashMap<>();
                     error.put("message", "Login failed: " + e.getMessage());
+                    error.put("success", false);
                     return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error));
                 });
     }
