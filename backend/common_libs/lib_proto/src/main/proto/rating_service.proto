@@ -61,6 +61,7 @@ message GetUserRatingsResponse {
     int32 user_id = 1;
     int32 total_ratings = 2;
     repeated RatingDetail ratings = 3;
+    string message = 4;
 }
 
 // Rating statistics request
@@ -78,6 +79,7 @@ message GetRatingStatsResponse {
     int32 three_star = 6; // số 3 sao
     int32 two_star = 7; // số 2 sao
     int32 one_star = 8; // số 1 sao
+    string message = 9;
 }
 
 // Rating detail

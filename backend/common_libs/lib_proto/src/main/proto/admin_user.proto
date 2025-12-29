@@ -20,6 +20,8 @@ message UserStatisticsResponse {
   int32 verified_users = 5;
   int32 unverified_users = 6;
   double average_rating = 7;
+  int32 positive_reviews = 8;
+  int32 negative_reviews = 9;
 }
 
 // Registration Statistics Request - Get user registrations by time period
@@ -59,6 +61,8 @@ message UpgradeRequest {
   string status = 6; // "pending", "approved", "rejected"
   int64 created_at = 7; // Timestamp in milliseconds
   int64 reviewed_at = 8; // Timestamp in milliseconds
+  int32 admin_id = 9; // ID of admin who reviewed the request
+  string reason = 10; // Optional: reason for rejection
 }
 
 message GetUpgradeRequestsRequest {
