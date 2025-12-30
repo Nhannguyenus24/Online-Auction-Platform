@@ -48,8 +48,11 @@ public class GuestController {
 
                     if (response.getSuccess()) {
                         List<Map<String, Object>> categories = new ArrayList<>();
+                        // Only process top-level categories (parentId == 0), they already have children attached
                         response.getCategoriesList().forEach(category -> {
-                            if (category.getParentId() == 0) return;
+                            // Skip non-top-level categories (these are children, already included in parent's children list)
+                            if (category.getParentId() != 0) return;
+                            
                             Map<String, Object> categoryMap = new HashMap<>();
                             categoryMap.put("id", category.getId());
                             categoryMap.put("name", category.getName());

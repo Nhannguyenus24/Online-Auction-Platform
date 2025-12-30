@@ -425,7 +425,16 @@ const Header = () => {
           </div>
         )}
         
-        <MenuItem onClick={() => { navigate('/profile'); handleCloseUserMenu(); }}>
+        <MenuItem onClick={() => { 
+          if (userRole === 'bidder') {
+            navigate('/bidder/profile');
+          } else if (userRole === 'seller') {
+            navigate('/seller/profile');
+          } else {
+            navigate('/bidder/profile'); // Default fallback
+          }
+          handleCloseUserMenu(); 
+        }}>
           <ListItemIcon>
             <Person fontSize="small" />
           </ListItemIcon>

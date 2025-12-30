@@ -38,25 +38,25 @@ import {
 import Page from '../../components/Page';
 import { formatPrice } from '../../utils/formatNumber';
 import { fVNDate } from '../../utils/formatTime';
+import { authApi } from '../../utils/api';
 import {
   mockGetRatingsReceived,
   mockGetRatingsGiven,
   mockGetItemsNeedingRating,
 } from '../../mocks';
 
-// Mock user data - will be replaced with API call later
-const mockUserData = {
-  id: 1,
-  name: 'John Doe',
-  email: 'john.doe@example.com',
-  phone: '+84 123 456 789',
-  address: '123 Main Street, Ho Chi Minh City',
-  dateOfBirth: '1990-01-15',
+// Default profile data structure
+const defaultProfileData = {
+  id: null,
+  name: '',
+  email: '',
+  phone: '',
+  address: '',
   avatar: 'https://i.pravatar.cc/150?img=12',
-  rating: 4.5,
-  totalRatings: 24,
-  positiveRatings: 20,
-  negativeRatings: 4,
+  rating: 0,
+  totalRatings: 0,
+  positiveRatings: 0,
+  negativeRatings: 0,
 };
 
 const BidderProfilePage = () => {
@@ -74,13 +74,17 @@ const BidderProfilePage = () => {
   const [ratingsGiven, setRatingsGiven] = useState([]);
   const [itemsNeedingRating, setItemsNeedingRating] = useState([]);
   const [loading, setLoading] = useState({
+    profile: false,
     ratings: false,
+    saving: false,
+    changingPassword: false,
   });
   const [ratingSubTab, setRatingSubTab] = useState(0); // 0: Received, 1: Given, 2: Rate Sellers
   const [ratingForm, setRatingForm] = useState({}); // { productId: { rating: 1/-1, comment: '' } }
 
   // Form states
-  const [profileData, setProfileData] = useState(mockUserData);
+  const [profileData, setProfileData] = useState(defaultProfileData);
+  const [originalProfileData, setOriginalProfileData] = useState(defaultProfileData); // Store original data for cancel
   const [passwordData, setPasswordData] = useState({
     oldPassword: '',
     newPassword: '',
@@ -108,21 +112,118 @@ const BidderProfilePage = () => {
     });
   };
 
-  const handleSaveProfile = () => {
-    // Will be implemented with API call later
-    console.log('Saving profile:', profileData);
-    setIsEditing(false);
-    setSuccessMessage('Profile updated successfully!');
-    setTimeout(() => setSuccessMessage(''), 3000);
+  // Fetch profile data from API
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (tabValue === 0) {
+        setLoading((prev) => ({ ...prev, profile: true }));
+        try {
+          const response = await authApi.getProfile();
+          const apiProfile = response.data?.profile;
+          
+          if (apiProfile) {
+            // Map API response to UI format
+            const mappedProfile = {
+              id: apiProfile.userId || apiProfile.id,
+              name: apiProfile.fullName || '',
+              email: apiProfile.email || '',
+              phone: apiProfile.phoneNumber || '',
+              address: typeof apiProfile.address === 'string' 
+                ? apiProfile.address 
+                : apiProfile.address 
+                  ? `${apiProfile.address.street || ''}, ${apiProfile.address.city || ''}, ${apiProfile.address.country || ''}`.replace(/^,\s*|,\s*$/g, '')
+                  : '',
+              avatar: apiProfile.avatar || defaultProfileData.avatar,
+              rating: apiProfile.rating || 0,
+              totalRatings: apiProfile.totalRatings || 0,
+              positiveRatings: apiProfile.positiveRatings || 0,
+              negativeRatings: apiProfile.negativeRatings || 0,
+            };
+            setProfileData(mappedProfile);
+            setOriginalProfileData(mappedProfile);
+          }
+        } catch (err) {
+          console.error('Error fetching profile:', err);
+          setErrorMessage('Failed to load profile. Please try again.');
+          setTimeout(() => setErrorMessage(''), 5000);
+        } finally {
+          setLoading((prev) => ({ ...prev, profile: false }));
+        }
+      }
+    };
+
+    fetchProfile();
+  }, [tabValue]);
+
+  const handleSaveProfile = async () => {
+    setLoading((prev) => ({ ...prev, saving: true }));
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    try {
+      // Prepare data for API (only fields that can be updated)
+      const updateData = {
+        fullName: profileData.name,
+        phoneNumber: profileData.phone,
+        address: profileData.address,
+      };
+
+      const response = await authApi.updateProfile(updateData);
+      
+      if (response.data?.success) {
+        // Update profile data with response if available
+        const updatedProfile = response.data?.profile;
+        if (updatedProfile) {
+          const mappedProfile = {
+            id: updatedProfile.userId || updatedProfile.id,
+            name: updatedProfile.fullName || profileData.name,
+            email: updatedProfile.email || profileData.email,
+            phone: updatedProfile.phoneNumber || profileData.phone,
+            address: typeof updatedProfile.address === 'string' 
+              ? updatedProfile.address 
+              : updatedProfile.address 
+                ? `${updatedProfile.address.street || ''}, ${updatedProfile.address.city || ''}, ${updatedProfile.address.country || ''}`.replace(/^,\s*|,\s*$/g, '')
+                : profileData.address,
+            avatar: updatedProfile.avatar || profileData.avatar,
+            rating: updatedProfile.rating || profileData.rating,
+            totalRatings: updatedProfile.totalRatings || profileData.totalRatings,
+            positiveRatings: updatedProfile.positiveRatings || profileData.positiveRatings,
+            negativeRatings: updatedProfile.negativeRatings || profileData.negativeRatings,
+          };
+          setProfileData(mappedProfile);
+          setOriginalProfileData(mappedProfile);
+        } else {
+          // If no profile in response, just update local state
+          setOriginalProfileData(profileData);
+        }
+        
+        setIsEditing(false);
+        setSuccessMessage('Profile updated successfully!');
+        setTimeout(() => setSuccessMessage(''), 3000);
+      } else {
+        throw new Error(response.data?.message || 'Failed to update profile');
+      }
+    } catch (err) {
+      console.error('Error updating profile:', err);
+      const errorMsg = err.response?.data?.message || err.message || 'Failed to update profile. Please try again.';
+      setErrorMessage(errorMsg);
+      setTimeout(() => setErrorMessage(''), 5000);
+    } finally {
+      setLoading((prev) => ({ ...prev, saving: false }));
+    }
   };
 
   const handleCancelEdit = () => {
-    setProfileData(mockUserData);
+    setProfileData(originalProfileData);
     setIsEditing(false);
     setErrorMessage('');
   };
 
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
+    // Clear previous messages
+    setErrorMessage('');
+    setSuccessMessage('');
+
     // Validation
     if (!passwordData.oldPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
       setErrorMessage('Please fill in all fields');
@@ -139,16 +240,34 @@ const BidderProfilePage = () => {
       return;
     }
 
-    // Will be implemented with API call later
-    console.log('Changing password:', passwordData);
-    setPasswordData({
-      oldPassword: '',
-      newPassword: '',
-      confirmPassword: '',
-    });
-    setSuccessMessage('Password changed successfully!');
-    setErrorMessage('');
-    setTimeout(() => setSuccessMessage(''), 3000);
+    setLoading((prev) => ({ ...prev, changingPassword: true }));
+
+    try {
+      const response = await authApi.changePassword({
+        oldPassword: passwordData.oldPassword,
+        newPassword: passwordData.newPassword,
+      });
+
+      if (response.data?.success) {
+        // Clear form on success
+        setPasswordData({
+          oldPassword: '',
+          newPassword: '',
+          confirmPassword: '',
+        });
+        setSuccessMessage('Password changed successfully!');
+        setTimeout(() => setSuccessMessage(''), 5000);
+      } else {
+        throw new Error(response.data?.message || 'Failed to change password');
+      }
+    } catch (err) {
+      console.error('Error changing password:', err);
+      const errorMsg = err.response?.data?.message || err.message || 'Failed to change password. Please check your current password and try again.';
+      setErrorMessage(errorMsg);
+      setTimeout(() => setErrorMessage(''), 5000);
+    } finally {
+      setLoading((prev) => ({ ...prev, changingPassword: false }));
+    }
   };
 
   // Fetch data when tab changes
@@ -439,105 +558,110 @@ const BidderProfilePage = () => {
             {/* Tab 0: Personal Info */}
             {tabValue === 0 && (
               <Box>
-                <Stack direction="row" spacing={3} alignItems="center" sx={{ mb: 4 }}>
-                  <Avatar
-                    src={profileData.avatar}
-                    sx={{ width: 100, height: 100 }}
-                  />
-                  <Box>
-                    <Typography variant="h5" fontWeight={600}>
-                      {profileData.name}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {profileData.email}
-                    </Typography>
-                    <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Star sx={{ color: 'warning.main', fontSize: 18 }} />
-                      <Typography variant="body2" fontWeight={500}>
-                        {profileData.rating} ({profileData.totalRatings} ratings)
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-                        • {profileData.positiveRatings}+ / {profileData.negativeRatings}-
-                      </Typography>
-                    </Box>
+                {loading.profile ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+                    <CircularProgress />
                   </Box>
-                  <Box sx={{ flexGrow: 1 }} />
-                  {!isEditing && (
-                    <Button
-                      variant="outlined"
-                      startIcon={<Edit />}
-                      onClick={() => setIsEditing(true)}
-                    >
-                      Edit Profile
-                    </Button>
-                  )}
-                </Stack>
-
-                <Divider sx={{ mb: 4 }} />
-
-                <Box sx={{ maxWidth: 600 }}>
-                  <Stack spacing={3}>
-                    <TextField
-                      fullWidth
-                      label="Full Name"
-                      value={profileData.name}
-                      onChange={handleProfileChange('name')}
-                      disabled={!isEditing}
-                    />
-                    <TextField
-                      fullWidth
-                      label="Email"
-                      type="email"
-                      value={profileData.email}
-                      onChange={handleProfileChange('email')}
-                      disabled={!isEditing}
-                    />
-                    <TextField
-                      fullWidth
-                      label="Phone Number"
-                      value={profileData.phone}
-                      onChange={handleProfileChange('phone')}
-                      disabled={!isEditing}
-                    />
-                    <TextField
-                      fullWidth
-                      label="Date of Birth"
-                      type="date"
-                      value={profileData.dateOfBirth}
-                      onChange={handleProfileChange('dateOfBirth')}
-                      disabled={!isEditing}
-                      InputLabelProps={{ shrink: true }}
-                    />
-                    <TextField
-                      fullWidth
-                      label="Address"
-                      multiline
-                      rows={3}
-                      value={profileData.address}
-                      onChange={handleProfileChange('address')}
-                      disabled={!isEditing}
-                    />
-                  </Stack>
-
-                  {isEditing && (
-                    <Stack direction="row" spacing={2} sx={{ mt: 4 }}>
-                      <Button
-                        variant="contained"
-                        startIcon={<Save />}
-                        onClick={handleSaveProfile}
+                ) : (
+                  <>
+                    <Stack direction="row" spacing={3} alignItems="center" sx={{ mb: 4 }}>
+                      <Avatar
+                        src={profileData.avatar}
+                        sx={{ width: 100, height: 100 }}
                       >
-                        Save Changes
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        startIcon={<Cancel />}
-                        onClick={handleCancelEdit}
-                      >
-                        Cancel
-                      </Button>
+                        {profileData.name ? profileData.name.charAt(0).toUpperCase() : 'U'}
+                      </Avatar>
+                      <Box>
+                        <Typography variant="h5" fontWeight={600}>
+                          {profileData.name || 'No name'}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {profileData.email || 'No email'}
+                        </Typography>
+                        {profileData.totalRatings > 0 && (
+                          <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Star sx={{ color: 'warning.main', fontSize: 18 }} />
+                            <Typography variant="body2" fontWeight={500}>
+                              {profileData.rating} ({profileData.totalRatings} ratings)
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                              • {profileData.positiveRatings}+ / {profileData.negativeRatings}-
+                            </Typography>
+                          </Box>
+                        )}
+                      </Box>
+                      <Box sx={{ flexGrow: 1 }} />
+                      {!isEditing && (
+                        <Button
+                          variant="outlined"
+                          startIcon={<Edit />}
+                          onClick={() => setIsEditing(true)}
+                        >
+                          Edit Profile
+                        </Button>
+                      )}
                     </Stack>
-                  )}
-                </Box>
+
+                    <Divider sx={{ mb: 4 }} />
+
+                    <Box sx={{ maxWidth: 600 }}>
+                      <Stack spacing={3}>
+                        <TextField
+                          fullWidth
+                          label="Full Name"
+                          value={profileData.name}
+                          onChange={handleProfileChange('name')}
+                          disabled={!isEditing || loading.saving}
+                        />
+                        <TextField
+                          fullWidth
+                          label="Email"
+                          type="email"
+                          value={profileData.email}
+                          disabled
+                          helperText="Email cannot be changed"
+                        />
+                        <TextField
+                          fullWidth
+                          label="Phone Number"
+                          value={profileData.phone}
+                          onChange={handleProfileChange('phone')}
+                          disabled={!isEditing || loading.saving}
+                        />
+                        <TextField
+                          fullWidth
+                          label="Address"
+                          multiline
+                          rows={3}
+                          value={profileData.address}
+                          onChange={handleProfileChange('address')}
+                          disabled={!isEditing || loading.saving}
+                        />
+                      </Stack>
+
+                      {isEditing && (
+                        <Stack direction="row" spacing={2} sx={{ mt: 4 }}>
+                          <Button
+                            variant="contained"
+                            startIcon={<Save />}
+                            onClick={handleSaveProfile}
+                            disabled={loading.saving}
+                          >
+                            {loading.saving ? 'Saving...' : 'Save Changes'}
+                          </Button>
+                          <Button
+                            variant="outlined"
+                            startIcon={<Cancel />}
+                            onClick={handleCancelEdit}
+                            disabled={loading.saving}
+                          >
+                            Cancel
+                          </Button>
+                        </Stack>
+                      )}
+                    </Box>
+                  </>
+                )}
               </Box>
             )}
 
@@ -558,12 +682,14 @@ const BidderProfilePage = () => {
                     type={showOldPassword ? 'text' : 'password'}
                     value={passwordData.oldPassword}
                     onChange={handlePasswordChange('oldPassword')}
+                    disabled={loading.changingPassword}
                     InputProps={{
                       endAdornment: (
                         <InputAdornment position="end">
                           <IconButton
                             onClick={() => setShowOldPassword(!showOldPassword)}
                             edge="end"
+                            disabled={loading.changingPassword}
                           >
                             {showOldPassword ? <VisibilityOff /> : <Visibility />}
                           </IconButton>
@@ -577,6 +703,7 @@ const BidderProfilePage = () => {
                     type={showNewPassword ? 'text' : 'password'}
                     value={passwordData.newPassword}
                     onChange={handlePasswordChange('newPassword')}
+                    disabled={loading.changingPassword}
                     helperText="Password must be at least 6 characters"
                     InputProps={{
                       endAdornment: (
@@ -584,6 +711,7 @@ const BidderProfilePage = () => {
                           <IconButton
                             onClick={() => setShowNewPassword(!showNewPassword)}
                             edge="end"
+                            disabled={loading.changingPassword}
                           >
                             {showNewPassword ? <VisibilityOff /> : <Visibility />}
                           </IconButton>
@@ -597,12 +725,14 @@ const BidderProfilePage = () => {
                     type={showConfirmPassword ? 'text' : 'password'}
                     value={passwordData.confirmPassword}
                     onChange={handlePasswordChange('confirmPassword')}
+                    disabled={loading.changingPassword}
                     InputProps={{
                       endAdornment: (
                         <InputAdornment position="end">
                           <IconButton
                             onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                             edge="end"
+                            disabled={loading.changingPassword}
                           >
                             {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
                           </IconButton>
@@ -614,9 +744,10 @@ const BidderProfilePage = () => {
                     variant="contained"
                     size="large"
                     onClick={handleChangePassword}
+                    disabled={loading.changingPassword}
                     sx={{ mt: 2 }}
                   >
-                    Change Password
+                    {loading.changingPassword ? 'Changing Password...' : 'Change Password'}
                   </Button>
                 </Stack>
               </Box>

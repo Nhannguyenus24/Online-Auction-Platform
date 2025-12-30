@@ -1,3 +1,12 @@
+/**
+ * Authentication API utilities
+ * 
+ * This file exports authApi object containing all authentication-related API calls.
+ * Used by: JWTContext, Header, Login, Register, ProfilePage, ResetPassword, ForgotPassword
+ * 
+ * DO NOT DELETE - This file is actively used throughout the application
+ */
+
 import axiosInstance from './axios';
 import { fSQLDate } from './formatTime';
 

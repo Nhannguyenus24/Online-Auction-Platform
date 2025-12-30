@@ -6,5 +6,6 @@
 export * from './watchList';
 export * from './profile';
 export * from './sellerProfile';
-export * from './categories';
+// Categories API is now integrated - removed mock export
+// export * from './categories';
 

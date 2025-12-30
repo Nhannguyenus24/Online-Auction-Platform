@@ -7,22 +7,36 @@ import {
   FormHelperText,
   Box,
   Typography,
+  CircularProgress,
+  Alert,
 } from '@mui/material';
-import { mockGetCategories } from '../mocks';
+import { categoryApi } from '../services/categoryApi';
 
 const CategorySelector = ({ parentCategory, childCategory, onChange, error, helperText }) => {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState(null);
   const [availableChildren, setAvailableChildren] = useState([]);
 
   useEffect(() => {
     const fetchCategories = async () => {
       try {
         setLoading(true);
-        const response = await mockGetCategories();
-        setCategories(response.data || []);
+        setErrorMessage(null);
+        console.log('Fetching categories...');
+        const response = await categoryApi.getCategories();
+        console.log('Categories response:', response);
+        const categoriesData = response.data || [];
+        console.log('Setting categories:', categoriesData);
+        setCategories(categoriesData);
       } catch (err) {
         console.error('Error fetching categories:', err);
+        console.error('Error details:', {
+          message: err.message,
+          response: err.response?.data,
+          status: err.response?.status,
+        });
+        setErrorMessage(err.response?.data?.message || err.message || 'Failed to load categories. Please try again later.');
         setCategories([]);
       } finally {
         setLoading(false);
@@ -69,6 +83,54 @@ const CategorySelector = ({ parentCategory, childCategory, onChange, error, help
     });
   };
 
+  // Show loading state
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Select a category and subcategory for your product.
+        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <CircularProgress size={20} />
+          <Typography variant="body2" color="text.secondary">
+            Loading categories...
+          </Typography>
+        </Box>
+      </Box>
+    );
+  }
+
+  // Show error state
+  if (errorMessage) {
+    return (
+      <Box>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Select a category and subcategory for your product.
+        </Typography>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {errorMessage}
+        </Alert>
+        <Typography variant="caption" color="text.secondary">
+          Please refresh the page or contact support if the problem persists.
+        </Typography>
+      </Box>
+    );
+  }
+
+  // Show empty state if no categories after loading
+  if (!loading && !errorMessage && categories.length === 0) {
+    return (
+      <Box>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Select a category and subcategory for your product.
+        </Typography>
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          No categories available. Please contact support or try again later.
+        </Alert>
+      </Box>
+    );
+  }
+
   return (
     <Box>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -101,7 +163,7 @@ const CategorySelector = ({ parentCategory, childCategory, onChange, error, help
           fullWidth
           error={!!error && !childCategory}
           required
-          disabled={!parentCategory || availableChildren.length === 0}
+          disabled={!parentCategory || availableChildren.length === 0 || loading}
         >
           <InputLabel id="child-category-label">Subcategory</InputLabel>
           <Select
@@ -110,7 +172,7 @@ const CategorySelector = ({ parentCategory, childCategory, onChange, error, help
             value={childCategory || ''}
             label="Subcategory"
             onChange={handleChildChange}
-            disabled={!parentCategory || availableChildren.length === 0}
+            disabled={!parentCategory || availableChildren.length === 0 || loading}
           >
             <MenuItem value="">
               <em>Select a subcategory</em>
