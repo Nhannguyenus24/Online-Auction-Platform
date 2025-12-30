@@ -25,9 +25,18 @@ const isValidToken = async (accessToken) => {
 };
 
 const getPayload = async (accessToken) => {
-  const publicKey = await importSPKI(PUBLIC_KEY_PEM, 'RS256');
-  const { payload } = await jwtVerify(accessToken, publicKey);
-  return payload;
+  try {
+    if (!PUBLIC_KEY_PEM) {
+      console.warn('VITE_PUBLIC_KEY is not set, cannot verify token');
+      return null;
+    }
+    const publicKey = await importSPKI(PUBLIC_KEY_PEM, 'RS256');
+    const { payload } = await jwtVerify(accessToken, publicKey);
+    return payload;
+  } catch (error) {
+    console.error('Failed to get payload from token:', error);
+    return null;
+  }
 };
 
 const setSession = (accessToken) => {

@@ -127,7 +127,7 @@ const ResetPassword = () => {
       
       // Redirect to login after 2 seconds
       setTimeout(() => {
-        navigate("/login");
+        navigate("/auth/login");
       }, 2000);
     } catch (error) {
       setErrorMessage(error.response?.data?.message || error.message || "Failed to update password. Please try again.");
@@ -141,7 +141,7 @@ const ResetPassword = () => {
       title="Create a new password"
       subtitle="Choose a strong password to keep your bidding and payouts secure."
       icon={<LockReset color="primary" fontSize="large" />}
-      footerLinks={[{ label: "Back to login", to: "/login" }]}
+      footerLinks={[{ label: "Back to login", to: "/auth/login" }]}
     >
       <Stack component="form" spacing={2.5} onSubmit={handleSubmit}>
         {status === "success" && (

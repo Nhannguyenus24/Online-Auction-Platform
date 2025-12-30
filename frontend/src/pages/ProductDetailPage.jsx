@@ -257,7 +257,7 @@ function ProductDetailPage() {
 
   const handlePlaceBid = () => {
     if (!isLoggedIn) {
-      navigate('/login');
+      navigate('/auth/login');
       return;
     }
     setOpenBidDialog(true);
@@ -272,7 +272,7 @@ function ProductDetailPage() {
 
   const handleAskQuestion = () => {
     if (!isLoggedIn) {
-      navigate('/login');
+      navigate('/auth/login');
       return;
     }
     // API call to post question
@@ -282,7 +282,7 @@ function ProductDetailPage() {
 
   const handleToggleWatchlist = () => {
     if (!isLoggedIn) {
-      navigate('/login');
+      navigate('/auth/login');
       return;
     }
     setIsWatchlisted(!isWatchlisted);
@@ -976,7 +976,7 @@ function ProductDetailPage() {
                         variant="contained"
                         size="large"
                         fullWidth
-                        onClick={() => navigate('/login')}
+                        onClick={() => navigate('/auth/login')}
                         sx={{ 
                           py: 2,
                           borderRadius: 2,

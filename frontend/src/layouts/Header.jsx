@@ -36,15 +36,20 @@ import {
 } from '@mui/icons-material';
 import NotificationMenu from '../components/NotificationMenu';
 import ShoppingCartMenu from '../components/ShoppingCartMenu';
+import { useAuth } from '../hooks/useAuth';
+import { authApi } from '../utils/api';
 
 const Header = () => {
   const navigate = useNavigate();
+  const { isAuthenticated, user, logout: authLogout } = useAuth();
   
-  // Mock authentication state - replace with real auth context
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userRole, setUserRole] = useState('bidder'); // 'bidder', 'seller', 'admin'
-  const [userName, setUserName] = useState('John Doe');
-  const [userAvatar, setUserAvatar] = useState('');
+  // Debug logs
+  console.log('Header render - isAuthenticated:', isAuthenticated, 'user:', user);
+  
+  // Get user info from auth context
+  const userName = user?.fullName || user?.name || '';
+  const userRole = user?.roles?.[0]?.toLowerCase() || user?.roleName?.toLowerCase() || '';
+  const userAvatar = user?.avatar || user?.profilePicture || '';
   
   // Menu states
   const [anchorElUser, setAnchorElUser] = useState(null);
@@ -161,10 +166,16 @@ const Header = () => {
     }
   };
 
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    handleCloseUserMenu();
-    navigate('/login');
+  const handleLogout = async () => {
+    try {
+      await authApi.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      authLogout();
+      handleCloseUserMenu();
+      navigate('/auth/login');
+    }
   };
 
   return (
@@ -266,12 +277,12 @@ const Header = () => {
 
           {/* Right Side - Conditional Rendering */}
           <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
-            {isLoggedIn ? (
+            {!isAuthenticated ? (
               // Not Logged In - Show Login Button
               <Stack direction="row" spacing={1}>
                 <Button
                   variant="outlined"
-                  onClick={() => navigate('/login')}
+                  onClick={() => navigate('/auth/login')}
                   sx={{
                     borderRadius: 2,
                     px: 3,
@@ -282,7 +293,7 @@ const Header = () => {
                 </Button>
                 <Button
                   variant="contained"
-                  onClick={() => navigate('/register')}
+                  onClick={() => navigate('/auth/register')}
                   sx={{
                     borderRadius: 2,
                     px: 3,
@@ -340,10 +351,10 @@ const Header = () => {
                     alt={userName}
                     sx={{ width: 36, height: 36, mr: 1 }}
                   >
-                    {userName.charAt(0)}
+                    {userName ? userName.charAt(0).toUpperCase() : 'U'}
                   </Avatar>
                   <Typography variant="body2" fontWeight="600" sx={{ display: { xs: 'none', sm: 'block' } }}>
-                    {userName}
+                    {userName || 'User'}
                   </Typography>
                 </Button>
               </div>
@@ -353,29 +364,30 @@ const Header = () => {
       </Container>
 
       {/* User Menu */}
-      <Menu
-        anchorEl={anchorElUser}
-        open={Boolean(anchorElUser)}
-        onClose={handleCloseUserMenu}
-        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-        PaperProps={{
-          sx: {
-            mt: 1.5,
-            minWidth: 220,
-            borderRadius: 2,
-            boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-          },
-        }}
-      >
-        <Box sx={{ px: 2, py: 1.5 }}>
-          <Typography variant="subtitle2" fontWeight="bold">
-            {userName}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            {userRole.charAt(0).toUpperCase() + userRole.slice(1)}
-          </Typography>
-        </Box>
+      {isAuthenticated && (
+        <Menu
+          anchorEl={anchorElUser}
+          open={Boolean(anchorElUser)}
+          onClose={handleCloseUserMenu}
+          transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+          anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+          PaperProps={{
+            sx: {
+              mt: 1.5,
+              minWidth: 220,
+              borderRadius: 2,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+            },
+          }}
+        >
+          <Box sx={{ px: 2, py: 1.5 }}>
+            <Typography variant="subtitle2" fontWeight="bold">
+              {userName || 'User'}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {userRole ? userRole.charAt(0).toUpperCase() + userRole.slice(1) : 'User'}
+            </Typography>
+          </Box>
         <Divider />
         
         {userRole === 'admin' && (
@@ -429,13 +441,14 @@ const Header = () => {
         
         <Divider />
         
-        <MenuItem onClick={handleLogout}>
-          <ListItemIcon>
-            <Logout fontSize="small" color="error" />
-          </ListItemIcon>
-          <ListItemText sx={{ color: 'error.main' }}>Logout</ListItemText>
-        </MenuItem>
-      </Menu>
+          <MenuItem onClick={handleLogout}>
+            <ListItemIcon>
+              <Logout fontSize="small" color="error" />
+            </ListItemIcon>
+            <ListItemText sx={{ color: 'error.main' }}>Logout</ListItemText>
+          </MenuItem>
+        </Menu>
+      )}
 
       {/* Notifications Menu */}
       <NotificationMenu

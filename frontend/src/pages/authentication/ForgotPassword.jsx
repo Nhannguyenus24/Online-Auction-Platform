@@ -99,8 +99,8 @@ const ForgotPassword = () => {
       subtitle="Enter the email linked to your auction account. We’ll send a secure recovery link."
       icon={<Update color="primary" fontSize="large" />}
       footerLinks={[
-        { label: "Back to login", to: "/login" },
-        { label: "Create a new account", to: "/register" },
+        { label: "Back to login", to: "/auth/login" },
+        { label: "Create a new account", to: "/auth/register" },
       ]}
     >
       <Stack component="form" spacing={2.5} onSubmit={handleSubmit}>

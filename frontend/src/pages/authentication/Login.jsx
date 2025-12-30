@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useForm, Controller } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import {
   Alert,
@@ -12,27 +14,14 @@ import {
   Stack,
   TextField,
 } from "@mui/material";
-import {
-  Gavel,
-  Google,
-  Visibility,
-  VisibilityOff,
-} from "@mui/icons-material";
+import { Gavel, Google, Visibility, VisibilityOff } from "@mui/icons-material";
 import AuthLayout from "../../layouts/AuthLayout";
 import { authApi } from "../../utils/api";
+import { useAuth } from "../../hooks/useAuth";
 
 const loginSchema = yup.object({
-  email: yup
-    .string()
-    .email("Enter a valid email address.")
-    .required("Email is required."),
-  password: yup
-    .string()
-    .matches(
-      /^(?=.*[A-Za-z])(?=.*\d).{8,}$/,
-      "Password must be at least 8 characters and include letters and numbers."
-    )
-    .required("Password is required."),
+  email: yup.string().email("Enter a valid email address.").required("Email is required."),
+  password: yup.string().required("Password is required."),
   remember: yup.boolean(),
 });
 
@@ -40,76 +29,52 @@ const defaultValues = { email: "", password: "", remember: true };
 
 const Login = () => {
   const navigate = useNavigate();
-  const [formValues, setFormValues] = useState(defaultValues);
-  const [formErrors, setFormErrors] = useState({});
+  const { login: authLogin } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
 
-  const validateField = async (field, valueOverride) => {
-    if (!loginSchema.fields[field]) return;
-    try {
-      await loginSchema.validateAt(field, {
-        ...formValues,
-        [field]: valueOverride ?? formValues[field],
-      });
-      setFormErrors((prev) => ({ ...prev, [field]: "" }));
-    } catch (error) {
-      setFormErrors((prev) => ({ ...prev, [field]: error.message }));
-    }
-  };
+  const {
+    control,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: yupResolver(loginSchema),
+    defaultValues,
+    mode: "onBlur",
+  });
 
-  const validateForm = async () => {
-    try {
-      await loginSchema.validate(formValues, { abortEarly: false });
-      setFormErrors({});
-      return true;
-    } catch (error) {
-      const formattedErrors = error.inner.reduce((acc, current) => {
-        if (current.path && !acc[current.path]) {
-          acc[current.path] = current.message;
-        }
-        return acc;
-      }, {});
-      setFormErrors((prev) => ({ ...prev, ...formattedErrors }));
-      return false;
-    }
-  };
-
-  const handleChange = async (event) => {
-    const { name, value, checked, type } = event.target;
-    const nextValue = type === "checkbox" ? checked : value;
-    setFormValues((prev) => ({ ...prev, [name]: nextValue }));
-    await validateField(name, nextValue);
-  };
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    const isValid = await validateForm();
-    if (!isValid) return;
-
-    setSubmitting(true);
+  const onSubmit = async (data) => {
     setStatus(null);
     setErrorMessage("");
 
     try {
       const response = await authApi.login({
-        email: formValues.email,
-        password: formValues.password,
+        email: data.email,
+        password: data.password,
       });
 
+      console.log('Login response:', response);
+
+      // Update auth context with user data
+      if (response.accessToken) {
+        // If user data is provided, use it; otherwise login function will try to get from token
+        await authLogin(response.accessToken, response.user || null);
+      } else {
+        throw new Error('No access token received from server');
+      }
+
       setStatus("success");
-      setSubmitting(false);
-      
+
       // Redirect to dashboard after 1 second
       setTimeout(() => {
         navigate("/");
       }, 1000);
     } catch (error) {
-      setErrorMessage(error.response?.data?.message || error.message || "Login failed. Please try again.");
+      setErrorMessage(
+        error.response?.data?.message || error.message || "Login failed. Please try again."
+      );
       setStatus("error");
-      setSubmitting(false);
     }
   };
 
@@ -119,11 +84,11 @@ const Login = () => {
       subtitle="Sign in to monitor bids, manage listings, and access real-time insights."
       icon={<Gavel color="primary" fontSize="large" />}
       footerLinks={[
-        { label: "Forgot password?", to: "/forgot-password" },
-        { label: "Create account", to: "/register" },
+        { label: "Forgot password?", to: "/auth/forgot-password" },
+        { label: "Create account", to: "/auth/register" },
       ]}
     >
-      <Stack component="form" spacing={2.5} onSubmit={handleSubmit}>
+      <Stack component="form" spacing={2.5} onSubmit={handleSubmit(onSubmit)}>
         {status === "success" && (
           <Alert severity="success" sx={{ py: 1 }}>
             Sign-in successful. Redirecting to dashboard…
@@ -135,60 +100,64 @@ const Login = () => {
           </Alert>
         )}
 
-        <TextField
-          label="Email address"
+        <Controller
           name="email"
-          type="email"
-          value={formValues.email}
-          onChange={handleChange}
-          required
-          fullWidth
-          error={Boolean(formErrors.email)}
-          helperText={formErrors.email}
-        />
-
-        <TextField
-          label="Password"
-          name="password"
-          type={showPassword ? "text" : "password"}
-          value={formValues.password}
-          onChange={handleChange}
-          required
-          fullWidth
-          error={Boolean(formErrors.password)}
-          helperText={formErrors.password}
-          InputProps={{
-            endAdornment: (
-              <InputAdornment position="end">
-                <IconButton
-                  aria-label="toggle password visibility"
-                  onClick={() => setShowPassword((prev) => !prev)}
-                >
-                  {showPassword ? <VisibilityOff /> : <Visibility />}
-                </IconButton>
-              </InputAdornment>
-            ),
-          }}
-        />
-
-        <FormControlLabel
-          control={
-            <Checkbox
-              checked={formValues.remember}
-              name="remember"
-              onChange={handleChange}
+          control={control}
+          render={({ field }) => (
+            <TextField
+              {...field}
+              label="Email address"
+              type="email"
+              required
+              fullWidth
+              error={Boolean(errors.email)}
+              helperText={errors.email?.message}
             />
-          }
-          label="Keep me signed in"
+          )}
         />
 
-        <Button
-          type="submit"
-          variant="contained"
-          size="large"
-          disabled={submitting}
-        >
-          {submitting ? "Signing in..." : "Sign in"}
+        <Controller
+          name="password"
+          control={control}
+          render={({ field }) => (
+            <TextField
+              {...field}
+              label="Password"
+              type={showPassword ? "text" : "password"}
+              required
+              fullWidth
+              error={Boolean(errors.password)}
+              helperText={errors.password?.message}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      aria-label="toggle password visibility"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      edge="end"
+                    >
+                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
+          )}
+        />
+
+        <Controller
+          name="remember"
+          control={control}
+          render={({ field: { value, onChange } }) => (
+            <FormControlLabel
+              control={<Checkbox checked={value} onChange={onChange} />}
+              label="Keep me signed in"
+            />
+          )}
+        />
+
+        <Button type="submit" variant="contained" size="large" disabled={isSubmitting}>
+          {isSubmitting ? "Signing in..." : "Sign in"}
         </Button>
 
         <Divider>or continue with</Divider>
