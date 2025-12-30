@@ -12,6 +12,8 @@ import {
   Chip,
   IconButton,
   Stack,
+  CircularProgress,
+  Alert,
 } from "@mui/material";
 import {
   AccessTime,
@@ -24,6 +26,7 @@ import {
 } from "@mui/icons-material";
 import Page from "../components/Page";
 import { formatPrice } from "../utils/formatNumber";
+import { productApi } from "../services/productApi";
 
 // Mock data for banners
 const banners = [
@@ -92,155 +95,44 @@ const featuredCategories = [
   },
 ];
 
-// Mock products data
-const mockEndingSoonProducts = [
-  {
-    id: 1,
-    title: "Luxury Swiss Automatic Watch - Rose Gold",
-    image: "https://images.unsplash.com/photo-1523170335258-f5ed11844a49?w=400",
-    currentPrice: 25000000,
-    bidCount: 23,
-    endTime: "2025-11-26T18:30:00",
-    condition: "New",
-  },
-  {
-    id: 2,
-    title: 'MacBook Pro 16" M3 Max - Space Gray',
-    image: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400",
-    currentPrice: 65000000,
-    bidCount: 38,
-    endTime: "2025-11-26T20:00:00",
-    condition: "New",
-  },
-  {
-    id: 3,
-    title: "Vintage Leather Handbag - Designer",
-    image: "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=400",
-    currentPrice: 8500000,
-    bidCount: 15,
-    endTime: "2025-11-26T22:00:00",
-    condition: "Used",
-  },
-  {
-    id: 4,
-    title: "Gaming Chair RGB - Ergonomic",
-    image: "https://images.unsplash.com/photo-1598550476439-6847785fcea6?w=400",
-    currentPrice: 4200000,
-    bidCount: 12,
-    endTime: "2025-11-27T08:00:00",
-    condition: "New",
-  },
-  {
-    id: 5,
-    title: "Canon EOS R5 Camera Body",
-    image: "https://images.unsplash.com/photo-1606980707269-0f0e0a0b6aa3?w=400",
-    currentPrice: 42000000,
-    bidCount: 31,
-    endTime: "2025-11-27T10:00:00",
-    condition: "New",
-  },
-];
-
-const mockMostBidsProducts = [
-  {
-    id: 6,
-    title: "iPhone 15 Pro Max 256GB - Titanium",
-    image: "https://images.unsplash.com/photo-1510557880182-3d4d3cba35a5?w=400",
-    currentPrice: 28000000,
-    bidCount: 87,
-    endTime: "2025-11-28T15:00:00",
-    condition: "New",
-  },
-  {
-    id: 7,
-    title: "Sony PlayStation 5 Bundle",
-    image: "https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?w=400",
-    currentPrice: 15000000,
-    bidCount: 64,
-    endTime: "2025-11-29T12:00:00",
-    condition: "New",
-  },
-  {
-    id: 8,
-    title: "Rolex Submariner - Black Dial",
-    image: "https://images.unsplash.com/photo-1614164185128-e4ec99c436d7?w=400",
-    currentPrice: 180000000,
-    bidCount: 56,
-    endTime: "2025-11-28T18:00:00",
-    condition: "Used",
-  },
-  {
-    id: 9,
-    title: "Designer Sneakers Limited Edition",
-    image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400",
-    currentPrice: 12000000,
-    bidCount: 52,
-    endTime: "2025-11-30T16:00:00",
-    condition: "New",
-  },
-  {
-    id: 10,
-    title: "Electric Scooter Pro Max",
-    image: "https://images.unsplash.com/photo-1593436878396-ea3fbe0c170f?w=400",
-    currentPrice: 9500000,
-    bidCount: 48,
-    endTime: "2025-11-29T14:00:00",
-    condition: "New",
-  },
-];
-
-const mockHighestPriceProducts = [
-  {
-    id: 11,
-    title: "Rolex Submariner - Black Dial",
-    image: "https://images.unsplash.com/photo-1614164185128-e4ec99c436d7?w=400",
-    currentPrice: 180000000,
-    bidCount: 56,
-    endTime: "2025-11-28T18:00:00",
-    condition: "Used",
-  },
-  {
-    id: 12,
-    title: 'MacBook Pro 16" M3 Max - Space Gray',
-    image: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400",
-    currentPrice: 65000000,
-    bidCount: 38,
-    endTime: "2025-11-26T20:00:00",
-    condition: "New",
-  },
-  {
-    id: 13,
-    title: "Gaming Laptop RTX 4090 - 32GB RAM",
-    image: "https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=400",
-    currentPrice: 45000000,
-    bidCount: 42,
-    endTime: "2025-11-28T16:00:00",
-    condition: "New",
-  },
-  {
-    id: 14,
-    title: "Canon EOS R5 Camera Body",
-    image: "https://images.unsplash.com/photo-1606980707269-0f0e0a0b6aa3?w=400",
-    currentPrice: 42000000,
-    bidCount: 31,
-    endTime: "2025-11-27T10:00:00",
-    condition: "New",
-  },
-  {
-    id: 15,
-    title: "iPhone 15 Pro Max 256GB - Titanium",
-    image: "https://images.unsplash.com/photo-1510557880182-3d4d3cba35a5?w=400",
-    currentPrice: 28000000,
-    bidCount: 87,
-    endTime: "2025-11-28T15:00:00",
-    condition: "New",
-  },
-];
+// Helper function to map API product to component format
+const mapProductFromAPI = (apiProduct) => {
+  // Find primary image or use first image
+  const primaryImage = apiProduct.images?.find(img => img.isPrimary) || apiProduct.images?.[0];
+  const imageUrl = primaryImage?.url || '/placeholder-image.jpg';
+  
+  return {
+    id: apiProduct.id,
+    title: apiProduct.title,
+    image: imageUrl,
+    currentPrice: apiProduct.currentPrice || 0,
+    bidCount: apiProduct.bidsCount || 0,
+    endTime: apiProduct.endsAt || apiProduct.timeRemaining,
+    condition: apiProduct.status === 'ended' ? 'Used' : 'New', // Default to 'New' for active products
+  };
+};
 
 const HomePage = () => {
   const navigate = useNavigate();
   const [currentBanner, setCurrentBanner] = useState(0);
   const [currentTime, setCurrentTime] = useState(new Date());
+  
+  // Product states
+  const [endingSoonProducts, setEndingSoonProducts] = useState([]);
+  const [mostBidsProducts, setMostBidsProducts] = useState([]);
+  const [highestPriceProducts, setHighestPriceProducts] = useState([]);
+  
+  // Loading and error states
+  const [loading, setLoading] = useState({
+    endingSoon: true,
+    mostBids: true,
+    highestPrice: true,
+  });
+  const [errors, setErrors] = useState({
+    endingSoon: null,
+    mostBids: null,
+    highestPrice: null,
+  });
 
   // Update time every second for countdown
   useEffect(() => {
@@ -249,6 +141,66 @@ const HomePage = () => {
     }, 1000);
 
     return () => clearInterval(timer);
+  }, []);
+
+  // Fetch top products from API
+  useEffect(() => {
+    const fetchTopProducts = async () => {
+      try {
+        // Fetch all 3 APIs in parallel
+        const [endingSoonRes, mostBidsRes, highestPriceRes] = await Promise.all([
+          productApi.getTopEndingProducts(5).catch(err => ({ success: false, products: [], error: err })),
+          productApi.getTopBidCountProducts(5).catch(err => ({ success: false, products: [], error: err })),
+          productApi.getTopPriceProducts(5).catch(err => ({ success: false, products: [], error: err })),
+        ]);
+
+        // Process ending soon products
+        if (endingSoonRes.success) {
+          const mappedProducts = (endingSoonRes.products || []).map(mapProductFromAPI);
+          setEndingSoonProducts(mappedProducts);
+          setLoading(prev => ({ ...prev, endingSoon: false }));
+          setErrors(prev => ({ ...prev, endingSoon: null }));
+        } else {
+          setEndingSoonProducts([]);
+          setLoading(prev => ({ ...prev, endingSoon: false }));
+          setErrors(prev => ({ ...prev, endingSoon: endingSoonRes.error?.message || 'Failed to load ending soon products' }));
+        }
+
+        // Process most bids products
+        if (mostBidsRes.success) {
+          const mappedProducts = (mostBidsRes.products || []).map(mapProductFromAPI);
+          setMostBidsProducts(mappedProducts);
+          setLoading(prev => ({ ...prev, mostBids: false }));
+          setErrors(prev => ({ ...prev, mostBids: null }));
+        } else {
+          setMostBidsProducts([]);
+          setLoading(prev => ({ ...prev, mostBids: false }));
+          setErrors(prev => ({ ...prev, mostBids: mostBidsRes.error?.message || 'Failed to load most popular products' }));
+        }
+
+        // Process highest price products
+        if (highestPriceRes.success) {
+          const mappedProducts = (highestPriceRes.products || []).map(mapProductFromAPI);
+          setHighestPriceProducts(mappedProducts);
+          setLoading(prev => ({ ...prev, highestPrice: false }));
+          setErrors(prev => ({ ...prev, highestPrice: null }));
+        } else {
+          setHighestPriceProducts([]);
+          setLoading(prev => ({ ...prev, highestPrice: false }));
+          setErrors(prev => ({ ...prev, highestPrice: highestPriceRes.error?.message || 'Failed to load highest price products' }));
+        }
+      } catch (error) {
+        console.error('Error fetching top products:', error);
+        setLoading({ endingSoon: false, mostBids: false, highestPrice: false });
+        setErrors({
+          endingSoon: 'Failed to load products',
+          mostBids: 'Failed to load products',
+          highestPrice: 'Failed to load products',
+        });
+      }
+    };
+
+    fetchTopProducts();
   }, []);
 
   // Calculate time left
@@ -726,12 +678,31 @@ const HomePage = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {mockEndingSoonProducts.map((product, index) => (
+                  {loading.endingSoon ? (
+                    <tr>
+                      <td colSpan={6} style={{ padding: '40px', textAlign: 'center' }}>
+                        <CircularProgress />
+                      </td>
+                    </tr>
+                  ) : errors.endingSoon ? (
+                    <tr>
+                      <td colSpan={6} style={{ padding: '20px' }}>
+                        <Alert severity="error">{errors.endingSoon}</Alert>
+                      </td>
+                    </tr>
+                  ) : endingSoonProducts.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} style={{ padding: '40px', textAlign: 'center' }}>
+                        <Typography color="text.secondary">No products available</Typography>
+                      </td>
+                    </tr>
+                  ) : (
+                    endingSoonProducts.map((product, index) => (
                     <tr
                       key={product.id}
                       style={{
                         borderBottom:
-                          index < mockEndingSoonProducts.length - 1
+                          index < endingSoonProducts.length - 1
                             ? "1px solid #e0e0e0"
                             : "none",
                         cursor: "pointer",
@@ -846,7 +817,7 @@ const HomePage = () => {
                         </Button>
                       </td>
                     </tr>
-                  ))}
+                  )))}
                 </tbody>
               </table>
             </Box>
@@ -971,12 +942,31 @@ const HomePage = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {mockMostBidsProducts.map((product, index) => (
+                  {loading.mostBids ? (
+                    <tr>
+                      <td colSpan={6} style={{ padding: '40px', textAlign: 'center' }}>
+                        <CircularProgress />
+                      </td>
+                    </tr>
+                  ) : errors.mostBids ? (
+                    <tr>
+                      <td colSpan={6} style={{ padding: '20px' }}>
+                        <Alert severity="error">{errors.mostBids}</Alert>
+                      </td>
+                    </tr>
+                  ) : mostBidsProducts.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} style={{ padding: '40px', textAlign: 'center' }}>
+                        <Typography color="text.secondary">No products available</Typography>
+                      </td>
+                    </tr>
+                  ) : (
+                    mostBidsProducts.map((product, index) => (
                     <tr
                       key={product.id}
                       style={{
                         borderBottom:
-                          index < mockMostBidsProducts.length - 1
+                          index < mostBidsProducts.length - 1
                             ? "1px solid #e0e0e0"
                             : "none",
                         cursor: "pointer",
@@ -1091,7 +1081,8 @@ const HomePage = () => {
                         </Button>
                       </td>
                     </tr>
-                  ))}
+                    ))
+                  )}
                 </tbody>
               </table>
             </Box>
