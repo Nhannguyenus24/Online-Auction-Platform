@@ -1,4 +1,4 @@
-package products.service;
+package gateway.service;
 
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;

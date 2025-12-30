@@ -1,6 +1,6 @@
 package user.grpc;
 
-import com.auction.proto.admin.*;
+import com.auction.proto.admin.user.*;
 import org.springframework.grpc.server.service.GrpcService;
 import reactor.core.publisher.Mono;
 import user.service.AdminService;

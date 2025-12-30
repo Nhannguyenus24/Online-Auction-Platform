@@ -6,7 +6,22 @@ import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
 import org.springframework.data.relational.core.query.Criteria;
 import org.springframework.data.relational.core.query.Query;
 import org.springframework.stereotype.Service;
-import com.auction.proto.admin.*;
+
+import com.auction.proto.admin.user.ApproveUpgradeRequestRequest;
+import com.auction.proto.admin.user.ApproveUpgradeRequestResponse;
+import com.auction.proto.admin.user.DailyRegistration;
+import com.auction.proto.admin.user.GetUpgradeRequestsRequest;
+import com.auction.proto.admin.user.GetUpgradeRequestsResponse;
+import com.auction.proto.admin.user.MonthlyRegistration;
+import com.auction.proto.admin.user.ProfitStatisticsRequest;
+import com.auction.proto.admin.user.RegistrationStatisticsRequest;
+import com.auction.proto.admin.user.RegistrationStatisticsResponse;
+import com.auction.proto.admin.user.UpgradeRequest;
+import com.auction.proto.admin.user.UserStatisticsRequest;
+import com.auction.proto.admin.user.UserStatisticsResponse;
+import com.auction.proto.admin.user.YearlyRegistration;
+import com.auction.proto.rating.GetRatingStatsResponse;
+
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import user.repository.AdminRepository;
@@ -17,6 +32,27 @@ public class AdminService {
     private static final Logger log = LoggerFactory.getLogger(AdminService.class);
     private final AdminRepository adminRepository;
     private final R2dbcEntityTemplate template;
+
+    /**
+     * Record for registration statistics projection
+     */
+    public record RegistrationRecord(String date, String month, String year, Integer count) {
+        public String getDate() {
+            return date;
+        }
+        
+        public String getMonth() {
+            return month;
+        }
+        
+        public String getYear() {
+            return year;
+        }
+        
+        public Integer getCount() {
+            return count != null ? count : 0;
+        }
+    }
 
     public AdminService(AdminRepository adminRepository, R2dbcEntityTemplate template) {
         this.adminRepository = adminRepository;
@@ -132,9 +168,9 @@ public class AdminService {
             query = Query.empty();
         }
 
-        return template.count(query, "upgrade_requests")
+        return template.count(query, "upgrade_requests".getClass())
                 .flatMap(totalCount -> {
-                    Query queryWithPagination = Query.query(query.getCriteria())
+                    Query queryWithPagination = Query.query(query.getCriteria().get())
                             .offset(skip)
                             .limit(pageSize);
 
@@ -142,7 +178,7 @@ public class AdminService {
                             .collectList()
                             .map(requests -> {
                                 GetUpgradeRequestsResponse.Builder builder = GetUpgradeRequestsResponse.newBuilder()
-                                        .setTotalCount((int) totalCount)
+                                        .setTotalCount(Math.toIntExact(totalCount))
                                         .setPage(page)
                                         .setTotalPages((int) Math.ceil((double) totalCount / pageSize));
 
@@ -153,9 +189,9 @@ public class AdminService {
                                                 .setRequestedRole(req.getRequestedRole())
                                                 .setStatus(req.getStatus())
                                                 .setCreatedAt(req.getCreatedAt() != null ? 
-                                                        req.getCreatedAt().getEpochSecond() * 1000 : 0)
+                                                        req.getCreatedAt().getSecond() * 1000 : 0)
                                                 .setReviewedAt(req.getReviewedAt() != null ? 
-                                                        req.getReviewedAt().getEpochSecond() * 1000 : 0)
+                                                        req.getReviewedAt().getSecond() * 1000 : 0)
                                                 .setAdminId(req.getAdminId() != null ? req.getAdminId() : 0)
                                                 .build()
                                 ));

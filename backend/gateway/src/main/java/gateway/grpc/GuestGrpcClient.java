@@ -5,15 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import com.auction.proto.guest.GetCategoriesRequest;
-import com.auction.proto.guest.GetCategoriesResponse;
-import com.auction.proto.guest.GetTopBidCountProductsRequest;
-import com.auction.proto.guest.GetTopEndingProductsRequest;
-import com.auction.proto.guest.GetTopPriceProductsRequest;
-import com.auction.proto.guest.GetTopProductsResponse;
-import com.auction.proto.guest.ListProductsByCategoryRequest;
-import com.auction.proto.guest.ListProductsByCategoryResponse;
-import com.auction.proto.guest.ReactorGuestServiceGrpc;
+import com.auction.proto.guest.*;
 import com.auction.utils.JsonUtils;
 
 import io.grpc.ManagedChannel;

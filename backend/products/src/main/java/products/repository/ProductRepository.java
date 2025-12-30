@@ -49,43 +49,6 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
         WHERE p.id = :productId
         """)
     Mono<Map<String, Object>> getProductInfo(@Param("productId") Integer productId);
-    
-    // Get all banned products with pagination
-    @Query("""
-        SELECT pb.id as ban_id, pb.product_id, p.title as product_title, 
-               p.seller_id, u.full_name as seller_name, pb.user_id as admin_id, 
-               a.full_name as admin_name, pb.reason, pb.created_at
-        FROM product_bans pb
-        LEFT JOIN products p ON pb.product_id = p.id
-        LEFT JOIN users u ON p.seller_id = u.id
-        LEFT JOIN users a ON pb.user_id = a.id
-        ORDER BY pb.created_at DESC
-        LIMIT :pageSize OFFSET :offset
-        """)
-    Flux<Map<String, Object>> getBannedProducts(@Param("pageSize") int pageSize, @Param("offset") int offset);
-    
-    // Count total banned products
-    @Query("SELECT COUNT(*) FROM product_bans")
-    Mono<Integer> countBannedProducts();
-    
-    // Check if product is banned
-    @Query("SELECT COUNT(*) > 0 FROM product_bans WHERE product_id = :productId")
-    Mono<Boolean> isBanned(@Param("productId") Integer productId);
-    
-    // Delete product ban record
-    @Query("DELETE FROM product_bans WHERE product_id = :productId")
-    Mono<Void> deleteBan(@Param("productId") Integer productId);
-    
-        
-    // Ban a product
-    @Query("""
-        INSERT INTO product_bans (product_id, user_id, reason, created_at)
-        VALUES (:productId, :adminId, :reason, CURRENT_TIMESTAMP)
-        """)
-    Mono<Void> banProduct(
-        @Param("productId") Integer productId,
-        @Param("adminId") Integer adminId,
-        @Param("reason") String reason);
 
     // Find products by multiple statuses
     @Query("SELECT * FROM products WHERE status IN (:statuses)")

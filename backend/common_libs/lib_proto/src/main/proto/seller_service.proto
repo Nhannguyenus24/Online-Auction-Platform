@@ -26,20 +26,14 @@ service SellerService {
   rpc AnswerQuestion(AnswerQuestionRequest) returns (AnswerQuestionResponse);
   rpc RejectBidder(RejectBidderRequest) returns (RejectBidderResponse);
   rpc AppendProductDescription(AppendProductDescriptionRequest) returns (AppendProductDescriptionResponse);
-  rpc CancelTransaction(CancelTransactionRequest) returns (CancelTransactionResponse);
   rpc RateBidder(RateBidderRequest) returns (RateBidderResponse);
 
   // Listings Management
   rpc GetListings(GetListingsRequest) returns (ListingsResponse);
-  rpc UpdateListingDescription(UpdateListingDescriptionRequest) returns (UpdateListingDescriptionResponse);
-  rpc UpdateAutoExtendSettings(UpdateAutoExtendSettingsRequest) returns (UpdateAutoExtendSettingsResponse);
 
   // Order Management
   rpc GetOrders(GetOrdersRequest) returns (OrdersResponse);
   rpc ConfirmPaymentReceipt(ConfirmPaymentReceiptRequest) returns (ConfirmPaymentReceiptResponse);
-  rpc ProvideShippingInvoice(ProvideShippingInvoiceRequest) returns (ProvideShippingInvoiceResponse);
-  rpc GetOrderConversation(GetOrderConversationRequest) returns (ConversationResponse);
-  rpc SendOrderMessage(SendOrderMessageRequest) returns (SendOrderMessageResponse);
 }
 
 // ============================================================================
@@ -233,17 +227,6 @@ message AppendProductDescriptionResponse {
   string message = 3;
 }
 
-message CancelTransactionRequest {
-  int32 seller_id = 1;
-  int32 order_id = 2;
-  string reason = 3;
-}
-
-message CancelTransactionResponse {
-  bool success = 1;
-  string message = 2;
-}
-
 message RateBidderRequest {
   int32 seller_id = 1;
   int32 bidder_id = 2;
@@ -284,29 +267,6 @@ message ListingDetail {
   string ends_at = 6;
   bool is_auto_extend = 7;
   int32 auto_extend_seconds = 8;
-}
-
-message UpdateListingDescriptionRequest {
-  int32 seller_id = 1;
-  int32 product_id = 2;
-  string new_description = 3;
-}
-
-message UpdateListingDescriptionResponse {
-  bool success = 1;
-  string message = 2;
-}
-
-message UpdateAutoExtendSettingsRequest {
-  int32 seller_id = 1;
-  int32 product_id = 2;
-  bool is_auto_extend = 3;
-  int32 auto_extend_seconds = 4;
-}
-
-message UpdateAutoExtendSettingsResponse {
-  bool success = 1;
-  string message = 2;
 }
 
 // ============================================================================
@@ -350,57 +310,4 @@ message ConfirmPaymentReceiptRequest {
 message ConfirmPaymentReceiptResponse {
   bool success = 1;
   string message = 2;
-}
-
-message ProvideShippingInvoiceRequest {
-  int32 seller_id = 1;
-  int32 order_id = 2;
-  string shipping_provider = 3;
-  string tracking_number = 4;
-  string estimated_delivery_date = 5;
-}
-
-message ProvideShippingInvoiceResponse {
-  bool success = 1;
-  string message = 2;
-}
-
-message GetOrderConversationRequest {
-  int32 seller_id = 1;
-  string order_id = 2;
-  int32 page = 3;
-  int32 page_size = 4;
-}
-
-message ConversationResponse {
-  string order_id = 1;
-  int32 bidder_id = 2;
-  string bidder_name = 3;
-  string product_title = 4;
-  repeated Message messages = 5;
-  int32 unread_count = 6;
-  int32 page = 7;
-  int32 page_size = 8;
-  int32 total_count = 9;
-}
-
-message Message {
-  int64 id = 1;
-  string sender_role = 2; // "SELLER", "BIDDER"
-  string sender_name = 3;
-  string content = 4;
-  string created_at = 5;
-}
-
-message SendOrderMessageRequest {
-  int32 seller_id = 1;
-  string order_id = 2;
-  string content = 3;
-}
-
-message SendOrderMessageResponse {
-  bool success = 1;
-  int64 message_id = 2;
-  string created_at = 3;
-  string message = 4;
 }
