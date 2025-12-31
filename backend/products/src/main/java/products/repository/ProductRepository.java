@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 import com.auction.entities.database.Product;
 
 import products.dto.ImageRowDto;
+import products.dto.ProductDetailsDto;
 import products.dto.ProductRowDto;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -258,7 +259,7 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
         LEFT JOIN users u ON p.seller_id = u.id
         WHERE p.id = :productId
         """)
-    Mono<Map<String, Object>> getProductDetailsForBidder(@Param("productId") Integer productId);
+    Mono<ProductDetailsDto> getProductDetailsForBidder(@Param("productId") Integer productId);
     
     // Get related products in same category
     @Query("""
@@ -304,8 +305,8 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
     Mono<Integer> countWatchlist(@Param("userId") Integer userId, @Param("status") String status);
     
     // Check if product in watchlist
-    @Query("SELECT IF(COUNT(*) > 0, TRUE, FALSE) FROM watchlists WHERE user_id = :userId AND product_id = :productId")
-    Mono<Boolean> isInWatchlist(@Param("userId") Integer userId, @Param("productId") Integer productId);
+    @Query("SELECT COUNT(*) FROM watchlists WHERE user_id = :userId AND product_id = :productId")
+    Mono<Long> isInWatchlist(@Param("userId") Integer userId, @Param("productId") Integer productId);
     
     // Add product to watchlist
     @Query("INSERT INTO watchlists (user_id, product_id, created_at) VALUES (:userId, :productId, CURRENT_TIMESTAMP)")
@@ -370,11 +371,11 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
     
     // Check if user is highest bidder
     @Query("""
-        SELECT COUNT(*) > 0 FROM bids 
+        SELECT COUNT(*) FROM bids 
         WHERE product_id = :productId AND bidder_id = :userId 
         AND amount = (SELECT MAX(amount) FROM bids WHERE product_id = :productId)
         """)
-    Mono<Boolean> isHighestBidder(@Param("productId") Integer productId, @Param("userId") Integer userId);
+    Mono<Long> isHighestBidder(@Param("productId") Integer productId, @Param("userId") Integer userId);
     
     // Get user's auto bid for a product
     @Query("""

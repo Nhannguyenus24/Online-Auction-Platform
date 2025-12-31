@@ -1,5 +1,7 @@
 package gateway.grpc;
 
+import java.util.concurrent.TimeUnit;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -40,6 +42,8 @@ public class AdminProductGrpcClient {
         channel = ManagedChannelBuilder
                 .forAddress(productServiceHost, productServicePort)
                 .usePlaintext()
+                .keepAliveTime(10, TimeUnit.SECONDS)
+                .keepAliveTimeout(10, TimeUnit.SECONDS)
                 .build();
         
         adminProductServiceStub = ReactorAdminProductServiceGrpc.newReactorStub(channel);

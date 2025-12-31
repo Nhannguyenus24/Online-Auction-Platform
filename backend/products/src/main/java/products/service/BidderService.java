@@ -1,7 +1,10 @@
 package products.service;
 
+import java.time.ZoneOffset;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.auction.proto.user.Bid;
@@ -14,6 +17,7 @@ import com.auction.proto.user.Question;
 import products.dto.BidHistoryRowDto;
 import products.dto.BidRowDto;
 import products.dto.ImageRowDto;
+import products.dto.ProductDetailsDto;
 import products.dto.ProductRowDto;
 import products.dto.QuestionRowDto;
 import products.repository.ProductRepository;
@@ -22,6 +26,7 @@ import reactor.core.publisher.Mono;
 
 @Service
 public class BidderService {
+    private static final Logger log = LoggerFactory.getLogger(BidderService.class);
     
     private final ProductRepository productRepository;
     
@@ -30,27 +35,52 @@ public class BidderService {
     }
 
     public Mono<Product> getProductDetails(int productId, int userId) {
+        log.info("Getting product details for productId={}, userId={}", productId, userId);
         return productRepository.getProductDetailsForBidder(productId)
-            .zipWith(productRepository.isInWatchlist(userId, productId))
-            .zipWith(productRepository.isHighestBidder(productId, userId))
-            .zipWith(productRepository.getUserAutoBid(productId, userId))
-            .map(tuple -> {
-                var productMap = tuple.getT1().getT1().getT1();
-                var isInWatchlist = tuple.getT1().getT1().getT2();
-                var isHighestBidder = tuple.getT1().getT2();
-                var autoBidOpt = tuple.getT2();
-                
-                var productDto = ProductRowDto.fromMap(productMap);
-//                double userMaxAutoBid = autoBidOpt
-//                    .map(map -> ((Number) map.getOrDefault("max_amount", 0)).doubleValue())
-//                    .orElse(0.0);
-                return mapDtoToProductWithUserData(productDto, isInWatchlist, isHighestBidder, 0.0);
-//                return mapDtoToProductWithUserData(productDto, isInWatchlist, isHighestBidder, userMaxAutoBid);
-            });
+            .doOnNext(dto -> log.debug("Found product dto: id={}, title={}", dto.id(), dto.title()))
+            .switchIfEmpty(Mono.defer(() -> {
+                log.warn("Product not found with id: {}", productId);
+                return Mono.error(new IllegalArgumentException("Product not found with id: " + productId));
+            }))
+            .flatMap(productDto ->
+                Mono.zip(
+                    productRepository.getProductImages(productId)
+                        .map(this::mapToProductImage)
+                        .collectList()
+                        .doOnNext(images -> log.debug("Found {} images for product {}", images.size(), productId)),
+                    productRepository.isInWatchlist(userId, productId)
+                        .doOnNext(count -> log.debug("Watchlist check for user {}: {}", userId, count)),
+                    productRepository.isHighestBidder(productId, userId)
+                        .doOnNext(count -> log.debug("Highest bidder check for user {}: {}", userId, count)),
+                    productRepository.getUserAutoBid(productId, userId)
+                        .defaultIfEmpty(java.util.Map.of())
+                        .doOnNext(map -> log.debug("Auto bid for user {}: {}", userId, map))
+                ).map(tuple -> {
+                    var images = tuple.getT1();
+                    var isInWatchlistCount = tuple.getT2();
+                    var isHighestBidderCount = tuple.getT3();
+                    var autoBidMap = tuple.getT4();
+                    
+                    boolean isInWatchlist = isInWatchlistCount != null && isInWatchlistCount > 0;
+                    boolean isHighestBidder = isHighestBidderCount != null && isHighestBidderCount > 0;
+                    double userMaxAutoBid = 0.0;
+                    if (autoBidMap != null && !autoBidMap.isEmpty()) {
+                        Object maxAmount = autoBidMap.get("max_amount");
+                        if (maxAmount != null) {
+                            userMaxAutoBid = ((Number) maxAmount).doubleValue();
+                        }
+                    }
+                    log.info("Successfully built product details for productId={}: images={}, inWatchlist={}, isHighestBidder={}", 
+                        productId, images.size(), isInWatchlist, isHighestBidder);
+                    return mapDtoToProductWithUserData(productDto, images, isInWatchlist, isHighestBidder, userMaxAutoBid);
+                })
+            )
+            .doOnError(e -> log.error("Error getting product details for productId={}: {}", productId, e.getMessage(), e));
     }
 
     public Flux<Product> getRelatedProducts(int productId, int userId, int limit) {
         return productRepository.findById(productId)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("Product not found with id: " + productId)))
                 .flatMapMany(product ->
                         productRepository.getRelatedProducts(
                                         product.getCategoryId(),
@@ -256,8 +286,9 @@ public class BidderService {
                 .build();
     }
     
-    private Product mapDtoToProductWithUserData(ProductRowDto dto, boolean isInWatchlist, 
-                                                 boolean isHighestBidder, double userMaxAutoBid) {
+    private Product mapDtoToProductWithUserData(ProductDetailsDto dto, List<ProductImage> images,
+                                                 boolean isInWatchlist, boolean isHighestBidder, 
+                                                 double userMaxAutoBid) {
         return Product.newBuilder()
             .setId(dto.id())
             .setSellerId(dto.sellerId())
@@ -269,13 +300,16 @@ public class BidderService {
             .setCurrentPrice(dto.currentPrice())
             .setStepPrice(dto.stepPrice())
             .setBuyNowPrice(dto.buyNowPrice())
-            .setStartsAt(dto.startsAt().toEpochSecond())
-            .setEndsAt(dto.endsAt().toEpochSecond())
+            .setStartsAt(dto.startsAt().toEpochSecond(ZoneOffset.UTC))
+            .setEndsAt(dto.endsAt().toEpochSecond(ZoneOffset.UTC))
+            .setCreatedAt(dto.createdAt().toEpochSecond(ZoneOffset.UTC))
+            .setUpdatedAt(dto.updatedAt().toEpochSecond(ZoneOffset.UTC))
             .setIsAutoExtend(dto.isAutoExtend())
             .setAutoExtendSeconds(dto.autoExtendSeconds())
             .setStatus(dto.status())
             .setViewsCount(dto.viewsCount())
             .setBidsCount(dto.bidsCount())
+            .addAllImages(images)
             .setIsInWatchlist(isInWatchlist)
             .setIsUserHighestBidder(isHighestBidder)
             .setUserMaxAutoBid(userMaxAutoBid)

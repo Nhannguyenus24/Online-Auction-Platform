@@ -1,12 +1,41 @@
 package gateway.grpc;
 
+import java.util.concurrent.TimeUnit;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import com.auction.utils.JsonUtils;
-import com.auctionplatform.seller.grpc.*;
+import com.auctionplatform.seller.grpc.AnswerQuestionRequest;
+import com.auctionplatform.seller.grpc.AnswerQuestionResponse;
+import com.auctionplatform.seller.grpc.AppendProductDescriptionRequest;
+import com.auctionplatform.seller.grpc.AppendProductDescriptionResponse;
+import com.auctionplatform.seller.grpc.ConfirmPaymentReceiptRequest;
+import com.auctionplatform.seller.grpc.ConfirmPaymentReceiptResponse;
+import com.auctionplatform.seller.grpc.CreateAuctionListingRequest;
+import com.auctionplatform.seller.grpc.CreateAuctionListingResponse;
+import com.auctionplatform.seller.grpc.GetActiveListingsRequest;
+import com.auctionplatform.seller.grpc.GetListingsRequest;
+import com.auctionplatform.seller.grpc.GetOrdersRequest;
+import com.auctionplatform.seller.grpc.GetProductDetailsRequest;
+import com.auctionplatform.seller.grpc.GetSellerProfileRequest;
+import com.auctionplatform.seller.grpc.GetSellerRatingsRequest;
+import com.auctionplatform.seller.grpc.GetTransactionHistoryRequest;
+import com.auctionplatform.seller.grpc.GetWinnerItemsRequest;
+import com.auctionplatform.seller.grpc.ListingsResponse;
+import com.auctionplatform.seller.grpc.OrdersResponse;
+import com.auctionplatform.seller.grpc.ProductDetailsResponse;
+import com.auctionplatform.seller.grpc.ProductListResponse;
+import com.auctionplatform.seller.grpc.RateBidderRequest;
+import com.auctionplatform.seller.grpc.RateBidderResponse;
+import com.auctionplatform.seller.grpc.RatingsResponse;
+import com.auctionplatform.seller.grpc.ReactorSellerServiceGrpc;
+import com.auctionplatform.seller.grpc.RejectBidderRequest;
+import com.auctionplatform.seller.grpc.RejectBidderResponse;
+import com.auctionplatform.seller.grpc.SellerProfileResponse;
+import com.auctionplatform.seller.grpc.TransactionHistoryResponse;
 
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -32,6 +61,8 @@ public class SellerGrpcClient {
         channel = ManagedChannelBuilder
                 .forAddress(productServiceHost, productServicePort)
                 .usePlaintext()
+                .keepAliveTime(10, TimeUnit.SECONDS)
+                .keepAliveTimeout(10, TimeUnit.SECONDS)
                 .build();
         
         sellerServiceStub = ReactorSellerServiceGrpc.newReactorStub(channel);

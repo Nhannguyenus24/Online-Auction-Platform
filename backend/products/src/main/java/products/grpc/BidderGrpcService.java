@@ -1,12 +1,36 @@
 package products.grpc;
 
-import com.auction.proto.user.*;
-import org.springframework.grpc.server.service.GrpcService;
-import reactor.core.publisher.Mono;
-import products.service.BidderService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.grpc.server.service.GrpcService;
+
+import com.auction.proto.user.AddToWatchlistRequest;
+import com.auction.proto.user.AddToWatchlistResponse;
+import com.auction.proto.user.AskQuestionRequest;
+import com.auction.proto.user.AskQuestionResponse;
+import com.auction.proto.user.GetMyBidsRequest;
+import com.auction.proto.user.GetMyBidsResponse;
+import com.auction.proto.user.GetProductBidsRequest;
+import com.auction.proto.user.GetProductBidsResponse;
+import com.auction.proto.user.GetProductDetailsRequest;
+import com.auction.proto.user.GetProductDetailsResponse;
+import com.auction.proto.user.GetProductQuestionsRequest;
+import com.auction.proto.user.GetProductQuestionsResponse;
+import com.auction.proto.user.GetRelatedProductsRequest;
+import com.auction.proto.user.GetRelatedProductsResponse;
+import com.auction.proto.user.GetWatchlistRequest;
+import com.auction.proto.user.GetWatchlistResponse;
+import com.auction.proto.user.PlaceBidRequest;
+import com.auction.proto.user.PlaceBidResponse;
+import com.auction.proto.user.ReactorUserServiceGrpc;
+import com.auction.proto.user.RemoveFromWatchlistRequest;
+import com.auction.proto.user.RemoveFromWatchlistResponse;
+import com.auction.proto.user.SetAutoBidRequest;
+import com.auction.proto.user.SetAutoBidResponse;
 import com.auction.utils.JsonUtils;
+
+import products.service.BidderService;
+import reactor.core.publisher.Mono;
 
 /**
  * gRPC implementation of UserService for Bidder operations
@@ -33,13 +57,22 @@ public class BidderGrpcService extends ReactorUserServiceGrpc.UserServiceImplBas
                             .build())
                         .doOnNext(resp -> log.info("Raw get product details response: {}", JsonUtils.toJson(resp)))
                         .onErrorResume(e -> {
-                            log.error("Get product details error: {}", e.getMessage());
+                            log.error("Get product details error for productId={}, userId={}: {}", 
+                                req.getProductId(), req.getUserId(), e.getMessage(), e);
                             return Mono.just(GetProductDetailsResponse.newBuilder()
                                 .setSuccess(false)
                                 .setMessage("Failed to get product details: " + e.getMessage())
                                 .build());
                         })
-                );
+                )
+                .doOnError(e -> log.error("Unexpected error in getProductDetails gRPC: {}", e.getMessage(), e))
+                .onErrorResume(e -> {
+                    log.error("Final fallback error handler: {}", e.getMessage(), e);
+                    return Mono.just(GetProductDetailsResponse.newBuilder()
+                        .setSuccess(false)
+                        .setMessage("Internal server error: " + e.getMessage())
+                        .build());
+                });
     }
 
     @Override
