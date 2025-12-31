@@ -1,11 +1,7 @@
 package gateway.controller;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
-import com.auction.utils.JsonUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -31,13 +27,17 @@ import com.auction.proto.admin.user.GetUpgradeRequestsRequest;
 import com.auction.proto.admin.user.ProfitStatisticsRequest;
 import com.auction.proto.admin.user.RegistrationStatisticsRequest;
 import com.auction.proto.admin.user.UserStatisticsRequest;
+import com.auction.utils.JsonUtils;
 
 import gateway.grpc.AdminProductGrpcClient;
 import gateway.grpc.AdminUserGrpcClient;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -66,7 +66,7 @@ public class AdminController {
 
     @GetMapping("/statistics/users")
     @Operation(summary = "Get user statistics", description = "Get overall user statistics including total users, bidders, sellers, and ratings. Requires admin authentication.")
-    public ResponseEntity<Map<String, Object>> getUserStatistics(
+    public ResponseEntity<UserStatisticsResponseDto> getUserStatistics(
             @Parameter(description = "Role filter (bidder, seller, admin)")
             @RequestParam(required = false, defaultValue = "") String roleFilter) {
         
@@ -82,31 +82,29 @@ public class AdminController {
                 throw new RuntimeException("gRPC response is null");
             }
             
-            Map<String, Object> result = new HashMap<>();
-            result.put("totalUsers", response.getTotalUsers());
-            result.put("totalBidders", response.getTotalBidders());
-            result.put("totalSellers", response.getTotalSellers());
-            result.put("totalAdmins", response.getTotalAdmins());
-            result.put("verifiedUsers", response.getVerifiedUsers());
-            result.put("unverifiedUsers", response.getUnverifiedUsers());
-            result.put("averageRating", response.getAverageRating());
-            result.put("positiveReviews", response.getPositiveReviews());
-            result.put("negativeReviews", response.getNegativeReviews());
+            UserStatisticsResponseDto result = new UserStatisticsResponseDto(
+                response.getTotalUsers(),
+                response.getTotalBidders(),
+                response.getTotalSellers(),
+                response.getTotalAdmins(),
+                response.getVerifiedUsers(),
+                response.getUnverifiedUsers(),
+                response.getAverageRating(),
+                response.getPositiveReviews(),
+                response.getNegativeReviews()
+            );
 
             log.info("Get user statistics successful");
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             log.error("Get user statistics error: {}", e.getMessage(), e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("success", false);
-            error.put("message", "Failed to get user statistics: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
     @GetMapping("/statistics/registrations")
     @Operation(summary = "Get registration statistics", description = "Get user registration statistics by period (daily, monthly, yearly). Requires admin authentication.")
-    public ResponseEntity<Map<String, Object>> getRegistrationStatistics(
+    public ResponseEntity<RegistrationStatisticsResponseDto> getRegistrationStatistics(
             @Parameter(description = "Period type (daily, monthly, yearly)", required = true)
             @RequestParam String period,
             @Parameter(description = "Number of periods to return")
@@ -125,51 +123,31 @@ public class AdminController {
                 throw new RuntimeException("gRPC response is null");
             }
             
-            Map<String, Object> result = new HashMap<>();
+            List<RegistrationStatsItemDto> daily = response.getDailyList().stream()
+                .map(d -> new RegistrationStatsItemDto(d.getDate(), d.getCount()))
+                .toList();
             
-            if (period.equalsIgnoreCase("daily")) {
-                List<Map<String, Object>> daily = new ArrayList<>();
-                response.getDailyList().forEach(d -> {
-                    Map<String, Object> item = new HashMap<>();
-                    item.put("date", d.getDate());
-                    item.put("count", d.getCount());
-                    daily.add(item);
-                });
-                result.put("daily", daily);
-            } else if (period.equalsIgnoreCase("monthly")) {
-                List<Map<String, Object>> monthly = new ArrayList<>();
-                response.getMonthlyList().forEach(m -> {
-                    Map<String, Object> item = new HashMap<>();
-                    item.put("month", m.getMonth());
-                    item.put("count", m.getCount());
-                    monthly.add(item);
-                });
-                result.put("monthly", monthly);
-            } else if (period.equalsIgnoreCase("yearly")) {
-                List<Map<String, Object>> yearly = new ArrayList<>();
-                response.getYearlyList().forEach(y -> {
-                    Map<String, Object> item = new HashMap<>();
-                    item.put("year", y.getYear());
-                    item.put("count", y.getCount());
-                    yearly.add(item);
-                });
-                result.put("yearly", yearly);
-            }
+            List<RegistrationStatsItemDto> monthly = response.getMonthlyList().stream()
+                .map(m -> new RegistrationStatsItemDto(m.getMonth(), m.getCount()))
+                .toList();
+            
+            List<RegistrationStatsItemDto> yearly = response.getYearlyList().stream()
+                .map(y -> new RegistrationStatsItemDto(y.getYear(), y.getCount()))
+                .toList();
+            
+            RegistrationStatisticsResponseDto result = new RegistrationStatisticsResponseDto(daily, monthly, yearly);
 
             log.info("Get registration statistics successful");
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             log.error("Get registration statistics error: {}", e.getMessage(), e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("success", false);
-            error.put("message", "Failed to get registration statistics: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
     @GetMapping("/statistics/profit")
     @Operation(summary = "Get profit statistics", description = "Get profit statistics by month or year (30% of successful transactions). Requires admin authentication.")
-    public ResponseEntity<Map<String, Object>> getProfitStatistics(
+    public ResponseEntity<ProfitStatisticsResponseDto> getProfitStatistics(
             @Parameter(description = "Month in format YYYY-MM")
             @RequestParam(required = false, defaultValue = "") String month,
             @Parameter(description = "Year in format YYYY")
@@ -188,34 +166,25 @@ public class AdminController {
                 throw new RuntimeException("gRPC response is null");
             }
             
-            Map<String, Object> result = new HashMap<>();
-            
+            ProfitDataDto monthlyProfit = null;
             if (response.hasMonthlyProfit()) {
-                Map<String, Object> monthlyProfit = new HashMap<>();
-                monthlyProfit.put("month", response.getMonthlyProfit().getMonth());
-                monthlyProfit.put("totalSales", response.getMonthlyProfit().getTotalSales());
-                monthlyProfit.put("profit", response.getMonthlyProfit().getProfit());
-                monthlyProfit.put("completedOrders", response.getMonthlyProfit().getCompletedOrders());
-                result.put("monthlyProfit", monthlyProfit);
+                var mp = response.getMonthlyProfit();
+                monthlyProfit = new ProfitDataDto(mp.getMonth(), mp.getTotalSales(), mp.getProfit(), mp.getCompletedOrders());
             }
             
+            ProfitDataDto yearlyProfit = null;
             if (response.hasYearlyProfit()) {
-                Map<String, Object> yearlyProfit = new HashMap<>();
-                yearlyProfit.put("year", response.getYearlyProfit().getYear());
-                yearlyProfit.put("totalSales", response.getYearlyProfit().getTotalSales());
-                yearlyProfit.put("profit", response.getYearlyProfit().getProfit());
-                yearlyProfit.put("completedOrders", response.getYearlyProfit().getCompletedOrders());
-                result.put("yearlyProfit", yearlyProfit);
+                var yp = response.getYearlyProfit();
+                yearlyProfit = new ProfitDataDto(yp.getYear(), yp.getTotalSales(), yp.getProfit(), yp.getCompletedOrders());
             }
+            
+            ProfitStatisticsResponseDto result = new ProfitStatisticsResponseDto(monthlyProfit, yearlyProfit);
 
-            log.info("Get profit statistics successful: {}",JsonUtils.toJson(result));
+            log.info("Get profit statistics successful: {}", JsonUtils.toJson(result));
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             log.error("Get profit statistics error: {}", e.getMessage(), e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("success", false);
-            error.put("message", "Failed to get profit statistics: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
@@ -225,7 +194,7 @@ public class AdminController {
 
     @GetMapping("/upgrade-requests")
     @Operation(summary = "Get upgrade requests", description = "Get all upgrade requests (bidder -> seller) with pagination. Requires admin authentication.")
-    public ResponseEntity<Map<String, Object>> getUpgradeRequests(
+    public ResponseEntity<UpgradeRequestsResponseDto> getUpgradeRequests(
             @Parameter(description = "Status filter (pending, approved, rejected)")
             @RequestParam(required = false, defaultValue = "") String statusFilter,
             @Parameter(description = "Page number (1-based)")
@@ -247,45 +216,42 @@ public class AdminController {
                 throw new RuntimeException("gRPC response is null");
             }
             
-            List<Map<String, Object>> requests = new ArrayList<>();
-            response.getUpgradeRequestsList().forEach(req -> {
-                Map<String, Object> item = new HashMap<>();
-                item.put("id", req.getId());
-                item.put("userId", req.getUserId());
-                item.put("userEmail", req.getUserEmail());
-                item.put("userFullName", req.getUserFullName());
-                item.put("requestedRole", req.getRequestedRole());
-                item.put("status", req.getStatus());
-                item.put("createdAt", req.getCreatedAt());
-                item.put("reviewedAt", req.getReviewedAt());
-                item.put("adminId", req.getAdminId());
-                item.put("reason", req.getReason());
-                requests.add(item);
-            });
+            List<UpgradeRequestItemDto> requests = response.getUpgradeRequestsList().stream()
+                .map(req -> new UpgradeRequestItemDto(
+                    req.getId(),
+                    req.getUserId(),
+                    req.getUserEmail(),
+                    req.getUserFullName(),
+                    req.getRequestedRole(),
+                    req.getStatus(),
+                    req.getCreatedAt(),
+                    req.getReviewedAt(),
+                    req.getAdminId(),
+                    req.getReason()
+                ))
+                .toList();
             
-            Map<String, Object> result = new HashMap<>();
-            result.put("upgradeRequests", requests);
-            result.put("totalCount", response.getTotalCount());
-            result.put("page", response.getPage());
-            result.put("totalPages", response.getTotalPages());
+            UpgradeRequestsResponseDto result = new UpgradeRequestsResponseDto(
+                requests,
+                response.getTotalCount(),
+                response.getPage(),
+                response.getTotalPages()
+            );
 
             log.info("Get upgrade requests successful - count: {}", requests.size());
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             log.error("Get upgrade requests error: {}", e.getMessage(), e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("success", false);
-            error.put("message", "Failed to get upgrade requests: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
     @PostMapping("/upgrade-requests/{requestId}")
     @Operation(summary = "Approve or reject upgrade request", description = "Approve or reject a user upgrade request. Requires admin authentication.")
-    public ResponseEntity<Map<String, Object>> processUpgradeRequest(
+    public ResponseEntity<StandardResponseDto> processUpgradeRequest(
             @Parameter(description = "Request ID", required = true)
             @PathVariable int requestId,
-            @RequestBody ProcessUpgradeRequestDto requestDto) {
+            @Valid @RequestBody ProcessUpgradeRequestDto requestDto) {
         
         int adminId = getUserId();
         log.info("Process upgrade request - requestId: {}, adminId: {}, action: {}", 
@@ -304,9 +270,7 @@ public class AdminController {
                 throw new RuntimeException("gRPC response is null");
             }
             
-            Map<String, Object> result = new HashMap<>();
-            result.put("success", response.getSuccess());
-            result.put("message", response.getMessage());
+            StandardResponseDto result = new StandardResponseDto(response.getSuccess(), response.getMessage());
 
             log.info("Process upgrade request response - success: {}", response.getSuccess());
             
@@ -315,10 +279,8 @@ public class AdminController {
                 : ResponseEntity.badRequest().body(result);
         } catch (Exception e) {
             log.error("Process upgrade request error: {}", e.getMessage(), e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("success", false);
-            error.put("message", "Failed to process upgrade request: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new StandardResponseDto(false, "Failed to process upgrade request: " + e.getMessage()));
         }
     }
 
@@ -328,8 +290,8 @@ public class AdminController {
 
     @PostMapping("/categories")
     @Operation(summary = "Create category", description = "Create a new product category. Requires admin authentication.")
-    public ResponseEntity<Map<String, Object>> createCategory(
-            @RequestBody CreateCategoryRequestDto requestDto) {
+    public ResponseEntity<CreateCategoryResponseDto> createCategory(
+            @Valid @RequestBody CreateCategoryRequestDto requestDto) {
         
         log.info("Create category request - name: {}, parentId: {}", requestDto.name(), requestDto.parentId());
 
@@ -344,12 +306,11 @@ public class AdminController {
                 throw new RuntimeException("gRPC response is null");
             }
             
-            Map<String, Object> result = new HashMap<>();
-            result.put("success", response.getSuccess());
-            result.put("message", response.getMessage());
-            if (response.getSuccess()) {
-                result.put("categoryId", response.getCategoryId());
-            }
+            CreateCategoryResponseDto result = new CreateCategoryResponseDto(
+                response.getSuccess(),
+                response.getMessage(),
+                response.getSuccess() ? response.getCategoryId() : null
+            );
 
             log.info("Create category response - success: {}, categoryId: {}", 
                     response.getSuccess(), response.getCategoryId());
@@ -359,19 +320,17 @@ public class AdminController {
                 : ResponseEntity.badRequest().body(result);
         } catch (Exception e) {
             log.error("Create category error: {}", e.getMessage(), e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("success", false);
-            error.put("message", "Failed to create category: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new CreateCategoryResponseDto(false, "Failed to create category: " + e.getMessage(), null));
         }
     }
 
     @PutMapping("/categories/{categoryId}")
     @Operation(summary = "Update category", description = "Update an existing product category. Requires admin authentication.")
-    public ResponseEntity<Map<String, Object>> updateCategory(
+    public ResponseEntity<StandardResponseDto> updateCategory(
             @Parameter(description = "Category ID", required = true)
             @PathVariable int categoryId,
-            @RequestBody UpdateCategoryRequestDto requestDto) {
+            @Valid @RequestBody UpdateCategoryRequestDto requestDto) {
         
         log.info("Update category request - categoryId: {}, name: {}, parentId: {}", 
                 categoryId, requestDto.name(), requestDto.parentId());
@@ -388,9 +347,7 @@ public class AdminController {
                 throw new RuntimeException("gRPC response is null");
             }
             
-            Map<String, Object> result = new HashMap<>();
-            result.put("success", response.getSuccess());
-            result.put("message", response.getMessage());
+            StandardResponseDto result = new StandardResponseDto(response.getSuccess(), response.getMessage());
 
             log.info("Update category response - success: {}", response.getSuccess());
             
@@ -399,16 +356,14 @@ public class AdminController {
                 : ResponseEntity.badRequest().body(result);
         } catch (Exception e) {
             log.error("Update category error: {}", e.getMessage(), e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("success", false);
-            error.put("message", "Failed to update category: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new StandardResponseDto(false, "Failed to update category: " + e.getMessage()));
         }
     }
 
     @DeleteMapping("/categories/{categoryId}")
     @Operation(summary = "Delete category", description = "Delete a product category. Cannot delete if category has products. Requires admin authentication.")
-    public ResponseEntity<Map<String, Object>> deleteCategory(
+    public ResponseEntity<DeleteCategoryResponseDto> deleteCategory(
             @Parameter(description = "Category ID", required = true)
             @PathVariable int categoryId) {
         
@@ -424,10 +379,11 @@ public class AdminController {
                 throw new RuntimeException("gRPC response is null");
             }
             
-            Map<String, Object> result = new HashMap<>();
-            result.put("success", response.getSuccess());
-            result.put("message", response.getMessage());
-            result.put("hasProducts", response.getHasProducts());
+            DeleteCategoryResponseDto result = new DeleteCategoryResponseDto(
+                response.getSuccess(),
+                response.getMessage(),
+                response.getHasProducts()
+            );
 
             log.info("Delete category response - success: {}, hasProducts: {}", 
                     response.getSuccess(), response.getHasProducts());
@@ -437,10 +393,8 @@ public class AdminController {
                 : ResponseEntity.badRequest().body(result);
         } catch (Exception e) {
             log.error("Delete category error: {}", e.getMessage(), e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("success", false);
-            error.put("message", "Failed to delete category: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new DeleteCategoryResponseDto(false, "Failed to delete category: " + e.getMessage(), false));
         }
     }
 
@@ -450,10 +404,10 @@ public class AdminController {
 
     @DeleteMapping("/products/{productId}")
     @Operation(summary = "Remove product", description = "Remove/ban a product from the platform. Requires admin authentication.")
-    public ResponseEntity<Map<String, Object>> removeProduct(
+    public ResponseEntity<RemoveProductResponseDto> removeProduct(
             @Parameter(description = "Product ID", required = true)
             @PathVariable int productId,
-            @RequestBody RemoveProductRequestDto requestDto) {
+            @Valid @RequestBody RemoveProductRequestDto requestDto) {
         
         int adminId = getUserId();
         log.info("Remove product request - productId: {}, adminId: {}, reason: {}", 
@@ -471,12 +425,11 @@ public class AdminController {
                 throw new RuntimeException("gRPC response is null");
             }
             
-            Map<String, Object> result = new HashMap<>();
-            result.put("success", response.getSuccess());
-            result.put("message", response.getMessage());
-            if (response.getSuccess()) {
-                result.put("previousStatus", response.getPreviousStatus());
-            }
+            RemoveProductResponseDto result = new RemoveProductResponseDto(
+                response.getSuccess(),
+                response.getMessage(),
+                response.getSuccess() ? response.getPreviousStatus() : null
+            );
 
             log.info("Remove product response - success: {}, previousStatus: {}", 
                     response.getSuccess(), response.getPreviousStatus());
@@ -486,10 +439,8 @@ public class AdminController {
                 : ResponseEntity.badRequest().body(result);
         } catch (Exception e) {
             log.error("Remove product error: {}", e.getMessage(), e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("success", false);
-            error.put("message", "Failed to remove product: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new RemoveProductResponseDto(false, "Failed to remove product: " + e.getMessage(), null));
         }
     }
 
@@ -498,21 +449,162 @@ public class AdminController {
     // ============================================================================
 
     public record CreateCategoryRequestDto(
+        @NotBlank(message = "Category name is required")
+        @Schema(description = "Category name", example = "Electronics", required = true)
         String name,
+        
+        @Schema(description = "Parent category ID (0 for root category)", example = "0")
         Integer parentId
     ) {}
 
     public record UpdateCategoryRequestDto(
+        @NotBlank(message = "Category name is required")
+        @Schema(description = "Category name", example = "Electronics", required = true)
         String name,
+        
+        @Schema(description = "Parent category ID (0 for root category)", example = "0")
         Integer parentId
     ) {}
 
     public record RemoveProductRequestDto(
+        @NotBlank(message = "Reason is required")
+        @Schema(description = "Reason for removing the product", example = "Violates platform policy", required = true)
         String reason
     ) {}
 
     public record ProcessUpgradeRequestDto(
-        String action,  // "approve" or "reject"
-        String reason   // Optional: reason for rejection
+        @NotBlank(message = "Action is required")
+        @Schema(description = "Action to perform", example = "approve", allowableValues = {"approve", "reject"}, required = true)
+        String action,
+        
+        @Schema(description = "Reason for rejection (optional)", example = "Insufficient seller qualifications")
+        String reason
+    ) {}
+
+    // ============================================================================
+    // RESPONSE DTOs
+    // ============================================================================
+
+    public record UserStatisticsResponseDto(
+        @Schema(description = "Total number of users", example = "1250")
+        int totalUsers,
+        @Schema(description = "Total number of bidders", example = "850")
+        int totalBidders,
+        @Schema(description = "Total number of sellers", example = "350")
+        int totalSellers,
+        @Schema(description = "Total number of admins", example = "50")
+        int totalAdmins,
+        @Schema(description = "Number of verified users", example = "1100")
+        int verifiedUsers,
+        @Schema(description = "Number of unverified users", example = "150")
+        int unverifiedUsers,
+        @Schema(description = "Average user rating", example = "4.5")
+        double averageRating,
+        @Schema(description = "Total positive reviews", example = "3200")
+        int positiveReviews,
+        @Schema(description = "Total negative reviews", example = "180")
+        int negativeReviews
+    ) {}
+
+    public record RegistrationStatsItemDto(
+        @Schema(description = "Period identifier (date/month/year)", example = "2025-01-15")
+        String period,
+        @Schema(description = "Number of registrations", example = "42")
+        int count
+    ) {}
+
+    public record RegistrationStatisticsResponseDto(
+        @Schema(description = "Daily registration statistics")
+        List<RegistrationStatsItemDto> daily,
+        @Schema(description = "Monthly registration statistics")
+        List<RegistrationStatsItemDto> monthly,
+        @Schema(description = "Yearly registration statistics")
+        List<RegistrationStatsItemDto> yearly
+    ) {}
+
+    public record ProfitDataDto(
+        @Schema(description = "Period identifier", example = "2025-12")
+        String period,
+        @Schema(description = "Total sales amount", example = "125000.50")
+        double totalSales,
+        @Schema(description = "Profit (30% of sales)", example = "37500.15")
+        double profit,
+        @Schema(description = "Number of completed orders", example = "324")
+        int completedOrders
+    ) {}
+
+    public record ProfitStatisticsResponseDto(
+        @Schema(description = "Monthly profit statistics")
+        ProfitDataDto monthlyProfit,
+        @Schema(description = "Yearly profit statistics")
+        ProfitDataDto yearlyProfit
+    ) {}
+
+    public record UpgradeRequestItemDto(
+        @Schema(description = "Request ID", example = "123")
+        int id,
+        @Schema(description = "User ID", example = "456")
+        int userId,
+        @Schema(description = "User email", example = "user@example.com")
+        String userEmail,
+        @Schema(description = "User full name", example = "John Doe")
+        String userFullName,
+        @Schema(description = "Requested role", example = "seller")
+        String requestedRole,
+        @Schema(description = "Request status", example = "pending")
+        String status,
+        @Schema(description = "Created timestamp", example = "1704067200000")
+        long createdAt,
+        @Schema(description = "Reviewed timestamp", example = "1704153600000")
+        long reviewedAt,
+        @Schema(description = "Admin ID who reviewed", example = "789")
+        int adminId,
+        @Schema(description = "Reason for request", example = "Want to sell products")
+        String reason
+    ) {}
+
+    public record UpgradeRequestsResponseDto(
+        @Schema(description = "List of upgrade requests")
+        List<UpgradeRequestItemDto> upgradeRequests,
+        @Schema(description = "Total number of requests", example = "50")
+        int totalCount,
+        @Schema(description = "Current page number", example = "1")
+        int page,
+        @Schema(description = "Total number of pages", example = "3")
+        int totalPages
+    ) {}
+
+    public record StandardResponseDto(
+        @Schema(description = "Success status", example = "true")
+        boolean success,
+        @Schema(description = "Response message", example = "Operation completed successfully")
+        String message
+    ) {}
+
+    public record CreateCategoryResponseDto(
+        @Schema(description = "Success status", example = "true")
+        boolean success,
+        @Schema(description = "Response message", example = "Category created successfully")
+        String message,
+        @Schema(description = "Created category ID", example = "123")
+        Integer categoryId
+    ) {}
+
+    public record DeleteCategoryResponseDto(
+        @Schema(description = "Success status", example = "true")
+        boolean success,
+        @Schema(description = "Response message", example = "Category deleted successfully")
+        String message,
+        @Schema(description = "Whether category has products", example = "false")
+        boolean hasProducts
+    ) {}
+
+    public record RemoveProductResponseDto(
+        @Schema(description = "Success status", example = "true")
+        boolean success,
+        @Schema(description = "Response message", example = "Product removed successfully")
+        String message,
+        @Schema(description = "Previous product status", example = "active")
+        String previousStatus
     ) {}
 }
