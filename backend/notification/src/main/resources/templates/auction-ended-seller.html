@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Auction Has Ended</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 30px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header.sold {
+            background: linear-gradient(135deg, #28a745 0%, #218838 100%);
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .header .icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .greeting {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .message {
+            font-size: 15px;
+            line-height: 1.6;
+            color: #555;
+            margin-bottom: 20px;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 14px;
+            margin: 15px 0;
+        }
+        .status-badge.sold {
+            background-color: #d4edda;
+            color: #155724;
+            border: 2px solid #28a745;
+        }
+        .status-badge.not-sold {
+            background-color: #f8f9fa;
+            color: #495057;
+            border: 2px solid #6c757d;
+        }
+        .details-box {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 20px;
+            margin: 25px 0;
+        }
+        .detail-item {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .detail-item:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+        .detail-label {
+            font-weight: 600;
+            color: #495057;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+        }
+        .detail-value {
+            color: #212529;
+            font-size: 15px;
+            word-wrap: break-word;
+        }
+        .product-name {
+            color: #007bff;
+            font-weight: 600;
+            font-size: 18px;
+        }
+        .amount-highlight {
+            color: #28a745;
+            font-weight: 700;
+            font-size: 20px;
+        }
+        .amount-highlight.no-sale {
+            color: #6c757d;
+        }
+        .info-section {
+            background-color: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .info-section.no-sale {
+            background-color: #f8f9fa;
+            border-left-color: #6c757d;
+        }
+        .info-section p {
+            margin: 5px 0;
+            color: #155724;
+            font-size: 14px;
+        }
+        .info-section.no-sale p {
+            color: #495057;
+        }
+        .winner-box {
+            background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%);
+            border: 2px solid #ffc107;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 25px 0;
+            text-align: center;
+        }
+        .winner-box .icon {
+            font-size: 36px;
+            margin-bottom: 10px;
+        }
+        .winner-box .label {
+            font-size: 14px;
+            color: #856404;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .winner-box .name {
+            font-size: 22px;
+            color: #856404;
+            font-weight: 700;
+            margin-top: 5px;
+        }
+        .cta-button {
+            display: inline-block;
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            margin: 20px 0;
+            transition: transform 0.2s;
+        }
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,123,255,0.3);
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 25px 30px;
+            text-align: center;
+            border-top: 1px solid #dee2e6;
+        }
+        .footer p {
+            margin: 5px 0;
+            color: #6c757d;
+            font-size: 13px;
+        }
+        .footer .support-link {
+            color: #0066cc;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .footer .support-link:hover {
+            text-decoration: underline;
+        }
+        .stats-row {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        .stat-item {
+            text-align: center;
+            padding: 15px;
+            min-width: 120px;
+        }
+        .stat-number {
+            font-size: 28px;
+            font-weight: 700;
+            color: #007bff;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #6c757d;
+            text-transform: uppercase;
+            margin-top: 5px;
+        }
+        @media only screen and (max-width: 600px) {
+            .container {
+                margin: 10px;
+            }
+            .content {
+                padding: 25px 20px;
+            }
+            .header {
+                padding: 25px 20px;
+            }
+            .stats-row {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header" th:classappend="${isSold} ? 'sold' : ''">
+            <div class="icon" th:text="${isSold} ? '🎉' : '⏰'">⏰</div>
+            <h1 th:text="${isSold} ? 'Congratulations! Your Item Sold!' : 'Your Auction Has Ended'">Your Auction Has Ended</h1>
+        </div>
+        
+        <div class="content">
+            <div class="greeting">
+                Dear <strong th:text="${userName}">Seller</strong>,
+            </div>
+            
+            <div class="message" th:if="${isSold}">
+                🎊 Great news! Your auction has successfully ended with a winning bid. Your item has been sold!
+            </div>
+            
+            <div class="message" th:unless="${isSold}">
+                Your auction has ended. Unfortunately, this item did not receive any winning bids at this time.
+            </div>
+            
+            <div class="status-badge" th:classappend="${isSold} ? 'sold' : 'not-sold'">
+                <span th:if="${isSold}">✓ SUCCESSFULLY SOLD</span>
+                <span th:unless="${isSold}">○ NOT SOLD</span>
+            </div>
+            
+            <div class="details-box">
+                <div class="detail-item">
+                    <div class="detail-label">Product</div>
+                    <div class="detail-value product-name" th:text="${productName}">Product Name</div>
+                </div>
+                
+                <div class="detail-item">
+                    <div class="detail-label">Product ID</div>
+                    <div class="detail-value" th:text="${productId}">12345</div>
+                </div>
+                
+                <div class="detail-item">
+                    <div class="detail-label" th:text="${isSold} ? 'Final Sale Price' : 'Reserve Price'">Final Sale Price</div>
+                    <div class="detail-value amount-highlight" th:classappend="${isSold} ? '' : 'no-sale'" th:text="'$' + ${finalPrice}">$1,000</div>
+                </div>
+                
+                <div class="detail-item">
+                    <div class="detail-label">Auction End Time</div>
+                    <div class="detail-value" th:text="${auctionEndTime}">2024-01-01 10:00:00</div>
+                </div>
+                
+                <div class="detail-item">
+                    <div class="detail-label">Total Bids Received</div>
+                    <div class="detail-value" th:text="${totalBids} + ' bid(s)'">15 bids</div>
+                </div>
+            </div>
+            
+            <div class="winner-box" th:if="${isSold}">
+                <div class="icon">👤</div>
+                <div class="label">Winner</div>
+                <div class="name" th:text="${winnerName}">John Doe</div>
+            </div>
+            
+            <div class="stats-row" th:if="${isSold}">
+                <div class="stat-item">
+                    <div class="stat-number" th:text="'$' + ${finalPrice}">$1,500</div>
+                    <div class="stat-label">Sale Price</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" th:text="${totalBids}">15</div>
+                    <div class="stat-label">Total Bids</div>
+                </div>
+            </div>
+            
+            <div class="info-section" th:if="${isSold}">
+                <p><strong>📋 Next Steps:</strong></p>
+                <p>• The buyer will receive payment instructions shortly</p>
+                <p>• You will be notified once payment is confirmed</p>
+                <p>• Please prepare the item for shipment</p>
+                <p>• Contact the buyer to arrange shipping details</p>
+                <p>• Funds will be transferred to your account after delivery confirmation</p>
+            </div>
+            
+            <div class="info-section no-sale" th:unless="${isSold}">
+                <p><strong>💡 Tips for Better Results:</strong></p>
+                <p>• Consider adjusting your starting price or reserve price</p>
+                <p>• Add more detailed product descriptions and high-quality photos</p>
+                <p>• Try listing during peak browsing times</p>
+                <p>• Review similar successful listings for pricing insights</p>
+                <p>• You can relist this item with updated details</p>
+            </div>
+            
+            <div style="text-align: center;">
+                <a href="#" class="cta-button" th:if="${isSold}">View Sale Details</a>
+                <a href="#" class="cta-button" th:unless="${isSold}">Relist This Item</a>
+            </div>
+            
+            <div class="message">
+                Thank you for using our platform! We appreciate your business and look forward to helping you with future auctions.
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p><strong>Online Auction Platform - Seller Support</strong></p>
+            <p>Need help? Contact us at <a href="mailto:seller-support@auction.com" class="support-link">seller-support@auction.com</a></p>
+            <p style="margin-top: 15px; font-size: 12px;">
+                This is an automated message. Please do not reply to this email.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

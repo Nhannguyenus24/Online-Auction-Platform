@@ -1,6 +1,10 @@
 package notification.service;
 
 
+import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -8,13 +12,11 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
-import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
-import java.util.Map;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 @Service
 public class EmailService {
@@ -258,6 +260,191 @@ public class EmailService {
         return sendAccountViolationWarningEmail(to, userName, violationType, violationDescription,
                 detectionDate, warningLevel, referenceNumber, termsLink, guidelinesLink)
                 .then(saveNotificationToDatabase(userId, "ACCOUNT_VIOLATION_WARNING", notificationPayload));
+    }
+
+    /**
+     * Gửi email thông báo user bị ban khỏi sản phẩm (Reactive)
+     */
+    public Mono<Void> sendProductBannedUserEmail(String to, String userName, String productName,
+                                                 String productId, String reason, String banTime) {
+        Map<String, Object> variables = Map.of(
+                "userName", userName,
+                "productName", productName,
+                "productId", productId,
+                "reason", reason,
+                "banTime", banTime
+        );
+
+        return sendHtmlEmail(to, "You Have Been Banned from Bidding on a Product", 
+                            "ban-user-from-product", variables);
+    }
+
+    /**
+     * Gửi product banned user email và lưu notification vào DB
+     * Note: Cần fetch thông tin user (email, userName) từ user service
+     * Tạm thời sử dụng userId để gửi thông báo
+     */
+    public Mono<Void> sendProductBannedUserEmailWithNotification(Integer userId, String productName,
+                                                                 String productId, String reason, String banTime) {
+        // TODO: Fetch user info from user service to get email and userName
+        // For now, we'll just save notification to database
+        // When user service integration is ready, add email sending
+        
+        Map<String, Object> notificationPayload = Map.of(
+                "userId", userId,
+                "productName", productName,
+                "productId", productId,
+                "reason", reason,
+                "banTime", banTime,
+                "type", "product_banned_user"
+        );
+
+        log.info("Saving product ban notification for userId={}, productId={}", userId, productId);
+        
+        // Only save notification for now, email will be added when user service integration is ready
+        return saveNotificationToDatabase(userId, "PRODUCT_BANNED_USER", notificationPayload)
+                .doOnSuccess(v -> log.info("Product ban notification saved: userId={}, productId={}", userId, productId));
+        
+        // Uncomment below when user service is integrated:
+        /*
+        return userServiceClient.getUserById(userId)
+            .flatMap(user -> sendProductBannedUserEmail(
+                user.getEmail(), user.getFullName(), productName, productId, reason, banTime
+            ))
+            .then(saveNotificationToDatabase(userId, "PRODUCT_BANNED_USER", notificationPayload));
+        */
+    }
+
+    /**
+     * Gửi email thông báo đấu giá kết thúc (Reactive)
+     */
+    public Mono<Void> sendAuctionEndedEmail(String to, String userName, String productName,
+                                           String productId, boolean isWinner, String winningAmount,
+                                           String yourBidAmount, String auctionEndTime, String totalBids) {
+        Map<String, Object> variables = Map.of(
+                "userName", userName,
+                "productName", productName,
+                "productId", productId,
+                "isWinner", isWinner,
+                "winningAmount", winningAmount,
+                "yourBidAmount", yourBidAmount != null ? yourBidAmount : "0",
+                "auctionEndTime", auctionEndTime,
+                "totalBids", totalBids
+        );
+
+        String subject = isWinner ? "Congratulations! You Won the Auction" : "Auction Has Ended";
+        return sendHtmlEmail(to, subject, "auction-ended", variables);
+    }
+
+    /**
+     * Gửi auction ended email và lưu notification vào DB
+     * Note: Cần fetch thông tin user (email, userName) từ user service
+     * Tạm thời sử dụng userId để gửi thông báo
+     */
+    public Mono<Void> sendAuctionEndedEmailWithNotification(Integer userId, String productName,
+                                                            String productId, boolean isWinner,
+                                                            String winningAmount, String yourBidAmount,
+                                                            String auctionEndTime, String totalBids) {
+        // TODO: Fetch user info from user service to get email and userName
+        // For now, we'll just save notification to database
+        // When user service integration is ready, add email sending
+        
+        Map<String, Object> notificationPayload = Map.of(
+                "userId", userId,
+                "productName", productName,
+                "productId", productId,
+                "isWinner", isWinner,
+                "winningAmount", winningAmount,
+                "yourBidAmount", yourBidAmount != null ? yourBidAmount : "0",
+                "auctionEndTime", auctionEndTime,
+                "totalBids", totalBids,
+                "type", "auction_ended"
+        );
+
+        log.info("Saving auction ended notification for userId={}, productId={}, isWinner={}", 
+            userId, productId, isWinner);
+        
+        // Only save notification for now, email will be added when user service is integrated
+        String notificationType = isWinner ? "AUCTION_WON" : "AUCTION_ENDED";
+        return saveNotificationToDatabase(userId, notificationType, notificationPayload)
+                .doOnSuccess(v -> log.info("Auction ended notification saved: userId={}, productId={}, isWinner={}", 
+                    userId, productId, isWinner));
+        
+        // Uncomment below when user service is integrated:
+        /*
+        return userServiceClient.getUserById(userId)
+            .flatMap(user -> sendAuctionEndedEmail(
+                user.getEmail(), user.getFullName(), productName, productId, 
+                isWinner, winningAmount, yourBidAmount, auctionEndTime, totalBids
+            ))
+            .then(saveNotificationToDatabase(userId, notificationType, notificationPayload));
+        */
+    }
+
+    /**
+     * Gửi email thông báo đấu giá kết thúc cho seller (Reactive)
+     */
+    public Mono<Void> sendAuctionEndedSellerEmail(String to, String userName, String productName,
+                                                  String productId, boolean isSold, String finalPrice,
+                                                  String winnerName, String totalBids, String auctionEndTime) {
+        Map<String, Object> variables = Map.of(
+                "userName", userName,
+                "productName", productName,
+                "productId", productId,
+                "isSold", isSold,
+                "finalPrice", finalPrice,
+                "winnerName", winnerName != null ? winnerName : "N/A",
+                "totalBids", totalBids,
+                "auctionEndTime", auctionEndTime
+        );
+
+        String subject = isSold ? "Your Auction Ended - Item Sold!" : "Your Auction Has Ended";
+        return sendHtmlEmail(to, subject, "auction-ended-seller", variables);
+    }
+
+    /**
+     * Gửi auction ended seller email và lưu notification vào DB
+     * Note: Cần fetch thông tin seller từ user service
+     * Tạm thời sử dụng sellerId để gửi thông báo
+     */
+    public Mono<Void> sendAuctionEndedSellerEmailWithNotification(Integer sellerId, String productName,
+                                                                  String productId, boolean isSold,
+                                                                  String finalPrice, String winnerName,
+                                                                  String totalBids, String auctionEndTime) {
+        // TODO: Fetch seller info from user service to get email and userName
+        // For now, we'll just save notification to database
+        // When user service integration is ready, add email sending
+        
+        Map<String, Object> notificationPayload = Map.of(
+                "sellerId", sellerId,
+                "productName", productName,
+                "productId", productId,
+                "isSold", isSold,
+                "finalPrice", finalPrice,
+                "winnerName", winnerName != null ? winnerName : "N/A",
+                "totalBids", totalBids,
+                "auctionEndTime", auctionEndTime,
+                "type", "auction_ended_seller"
+        );
+
+        log.info("Saving auction ended seller notification for sellerId={}, productId={}, isSold={}", 
+            sellerId, productId, isSold);
+        
+        // Only save notification for now, email will be added when user service is integrated
+        String notificationType = isSold ? "AUCTION_SOLD" : "AUCTION_ENDED_NO_SALE";
+        return saveNotificationToDatabase(sellerId, notificationType, notificationPayload)
+                .doOnSuccess(v -> log.info("Auction ended seller notification saved: sellerId={}, productId={}, isSold={}", 
+                    sellerId, productId, isSold));
+        
+        // Uncomment below when user service is integrated:
+        /*
+        return userServiceClient.getUserById(sellerId)
+            .flatMap(seller -> sendAuctionEndedSellerEmail(
+                seller.getEmail(), seller.getFullName(), productName, productId,
+                isSold, finalPrice, winnerName, totalBids, auctionEndTime
+            ))
+            .then(saveNotificationToDatabase(sellerId, notificationType, notificationPayload));
+        */
     }
 }
 

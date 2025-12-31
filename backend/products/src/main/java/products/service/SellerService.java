@@ -2,7 +2,9 @@ package products.service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,13 +12,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.auction.entities.database.Product;
+import com.auction.entities.msg.EventType;
+import com.auction.entities.msg.RabbitMessage;
+import com.auction.rabbitmq.services.ReactiveRabbitProducer;
+import com.auction.utils.TimeUtils;
 import com.auctionplatform.seller.grpc.ListingDetail;
 import com.auctionplatform.seller.grpc.ProductDetailsResponse;
 import com.auctionplatform.seller.grpc.ProductSummary;
 
 import products.repository.ProductRepository;
 import products.repository.SellerRepository;
-import com.auction.utils.TimeUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -26,11 +31,16 @@ public class SellerService {
     private final SellerRepository sellerRepository;
     private final ProductRepository productRepository;
     private final AuctionService auctionService;
+    private final ReactiveRabbitProducer rabbitProducer;
+    
+    private static final String NOTIFICATION_QUEUE = "dev";
 
-    public SellerService(SellerRepository sellerRepository, ProductRepository productRepository, AuctionService auctionService) {
+    public SellerService(SellerRepository sellerRepository, ProductRepository productRepository, 
+                        AuctionService auctionService, ReactiveRabbitProducer rabbitProducer) {
         this.sellerRepository = sellerRepository;
         this.productRepository = productRepository;
         this.auctionService = auctionService;
+        this.rabbitProducer = rabbitProducer;
     }
 
     // ============================================================================
@@ -129,14 +139,53 @@ public class SellerService {
     
     /**
      * Handle auction end - called by scheduler
+     * This is only called when auction ends with NO BIDS
      */
     private void handleAuctionEnd(int productId) {
-        log.info("Handling auction end for product {}", productId);
+        log.info("Handling auction end for product {} (no bids)", productId);
         
-        // This will be handled by BidderService, but we can also add admin functionality here
-        // For now, just log the event
-        productRepository.updateStatus(productId, "ended").block();
-        log.info("Auction ended for product {}, updating status...", productId);
+        // Update product status to ended
+        productRepository.updateStatus(productId, "ended")
+            .then(productRepository.findById(productId))
+            .flatMap(product -> {
+                // Send notification to seller that auction ended with no bids
+                return sendAuctionEndedSellerNotification(product);
+            })
+            .doOnSuccess(v -> log.info("Auction ended notification sent to seller for product {} (no bids)", productId))
+            .doOnError(e -> log.error("Error handling auction end for product {}: {}", productId, e.getMessage(), e))
+            .subscribe();
+    }
+    
+    /**
+     * Send notification to seller when auction ends with no bids
+     */
+    private Mono<Void> sendAuctionEndedSellerNotification(Product product) {
+        Map<String, String> payload = new HashMap<>();
+        payload.put("recipientType", "seller");
+        payload.put("sellerId", String.valueOf(product.getSellerId()));
+        payload.put("productId", String.valueOf(product.getId()));
+        payload.put("productName", product.getTitle());
+        payload.put("isSold", "false");
+        payload.put("finalPrice", "0.00");
+        payload.put("winnerName", null);
+        payload.put("totalBids", "0");
+        payload.put("auctionEndTime", TimeUtils.formatDateTime(product.getEndsAt()));
+        
+        RabbitMessage message = RabbitMessage.builder()
+            .eventType(EventType.TASK_SEND_MAIL_ENDED_AUCTION)
+            .userId(String.valueOf(product.getSellerId()))
+            .payload(payload)
+            .build();
+        
+        log.info("Sending auction ended notification to seller: sellerId={}, productId={}, no bids", 
+            product.getSellerId(), product.getId());
+        
+        return rabbitProducer.sendToQueue(NOTIFICATION_QUEUE, message)
+            .doOnSuccess(v -> log.info("Auction ended notification sent to seller successfully: sellerId={}, productId={}", 
+                product.getSellerId(), product.getId()))
+            .doOnError(e -> log.error("Failed to send auction ended notification to seller: sellerId={}, productId={}, error={}", 
+                product.getSellerId(), product.getId(), e.getMessage(), e))
+            .onErrorResume(e -> Mono.empty()); // Fire and forget
     }
 
     // ============================================================================
@@ -255,6 +304,69 @@ public class SellerService {
             .thenReturn("Question answered successfully")
             .doOnSuccess(result -> log.info("Question {} answered successfully by seller {}", questionId, sellerId))
             .doOnError(e -> log.error("Error answering question {}: {}", questionId, e.getMessage(), e));
+    }
+
+    /**
+     * Reject (ban) a bidder from a specific product
+     */
+    @Transactional
+    public Mono<String> rejectBidder(int productId, int sellerId, int bidderId, String reason) {
+        log.info("Seller {} rejecting bidder {} from product {} with reason: {}", sellerId, bidderId, productId, reason);
+        
+        // First verify the product belongs to the seller
+        return sellerRepository.findByIdAndSellerId(productId, sellerId)
+            .switchIfEmpty(Mono.error(new IllegalArgumentException("Product not found or you don't have permission")))
+            .flatMap(product -> {
+                // Check if bidder is already banned
+                return sellerRepository.countProductBan(productId, bidderId)
+                    .flatMap(count -> {
+                        if (count > 0) {
+                            return Mono.error(new IllegalStateException("Bidder is already banned from this product"));
+                        }
+                        // Insert ban record
+                        return sellerRepository.insertProductBan(productId, bidderId, reason)
+                            .then(Mono.just(product));
+                    });
+            })
+            .flatMap(product -> {
+                // Send notification via RabbitMQ
+                return sendBannedUserNotification(bidderId, product, reason)
+                    .thenReturn("Bidder rejected successfully")
+                    .onErrorResume(e -> {
+                        log.warn("Failed to send ban notification, but ban was successful: {}", e.getMessage());
+                        return Mono.just("Bidder rejected successfully (notification failed)");
+                    });
+            })
+            .doOnSuccess(result -> log.info("Bidder {} successfully banned from product {} by seller {}", bidderId, productId, sellerId))
+            .doOnError(e -> log.error("Error rejecting bidder {} from product {}: {}", bidderId, productId, e.getMessage(), e));
+    }
+    
+    /**
+     * Send notification via RabbitMQ when a user is banned from a product
+     */
+    private Mono<Void> sendBannedUserNotification(int bidderId, Product product, String reason) {
+        Map<String, String> payload = new HashMap<>();
+        payload.put("userId", String.valueOf(bidderId));
+        payload.put("productId", String.valueOf(product.getId()));
+        payload.put("productName", product.getTitle());
+        payload.put("sellerId", String.valueOf(product.getSellerId()));
+        payload.put("reason", reason);
+        payload.put("banTime", LocalDateTime.now().toString());
+        
+        RabbitMessage message = RabbitMessage.builder()
+            .eventType(EventType.TASK_SEND_MAIL_PRODUCT_BANNED_USER)
+            .userId(String.valueOf(bidderId))
+            .payload(payload)
+            .build();
+        
+        log.info("Sending ban notification to RabbitMQ: userId={}, productId={}, queue={}", 
+            bidderId, product.getId(), NOTIFICATION_QUEUE);
+        
+        return rabbitProducer.sendToQueue(NOTIFICATION_QUEUE, message)
+            .doOnSuccess(v -> log.info("Ban notification sent successfully: userId={}, productId={}", bidderId, product.getId()))
+            .doOnError(e -> log.error("Failed to send ban notification: userId={}, productId={}, error={}", 
+                bidderId, product.getId(), e.getMessage(), e))
+            .onErrorResume(e -> Mono.empty()); // Fire and forget
     }
     // ============================================================================
     // RESULT RECORDS

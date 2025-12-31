@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Bidding Ban Notification</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 30px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .header .icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .greeting {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .message {
+            font-size: 15px;
+            line-height: 1.6;
+            color: #555;
+            margin-bottom: 20px;
+        }
+        .alert-box {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .alert-box strong {
+            color: #856404;
+            display: block;
+            margin-bottom: 8px;
+        }
+        .details-box {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 20px;
+            margin: 25px 0;
+        }
+        .detail-item {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .detail-item:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+        .detail-label {
+            font-weight: 600;
+            color: #495057;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+        }
+        .detail-value {
+            color: #212529;
+            font-size: 15px;
+            word-wrap: break-word;
+        }
+        .product-name {
+            color: #dc3545;
+            font-weight: 600;
+        }
+        .reason-text {
+            background-color: #fff;
+            padding: 12px;
+            border-radius: 4px;
+            border: 1px solid #dee2e6;
+            font-style: italic;
+        }
+        .info-section {
+            background-color: #e7f3ff;
+            border-left: 4px solid #0066cc;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .info-section p {
+            margin: 5px 0;
+            color: #004085;
+            font-size: 14px;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 25px 30px;
+            text-align: center;
+            border-top: 1px solid #dee2e6;
+        }
+        .footer p {
+            margin: 5px 0;
+            color: #6c757d;
+            font-size: 13px;
+        }
+        .footer .support-link {
+            color: #0066cc;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .footer .support-link:hover {
+            text-decoration: underline;
+        }
+        @media only screen and (max-width: 600px) {
+            .container {
+                margin: 10px;
+            }
+            .content {
+                padding: 25px 20px;
+            }
+            .header {
+                padding: 25px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="icon">🚫</div>
+            <h1>Bidding Access Restricted</h1>
+        </div>
+        
+        <div class="content">
+            <div class="greeting">
+                Dear <strong th:text="${userName}">User</strong>,
+            </div>
+            
+            <div class="message">
+                We regret to inform you that the seller has restricted your bidding access for the following product:
+            </div>
+            
+            <div class="details-box">
+                <div class="detail-item">
+                    <div class="detail-label">Product</div>
+                    <div class="detail-value product-name" th:text="${productName}">Product Name</div>
+                </div>
+                
+                <div class="detail-item">
+                    <div class="detail-label">Product ID</div>
+                    <div class="detail-value" th:text="${productId}">12345</div>
+                </div>
+                
+                <div class="detail-item">
+                    <div class="detail-label">Reason</div>
+                    <div class="detail-value reason-text" th:text="${reason}">Reason for ban</div>
+                </div>
+                
+                <div class="detail-item">
+                    <div class="detail-label">Ban Date & Time</div>
+                    <div class="detail-value" th:text="${banTime}">2024-01-01 10:00:00</div>
+                </div>
+            </div>
+            
+            <div class="alert-box">
+                <strong>⚠️ What this means:</strong>
+                You will no longer be able to place bids on this specific product. This restriction only applies to this particular auction listing.
+            </div>
+            
+            <div class="info-section">
+                <p><strong>ℹ️ Important Information:</strong></p>
+                <p>• This ban is specific to this product only</p>
+                <p>• You can still participate in other auctions on our platform</p>
+                <p>• If you believe this action was taken in error, please contact our support team</p>
+            </div>
+            
+            <div class="message">
+                If you have any questions or concerns about this decision, please don't hesitate to reach out to our customer support team. We're here to ensure a fair and safe auction experience for all users.
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p><strong>Online Auction Platform</strong></p>
+            <p>Need help? Contact us at <a href="mailto:support@auction.com" class="support-link">support@auction.com</a></p>
+            <p style="margin-top: 15px; font-size: 12px;">
+                This is an automated message. Please do not reply to this email.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

@@ -152,4 +152,21 @@ public interface SellerRepository extends R2dbcRepository<Product, Integer> {
     @Query("INSERT INTO product_images (product_id, url, is_primary, created_at) " +
            "VALUES (:productId, :url, :isPrimary, CURRENT_TIMESTAMP)")
     Mono<Integer> insertProductImage(Integer productId, String url, Boolean isPrimary);
+
+    // ============================================================================
+    // BIDDER MANAGEMENT QUERIES
+    // ============================================================================
+
+    /**
+     * Ban a bidder from a specific product
+     */
+    @Query("INSERT INTO product_bans (product_id, user_id, reason, created_at) " +
+           "VALUES (:productId, :userId, :reason, CURRENT_TIMESTAMP)")
+    Mono<Integer> insertProductBan(Integer productId, Integer userId, String reason);
+
+    /**
+     * Check if a bidder is already banned from a product
+     */
+    @Query("SELECT COUNT(*) FROM product_bans WHERE product_id = :productId AND user_id = :userId")
+    Mono<Long> countProductBan(Integer productId, Integer userId);
 }

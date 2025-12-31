@@ -248,13 +248,18 @@ public class SellerGrpcService extends ReactorSellerServiceGrpc.SellerServiceImp
     @Override
     public Mono<RejectBidderResponse> rejectBidder(Mono<RejectBidderRequest> request) {
         return request.doOnNext(req -> log.info("Reject bidder request: {}", JsonUtils.toJson(req)))
-            .map(req -> {
-                // TODO: Implement reject bidder (add to product_bans table)
-                return RejectBidderResponse.newBuilder()
+            .flatMap(req ->
+                sellerService.rejectBidder(
+                    req.getProductId(),
+                    req.getSellerId(),
+                    req.getBidderId(),
+                    req.getReason()
+                )
+                .map(result -> RejectBidderResponse.newBuilder()
                     .setSuccess(true)
-                    .setMessage("Bidder rejected successfully")
-                    .build();
-            })
+                    .setMessage(result)
+                    .build())
+            )
             .doOnNext(resp -> log.info("Reject bidder response: {}", JsonUtils.toJson(resp)))
             .onErrorResume(e -> {
                 log.error("Reject bidder error: {}", e.getMessage(), e);

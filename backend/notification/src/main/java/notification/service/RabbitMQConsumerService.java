@@ -75,6 +75,8 @@ public class RabbitMQConsumerService {
             case TASK_SEND_MAIL_SUCCESS_BID -> handleBidSuccessEvent(message);
             case TASK_SEND_MAIL_OUTBID -> handleBidOutbidEvent(message);
             case TASK_SEND_MAIL_ACCOUNT_VIOLATION -> handleAccountViolationEvent(message);
+            case TASK_SEND_MAIL_PRODUCT_BANNED_USER -> handleProductBannedUserEvent(message);
+            case TASK_SEND_MAIL_ENDED_AUCTION -> handleAuctionEndedEvent(message);
             case TASK_SEND_NOTIFICATION, TASK_DELETE_NOTIFICATION, TASK_READ_NOTIFICATION -> Mono.empty().then();
             default -> {
                 log.error("Unknown event type: {}", message.getEventType());
@@ -256,6 +258,157 @@ public class RabbitMQConsumerService {
             return Mono.error(new IllegalArgumentException("Invalid userId format", e));
         } catch (Exception e) {
             log.error("Unexpected error in AccountViolation event handler: eventId={}, error={}", 
+                message.getEventId(), e.getMessage(), e);
+            return Mono.error(e);
+        }
+    }
+
+    /**
+     * Xử lý event user bị ban khỏi sản phẩm
+     */
+    private Mono<Void> handleProductBannedUserEvent(RabbitMessage message) {
+        try {
+            Map<String, String> payload = message.getPayload();
+            
+            String userId = payload.get("userId");
+            String productId = payload.get("productId");
+            String productName = payload.get("productName");
+            String reason = payload.get("reason");
+            String banTime = payload.get("banTime");
+
+            if (userId == null || productId == null || productName == null || 
+                reason == null || banTime == null) {
+                log.error("Missing required fields in ProductBannedUser event: eventId={}", message.getEventId());
+                return Mono.error(new IllegalArgumentException("Missing required fields in ProductBannedUser event"));
+            }
+
+            Integer userIdInt = Integer.parseInt(userId);
+
+            log.debug("Sending product banned user email: userId={}, productId={}", userId, productId);
+            
+            return emailService.sendProductBannedUserEmailWithNotification(
+                    userIdInt, productName, productId, reason, banTime
+            )
+            .doOnSuccess(v -> log.info("Product banned user email sent: eventId={}, userId={}, productId={}", 
+                message.getEventId(), userId, productId));
+        } catch (NumberFormatException e) {
+            log.error("Invalid number format in ProductBannedUser event: eventId={}, error={}", 
+                message.getEventId(), e.getMessage());
+            return Mono.error(new IllegalArgumentException("Invalid userId format", e));
+        } catch (Exception e) {
+            log.error("Unexpected error in ProductBannedUser event handler: eventId={}, error={}", 
+                message.getEventId(), e.getMessage(), e);
+            return Mono.error(e);
+        }
+    }
+
+    /**
+     * Xử lý event đấu giá kết thúc
+     */
+    private Mono<Void> handleAuctionEndedEvent(RabbitMessage message) {
+        try {
+            Map<String, String> payload = message.getPayload();
+            
+            // Check if this is for seller or bidder
+            String recipientType = payload.get("recipientType"); // "seller" or "bidder"
+            
+            if ("seller".equals(recipientType)) {
+                return handleAuctionEndedSellerEvent(message);
+            } else {
+                return handleAuctionEndedBidderEvent(message);
+            }
+        } catch (Exception e) {
+            log.error("Unexpected error in AuctionEnded event handler: eventId={}, error={}", 
+                message.getEventId(), e.getMessage(), e);
+            return Mono.error(e);
+        }
+    }
+
+    /**
+     * Xử lý event đấu giá kết thúc cho bidder
+     */
+    private Mono<Void> handleAuctionEndedBidderEvent(RabbitMessage message) {
+        try {
+            Map<String, String> payload = message.getPayload();
+            
+            String userId = payload.get("userId");
+            String productId = payload.get("productId");
+            String productName = payload.get("productName");
+            String isWinnerStr = payload.get("isWinner");
+            String winningAmount = payload.get("winningAmount");
+            String yourBidAmount = payload.get("yourBidAmount");
+            String auctionEndTime = payload.get("auctionEndTime");
+            String totalBids = payload.get("totalBids");
+
+            if (userId == null || productId == null || productName == null || 
+                isWinnerStr == null || winningAmount == null || auctionEndTime == null || totalBids == null) {
+                log.error("Missing required fields in AuctionEnded bidder event: eventId={}", message.getEventId());
+                return Mono.error(new IllegalArgumentException("Missing required fields in AuctionEnded bidder event"));
+            }
+
+            Integer userIdInt = Integer.parseInt(userId);
+            boolean isWinner = Boolean.parseBoolean(isWinnerStr);
+
+            log.debug("Sending auction ended email to bidder: userId={}, productId={}, isWinner={}", 
+                userId, productId, isWinner);
+            
+            return emailService.sendAuctionEndedEmailWithNotification(
+                    userIdInt, productName, productId, isWinner, 
+                    winningAmount, yourBidAmount, auctionEndTime, totalBids
+            )
+            .doOnSuccess(v -> log.info("Auction ended email sent to bidder: eventId={}, userId={}, productId={}, isWinner={}", 
+                message.getEventId(), userId, productId, isWinner));
+        } catch (NumberFormatException e) {
+            log.error("Invalid number format in AuctionEnded bidder event: eventId={}, error={}", 
+                message.getEventId(), e.getMessage());
+            return Mono.error(new IllegalArgumentException("Invalid userId format", e));
+        } catch (Exception e) {
+            log.error("Unexpected error in AuctionEnded bidder event handler: eventId={}, error={}", 
+                message.getEventId(), e.getMessage(), e);
+            return Mono.error(e);
+        }
+    }
+
+    /**
+     * Xử lý event đấu giá kết thúc cho seller
+     */
+    private Mono<Void> handleAuctionEndedSellerEvent(RabbitMessage message) {
+        try {
+            Map<String, String> payload = message.getPayload();
+            
+            String sellerId = payload.get("sellerId");
+            String productId = payload.get("productId");
+            String productName = payload.get("productName");
+            String isSoldStr = payload.get("isSold");
+            String finalPrice = payload.get("finalPrice");
+            String winnerName = payload.get("winnerName");
+            String totalBids = payload.get("totalBids");
+            String auctionEndTime = payload.get("auctionEndTime");
+
+            if (sellerId == null || productId == null || productName == null || 
+                isSoldStr == null || finalPrice == null || auctionEndTime == null || totalBids == null) {
+                log.error("Missing required fields in AuctionEnded seller event: eventId={}", message.getEventId());
+                return Mono.error(new IllegalArgumentException("Missing required fields in AuctionEnded seller event"));
+            }
+
+            Integer sellerIdInt = Integer.parseInt(sellerId);
+            boolean isSold = Boolean.parseBoolean(isSoldStr);
+
+            log.debug("Sending auction ended email to seller: sellerId={}, productId={}, isSold={}", 
+                sellerId, productId, isSold);
+            
+            return emailService.sendAuctionEndedSellerEmailWithNotification(
+                    sellerIdInt, productName, productId, isSold, 
+                    finalPrice, winnerName, totalBids, auctionEndTime
+            )
+            .doOnSuccess(v -> log.info("Auction ended email sent to seller: eventId={}, sellerId={}, productId={}, isSold={}", 
+                message.getEventId(), sellerId, productId, isSold));
+        } catch (NumberFormatException e) {
+            log.error("Invalid number format in AuctionEnded seller event: eventId={}, error={}", 
+                message.getEventId(), e.getMessage());
+            return Mono.error(new IllegalArgumentException("Invalid sellerId format", e));
+        } catch (Exception e) {
+            log.error("Unexpected error in AuctionEnded seller event handler: eventId={}, error={}", 
                 message.getEventId(), e.getMessage(), e);
             return Mono.error(e);
         }
