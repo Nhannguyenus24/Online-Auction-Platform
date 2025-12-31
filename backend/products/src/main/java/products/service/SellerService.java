@@ -5,6 +5,8 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,16 +15,20 @@ import com.auctionplatform.seller.grpc.ListingDetail;
 import com.auctionplatform.seller.grpc.ProductDetailsResponse;
 import com.auctionplatform.seller.grpc.ProductSummary;
 
+import products.repository.ProductRepository;
 import products.repository.SellerRepository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Service
 public class SellerService {
+    private static final Logger log = LoggerFactory.getLogger(SellerService.class);
     private final SellerRepository sellerRepository;
+    private final ProductRepository productRepository;
 
-    public SellerService(SellerRepository sellerRepository) {
+    public SellerService(SellerRepository sellerRepository, ProductRepository productRepository) {
         this.sellerRepository = sellerRepository;
+        this.productRepository = productRepository;
     }
 
     // ============================================================================
@@ -218,7 +224,16 @@ public class SellerService {
             .setAutoExtendSeconds(product.getAutoExtendSeconds())
             .build();
     }
-
+    /**
+     * Answer a question on a product
+     */
+    public Mono<String> answerQuestion(int questionId, int sellerId, String answer) {
+        log.info("Seller {} answering question {}", sellerId, questionId);
+        return productRepository.updateQuestionAnswer(questionId, answer, sellerId)
+            .thenReturn("Question answered successfully")
+            .doOnSuccess(result -> log.info("Question {} answered successfully by seller {}", questionId, sellerId))
+            .doOnError(e -> log.error("Error answering question {}: {}", questionId, e.getMessage(), e));
+    }
     // ============================================================================
     // RESULT RECORDS
     // ============================================================================

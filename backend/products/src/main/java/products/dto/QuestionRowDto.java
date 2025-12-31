@@ -1,5 +1,7 @@
 package products.dto;
 
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.Map;
 
 public record QuestionRowDto(
@@ -11,25 +13,18 @@ public record QuestionRowDto(
     String answer,
     int answeredBy,
     String answererName,
-    long createdAt,
-    long answeredAt
+    ZonedDateTime createdAt,
+    ZonedDateTime answeredAt
 ) {
-    
-    public static QuestionRowDto fromMap(Map<String, Object> map) {
-        return new QuestionRowDto(
-            toInt(map.get("id")),
-            toInt(map.get("product_id")),
-            toInt(map.get("asker_id")),
-            toString(map.get("asker_name")),
-            toString(map.get("question")),
-            toString(map.get("answer")),
-            toInt(map.get("answered_by")),
-            toString(map.get("answerer_name")),
-            toSeconds(map.get("created_at")),
-            toSeconds(map.get("answered_at"))
-        );
+
+    public long createdAtSeconds() {
+        return createdAt != null ? createdAt.toEpochSecond() : 0L;
     }
     
+    public long answeredAtSeconds() {
+        return answeredAt != null ? answeredAt.toEpochSecond() : 0L;
+    }
+
     private static int toInt(Object value) {
         if (value == null) return 0;
         if (value instanceof Number) return ((Number) value).intValue();

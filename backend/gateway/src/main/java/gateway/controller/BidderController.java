@@ -32,7 +32,6 @@ import com.auction.proto.user.GetWatchlistRequest;
 import com.auction.proto.user.PlaceBidRequest;
 import com.auction.proto.user.RemoveFromWatchlistRequest;
 import com.auction.proto.user.SetAutoBidRequest;
-
 import gateway.grpc.BidderGrpcClient;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -135,10 +134,10 @@ public class BidderController {
     @PostMapping("/watchlist")
     @Operation(summary = "Add to watchlist", description = "Add a product to user's watchlist. Requires authentication.")
     public ResponseEntity<Map<String, Object>> addToWatchlist(
-            @RequestBody Map<String, Integer> requestBody) {
+            @RequestBody gateway.controller.dto.AddToWatchlistRequest requestBody) {
 
         int userId = getUserId();
-        int productId = requestBody.get("productId");
+        int productId = requestBody.productId();
         log.info("Add to watchlist request - productId: {}, userId: {}", productId, userId);
 
         AddToWatchlistRequest grpcRequest = AddToWatchlistRequest.newBuilder()
@@ -257,10 +256,10 @@ public class BidderController {
     public ResponseEntity<Map<String, Object>> askQuestion(
             @Parameter(description = "Product ID", required = true)
             @PathVariable int productId,
-            @RequestBody Map<String, String> requestBody) {
+            @RequestBody gateway.controller.dto.AskQuestionRequest requestBody) {
 
         int userId = getUserId();
-        String question = requestBody.get("question");
+        String question = requestBody.question();
         log.info("Ask question request - productId: {}, userId: {}", productId, userId);
 
         AskQuestionRequest grpcRequest = AskQuestionRequest.newBuilder()
@@ -403,10 +402,10 @@ public class BidderController {
     public ResponseEntity<Map<String, Object>> placeBid(
             @Parameter(description = "Product ID", required = true)
             @PathVariable int productId,
-            @RequestBody Map<String, Double> requestBody) {
+            @RequestBody gateway.controller.dto.PlaceBidRequest requestBody) {
 
         int userId = getUserId();
-        double bidAmount = requestBody.get("bidAmount");
+        double bidAmount = requestBody.bidAmount();
         log.info("Place bid request - productId: {}, userId: {}, amount: {}", productId, userId, bidAmount);
 
         PlaceBidRequest grpcRequest = PlaceBidRequest.newBuilder()
@@ -446,10 +445,10 @@ public class BidderController {
     public ResponseEntity<Map<String, Object>> setAutoBid(
             @Parameter(description = "Product ID", required = true)
             @PathVariable int productId,
-            @RequestBody Map<String, Double> requestBody) {
+            @RequestBody gateway.controller.dto.SetAutoBidRequest requestBody) {
 
         int userId = getUserId();
-        double maxAmount = requestBody.get("maxAmount");
+        double maxAmount = requestBody.maxAmount();
         log.info("Set auto-bid request - productId: {}, userId: {}, maxAmount: {}", productId, userId, maxAmount);
 
         SetAutoBidRequest grpcRequest = SetAutoBidRequest.newBuilder()

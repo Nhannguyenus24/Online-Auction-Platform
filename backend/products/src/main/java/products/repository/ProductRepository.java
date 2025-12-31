@@ -9,9 +9,11 @@ import org.springframework.stereotype.Repository;
 
 import com.auction.entities.database.Product;
 
+import products.dto.BidRowDto;
 import products.dto.ImageRowDto;
 import products.dto.ProductDetailsDto;
 import products.dto.ProductRowDto;
+import products.dto.QuestionRowDto;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -327,7 +329,7 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
         ORDER BY b.amount DESC
         LIMIT :limit OFFSET :offset
         """)
-    Flux<Map<String, Object>> getProductBids(@Param("productId") Integer productId, @Param("limit") int limit, @Param("offset") int offset);
+    Flux<BidRowDto> getProductBids(@Param("productId") Integer productId, @Param("limit") int limit, @Param("offset") int offset);
     
     // Count product bids
     @Query("SELECT COUNT(*) FROM bids WHERE product_id = :productId")
@@ -345,11 +347,19 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
         ORDER BY q.created_at DESC
         LIMIT :limit OFFSET :offset
         """)
-    Flux<Map<String, Object>> getProductQuestions(@Param("productId") Integer productId, @Param("limit") int limit, @Param("offset") int offset);
+    Flux<QuestionRowDto> getProductQuestions(@Param("productId") Integer productId, @Param("limit") int limit, @Param("offset") int offset);
     
     // Count product questions
     @Query("SELECT COUNT(*) FROM questions WHERE product_id = :productId")
     Mono<Integer> countProductQuestions(@Param("productId") Integer productId);
+    
+    // Insert a new question
+    @Query("INSERT INTO questions (product_id, asker_id, question, created_at) VALUES (:productId, :askerId, :question, CURRENT_TIMESTAMP)")
+    Mono<Void> insertQuestion(@Param("productId") Integer productId, @Param("askerId") Integer askerId, @Param("question") String question);
+    
+    // Update question with answer
+    @Query("UPDATE questions SET answer = :answer, answered_by = :answeredBy, answered_at = CURRENT_TIMESTAMP WHERE id = :questionId")
+    Mono<Void> updateQuestionAnswer(@Param("questionId") Integer questionId, @Param("answer") String answer, @Param("answeredBy") Integer answeredBy);
     
     // Get user's bids with pagination
     @Query("""

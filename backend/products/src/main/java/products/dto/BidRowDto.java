@@ -1,5 +1,7 @@
 package products.dto;
 
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.Map;
 
 public record BidRowDto(
@@ -9,21 +11,13 @@ public record BidRowDto(
     String bidderNameMasked,
     double amount,
     boolean isAuto,
-    long createdAt
+    ZonedDateTime createdAt
 ) {
     
-    public static BidRowDto fromMap(Map<String, Object> map) {
-        return new BidRowDto(
-            toInt(map.get("id")),
-            toInt(map.get("product_id")),
-            toInt(map.get("bidder_id")),
-            toString(map.get("bidder_name_masked")),
-            toDouble(map.get("amount")),
-            toBoolean(map.get("is_auto")),
-            toSeconds(map.get("created_at"))
-        );
+    public long createdAtSeconds() {
+        return createdAt != null ? createdAt.toEpochSecond() : 0L;
     }
-    
+
     private static int toInt(Object value) {
         if (value == null) return 0;
         if (value instanceof Number) return ((Number) value).intValue();

@@ -224,13 +224,17 @@ public class SellerGrpcService extends ReactorSellerServiceGrpc.SellerServiceImp
     @Override
     public Mono<AnswerQuestionResponse> answerQuestion(Mono<AnswerQuestionRequest> request) {
         return request.doOnNext(req -> log.info("Answer question request: {}", JsonUtils.toJson(req)))
-            .map(req -> {
-                // TODO: Implement answer question in questions repository
-                return AnswerQuestionResponse.newBuilder()
+            .flatMap(req ->
+                sellerService.answerQuestion(
+                    req.getQuestionId(),
+                    req.getSellerId(),
+                    req.getAnswer()
+                )
+                .map(result -> AnswerQuestionResponse.newBuilder()
                     .setSuccess(true)
                     .setMessage("Question answered successfully")
-                    .build();
-            })
+                    .build())
+            )
             .doOnNext(resp -> log.info("Answer question response: {}", JsonUtils.toJson(resp)))
             .onErrorResume(e -> {
                 log.error("Answer question error: {}", e.getMessage(), e);

@@ -54,12 +54,17 @@ public class BidderService {
                         .doOnNext(count -> log.debug("Highest bidder check for user {}: {}", userId, count)),
                     productRepository.getUserAutoBid(productId, userId)
                         .defaultIfEmpty(java.util.Map.of())
-                        .doOnNext(map -> log.debug("Auto bid for user {}: {}", userId, map))
+                        .doOnNext(map -> log.debug("Auto bid for user {}: {}", userId, map)),
+                    productRepository.getProductQuestions(productId, 10, 0)
+                        .map(this::mapDtoToQuestion)
+                        .collectList()
+                        .doOnNext(questions -> log.debug("Found {} questions for product {}", questions.size(), productId))
                 ).map(tuple -> {
                     var images = tuple.getT1();
                     var isInWatchlistCount = tuple.getT2();
                     var isHighestBidderCount = tuple.getT3();
                     var autoBidMap = tuple.getT4();
+                    var questions = tuple.getT5();
                     
                     boolean isInWatchlist = isInWatchlistCount != null && isInWatchlistCount > 0;
                     boolean isHighestBidder = isHighestBidderCount != null && isHighestBidderCount > 0;
@@ -70,9 +75,9 @@ public class BidderService {
                             userMaxAutoBid = ((Number) maxAmount).doubleValue();
                         }
                     }
-                    log.info("Successfully built product details for productId={}: images={}, inWatchlist={}, isHighestBidder={}", 
-                        productId, images.size(), isInWatchlist, isHighestBidder);
-                    return mapDtoToProductWithUserData(productDto, images, isInWatchlist, isHighestBidder, userMaxAutoBid);
+                    log.info("Successfully built product details for productId={}: images={}, inWatchlist={}, isHighestBidder={}, questions={}", 
+                        productId, images.size(), isInWatchlist, isHighestBidder, questions.size());
+                    return mapDtoToProductWithUserData(productDto, images, questions, isInWatchlist, isHighestBidder, userMaxAutoBid);
                 })
             )
             .doOnError(e -> log.error("Error getting product details for productId={}: {}", productId, e.getMessage(), e));
@@ -159,8 +164,14 @@ public class BidderService {
     }
 
     public Mono<QuestionResult> askQuestion(int productId, int userId, String question) {
-        // TODO: Implement insert logic with repository
-        return Mono.just(new QuestionResult(1, 0L));
+        log.info("User {} asking question on product {}", userId, productId);
+        return productRepository.insertQuestion(productId, userId, question)
+            .then(Mono.defer(() -> {
+                long createdAt = System.currentTimeMillis() / 1000;
+                log.info("Question added successfully for product {} by user {}", productId, userId);
+                return Mono.just(new QuestionResult(0, createdAt));
+            }))
+            .doOnError(e -> log.error("Error adding question for product {}: {}", productId, e.getMessage(), e));
     }
 
     public Mono<QuestionsResult> getProductQuestions(int productId, int page, int limit) {
@@ -168,7 +179,6 @@ public class BidderService {
         
         return Mono.zip(
             productRepository.getProductQuestions(productId, limit, offset)
-                .map(QuestionRowDto::fromMap)
                 .collectList(),
             productRepository.countProductQuestions(productId)
         ).map(tuple -> {
@@ -197,7 +207,6 @@ public class BidderService {
         
         return Mono.zip(
             productRepository.getProductBids(productId, limit, offset)
-                .map(BidRowDto::fromMap)
                 .collectList(),
             productRepository.countProductBids(productId)
         ).map(tuple -> {
@@ -287,8 +296,8 @@ public class BidderService {
     }
     
     private Product mapDtoToProductWithUserData(ProductDetailsDto dto, List<ProductImage> images,
-                                                 boolean isInWatchlist, boolean isHighestBidder, 
-                                                 double userMaxAutoBid) {
+                                                 List<Question> questions, boolean isInWatchlist, 
+                                                 boolean isHighestBidder, double userMaxAutoBid) {
         return Product.newBuilder()
             .setId(dto.id())
             .setSellerId(dto.sellerId())
@@ -310,6 +319,7 @@ public class BidderService {
             .setViewsCount(dto.viewsCount())
             .setBidsCount(dto.bidsCount())
             .addAllImages(images)
+            .addAllQuestions(questions)
             .setIsInWatchlist(isInWatchlist)
             .setIsUserHighestBidder(isHighestBidder)
             .setUserMaxAutoBid(userMaxAutoBid)
@@ -326,8 +336,8 @@ public class BidderService {
             .setAnswer(dto.answer())
             .setAnsweredBy(dto.answeredBy())
             .setAnswererName(dto.answererName())
-            .setCreatedAt(dto.createdAt())
-            .setAnsweredAt(dto.answeredAt())
+            .setCreatedAt(dto.createdAtSeconds())
+            .setAnsweredAt(dto.answeredAtSeconds())
             .build();
     }
     
@@ -339,7 +349,7 @@ public class BidderService {
             .setBidderNameMasked(dto.bidderNameMasked())
             .setAmount(dto.amount())
             .setIsAuto(dto.isAuto())
-            .setCreatedAt(dto.createdAt())
+            .setCreatedAt(dto.createdAtSeconds())
             .setIsCurrentUser(dto.bidderId() == userId)
             .build();
     }

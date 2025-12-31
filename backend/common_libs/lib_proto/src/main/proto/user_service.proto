@@ -88,6 +88,7 @@ message Product {
   bool is_in_watchlist = 24; // True if current user has this in watchlist
   bool is_user_highest_bidder = 25; // True if current user is highest bidder
   double user_max_auto_bid = 26; // User's max auto-bid amount (0 if not set)
+  repeated Question questions = 27; // Recent questions and answers (limit 10)
 }
 
 // ==================== 1. Get Product Details ====================
