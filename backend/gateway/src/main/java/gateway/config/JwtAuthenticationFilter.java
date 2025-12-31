@@ -59,7 +59,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 Collection<GrantedAuthority> authorities = new ArrayList<>();
                 if (role != null) {
                     // Add ROLE_ prefix if not already present
-                    String roleName = role.startsWith("ROLE_") ? role : "ROLE_" + role.toUpperCase();
+                    String roleName = role.startsWith("ROLE_") ? role.toUpperCase() : "ROLE_" + role.toUpperCase();
                     authorities.add(new SimpleGrantedAuthority(roleName));
                     log.info("Added authority: {} for user: {}", roleName, userId);
                 }

@@ -53,13 +53,19 @@
 			<artifactId>jackson-annotations</artifactId>
 			<version>2.19.4</version>
 		</dependency>
-        <dependency>
-            <groupId>org.springframework.data</groupId>
-            <artifactId>spring-data-relational</artifactId>
-        </dependency>
-    </dependencies>
 	
-	<build>
+	<!-- Swagger/OpenAPI annotations for API documentation -->
+	<dependency>
+		<groupId>io.swagger.core.v3</groupId>
+		<artifactId>swagger-annotations</artifactId>
+		<version>2.2.27</version>
+	</dependency>
+		<dependency>
+		<groupId>org.springframework.data</groupId>
+		<artifactId>spring-data-relational</artifactId>
+	</dependency>
+</dependencies>
+		<build>
 		<plugins>
 			<!-- Maven Compiler Plugin -->
 			<plugin>
@@ -68,7 +74,6 @@
 				<version>3.13.0</version>
 				<configuration>
 					<source>21</source>
-					<target>21</target>
 					<annotationProcessorPaths>
 						<path>
 							<groupId>org.projectlombok</groupId>

@@ -1,5 +1,7 @@
 package gateway.controller;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -8,6 +10,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -18,7 +21,9 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.auctionplatform.seller.grpc.AnswerQuestionRequest;
 import com.auctionplatform.seller.grpc.AppendProductDescriptionRequest;
@@ -43,19 +48,26 @@ import com.auctionplatform.seller.grpc.SellerProfileResponse;
 import com.auctionplatform.seller.grpc.Transaction;
 
 import gateway.grpc.SellerGrpcClient;
+import gateway.service.CloudinaryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
 @RequestMapping("/api/seller")
 @Tag(name = "Seller", description = "Seller user endpoints - requires authentication")
+@SecurityRequirement(name = "bearerAuth")
 public class SellerController {
     private static final Logger log = LoggerFactory.getLogger(SellerController.class);
     private final SellerGrpcClient sellerGrpcClient;
+    private final CloudinaryService cloudinaryService;
 
-    public SellerController(SellerGrpcClient sellerGrpcClient) {
+    public SellerController(SellerGrpcClient sellerGrpcClient, CloudinaryService cloudinaryService) {
         this.sellerGrpcClient = sellerGrpcClient;
+        this.cloudinaryService = cloudinaryService;
     }
 
     private int getUserId() {
@@ -251,43 +263,117 @@ public class SellerController {
     // CREATE AUCTION LISTING
     // ============================================================================
 
-    @PostMapping("/listings")
-    @Operation(summary = "Create auction listing", description = "Create a new auction listing. Requires authentication.")
-    public ResponseEntity<Map<String, Object>> createAuctionListing(@RequestBody Map<String, Object> requestBody) {
+    @PostMapping(value = "/listings", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Create auction listing", description = "Create a new auction listing with up to 4 images. Requires authentication. Date format: yyyy-MM-dd'T'HH:mm:ss")
+    public ResponseEntity<Map<String, Object>> createAuctionListing(
+            @Parameter(description = "Product title", required = true)
+            @RequestParam("title") String title,
+            @Parameter(description = "Product description", required = true)
+            @RequestParam("description") String description,
+            @Parameter(description = "Category ID", required = true, example = "1")
+            @RequestParam("categoryId") String categoryIdStr,
+            @Parameter(description = "Starting price", required = true, example = "100.0")
+            @RequestParam("startingPrice") String startingPriceStr,
+            @Parameter(description = "Step price for bidding", required = true, example = "10.0")
+            @RequestParam("stepPrice") String stepPriceStr,
+            @Parameter(description = "Auction start date and time (format: yyyy-MM-dd'T'HH:mm:ss)", required = true, example = "2025-01-01T10:00:00")
+            @RequestParam("startsAt") String startsAtStr,
+            @Parameter(description = "Auction end date and time (format: yyyy-MM-dd'T'HH:mm:ss)", required = true, example = "2025-01-10T10:00:00")
+            @RequestParam("endsAt") String endsAtStr,
+            @Parameter(description = "Buy now price (optional)", example = "500.0")
+            @RequestParam(value = "buyNowPrice", required = false) String buyNowPriceStr,
+            @Parameter(description = "Enable auto-extend (optional)", example = "true")
+            @RequestParam(value = "isAutoExtend", required = false) String isAutoExtendStr,
+            @Parameter(description = "Auto-extend duration in seconds (optional)", example = "600")
+            @RequestParam(value = "autoExtendSeconds", required = false) String autoExtendSecondsStr,
+            @Parameter(
+                description = "Product images (max 4 files). Accepted formats: JPG, JPEG, PNG, GIF, WEBP. Max size per file: 10MB",
+                content = @Content(mediaType = MediaType.MULTIPART_FORM_DATA_VALUE, schema = @Schema(type = "array", format = "binary"))
+            )
+            @RequestPart(value = "images", required = false) List<MultipartFile> images
+    ) {
         int sellerId = getUserId();
-        log.info("Create auction listing request - sellerId: {}", sellerId);
-
+        
         try {
+            // Parse parameters from strings
+            int categoryId = Integer.parseInt(categoryIdStr);
+            float startingPrice = Float.parseFloat(startingPriceStr);
+            float stepPrice = Float.parseFloat(stepPriceStr);
+            
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
+            LocalDateTime startsAt = LocalDateTime.parse(startsAtStr, formatter);
+            LocalDateTime endsAt = LocalDateTime.parse(endsAtStr, formatter);
+            
+            Float buyNowPrice = (buyNowPriceStr != null && !buyNowPriceStr.isEmpty()) 
+                ? Float.parseFloat(buyNowPriceStr) : null;
+            Boolean isAutoExtend = (isAutoExtendStr != null && !isAutoExtendStr.isEmpty()) 
+                ? Boolean.parseBoolean(isAutoExtendStr) : null;
+            Integer autoExtendSeconds = (autoExtendSecondsStr != null && !autoExtendSecondsStr.isEmpty()) 
+                ? Integer.parseInt(autoExtendSecondsStr) : null;
+            
+            log.info("Create auction listing request - sellerId: {}, startsAt: {}, endsAt: {}", sellerId, startsAt, endsAt);
+
+            // Upload images to Cloudinary (max 4) - blocking
+            List<String> imageUrls = new ArrayList<>();
+            log.info("Checking images parameter - is null: {}", images == null);
+            
+            if (images != null && !images.isEmpty()) {
+                log.info("Images list size: {}", images.size());
+                List<MultipartFile> filesToUpload = images.size() > 4 ? images.subList(0, 4) : images;
+                
+                // Validate image types
+                for (MultipartFile file : filesToUpload) {
+                    String contentType = file.getContentType();
+                    if (!isValidImageType(contentType)) {
+                        Map<String, Object> error = new HashMap<>();
+                        error.put("success", false);
+                        error.put("message", "Invalid file type: " + file.getOriginalFilename() + ". Only JPG, JPEG, PNG, GIF, WEBP are allowed.");
+                        return ResponseEntity.badRequest().body(error);
+                    }
+                }
+                
+                log.info("Uploading {} images to Cloudinary", filesToUpload.size());
+                imageUrls = cloudinaryService.uploadMultipleServlet(filesToUpload, "products");
+                log.info("Uploaded {} images successfully", imageUrls.size());
+            }
+
+            // Convert LocalDateTime to ISO String for gRPC
+            DateTimeFormatter isoFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+            String startsAtGrpc = startsAt.format(isoFormatter);
+            String endsAtGrpc = endsAt.format(isoFormatter);
+            
+            // Build gRPC request
             CreateAuctionListingRequest.Builder builder = CreateAuctionListingRequest.newBuilder()
                     .setSellerId(sellerId)
-                    .setTitle((String) requestBody.get("title"))
-                    .setDescription((String) requestBody.get("description"))
-                    .setCategoryId((Integer) requestBody.get("categoryId"))
-                    .setStartingPrice(((Number) requestBody.get("startingPrice")).floatValue())
-                    .setStepPrice(((Number) requestBody.get("stepPrice")).floatValue())
-                    .setStartsAt((String) requestBody.get("startsAt"))
-                    .setEndsAt((String) requestBody.get("endsAt"));
+                    .setTitle(title)
+                    .setDescription(description)
+                    .setCategoryId(categoryId)
+                    .setStartingPrice(startingPrice)
+                    .setStepPrice(stepPrice)
+                    .setStartsAt(startsAtGrpc)
+                    .setEndsAt(endsAtGrpc);
 
-            if (requestBody.containsKey("buyNowPrice")) {
-                builder.setBuyNowPrice(((Number) requestBody.get("buyNowPrice")).floatValue());
+            if (buyNowPrice != null) {
+                builder.setBuyNowPrice(buyNowPrice);
             }
-            if (requestBody.containsKey("isAutoExtend")) {
-                builder.setIsAutoExtend((Boolean) requestBody.get("isAutoExtend"));
+            if (isAutoExtend != null) {
+                builder.setIsAutoExtend(isAutoExtend);
             }
-            if (requestBody.containsKey("autoExtendSeconds")) {
-                builder.setAutoExtendSeconds((Integer) requestBody.get("autoExtendSeconds"));
+            if (autoExtendSeconds != null) {
+                builder.setAutoExtendSeconds(autoExtendSeconds);
             }
-            if (requestBody.containsKey("imageUrls")) {
-                @SuppressWarnings("unchecked")
-                List<String> imageUrls = (List<String>) requestBody.get("imageUrls");
+            if (!imageUrls.isEmpty()) {
                 builder.addAllImageUrls(imageUrls);
             }
 
+            // Call gRPC service - blocking
             var response = sellerGrpcClient.createAuctionListing(builder.build()).block();
+            
             Map<String, Object> result = new HashMap<>();
             result.put("success", response.getSuccess());
             result.put("message", response.getMessage());
             result.put("productId", response.getProductId());
+            result.put("imageUrls", imageUrls);
 
             if (response.getSuccess()) {
                 log.info("Create auction listing successful - productId: {}", response.getProductId());
@@ -295,6 +381,18 @@ public class SellerController {
             } else {
                 return ResponseEntity.badRequest().body(result);
             }
+        } catch (NumberFormatException e) {
+            log.error("Invalid number format in parameters: {}", e.getMessage());
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Invalid number format: " + e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        } catch (java.time.format.DateTimeParseException e) {
+            log.error("Invalid date format: {}", e.getMessage());
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Invalid date format. Expected format: yyyy-MM-dd'T'HH:mm:ss");
+            return ResponseEntity.badRequest().body(error);
         } catch (Exception e) {
             log.error("Create auction listing error: {}", e.getMessage(), e);
             Map<String, Object> error = new HashMap<>();
@@ -344,10 +442,10 @@ public class SellerController {
     public ResponseEntity<Map<String, Object>> answerQuestion(
             @Parameter(description = "Question ID", required = true)
             @PathVariable int questionId,
-            @RequestBody Map<String, String> requestBody) {
+            @RequestBody com.auction.entities.dto.AnswerQuestionRequest requestBody) {
 
         int sellerId = getUserId();
-        String answer = requestBody.get("answer");
+        String answer = requestBody.getAnswer();
         log.info("Answer question request - questionId: {}, sellerId: {}", questionId, sellerId);
 
         AnswerQuestionRequest grpcRequest = AnswerQuestionRequest.newBuilder()
@@ -382,11 +480,11 @@ public class SellerController {
     public ResponseEntity<Map<String, Object>> rejectBidder(
             @Parameter(description = "Product ID", required = true)
             @PathVariable int productId,
-            @RequestBody Map<String, Object> requestBody) {
+            @RequestBody com.auction.entities.dto.RejectBidderRequest requestBody) {
 
         int sellerId = getUserId();
-        int bidderId = (Integer) requestBody.get("bidderId");
-        String reason = (String) requestBody.get("reason");
+        int bidderId = requestBody.getBidderId();
+        String reason = requestBody.getReason();
         log.info("Reject bidder request - productId: {}, bidderId: {}, sellerId: {}", productId, bidderId, sellerId);
 
         RejectBidderRequest grpcRequest = RejectBidderRequest.newBuilder()
@@ -422,10 +520,10 @@ public class SellerController {
     public ResponseEntity<Map<String, Object>> appendProductDescription(
             @Parameter(description = "Product ID", required = true)
             @PathVariable int productId,
-            @RequestBody Map<String, String> requestBody) {
+            @RequestBody com.auction.entities.dto.AppendProductDescriptionRequest requestBody) {
 
         int sellerId = getUserId();
-        String additionalDescription = requestBody.get("additionalDescription");
+        String additionalDescription = requestBody.getAdditionalDescription();
         log.info("Append product description request - productId: {}, sellerId: {}", productId, sellerId);
 
         AppendProductDescriptionRequest grpcRequest = AppendProductDescriptionRequest.newBuilder()
@@ -461,12 +559,12 @@ public class SellerController {
     public ResponseEntity<Map<String, Object>> rateBidder(
             @Parameter(description = "Bidder ID", required = true)
             @PathVariable int bidderId,
-            @RequestBody Map<String, Object> requestBody) {
+            @RequestBody com.auction.entities.dto.RateBidderRequest requestBody) {
 
         int sellerId = getUserId();
-        int orderId = (Integer) requestBody.get("orderId");
-        int score = (Integer) requestBody.get("score");
-        String comment = (String) requestBody.get("comment");
+        int orderId = requestBody.getOrderId();
+        int score = requestBody.getScore();
+        String comment = requestBody.getComment();
         log.info("Rate bidder request - bidderId: {}, sellerId: {}, orderId: {}, score: {}", 
                 bidderId, sellerId, orderId, score);
 
@@ -594,11 +692,11 @@ public class SellerController {
     public ResponseEntity<Map<String, Object>> confirmPaymentReceipt(
             @Parameter(description = "Order ID", required = true)
             @PathVariable int orderId,
-            @RequestBody Map<String, String> requestBody) {
+            @RequestBody com.auction.entities.dto.ConfirmPaymentReceiptRequest requestBody) {
 
         int sellerId = getUserId();
-        String invoiceNumber = requestBody.get("invoiceNumber");
-        String paymentConfirmationNotes = requestBody.get("paymentConfirmationNotes");
+        String invoiceNumber = requestBody.getInvoiceNumber();
+        String paymentConfirmationNotes = requestBody.getPaymentConfirmationNotes();
         log.info("Confirm payment receipt request - orderId: {}, sellerId: {}", orderId, sellerId);
 
         ConfirmPaymentReceiptRequest grpcRequest = ConfirmPaymentReceiptRequest.newBuilder()
@@ -756,5 +854,19 @@ public class SellerController {
             result.add(map);
         });
         return result;
+    }
+    
+    /**
+     * Validate if the content type is a valid image format
+     */
+    private boolean isValidImageType(String contentType) {
+        if (contentType == null || contentType.isEmpty()) {
+            return false;
+        }
+        return contentType.equals("image/jpeg") || 
+               contentType.equals("image/jpg") || 
+               contentType.equals("image/png") || 
+               contentType.equals("image/gif") || 
+               contentType.equals("image/webp");
     }
 }

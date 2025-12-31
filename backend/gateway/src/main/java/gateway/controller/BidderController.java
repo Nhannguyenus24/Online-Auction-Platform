@@ -1,10 +1,10 @@
 package gateway.controller;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.time.Duration;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,11 +36,13 @@ import com.auction.proto.user.SetAutoBidRequest;
 import gateway.grpc.BidderGrpcClient;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
 @RequestMapping("/api/bidder")
 @Tag(name = "Bidder", description = "Bidder user endpoints - requires authentication")
+@SecurityRequirement(name = "bearerAuth")
 public class BidderController {
     private static final Logger log = LoggerFactory.getLogger(BidderController.class);
     private final BidderGrpcClient bidderGrpcClient;
