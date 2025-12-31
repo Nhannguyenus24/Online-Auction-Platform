@@ -6,12 +6,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import com.auction.entities.msg.EventType;
+import com.auction.entities.msg.RabbitMessage;
 import com.auction.proto.user.Bid;
 import com.auction.proto.user.BidHistoryItem;
 import com.auction.proto.user.PageInfo;
 import com.auction.proto.user.Product;
 import com.auction.proto.user.ProductImage;
 import com.auction.proto.user.Question;
+import com.auction.rabbitmq.services.ReactiveRabbitProducer;
+import com.auction.utils.TimeUtils;
 
 import products.dto.BidHistoryRowDto;
 import products.dto.BidRowDto;
@@ -20,27 +24,30 @@ import products.dto.ProductDetailsDto;
 import products.dto.ProductRowDto;
 import products.dto.QuestionRowDto;
 import products.repository.ProductRepository;
-import com.auction.utils.TimeUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Service
 public class BidderService {
     private static final Logger log = LoggerFactory.getLogger(BidderService.class);
+    private static final String NOTIFICATION_QUEUE = "dev";
     
     private final ProductRepository productRepository;
     private final com.auction.redis.service.ReactiveRedisService redisService;
     private final AuctionService auctionService;
     private final products.repository.OrderRepository orderRepository;
+    private final ReactiveRabbitProducer rabbitProducer;
     
     public BidderService(ProductRepository productRepository, 
                         com.auction.redis.service.ReactiveRedisService redisService,
                         AuctionService auctionService,
-                        products.repository.OrderRepository orderRepository) {
+                        products.repository.OrderRepository orderRepository,
+                        ReactiveRabbitProducer rabbitProducer) {
         this.productRepository = productRepository;
         this.redisService = redisService;
         this.auctionService = auctionService;
         this.orderRepository = orderRepository;
+        this.rabbitProducer = rabbitProducer;
     }
 
     public Mono<Product> getProductDetails(int productId, int userId) {
@@ -271,6 +278,8 @@ public class BidderService {
                 return productRepository.insertBid(productId, userId, bidAmount, false)
                     .then(productRepository.updateProductPrice(productId, bidAmount))
                     .then(redisService.zAdd("auction:" + productId + ":bids", String.valueOf(userId), bidAmount))
+                    .then(saveBidderProfileToRedis(productId, userId, bidAmount))
+                    .then(checkAndNotifyOutbid(productId, userId, bidAmount, product.getTitle(), product.getEndsAt()))
                     .then(Mono.defer(() -> {
                         // Handle auto-extend
                         if (product.getIsAutoExtend()) {
@@ -395,15 +404,16 @@ public class BidderService {
                                         product.getSellerId(),
                                         winningBid
                                     )
-                                    .then(Mono.fromRunnable(() -> {
+                                    .flatMap(orderId -> {
                                         log.info("Order created successfully: productId={}, buyerId={}, sellerId={}, amount={}",
                                             productId, winnerId, product.getSellerId(), winningBid);
                                         
-                                        // TODO: Send notifications
-                                        // 1. Notify winner
-                                        // 2. Notify seller
-                                        // 3. Notify other bidders they lost
-                                    }));
+                                        // Send notifications to winner and seller
+                                        return Mono.when(
+                                            sendAuctionEndedWinnerNotification(product, winnerId, winningBid),
+                                            sendAuctionEndedSellerNotification(product, winnerId, winningBid)
+                                        );
+                                    });
                                 })
                         )
                         .switchIfEmpty(Mono.defer(() -> {
@@ -416,6 +426,220 @@ public class BidderService {
         .doOnError(e -> log.error("Error handling auction end for product {}: {}", 
             productId, e.getMessage(), e))
         .subscribe();
+    }
+
+    /**
+     * Check if previous bidder was outbid and send notification
+     */
+    private Mono<Void> checkAndNotifyOutbid(int productId, int currentBidderId, double newBidAmount, 
+                                            String productName, java.time.LocalDateTime auctionEndTime) {
+        String redisKey = "auction:" + productId + ":bids";
+        
+        log.debug("Checking for outbid on product {}", productId);
+        
+        // Get top 2 bidders to find the previous highest bidder
+        return redisService.zRevRange(redisKey, 0, 1)
+            .collectList()
+            .flatMap(topBidders -> {
+                if (topBidders.size() < 2) {
+                    // No previous bidder or only current bidder
+                    log.debug("No previous bidder to notify for product {}", productId);
+                    return Mono.empty();
+                }
+                
+                // The first is current bidder, second is the outbid bidder
+                String outbidUserIdStr = topBidders.get(1).toString();
+                int outbidUserId = Integer.parseInt(outbidUserIdStr);
+                
+                // Don't notify if it's the same user bidding again
+                if (outbidUserId == currentBidderId) {
+                    log.debug("Same user bidding again, no outbid notification needed");
+                    return Mono.empty();
+                }
+                
+                log.info("User {} was outbid on product {} by user {}", outbidUserId, productId, currentBidderId);
+                
+                // Get outbid bidder's profile from Redis
+                String profileKey = "profile:" + outbidUserId + ":" + productId;
+                return redisService.hGetAll(profileKey)
+                    .flatMap(profileData -> {
+                        if (profileData.isEmpty()) {
+                            log.warn("No profile found in Redis for user {} on product {}", outbidUserId, productId);
+                            return Mono.empty();
+                        }
+                        
+                            String previousBidAmount = profileData.getOrDefault("bidAmount", "0.00").toString();
+                        double bidDifference = newBidAmount - Double.parseDouble(previousBidAmount);
+                        
+                        // Calculate time remaining
+                        java.time.Duration timeLeft = java.time.Duration.between(
+                            java.time.LocalDateTime.now(), auctionEndTime);
+                        String timeRemaining = formatDuration(timeLeft);
+                        
+                        // Send outbid notification via RabbitMQ
+                        return sendOutbidNotification(
+                            productId,
+                            productName,
+                            outbidUserId,
+                            previousBidAmount,
+                            newBidAmount,
+                            bidDifference,
+                            auctionEndTime,
+                            timeRemaining
+                        );
+                    });
+            })
+            .doOnError(e -> log.error("Error checking outbid for product {}: {}", productId, e.getMessage()))
+            .onErrorResume(e -> Mono.empty()) // Continue even if notification fails
+            .then();
+    }
+    
+    /**
+     * Send outbid notification via RabbitMQ
+     */
+    private Mono<Void> sendOutbidNotification(int productId, String productName, int outbidUserId,
+                                             String yourBidAmount, double newHighestBid, double bidDifference,
+                                             java.time.LocalDateTime auctionEndTime, String timeRemaining) {
+        // Note: We don't have email/userName from Redis profile yet
+        // This will need to be fetched from user service or added to profile cache
+        // For now, we'll send userId and notification service should handle it
+        
+        java.util.Map<String, String> payload = new java.util.HashMap<>();
+        payload.put("userId", String.valueOf(outbidUserId));
+        payload.put("productId", String.valueOf(productId));
+        payload.put("productName", productName);
+        payload.put("yourBidAmount", yourBidAmount);
+        payload.put("newHighestBid", String.format("%.2f", newHighestBid));
+        payload.put("bidDifference", String.format("%.2f", bidDifference));
+        payload.put("outbidTime", java.time.LocalDateTime.now().toString());
+        payload.put("auctionEndTime", auctionEndTime.toString());
+        payload.put("timeRemaining", timeRemaining);
+        payload.put("auctionLink", "http://localhost:3000/products/" + productId); // TODO: use actual frontend URL
+        
+        // Note: email and userName will need to be fetched by notification service
+        // from user service using userId
+        
+        RabbitMessage message = RabbitMessage.builder()
+            .eventType(EventType.TASK_SEND_MAIL_OUTBID)
+            .userId(String.valueOf(outbidUserId))
+            .payload(payload)
+            .build();
+        
+        log.info("Sending outbid notification: userId={}, productId={}, yourBid={}, newBid={}",
+            outbidUserId, productId, yourBidAmount, newHighestBid);
+        
+        return rabbitProducer.sendToQueue(NOTIFICATION_QUEUE, message)
+            .doOnSuccess(v -> log.info("Outbid notification sent successfully: userId={}, productId={}",
+                outbidUserId, productId))
+            .doOnError(e -> log.error("Failed to send outbid notification: userId={}, productId={}, error={}",
+                outbidUserId, productId, e.getMessage(), e))
+            .onErrorResume(e -> Mono.empty());
+    }
+    
+    /**
+     * Format duration to human readable string
+     */
+    private String formatDuration(java.time.Duration duration) {
+        long hours = duration.toHours();
+        long minutes = duration.toMinutesPart();
+        
+        if (hours > 24) {
+            long days = hours / 24;
+            return days + " day" + (days > 1 ? "s" : "");
+        } else if (hours > 0) {
+            return hours + " hour" + (hours > 1 ? "s" : "") + " " + minutes + " min";
+        } else {
+            return minutes + " minute" + (minutes > 1 ? "s" : "");
+        }
+    }
+    
+    /**
+     * Save bidder profile information to Redis for quick access
+     * Key format: profile:{userId}:{productId}
+     */
+    private Mono<Void> saveBidderProfileToRedis(int productId, int userId, double bidAmount) {
+        String profileKey = "profile:" + userId + ":" + productId;
+        
+        log.debug("Saving bidder profile to Redis: key={}, bidAmount={}", profileKey, bidAmount);
+        
+        // Save each field individually using hSet
+        return Mono.when(
+            redisService.hSet(profileKey, "userId", String.valueOf(userId)),
+            redisService.hSet(profileKey, "productId", String.valueOf(productId)),
+            redisService.hSet(profileKey, "bidAmount", String.format("%.2f", bidAmount)),
+            redisService.hSet(profileKey, "bidTime", String.valueOf(System.currentTimeMillis())),
+            redisService.hSet(profileKey, "lastUpdated", java.time.LocalDateTime.now().toString())
+        )
+        .then(redisService.expire(profileKey, java.time.Duration.ofSeconds(86400 * 15))) // Expire after 15 days
+        .doOnSuccess(v -> log.debug("Bidder profile saved to Redis: userId={}, productId={}", userId, productId))
+        .doOnError(e -> log.error("Failed to save bidder profile to Redis: userId={}, productId={}, error={}", 
+            userId, productId, e.getMessage()))
+        .onErrorResume(e -> Mono.empty()) // Continue even if Redis save fails
+        .then();
+    }
+    
+    /**
+     * Send notification to winner when auction ends
+     */
+    private Mono<Void> sendAuctionEndedWinnerNotification(com.auction.entities.database.Product product, int winnerId, double winningAmount) {
+        java.util.Map<String, String> payload = new java.util.HashMap<>();
+        payload.put("recipientType", "bidder");
+        payload.put("userId", String.valueOf(winnerId));
+        payload.put("productId", String.valueOf(product.getId()));
+        payload.put("productName", product.getTitle());
+        payload.put("isWinner", "true");
+        payload.put("winningAmount", String.format("%.2f", winningAmount));
+        payload.put("yourBidAmount", String.format("%.2f", winningAmount));
+        payload.put("auctionEndTime", product.getEndsAt().toString());
+        payload.put("totalBids", String.valueOf(product.getBidsCount()));
+        
+        RabbitMessage message = RabbitMessage.builder()
+            .eventType(EventType.TASK_SEND_MAIL_ENDED_AUCTION)
+            .userId(String.valueOf(winnerId))
+            .payload(payload)
+            .build();
+        
+        log.info("Sending auction ended notification to winner: userId={}, productId={}, winningAmount={}",
+            winnerId, product.getId(), winningAmount);
+        
+        return rabbitProducer.sendToQueue(NOTIFICATION_QUEUE, message)
+            .doOnSuccess(v -> log.info("Auction ended notification sent to winner successfully: userId={}, productId={}",
+                winnerId, product.getId()))
+            .doOnError(e -> log.error("Failed to send auction ended notification to winner: userId={}, productId={}, error={}",
+                winnerId, product.getId(), e.getMessage(), e))
+            .onErrorResume(e -> Mono.empty());
+    }
+    
+    /**
+     * Send notification to seller when auction ends with a winner
+     */
+    private Mono<Void> sendAuctionEndedSellerNotification(com.auction.entities.database.Product product, int winnerId, double finalPrice) {
+        java.util.Map<String, String> payload = new java.util.HashMap<>();
+        payload.put("recipientType", "seller");
+        payload.put("sellerId", String.valueOf(product.getSellerId()));
+        payload.put("productId", String.valueOf(product.getId()));
+        payload.put("productName", product.getTitle());
+        payload.put("isSold", "true");
+        payload.put("finalPrice", String.format("%.2f", finalPrice));
+        payload.put("winnerName", "User #" + winnerId);
+        payload.put("totalBids", String.valueOf(product.getBidsCount()));
+        payload.put("auctionEndTime", product.getEndsAt().toString());
+        
+        RabbitMessage message = RabbitMessage.builder()
+            .eventType(EventType.TASK_SEND_MAIL_ENDED_AUCTION)
+            .userId(String.valueOf(product.getSellerId()))
+            .payload(payload)
+            .build();
+        
+        log.info("Sending auction ended notification to seller: sellerId={}, productId={}, finalPrice={}",
+            product.getSellerId(), product.getId(), finalPrice);
+        
+        return rabbitProducer.sendToQueue(NOTIFICATION_QUEUE, message)
+            .doOnSuccess(v -> log.info("Auction ended notification sent to seller successfully: sellerId={}, productId={}",
+                product.getSellerId(), product.getId()))
+            .doOnError(e -> log.error("Failed to send auction ended notification to seller: sellerId={}, productId={}, error={}",
+                product.getSellerId(), product.getId(), e.getMessage(), e))
+            .onErrorResume(e -> Mono.empty());
     }
 
     public Mono<MyBidsResult> getMyBids(int userId, int page, int limit, String filter) {

@@ -145,12 +145,10 @@ public class SellerService {
         log.info("Handling auction end for product {} (no bids)", productId);
         
         // Update product status to ended
+        // Send notification to seller that auction ended with no bids
         productRepository.updateStatus(productId, "ended")
             .then(productRepository.findById(productId))
-            .flatMap(product -> {
-                // Send notification to seller that auction ended with no bids
-                return sendAuctionEndedSellerNotification(product);
-            })
+            .flatMap(this::sendAuctionEndedSellerNotification)
             .doOnSuccess(v -> log.info("Auction ended notification sent to seller for product {} (no bids)", productId))
             .doOnError(e -> log.error("Error handling auction end for product {}: {}", productId, e.getMessage(), e))
             .subscribe();
@@ -169,7 +167,7 @@ public class SellerService {
         payload.put("finalPrice", "0.00");
         payload.put("winnerName", null);
         payload.put("totalBids", "0");
-        payload.put("auctionEndTime", TimeUtils.formatDateTime(product.getEndsAt()));
+        payload.put("auctionEndTime", product.getEndsAt().toString());
         
         RabbitMessage message = RabbitMessage.builder()
             .eventType(EventType.TASK_SEND_MAIL_ENDED_AUCTION)
