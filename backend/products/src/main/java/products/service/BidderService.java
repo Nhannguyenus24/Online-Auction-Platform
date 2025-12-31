@@ -2,6 +2,7 @@ package products.service;
 
 import java.time.ZoneOffset;
 import java.util.List;
+import java.time.LocalDateTime;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +22,7 @@ import products.dto.ProductDetailsDto;
 import products.dto.ProductRowDto;
 import products.dto.QuestionRowDto;
 import products.repository.ProductRepository;
+import products.util.TimeUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -29,9 +31,18 @@ public class BidderService {
     private static final Logger log = LoggerFactory.getLogger(BidderService.class);
     
     private final ProductRepository productRepository;
+    private final com.auction.redis.service.ReactiveRedisService redisService;
+    private final AuctionService auctionService;
+    private final products.repository.OrderRepository orderRepository;
     
-    public BidderService(ProductRepository productRepository) {
+    public BidderService(ProductRepository productRepository, 
+                        com.auction.redis.service.ReactiveRedisService redisService,
+                        AuctionService auctionService,
+                        products.repository.OrderRepository orderRepository) {
         this.productRepository = productRepository;
+        this.redisService = redisService;
+        this.auctionService = auctionService;
+        this.orderRepository = orderRepository;
     }
 
     public Mono<Product> getProductDetails(int productId, int userId) {
@@ -231,13 +242,182 @@ public class BidderService {
     }
 
     public Mono<PlaceBidResult> placeBid(int productId, int userId, double bidAmount) {
-        // TODO: Implement bid placement logic
-        return Mono.just(new PlaceBidResult(1, 0.0, 0.0, 0L, false));
+        log.info("User {} placing bid {} on product {}", userId, bidAmount, productId);
+        
+        return productRepository.findById(productId)
+            .switchIfEmpty(Mono.error(new IllegalArgumentException("Product not found")))
+            .flatMap(product -> {
+                // Validate product status
+                if (!"active".equals(product.getStatus())) {
+                    return Mono.error(new IllegalStateException("Product is not active"));
+                }
+                
+                // Validate bid time
+                java.time.LocalDateTime now = TimeUtils.now();
+                if (now.isBefore(product.getStartsAt())) {
+                    return Mono.error(new IllegalStateException("Auction has not started yet"));
+                }
+                if (now.isAfter(product.getEndsAt())) {
+                    return Mono.error(new IllegalStateException("Auction has ended"));
+                }
+                
+                // Validate bid amount
+                double minBid = product.getCurrentPrice().add(product.getStepPrice()).doubleValue();
+
+                if (bidAmount < minBid) {
+                    return Mono.error(new IllegalArgumentException(
+                        String.format("Bid amount must be at least %.2f", minBid)));
+                }
+                
+                // Insert bid into database
+                return productRepository.insertBid(productId, userId, bidAmount, false)
+                    .then(productRepository.updateProductPrice(productId, bidAmount))
+                    .then(redisService.zAdd("auction:" + productId + ":bids", String.valueOf(userId), bidAmount))
+                    .then(Mono.defer(() -> {
+                        // Handle auto-extend
+                        if (product.getIsAutoExtend()) {
+                            java.time.Duration timeLeft = java.time.Duration.between(now, product.getEndsAt());
+                            if (timeLeft.getSeconds() < product.getAutoExtendSeconds()) {
+                                java.time.LocalDateTime newEndTime = now.plusSeconds(product.getAutoExtendSeconds());
+                                log.info("Auto-extending product {} from {} to {}", 
+                                    productId, product.getEndsAt(), newEndTime);
+                                
+                                return productRepository.updateProductEndTime(productId, newEndTime)
+                                    .then(Mono.fromRunnable(() -> {
+                                        // Reschedule auction end
+                                        auctionService.scheduleEndAuction(
+                                            Long.valueOf(productId), 
+                                            TimeUtils.toInstant(newEndTime),
+                                            () -> handleAuctionEnd(productId)
+                                        );
+                                    }));
+                            }
+                        }
+                        return Mono.empty();
+                    }))
+                    .then(Mono.defer(() -> {
+                        double nextMinBid = bidAmount + product.getStepPrice().doubleValue();
+                        long timestamp = System.currentTimeMillis() / 1000;
+                        
+                        return Mono.just(new PlaceBidResult(0, bidAmount, nextMinBid, timestamp, true));
+                    }));
+            })
+            .doOnSuccess(result -> log.info("Bid placed successfully: product={}, user={}, amount={}", 
+                productId, userId, bidAmount))
+            .doOnError(e -> log.error("Error placing bid: product={}, user={}, amount={}, error={}", 
+                productId, userId, bidAmount, e.getMessage()));
     }
 
     public Mono<AutoBidResult> setAutoBid(int productId, int userId, double maxAmount) {
-        // TODO: Implement auto-bid setup logic
-        return Mono.just(new AutoBidResult(1, 0.0, 0.0, 0L));
+        log.info("User {} setting auto-bid {} on product {}", userId, maxAmount, productId);
+        
+        return productRepository.findById(productId)
+            .switchIfEmpty(Mono.error(new IllegalArgumentException("Product not found")))
+            .flatMap(product -> {
+                if (!"active".equals(product.getStatus())) {
+                    return Mono.error(new IllegalStateException("Product is not active"));
+                }
+                
+                if (maxAmount <= product.getCurrentPrice().doubleValue()) {
+                    return Mono.error(new IllegalArgumentException(
+                        "Max bid amount must be higher than current price"));
+                }
+                
+                return productRepository.upsertAutoBid(productId, userId, maxAmount)
+                    .then(Mono.defer(() -> {
+                        long timestamp = System.currentTimeMillis() / 1000;
+                        return Mono.just(new AutoBidResult(0, maxAmount, product.getCurrentPrice().doubleValue(), timestamp));
+                    }));
+            })
+            .doOnSuccess(result -> log.info("Auto-bid set successfully: product={}, user={}, maxAmount={}", 
+                productId, userId, maxAmount))
+            .doOnError(e -> log.error("Error setting auto-bid: {}", e.getMessage()));
+    }
+    
+    /**
+     * Handle auction end - called by scheduler
+     */
+    private void handleAuctionEnd(int productId) {
+        log.info("Handling auction end for product {}", productId);
+        
+        String redisKey = "auction:" + productId + ":bids";
+        
+        // Get banned users and top bidders in parallel
+        Mono.zip(
+            productRepository.getBannedUserIds(productId).collectList(),
+            redisService.zRevRange(redisKey, 0, 4).collectList()
+        )
+        .flatMap(tuple -> {
+            var bannedUserIds = tuple.getT1();
+            var topBidders = tuple.getT2();
+            
+            log.info("Top 5 bidders for product {}: {}", productId, topBidders);
+            log.info("Banned users for product {}: {}", productId, bannedUserIds);
+            
+            // Filter out banned users from top bidders
+            var eligibleWinners = topBidders.stream()
+                .filter(bidder -> {
+                    try {
+                        int bidderId = Integer.parseInt(bidder.toString());
+                        boolean isBanned = bannedUserIds.contains(bidderId);
+                        if (isBanned) {
+                            log.warn("Bidder {} is banned from product {}", bidderId, productId);
+                        }
+                        return !isBanned;
+                    } catch (NumberFormatException e) {
+                        log.error("Invalid bidder ID format: {}", bidder);
+                        return false;
+                    }
+                })
+                .toList();
+            
+            // Update product status to ended
+            return productRepository.updateStatus(productId, "ended")
+                .then(Mono.defer(() -> {
+                    if (eligibleWinners.isEmpty()) {
+                        log.warn("No eligible winner for product {} - all top bidders are banned", productId);
+                        return Mono.empty();
+                    }
+                    
+                    int winnerId = Integer.parseInt(eligibleWinners.get(0).toString());
+                    log.info("Winner for product {}: User ID {}", productId, winnerId);
+                    
+                    // Get winner's bid amount and product details to create order
+                    return redisService.zScore(redisKey, String.valueOf(winnerId))
+                        .flatMap(winningBid -> 
+                            productRepository.findById(productId)
+                                .flatMap(product -> {
+                                    log.info("Creating order for product {}: winner={}, amount={}", 
+                                        productId, winnerId, winningBid);
+                                    
+                                    // Create order in database
+                                    return orderRepository.createOrder(
+                                        productId,
+                                        winnerId,
+                                        product.getSellerId(),
+                                        winningBid
+                                    )
+                                    .then(Mono.fromRunnable(() -> {
+                                        log.info("Order created successfully: productId={}, buyerId={}, sellerId={}, amount={}",
+                                            productId, winnerId, product.getSellerId(), winningBid);
+                                        
+                                        // TODO: Send notifications
+                                        // 1. Notify winner
+                                        // 2. Notify seller
+                                        // 3. Notify other bidders they lost
+                                    }));
+                                })
+                        )
+                        .switchIfEmpty(Mono.defer(() -> {
+                            log.error("Could not get winning bid amount for user {} on product {}", 
+                                winnerId, productId);
+                            return Mono.empty();
+                        }));
+                }));
+        })
+        .doOnError(e -> log.error("Error handling auction end for product {}: {}", 
+            productId, e.getMessage(), e))
+        .subscribe();
     }
 
     public Mono<MyBidsResult> getMyBids(int userId, int page, int limit, String filter) {
@@ -309,10 +489,10 @@ public class BidderService {
             .setCurrentPrice(dto.currentPrice())
             .setStepPrice(dto.stepPrice())
             .setBuyNowPrice(dto.buyNowPrice())
-            .setStartsAt(dto.startsAt().toEpochSecond(ZoneOffset.UTC))
-            .setEndsAt(dto.endsAt().toEpochSecond(ZoneOffset.UTC))
-            .setCreatedAt(dto.createdAt().toEpochSecond(ZoneOffset.UTC))
-            .setUpdatedAt(dto.updatedAt().toEpochSecond(ZoneOffset.UTC))
+            .setStartsAt(TimeUtils.toEpochSecond(dto.startsAt()))
+            .setEndsAt(TimeUtils.toEpochSecond(dto.endsAt()))
+            .setCreatedAt(TimeUtils.toEpochSecond(dto.createdAt()))
+            .setUpdatedAt(TimeUtils.toEpochSecond(dto.updatedAt()))
             .setIsAutoExtend(dto.isAutoExtend())
             .setAutoExtendSeconds(dto.autoExtendSeconds())
             .setStatus(dto.status())

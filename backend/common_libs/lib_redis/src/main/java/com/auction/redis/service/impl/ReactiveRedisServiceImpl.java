@@ -1,15 +1,17 @@
 package com.auction.redis.service.impl;
 
-import lombok.RequiredArgsConstructor;
-import org.springframework.data.redis.core.ReactiveRedisTemplate;
-import org.springframework.stereotype.Service;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
-import com.auction.redis.service.ReactiveRedisService;
-
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+
+import org.springframework.data.redis.core.ReactiveRedisTemplate;
+import org.springframework.stereotype.Service;
+
+import com.auction.redis.service.ReactiveRedisService;
+
+import lombok.RequiredArgsConstructor;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 /**
  * Implementation of ReactiveRedisService
@@ -250,6 +252,13 @@ public class ReactiveRedisServiceImpl implements ReactiveRedisService {
     public Flux<Object> zRange(String key, long start, long end) {
         return redisTemplate.opsForZSet()
                 .range(key, org.springframework.data.domain.Range.closed(start, end))
+                .onErrorResume(e -> Flux.empty());
+    }
+
+    @Override
+    public Flux<Object> zRevRange(String key, long start, long end) {
+        return redisTemplate.opsForZSet()
+                .reverseRange(key, org.springframework.data.domain.Range.closed(start, end))
                 .onErrorResume(e -> Flux.empty());
     }
 

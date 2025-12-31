@@ -361,6 +361,26 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
     @Query("UPDATE questions SET answer = :answer, answered_by = :answeredBy, answered_at = CURRENT_TIMESTAMP WHERE id = :questionId")
     Mono<Void> updateQuestionAnswer(@Param("questionId") Integer questionId, @Param("answer") String answer, @Param("answeredBy") Integer answeredBy);
     
+    // Insert a new bid
+    @Query("INSERT INTO bids (product_id, bidder_id, amount, is_auto, created_at) VALUES (:productId, :bidderId, :amount, :isAuto, CURRENT_TIMESTAMP)")
+    Mono<Void> insertBid(@Param("productId") Integer productId, @Param("bidderId") Integer bidderId, @Param("amount") Double amount, @Param("isAuto") Boolean isAuto);
+    
+    // Update product current price and bid count
+    @Query("UPDATE products SET current_price = :currentPrice, bids_count = bids_count + 1, updated_at = CURRENT_TIMESTAMP WHERE id = :productId")
+    Mono<Void> updateProductPrice(@Param("productId") Integer productId, @Param("currentPrice") Double currentPrice);
+    
+    // Update product end time (for auto-extend)
+    @Query("UPDATE products SET ends_at = :endsAt, updated_at = CURRENT_TIMESTAMP WHERE id = :productId")
+    Mono<Void> updateProductEndTime(@Param("productId") Integer productId, @Param("endsAt") java.time.LocalDateTime endsAt);
+    
+    // Insert or update auto bid
+    @Query("INSERT INTO auto_bids (product_id, bidder_id, max_amount, created_at) VALUES (:productId, :bidderId, :maxAmount, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE max_amount = :maxAmount")
+    Mono<Void> upsertAutoBid(@Param("productId") Integer productId, @Param("bidderId") Integer bidderId, @Param("maxAmount") Double maxAmount);
+    
+    // Get banned user IDs for a product
+    @Query("SELECT user_id FROM product_bans WHERE product_id = :productId")
+    Flux<Integer> getBannedUserIds(@Param("productId") Integer productId);
+    
     // Get user's bids with pagination
     @Query("""
         SELECT b.id as bid_id, b.product_id, p.title as product_title,

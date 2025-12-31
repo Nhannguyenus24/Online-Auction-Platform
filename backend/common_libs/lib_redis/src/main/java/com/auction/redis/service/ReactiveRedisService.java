@@ -301,6 +301,16 @@ public interface ReactiveRedisService {
     Flux<Object> zRange(String key, long start, long end);
 
     /**
+     * Get members in sorted set by rank range in reverse order (highest score first)
+     * 
+     * @param key the key
+     * @param start start index
+     * @param end end index
+     * @return stream of members in range
+     */
+    Flux<Object> zRevRange(String key, long start, long end);
+
+    /**
      * Get sorted set size
      * 
      * @param key the key

@@ -1,6 +1,5 @@
 package products.service;
 
-import java.time.ZoneOffset;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -14,6 +13,7 @@ import products.dto.ImageRowDto;
 import products.dto.ProductRowDto;
 import products.repository.CategoryRepository;
 import products.repository.ProductRepository;
+import products.util.TimeUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -122,7 +122,7 @@ public class GuestService {
             .setId(entity.getId())
             .setName(entity.getName())
             .setParentId(entity.getParentId() != null ? entity.getParentId() : 0)
-            .setCreatedAt(entity.getCreatedAt().toEpochSecond(ZoneOffset.UTC))
+            .setCreatedAt(TimeUtils.toEpochSecond(entity.getCreatedAt()))
             .build();
     }
 

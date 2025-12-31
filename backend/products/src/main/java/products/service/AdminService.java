@@ -1,8 +1,7 @@
 package products.service;
 
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,18 +10,23 @@ import com.auction.entities.database.ProductBan;
 
 import products.repository.CategoryRepository;
 import products.repository.ProductRepository;
+import products.util.TimeUtils;
 import reactor.core.publisher.Mono;
 
 @Service
 public class AdminService {
+    private static final Logger log = LoggerFactory.getLogger(AdminService.class);
     
     private final CategoryRepository categoryRepository;
     private final ProductRepository productRepository;
+    private final AuctionService auctionService;
 
     public AdminService(CategoryRepository categoryRepository, 
-                       ProductRepository productRepository) {
+                       ProductRepository productRepository,
+                       AuctionService auctionService) {
         this.categoryRepository = categoryRepository;
         this.productRepository = productRepository;
+        this.auctionService = auctionService;
     }
 
     // ============================================================================
@@ -44,7 +48,7 @@ public class AdminService {
                     Category category = new Category();
                     category.setName(name);
                     category.setParentId(parentId == 0 ? null : parentId);
-                    category.setCreatedAt(LocalDateTime.now(ZoneOffset.UTC));
+                    category.setCreatedAt(TimeUtils.now());
                     
                     return categoryRepository.save(category)
                         .map(saved -> new CreateCategoryResult(
@@ -93,7 +97,7 @@ public class AdminService {
                 categoryRepository.hasProducts(categoryId)
                     .defaultIfEmpty(0L)
                     .flatMap(count -> {
-                        boolean hasProducts = count.longValue() > 0;
+                        boolean hasProducts = count > 0;
                         if (hasProducts) {
                             return Mono.just(new DeleteCategoryResult(
                                 false, 
@@ -127,18 +131,27 @@ public class AdminService {
             .flatMap(product -> {
                 String previousStatus = product.getStatus();
                 
-                // Create ban record
-                ProductBan ban = new ProductBan();
-                ban.setProductId(productId);
-                ban.setUserId(adminId);
-                ban.setReason(reason);
-                ban.setCreatedAt(LocalDateTime.now(ZoneOffset.UTC));
+                // Cancel scheduled auction end if exists
+                log.info("Admin {} removing product {}, cancelling scheduled auction", adminId, productId);
+                auctionService.cancel(Long.valueOf(productId));
                 
-                return Mono.just(new RemoveProductResult(
-                        true, 
-                        "Product removed successfully", 
-                        previousStatus
-                    ));
+                // Update product status to banned
+                return productRepository.updateStatus(productId, "banned")
+                    .then(Mono.defer(() -> {
+                        // Create ban record
+                        ProductBan ban = new ProductBan();
+                        ban.setProductId(productId);
+                        ban.setUserId(adminId);
+                        ban.setReason(reason);
+                        ban.setCreatedAt(TimeUtils.now());
+                        
+                        log.info("Product {} banned by admin {}: {}", productId, adminId, reason);
+                        return Mono.just(new RemoveProductResult(
+                                true, 
+                                "Product removed successfully", 
+                                previousStatus
+                            ));
+                    }));
             })
             .switchIfEmpty(Mono.just(new RemoveProductResult(false, "Product not found", null)));
     }

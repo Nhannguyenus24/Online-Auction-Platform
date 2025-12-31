@@ -2,7 +2,6 @@ package products.service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -17,6 +16,7 @@ import com.auctionplatform.seller.grpc.ProductSummary;
 
 import products.repository.ProductRepository;
 import products.repository.SellerRepository;
+import products.util.TimeUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -25,10 +25,12 @@ public class SellerService {
     private static final Logger log = LoggerFactory.getLogger(SellerService.class);
     private final SellerRepository sellerRepository;
     private final ProductRepository productRepository;
+    private final AuctionService auctionService;
 
-    public SellerService(SellerRepository sellerRepository, ProductRepository productRepository) {
+    public SellerService(SellerRepository sellerRepository, ProductRepository productRepository, AuctionService auctionService) {
         this.sellerRepository = sellerRepository;
         this.productRepository = productRepository;
+        this.auctionService = auctionService;
     }
 
     // ============================================================================
@@ -99,6 +101,14 @@ public class SellerService {
         
         return sellerRepository.save(product)
             .flatMap(saved -> {
+                // Schedule auction end
+                log.info("Scheduling auction end for product {} at {}", saved.getId(), saved.getEndsAt());
+                auctionService.scheduleEndAuction(
+                    Long.valueOf(saved.getId()),
+                    TimeUtils.toInstant(saved.getEndsAt()),
+                    () -> handleAuctionEnd(saved.getId())
+                );
+                
                 // Save product images if provided
                 if (request.imageUrls() != null && !request.imageUrls().isEmpty()) {
                     return Flux.fromIterable(request.imageUrls())
@@ -115,6 +125,18 @@ public class SellerService {
                 }
             })
             .map(saved -> new CreateListingResult(saved.getId(), "Auction listing created successfully"));
+    }
+    
+    /**
+     * Handle auction end - called by scheduler
+     */
+    private void handleAuctionEnd(int productId) {
+        log.info("Handling auction end for product {}", productId);
+        
+        // This will be handled by BidderService, but we can also add admin functionality here
+        // For now, just log the event
+        productRepository.updateStatus(productId, "ended").block();
+        log.info("Auction ended for product {}, updating status...", productId);
     }
 
     // ============================================================================
@@ -142,17 +164,17 @@ public class SellerService {
                     .setCurrentPrice(product.getCurrentPrice().floatValue())
                     .setStepPrice(product.getStepPrice().floatValue())
                     .setBuyNowPrice(product.getBuyNowPrice() != null ? product.getBuyNowPrice().floatValue() : 0)
-                    .setStartsAt(product.getStartsAt().toEpochSecond(ZoneOffset.UTC) * 1000 + "")
-                    .setEndsAt(product.getEndsAt().toEpochSecond(ZoneOffset.UTC) * 1000 + "")
+                    .setStartsAt(TimeUtils.toEpochSecond(product.getStartsAt()) * 1000 + "")
+                    .setEndsAt(TimeUtils.toEpochSecond(product.getEndsAt()) * 1000 + "")
                     .setIsAutoExtend(product.getIsAutoExtend())
                     .setAutoExtendSeconds(product.getAutoExtendSeconds())
                     .setStatus(product.getStatus())
                     .setViewsCount(product.getViewsCount())
                     .setBidsCount(product.getBidsCount())
-                    .setHighestBidderId(highestBidderId != null ? highestBidderId : 0)
+                    .setHighestBidderId(highestBidderId)
                     .setHighestBidAmount(highestBidAmount.floatValue())
-                    .setCreatedAt(product.getCreatedAt().toEpochSecond(ZoneOffset.UTC) * 1000 + "")
-                    .setUpdatedAt(product.getUpdatedAt().toEpochSecond(ZoneOffset.UTC) * 1000 + "")
+                    .setCreatedAt(TimeUtils.toEpochSecond(product.getCreatedAt()) * 1000 + "")
+                    .setUpdatedAt(TimeUtils.toEpochSecond(product.getUpdatedAt()) * 1000 + "")
                     .build();
             });
     }
@@ -207,7 +229,7 @@ public class SellerService {
             .setStatus(product.getStatus())
             .setViewsCount(product.getViewsCount())
             .setBidsCount(product.getBidsCount())
-            .setEndsAt(product.getEndsAt().toEpochSecond(ZoneOffset.UTC) * 1000 + "")
+            .setEndsAt(TimeUtils.toEpochSecond(product.getEndsAt()) * 1000 + "")
             .setPrimaryImageUrl("")
             .build();
     }
@@ -219,7 +241,7 @@ public class SellerService {
             .setStatus(product.getStatus())
             .setCurrentPrice(product.getCurrentPrice().floatValue())
             .setBidsCount(product.getBidsCount())
-            .setEndsAt(product.getEndsAt().toEpochSecond(ZoneOffset.UTC) * 1000 + "")
+            .setEndsAt(TimeUtils.toEpochSecond(product.getEndsAt()) * 1000 + "")
             .setIsAutoExtend(product.getIsAutoExtend())
             .setAutoExtendSeconds(product.getAutoExtendSeconds())
             .build();
