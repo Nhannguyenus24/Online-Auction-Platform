@@ -1,10 +1,12 @@
 package products.repository;
 
-import com.auction.entities.database.Category;
+import org.springframework.data.r2dbc.repository.Query;
 import org.springframework.data.r2dbc.repository.R2dbcRepository;
 import org.springframework.data.repository.query.Param;
-import org.springframework.data.r2dbc.repository.Query;
 import org.springframework.stereotype.Repository;
+
+import com.auction.entities.database.Category;
+
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -24,8 +26,8 @@ public interface CategoryRepository extends R2dbcRepository<Category, Integer> {
     Flux<Category> findByParentIdIsNull();
 
     // Check if category has products
-    @Query("SELECT COUNT(*) > 0 FROM products WHERE category_id = :categoryId")
-    Mono<Boolean> hasProducts(@Param("categoryId") Integer categoryId);
+    @Query("SELECT COUNT(*) FROM products WHERE category_id = :categoryId")
+    Mono<Long> hasProducts(@Param("categoryId") Integer categoryId);
 
     // Update category name and parent_id
     @Query("UPDATE categories SET name = :name, parent_id = :parentId WHERE id = :categoryId")

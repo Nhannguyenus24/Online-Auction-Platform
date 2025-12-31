@@ -89,7 +89,7 @@ public class SellerService {
         product.setEndsAt(request.endsAt());
         product.setIsAutoExtend(request.isAutoExtend());
         product.setAutoExtendSeconds(request.autoExtendSeconds());
-        product.setStatus("pending");
+        product.setStatus("active");
         
         return sellerRepository.save(product)
             .flatMap(saved -> {

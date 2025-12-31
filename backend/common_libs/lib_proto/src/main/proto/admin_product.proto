@@ -77,42 +77,6 @@ message RemoveProductResponse {
   string previous_status = 3; // Status of product before removal
 }
 
-message BanProductRequest {
-  int32 product_id = 1;
-  int32 admin_id = 2; // Admin user id who is banning the product
-  string reason = 3; // Reason for banning the product
-}
-
-message BanProductResponse {
-  bool success = 1;
-  string message = 2;
-  int32 ban_id = 3; // ID of the product ban record created
-}
-
-message GetBannedProductsRequest {
-  int32 page = 1;
-  int32 page_size = 2;
-}
-
-message BannedProduct {
-  int32 ban_id = 1;
-  int32 product_id = 2;
-  string product_title = 3;
-  int32 seller_id = 4;
-  string seller_name = 5;
-  int32 admin_id = 6;
-  string admin_name = 7;
-  string reason = 8;
-  int64 created_at = 9; // Timestamp in milliseconds
-}
-
-message GetBannedProductsResponse {
-  repeated BannedProduct banned_products = 1;
-  int32 total_count = 2;
-  int32 page = 3;
-  int32 total_pages = 4;
-}
-
 // Admin Product Service
 service AdminProductService {
   // Category Management
@@ -122,6 +86,4 @@ service AdminProductService {
   
   // Product Management
   rpc RemoveProduct(RemoveProductRequest) returns (RemoveProductResponse);
-  rpc BanProduct(BanProductRequest) returns (BanProductResponse);
-  rpc GetBannedProducts(GetBannedProductsRequest) returns (GetBannedProductsResponse);
 }
