@@ -18,8 +18,12 @@ import com.auction.proto.user.GetProductQuestionsRequest;
 import com.auction.proto.user.GetProductQuestionsResponse;
 import com.auction.proto.user.GetRelatedProductsRequest;
 import com.auction.proto.user.GetRelatedProductsResponse;
+import com.auction.proto.user.GetUserNotificationsRequest;
+import com.auction.proto.user.GetUserNotificationsResponse;
 import com.auction.proto.user.GetWatchlistRequest;
 import com.auction.proto.user.GetWatchlistResponse;
+import com.auction.proto.user.MarkNotificationAsReadRequest;
+import com.auction.proto.user.MarkNotificationAsReadResponse;
 import com.auction.proto.user.PlaceBidRequest;
 import com.auction.proto.user.PlaceBidResponse;
 import com.auction.proto.user.ReactorUserServiceGrpc;
@@ -292,6 +296,48 @@ public class BidderGrpcService extends ReactorUserServiceGrpc.UserServiceImplBas
                             return Mono.just(GetMyBidsResponse.newBuilder()
                                 .setSuccess(false)
                                 .setMessage("Failed to get bid history: " + e.getMessage())
+                                .build());
+                        })
+                );
+    }
+
+    @Override
+    public Mono<GetUserNotificationsResponse> getUserNotifications(Mono<GetUserNotificationsRequest> request) {
+        return request.doOnNext(req -> log.info("Raw get user notifications request: {}", JsonUtils.toJson(req)))
+                .flatMap(req ->
+                    bidderService.getUserNotifications(req.getUserId())
+                        .map(result -> GetUserNotificationsResponse.newBuilder()
+                            .addAllNotifications(result.notifications())
+                            .setUnreadCount(result.unreadCount())
+                            .setSuccess(true)
+                            .setMessage("Notifications retrieved successfully")
+                            .build())
+                        .doOnNext(resp -> log.info("Raw get user notifications response: {}", JsonUtils.toJson(resp)))
+                        .onErrorResume(e -> {
+                            log.error("Get user notifications error: {}", e.getMessage());
+                            return Mono.just(GetUserNotificationsResponse.newBuilder()
+                                .setSuccess(false)
+                                .setMessage("Failed to get notifications: " + e.getMessage())
+                                .build());
+                        })
+                );
+    }
+
+    @Override
+    public Mono<MarkNotificationAsReadResponse> markNotificationAsRead(Mono<MarkNotificationAsReadRequest> request) {
+        return request.doOnNext(req -> log.info("Raw mark notification as read request: {}", JsonUtils.toJson(req)))
+                .flatMap(req ->
+                    bidderService.markNotificationAsRead(req.getNotificationId(), req.getUserId())
+                        .map(message -> MarkNotificationAsReadResponse.newBuilder()
+                            .setSuccess(true)
+                            .setMessage(message)
+                            .build())
+                        .doOnNext(resp -> log.info("Raw mark notification as read response: {}", JsonUtils.toJson(resp)))
+                        .onErrorResume(e -> {
+                            log.error("Mark notification as read error: {}", e.getMessage());
+                            return Mono.just(MarkNotificationAsReadResponse.newBuilder()
+                                .setSuccess(false)
+                                .setMessage("Failed to mark notification as read: " + e.getMessage())
                                 .build());
                         })
                 );

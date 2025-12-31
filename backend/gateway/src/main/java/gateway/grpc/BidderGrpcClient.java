@@ -21,8 +21,12 @@ import com.auction.proto.user.GetProductQuestionsRequest;
 import com.auction.proto.user.GetProductQuestionsResponse;
 import com.auction.proto.user.GetRelatedProductsRequest;
 import com.auction.proto.user.GetRelatedProductsResponse;
+import com.auction.proto.user.GetUserNotificationsRequest;
+import com.auction.proto.user.GetUserNotificationsResponse;
 import com.auction.proto.user.GetWatchlistRequest;
 import com.auction.proto.user.GetWatchlistResponse;
+import com.auction.proto.user.MarkNotificationAsReadRequest;
+import com.auction.proto.user.MarkNotificationAsReadResponse;
 import com.auction.proto.user.PlaceBidRequest;
 import com.auction.proto.user.PlaceBidResponse;
 import com.auction.proto.user.ReactorUserServiceGrpc;
@@ -137,5 +141,17 @@ public class BidderGrpcClient {
     public Mono<GetProductQuestionsResponse> getProductQuestions(GetProductQuestionsRequest request) {
         log.info("gRPC getProductQuestions request: {}", JsonUtils.toJson(request));
         return userServiceStub.getProductQuestions(Mono.just(request));
+    }
+
+    // Get User Notifications
+    public Mono<GetUserNotificationsResponse> getUserNotifications(GetUserNotificationsRequest request) {
+        log.info("gRPC getUserNotifications request: {}", JsonUtils.toJson(request));
+        return userServiceStub.getUserNotifications(Mono.just(request));
+    }
+
+    // Mark Notification As Read
+    public Mono<MarkNotificationAsReadResponse> markNotificationAsRead(MarkNotificationAsReadRequest request) {
+        log.info("gRPC markNotificationAsRead request: {}", JsonUtils.toJson(request));
+        return userServiceStub.markNotificationAsRead(Mono.just(request));
     }
 }

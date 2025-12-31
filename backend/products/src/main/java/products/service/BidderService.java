@@ -37,17 +37,20 @@ public class BidderService {
     private final AuctionService auctionService;
     private final products.repository.OrderRepository orderRepository;
     private final ReactiveRabbitProducer rabbitProducer;
+    private final products.repository.NotificationRepository notificationRepository;
     
     public BidderService(ProductRepository productRepository, 
                         com.auction.redis.service.ReactiveRedisService redisService,
                         AuctionService auctionService,
                         products.repository.OrderRepository orderRepository,
-                        ReactiveRabbitProducer rabbitProducer) {
+                        ReactiveRabbitProducer rabbitProducer,
+                        products.repository.NotificationRepository notificationRepository) {
         this.productRepository = productRepository;
         this.redisService = redisService;
         this.auctionService = auctionService;
         this.orderRepository = orderRepository;
         this.rabbitProducer = rabbitProducer;
+        this.notificationRepository = notificationRepository;
     }
 
     public Mono<Product> getProductDetails(int productId, int userId) {
@@ -790,4 +793,68 @@ public class BidderService {
     public record PlaceBidResult(int bidId, double currentPrice, double nextMinBid, long createdAt, boolean isHighestBidder) {}
     public record AutoBidResult(int autoBidId, double maxAmount, double currentBid, long createdAt) {}
     public record MyBidsResult(java.util.List<BidHistoryItem> bids, PageInfo pageInfo) {}
+    public record NotificationsResult(java.util.List<com.auction.proto.user.UserNotification> notifications, long unreadCount) {}
+
+    /**
+     * Get user notifications (all notifications, no pagination)
+     * Flow: 
+     * 1. Query all notifications from NotificationRepository for the user
+     * 2. Get unread count
+     * 3. Map Notification entities to UserNotification proto messages
+     * 4. Return NotificationsResult with notifications list and unread count
+     */
+    public Mono<NotificationsResult> getUserNotifications(int userId) {
+        log.info("Getting notifications for userId={}", userId);
+        
+        // Get all notifications ordered by created_at DESC (newest first)
+        Mono<List<com.auction.proto.user.UserNotification>> notificationsMono = 
+            notificationRepository.findByUserIdPaginated(userId, 100, 0) // Get latest 100
+                .map(notification -> com.auction.proto.user.UserNotification.newBuilder()
+                    .setId(notification.getId())
+                    .setUserId(notification.getUserId())
+                    .setType(notification.getType() != null ? notification.getType() : "")
+                    .setPayload(notification.getPayload() != null ? notification.getPayload() : "")
+                    .setIsRead(notification.getIsRead() != null ? notification.getIsRead() : false)
+                    .setCreatedAt(notification.getCreatedAt() != null ? 
+                        notification.getCreatedAt().toEpochSecond(java.time.ZoneOffset.UTC) : 0)
+                    .build())
+                .collectList();
+        
+        // Get unread count
+        Mono<Long> unreadCountMono = notificationRepository.countUnreadByUserId(userId);
+        
+        return Mono.zip(notificationsMono, unreadCountMono)
+            .map(tuple -> new NotificationsResult(tuple.getT1(), tuple.getT2()))
+            .doOnNext(result -> log.info("Retrieved {} notifications, {} unread for userId={}", 
+                result.notifications().size(), result.unreadCount(), userId));
+    }
+
+    /**
+     * Mark notification as read
+     * Flow:
+     * 1. Verify notification exists and belongs to user
+     * 2. Mark notification as read in NotificationRepository
+     * 3. Return success message
+     */
+    public Mono<String> markNotificationAsRead(int notificationId, int userId) {
+        log.info("Marking notification as read - notificationId={}, userId={}", notificationId, userId);
+        
+        return notificationRepository.findByIdAndUserId(notificationId, userId)
+            .switchIfEmpty(Mono.error(new IllegalArgumentException("Notification not found or does not belong to user")))
+            .flatMap(notification -> {
+                if (notification.getIsRead()) {
+                    return Mono.just("Notification already marked as read");
+                }
+                return notificationRepository.markAsRead(notificationId, userId)
+                    .map(rowsUpdated -> {
+                        if (rowsUpdated > 0) {
+                            log.info("Marked notification {} as read for user {}", notificationId, userId);
+                            return "Notification marked as read successfully";
+                        } else {
+                            log.warn("No rows updated when marking notification {} as read", notificationId);
+                            return "Notification already marked as read";
+                        }
+                    });
+            });
+    }
 }

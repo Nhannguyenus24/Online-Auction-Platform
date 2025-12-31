@@ -32,7 +32,7 @@ import {
 import Page from '../../components/Page';
 import { formatPrice } from '../../utils/formatNumber';
 import { fVNDate } from '../../utils/formatTime';
-import { mockGetWatchList } from '../../mocks';
+import { watchlistApi } from '../../services/watchlistApi';
 
 const BidderWatchListPage = () => {
   const navigate = useNavigate();
@@ -47,14 +47,32 @@ const BidderWatchListPage = () => {
     hasPrevious: false,
   });
   const [pageSize, setPageSize] = useState(10);
+  const [statusFilter, setStatusFilter] = useState('active'); // active, ended, all
 
   useEffect(() => {
     const fetchWatchList = async () => {
       try {
         setLoading(true);
-        // Use mock data - set to false to see products, true to see empty state
-        const response = await mockGetWatchList(false, 500);
-        setWatchList(response.data || []);
+        const response = await watchlistApi.getWatchlist(
+          pagination.currentPage,
+          pageSize,
+          statusFilter
+        );
+        
+        if (response.success) {
+          setWatchList(response.data || []);
+          // Update pagination from API response
+          if (response.pageInfo) {
+            setPagination({
+              currentPage: response.pageInfo.currentPage || 1,
+              currentSize: response.pageInfo.pageSize || response.data?.length || 0,
+              totalPages: response.pageInfo.totalPages || 1,
+              totalItems: response.pageInfo.totalItems || 0,
+              hasNext: response.pageInfo.hasNext || false,
+              hasPrevious: response.pageInfo.hasPrevious || false,
+            });
+          }
+        }
       } catch (err) {
         console.error('Error fetching watch list:', err);
         setWatchList([]);
@@ -64,33 +82,9 @@ const BidderWatchListPage = () => {
     };
 
     fetchWatchList();
-  }, []);
+  }, [pagination.currentPage, pageSize, statusFilter]);
 
-  // Update pagination when data or page size changes
-  useEffect(() => {
-    const totalItems = watchList.length;
-    const totalPages = Math.ceil(totalItems / pageSize) || 1;
-    const currentPage = Math.min(pagination.currentPage, totalPages) || 1;
-    const startIndex = (currentPage - 1) * pageSize;
-    const endIndex = startIndex + pageSize;
-    const paginatedData = watchList.slice(startIndex, endIndex);
-
-    setPagination({
-      currentPage: currentPage,
-      currentSize: paginatedData.length,
-      totalPages: totalPages,
-      totalItems: totalItems,
-      hasNext: currentPage < totalPages,
-      hasPrevious: currentPage > 1,
-    });
-  }, [watchList.length, pageSize]);
-
-  // Get paginated watch list
-  const paginatedWatchList = (() => {
-    const startIndex = (pagination.currentPage - 1) * pageSize;
-    const endIndex = startIndex + pageSize;
-    return watchList.slice(startIndex, endIndex);
-  })();
+  // Remove the old useEffect that recalculates pagination
 
   const handlePageChange = (event, newPage) => {
     setPagination((prev) => ({ ...prev, currentPage: newPage }));
@@ -122,12 +116,21 @@ const BidderWatchListPage = () => {
     return `${pad(minutes)}m ${pad(seconds)}s`;
   };
 
-  const handleRemoveFromWatchList = (productId, event) => {
+  const handleRemoveFromWatchList = async (productId, event) => {
     event.stopPropagation();
-    // Will be implemented with API call later
-    console.log('Remove product from watch list:', productId);
-    // Remove from local state for now
-    setWatchList((prev) => prev.filter((item) => item.id !== productId));
+    try {
+      await watchlistApi.removeFromWatchlist(productId);
+      // Remove from local state
+      setWatchList((prev) => prev.filter((item) => item.id !== productId));
+      // Update total items count
+      setPagination((prev) => ({
+        ...prev,
+        totalItems: Math.max(0, prev.totalItems - 1),
+      }));
+    } catch (error) {
+      console.error('Error removing from watch list:', error);
+      // Optionally show error notification to user
+    }
   };
 
   return (
@@ -198,10 +201,10 @@ const BidderWatchListPage = () => {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {paginatedWatchList.map((product) => {
-                      const endTime = new Date(product.endTime);
+                    {watchList.map((product) => {
+                      const endTime = new Date(product.endsAt || product.endTime);
                       const now = new Date();
-                      const isEnded = endTime <= now;
+                      const isEnded = endTime <= now || product.status === 'ended';
 
                       return (
                         <TableRow
@@ -217,7 +220,7 @@ const BidderWatchListPage = () => {
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                               <Box
                                 component="img"
-                                src={product.image}
+                                src={product.images?.[0]?.url || product.image || '/placeholder-image.jpg'}
                                 alt={product.title}
                                 sx={{
                                   width: 60,
@@ -264,7 +267,7 @@ const BidderWatchListPage = () => {
                           <TableCell align="center">
                             <Chip
                               icon={<Gavel sx={{ fontSize: 12 }} />}
-                              label={product.bidCount || 0}
+                              label={product.bidsCount || product.bidCount || 0}
                               size="small"
                               sx={{ height: 20, fontSize: '0.7rem' }}
                             />
@@ -278,7 +281,7 @@ const BidderWatchListPage = () => {
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: 'center' }}>
                                 <AccessTime sx={{ fontSize: 14, color: 'error.main' }} />
                                 <Typography variant="caption" color="error.main" fontWeight="bold">
-                                  {getTimeLeft(product.endTime)}
+                                  {getTimeLeft(product.endsAt || product.endTime)}
                                 </Typography>
                               </Box>
                             )}

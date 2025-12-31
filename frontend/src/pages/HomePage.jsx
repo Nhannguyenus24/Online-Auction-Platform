@@ -27,6 +27,7 @@ import {
 import Page from "../components/Page";
 import { formatPrice } from "../utils/formatNumber";
 import { productApi } from "../services/productApi";
+import { categoryApi } from "../services/categoryApi";
 
 // Mock data for banners
 const banners = [
@@ -59,40 +60,28 @@ const banners = [
   },
 ];
 
-// Mock data for featured categories
-const featuredCategories = [
-  {
-    id: "electronics",
-    name: "Electronics",
-    icon: "💻",
-    itemCount: 234,
-    image: "https://images.unsplash.com/photo-1498049794561-7780e7231661?w=400",
-    gradient: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-  },
-  {
-    id: "fashion",
-    name: "Fashion",
-    icon: "👗",
-    itemCount: 456,
-    image: "https://images.unsplash.com/photo-1445205170230-053b83016050?w=400",
-    gradient: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
-  },
-  {
-    id: "home",
-    name: "Home & Living",
-    icon: "🏠",
-    itemCount: 189,
-    image: "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400",
-    gradient: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
-  },
-  {
-    id: "collectibles",
-    name: "Collectibles",
-    icon: "🎨",
-    itemCount: 312,
-    image: "https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=400",
-    gradient: "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
-  },
+// Category icons mapping
+const categoryIcons = {
+  'Electronics': '💻',
+  'Fashion': '👗',
+  'Home & Living': '🏠',
+  'Collectibles': '🎨',
+  'Sports': '⚽',
+  'Books': '📚',
+  'Toys': '🎮',
+  'Art': '🎨',
+  'Jewelry': '💎',
+  'Vehicles': '🚗',
+};
+
+// Category gradients
+const categoryGradients = [
+  "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+  "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+  "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+  "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
+  "linear-gradient(135deg, #30cfd0 0%, #330867 100%)",
+  "linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)",
 ];
 
 // Helper function to map API product to component format
@@ -122,6 +111,10 @@ const HomePage = () => {
   const [mostBidsProducts, setMostBidsProducts] = useState([]);
   const [highestPriceProducts, setHighestPriceProducts] = useState([]);
   
+  // Category states
+  const [categories, setCategories] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  
   // Loading and error states
   const [loading, setLoading] = useState({
     endingSoon: true,
@@ -133,6 +126,27 @@ const HomePage = () => {
     mostBids: null,
     highestPrice: null,
   });
+
+  // Fetch categories from API
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        setCategoriesLoading(true);
+        const response = await categoryApi.getCategories();
+        if (response.success) {
+          // Chỉ lấy 6 categories đầu tiên để hiển thị
+          setCategories(response.data.slice(0, 6));
+        }
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+        setCategories([]);
+      } finally {
+        setCategoriesLoading(false);
+      }
+    };
+
+    fetchCategories();
+  }, []);
 
   // Update time every second for countdown
   useEffect(() => {
@@ -472,92 +486,81 @@ const HomePage = () => {
               Explore our diverse auction categories
             </Typography>
           </Box>
-          <Box
-            sx={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 3, // khoảng cách giữa các card
-              width: "100%",
-            }}
-          >
-            {featuredCategories.map((category) => (
-              <Box
-                key={category.id}
-                sx={{
-                  flex: {
-                    xs: "1 1 100%",
-                    sm: "1 1 calc(50% - 12px)",
-                    md: "1 1 calc(20%)",
-                  },
-                  height: 200,
-                  position: "relative",
-                  overflow: "hidden",
-                  border: "1px solid",
-                  borderColor: "grey.200",
-                  borderRadius: 3,
-                  transition: "all 0.3s",
-                  cursor: "pointer",
-                  "&:hover": {
-                    transform: "translateY(-8px)",
-                    boxShadow: "0 12px 32px rgba(0,0,0,0.15)",
-                  },
-                }}
-                onClick={() => navigate(`/category/${category.id}`)}
-              >
-                {/* Background image */}
+          
+          {categoriesLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 3,
+                width: "100%",
+              }}
+            >
+              {categories.map((category, index) => (
                 <Box
-                  component="img"
-                  src={category.image}
+                  key={category.id}
                   sx={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                    opacity: 0.2,
-                  }}
-                />
-
-                {/* Gradient overlay */}
-                <Box
-                  sx={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    width: "100%",
-                    height: "100%",
-                    background: category.gradient,
-                    opacity: 0.9,
-                  }}
-                />
-
-                {/* Card content */}
-                <CardContent
-                  sx={{
+                    flex: {
+                      xs: "1 1 100%",
+                      sm: "1 1 calc(50% - 12px)",
+                      md: "1 1 calc(20%)",
+                    },
+                    height: 200,
                     position: "relative",
-                    zIndex: 1,
-                    height: "100%",
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    color: "white",
+                    overflow: "hidden",
+                    border: "1px solid",
+                    borderColor: "grey.200",
+                    borderRadius: 3,
+                    transition: "all 0.3s",
+                    cursor: "pointer",
+                    "&:hover": {
+                      transform: "translateY(-8px)",
+                      boxShadow: "0 12px 32px rgba(0,0,0,0.15)",
+                    },
                   }}
+                  onClick={() => navigate(`/category/${category.id}`)}
                 >
-                  <Typography variant="h2" sx={{ mb: 1.5 }}>
-                    {category.icon}
-                  </Typography>
-                  <Typography variant="h5" fontWeight="bold" gutterBottom>
-                    {category.name}
-                  </Typography>
-                  <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                    {category.itemCount} items
-                  </Typography>
-                </CardContent>
-              </Box>
-            ))}
-          </Box>
+                  {/* Gradient overlay */}
+                  <Box
+                    sx={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      height: "100%",
+                      background: categoryGradients[index % categoryGradients.length],
+                      opacity: 0.9,
+                    }}
+                  />
+
+                  {/* Card content */}
+                  <CardContent
+                    sx={{
+                      position: "relative",
+                      zIndex: 1,
+                      height: "100%",
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      color: "white",
+                    }}
+                  >
+                    <Typography variant="h2" sx={{ mb: 1.5 }}>
+                      {categoryIcons[category.name] || '📦'}
+                    </Typography>
+                    <Typography variant="h5" fontWeight="bold" gutterBottom>
+                      {category.name}
+                    </Typography>
+                  </CardContent>
+                </Box>
+              ))}
+            </Box>
+          )}
         </Container>
 
         {/* Ending Soon Products */}
@@ -807,13 +810,14 @@ const HomePage = () => {
                         <Button
                           variant="contained"
                           size="small"
+                          disabled={getTimeLeft(product.endTime) === "Ended"}
                           onClick={(e) => {
                             e.stopPropagation();
                             navigate(`/products/${product.id}`);
                           }}
                           sx={{ textTransform: "none", fontWeight: 600 }}
                         >
-                          Bid Now
+                          {getTimeLeft(product.endTime) === "Ended" ? "Ended" : "Bid Now"}
                         </Button>
                       </td>
                     </tr>
@@ -1071,13 +1075,14 @@ const HomePage = () => {
                         <Button
                           variant="contained"
                           size="small"
+                          disabled={getTimeLeft(product.endTime) === "Ended"}
                           onClick={(e) => {
                             e.stopPropagation();
                             navigate(`/products/${product.id}`);
                           }}
                           sx={{ textTransform: "none", fontWeight: 600 }}
                         >
-                          Bid Now
+                          {getTimeLeft(product.endTime) === "Ended" ? "Ended" : "Bid Now"}
                         </Button>
                       </td>
                     </tr>

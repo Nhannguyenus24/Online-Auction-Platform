@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   AppBar,
@@ -38,6 +38,9 @@ import NotificationMenu from '../components/NotificationMenu';
 import ShoppingCartMenu from '../components/ShoppingCartMenu';
 import { useAuth } from '../hooks/useAuth';
 import { authApi } from '../utils/api';
+import { categoryApi } from '../services/categoryApi';
+import { notificationApi } from '../services/notificationApi';
+import { watchlistApi } from '../services/watchlistApi';
 
 const Header = () => {
   const navigate = useNavigate();
@@ -58,73 +61,95 @@ const Header = () => {
   const [anchorElCategory, setAnchorElCategory] = useState(null);
   const [hoveredCategory, setHoveredCategory] = useState(null);
   
+  // Notifications state
+  const [notifications, setNotifications] = useState([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  
+  // Watchlist state
+  const [watchlistItems, setWatchlistItems] = useState([]);
+  const [watchlistLoading, setWatchlistLoading] = useState(false);
+  const [watchlistCount, setWatchlistCount] = useState(0);
+  
   // Mock data
-  const [notificationCount] = useState(3);
-  const [cartCount] = useState(5);
   const [searchQuery, setSearchQuery] = useState('');
-
-  // Mock notifications
-  const notifications = [
-    { id: 1, title: 'New Bid Placed', message: 'Someone bid on "Luxury Watch"', time: '5 min ago', read: false },
-    { id: 2, title: 'Auction Ending Soon', message: 'MacBook Pro ends in 2 hours', time: '1 hour ago', read: false },
-    { id: 3, title: 'You Won!', message: 'Congratulations on winning the auction', time: '2 hours ago', read: true },
-  ];
-
-  // Mock saved items
-  const savedItems = [
-    { id: 1, title: 'Luxury Swiss Watch', price: 25000000, image: 'https://images.unsplash.com/photo-1523170335258-f5ed11844a49?w=100' },
-    { id: 2, title: 'MacBook Pro 16"', price: 65000000, image: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=100' },
-    { id: 3, title: 'Gaming Laptop', price: 45000000, image: 'https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=100' },
-  ];
-
-  // Categories data (2-level)
-  const categories = [
-    {
-      id: 'electronics',
-      name: 'Electronics',
-      icon: '💻',
-      children: [
-        { id: 'watches', name: 'Watches', icon: '⌚' },
-        { id: 'laptops', name: 'Laptops', icon: '💻' },
-        { id: 'smartphones', name: 'Smartphones', icon: '📱' },
-        { id: 'headphones', name: 'Headphones', icon: '🎧' },
-        { id: 'cameras', name: 'Cameras', icon: '📷' },
-      ],
-    },
-    {
-      id: 'fashion',
-      name: 'Fashion',
-      icon: '👗',
-      children: [
-        { id: 'mens-clothing', name: "Men's Clothing", icon: '👔' },
-        { id: 'womens-clothing', name: "Women's Clothing", icon: '👗' },
-        { id: 'shoes', name: 'Shoes', icon: '👟' },
-        { id: 'accessories', name: 'Accessories', icon: '👜' },
-      ],
-    },
-    {
-      id: 'home',
-      name: 'Home & Living',
-      icon: '🏠',
-      children: [
-        { id: 'furniture', name: 'Furniture', icon: '🛋️' },
-        { id: 'decor', name: 'Decor', icon: '🖼️' },
-        { id: 'kitchen', name: 'Kitchen', icon: '🍳' },
-        { id: 'garden', name: 'Garden', icon: '🌿' },
-      ],
-    },
-    {
-      id: 'collectibles',
-      name: 'Collectibles',
-      icon: '🎨',
-      children: [
-        { id: 'art', name: 'Art', icon: '🎨' },
-        { id: 'coins', name: 'Coins', icon: '🪙' },
-        { id: 'stamps', name: 'Stamps', icon: '📮' },
-        { id: 'antiques', name: 'Antiques', icon: '🏺' },
-      ],
-    },
-  ];
+  
+  // Categories state
+  const [categories, setCategories] = useState([]);
+  
+  // Fetch categories from API
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await categoryApi.getCategories();
+        if (response.success) {
+          setCategories(response.data || []);
+        }
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      }
+    };
+    
+    fetchCategories();
+  }, []);
+  
+  // Fetch notifications when user is authenticated
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      if (!isAuthenticated) {
+        setNotifications([]);
+        setUnreadCount(0);
+        return;
+      }
+      
+      try {
+        setNotificationsLoading(true);
+        const response = await notificationApi.getUserNotifications();
+        if (response.success) {
+          setNotifications(response.data || []);
+          setUnreadCount(response.unreadCount || 0);
+        }
+      } catch (error) {
+        console.error('Error fetching notifications:', error);
+        setNotifications([]);
+        setUnreadCount(0);
+      } finally {
+        setNotificationsLoading(false);
+      }
+    };
+    
+    fetchNotifications();
+  }, [isAuthenticated]);
+  
+  // Fetch watchlist when user is authenticated
+  useEffect(() => {
+    const fetchWatchlist = async () => {
+      if (!isAuthenticated) {
+        setWatchlistItems([]);
+        setWatchlistCount(0);
+        return;
+      }
+      
+      try {
+        setWatchlistLoading(true);
+        // Get only 5 items for quick preview
+        const response = await watchlistApi.getWatchlist(1, 5, 'active');
+        if (response.success) {
+          setWatchlistItems(response.data || []);
+          setWatchlistCount(response.pageInfo?.totalItems || response.data?.length || 0);
+        }
+      } catch (error) {
+        console.error('Error fetching watchlist:', error);
+        setWatchlistItems([]);
+        setWatchlistCount(0);
+      } finally {
+        setWatchlistLoading(false);
+      }
+    };
+    
+    fetchWatchlist();
+  }, [isAuthenticated]);
+  
 
   const handleOpenUserMenu = (event) => {
     setAnchorElUser(event.currentTarget);
@@ -175,6 +200,49 @@ const Header = () => {
       authLogout();
       handleCloseUserMenu();
       navigate('/auth/login');
+    }
+  };
+
+  const handleMarkAsRead = async (notificationId) => {
+    // Optimistic update - update UI immediately for smooth UX
+    setNotifications(prevNotifications => 
+      prevNotifications.map(notif => 
+        notif.id === notificationId 
+          ? { ...notif, isRead: true, readAt: Date.now() }
+          : notif
+      )
+    );
+    
+    // Update unread count immediately
+    setUnreadCount(prev => Math.max(0, prev - 1));
+    
+    // Call API in background
+    try {
+      await notificationApi.markAsRead(notificationId);
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+      // Revert optimistic update on error
+      setNotifications(prevNotifications => 
+        prevNotifications.map(notif => 
+          notif.id === notificationId 
+            ? { ...notif, isRead: false, readAt: null }
+            : notif
+        )
+      );
+      setUnreadCount(prev => prev + 1);
+    }
+  };
+
+  const handleRemoveFromWatchlist = async (productId) => {
+    try {
+      await watchlistApi.removeFromWatchlist(productId);
+      
+      // Update local state
+      setWatchlistItems(prevItems => prevItems.filter(item => item.id !== productId));
+      setWatchlistCount(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error('Error removing from watchlist:', error);
+      // Optionally show error to user
     }
   };
 
@@ -315,25 +383,23 @@ const Header = () => {
                     '&:hover': { bgcolor: 'primary.lighter' },
                   }}
                 >
-                  <Badge badgeContent={notificationCount} color="error">
+                  <Badge badgeContent={unreadCount} color="error">
                     <Notifications />
                   </Badge>
                 </IconButton>
 
-                {/* Cart/Saved Items (Only for Bidders) */}
-                {userRole === 'bidder' && (
-                  <IconButton
-                    onClick={handleOpenCartMenu}
-                    sx={{
-                      color: 'text.primary',
-                      '&:hover': { bgcolor: 'primary.lighter' },
-                    }}
-                  >
-                    <Badge badgeContent={cartCount} color="primary">
-                      <ShoppingCart />
-                    </Badge>
-                  </IconButton>
-                )}
+                {/* Watchlist (For all authenticated users) */}
+                <IconButton
+                  onClick={handleOpenCartMenu}
+                  sx={{
+                    color: 'text.primary',
+                    '&:hover': { bgcolor: 'primary.lighter' },
+                  }}
+                >
+                  <Badge badgeContent={watchlistCount} color="primary">
+                    <ShoppingCart />
+                  </Badge>
+                </IconButton>
 
                 {/* User Avatar & Name */}
                 <Button
@@ -465,6 +531,8 @@ const Header = () => {
         open={Boolean(anchorElNotif)}
         onClose={handleCloseNotifMenu}
         notifications={notifications}
+        loading={notificationsLoading}
+        onMarkAsRead={handleMarkAsRead}
       />
 
       {/* Saved Items / Cart Menu */}
@@ -472,8 +540,10 @@ const Header = () => {
         anchorEl={anchorElCart}
         open={Boolean(anchorElCart)}
         onClose={handleCloseCartMenu}
-        items={savedItems}
-        itemCount={cartCount}
+        items={watchlistItems}
+        itemCount={watchlistCount}
+        loading={watchlistLoading}
+        onRemove={handleRemoveFromWatchlist}
       />
 
       {/* Categories Menu (2-level) */}
@@ -554,8 +624,8 @@ const Header = () => {
                 <Grid container spacing={1}>
                   {categories
                     .find((c) => c.id === hoveredCategory)
-                    ?.children.map((child) => (
-                      <Grid item xs={6} key={child.id}>
+                    ?.children?.map((child) => (
+                      <Grid item xs={6} key={`${hoveredCategory}-${child.id}`}>
                         <MenuItem
                           onClick={() => {
                             navigate(`/category/${hoveredCategory}/${child.id}`);
@@ -570,10 +640,7 @@ const Header = () => {
                           }}
                         >
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                            <Typography sx={{ fontSize: '1.25rem' }}>{child.icon}</Typography>
-                            <Typography variant="body2" fontWeight="500">
-                              {child.name}
-                            </Typography>
+                            <Typography sx={{ fontSize: '1.25rem' }}>{child.name}</Typography>
                           </Box>
                         </MenuItem>
                       </Grid>

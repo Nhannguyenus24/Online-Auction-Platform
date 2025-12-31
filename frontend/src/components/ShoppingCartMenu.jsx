@@ -4,10 +4,13 @@ import {
   Menu,
   MenuItem,
   Divider,
+  IconButton,
+  CircularProgress,
 } from '@mui/material';
+import { Delete } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
-const ShoppingCartMenu = ({ anchorEl, open, onClose, items, itemCount }) => {
+const ShoppingCartMenu = ({ anchorEl, open, onClose, items, itemCount, loading, onRemove }) => {
   const navigate = useNavigate();
 
   const formatPrice = (price) => {
@@ -16,6 +19,13 @@ const ShoppingCartMenu = ({ anchorEl, open, onClose, items, itemCount }) => {
       currency: 'VND',
       minimumFractionDigits: 0,
     }).format(price);
+  };
+
+  const handleRemove = (e, productId) => {
+    e.stopPropagation(); // Prevent navigation when clicking delete
+    if (onRemove) {
+      onRemove(productId);
+    }
   };
 
   return (
@@ -42,40 +52,66 @@ const ShoppingCartMenu = ({ anchorEl, open, onClose, items, itemCount }) => {
       </Box>
       <Divider />
       
-      {items.map((item) => (
-        <MenuItem
-          key={item.id}
-          onClick={() => { navigate(`/products/${item.id}`); onClose(); }}
-          sx={{ py: 1.5, px: 2, alignItems: 'flex-start' }}
-        >
-          <Box
-            component="img"
-            src={item.image}
-            sx={{
-              width: 60,
-              height: 60,
-              borderRadius: 1,
-              objectFit: 'cover',
-              mr: 2,
-            }}
-          />
-          <Box sx={{ flexGrow: 1 }}>
-            <Typography variant="body2" fontWeight="600" gutterBottom>
-              {item.title}
-            </Typography>
-            <Typography variant="body2" color="primary" fontWeight="bold">
-              {formatPrice(item.price)}
-            </Typography>
-          </Box>
-        </MenuItem>
-      ))}
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+          <CircularProgress size={24} />
+        </Box>
+      ) : items.length === 0 ? (
+        <Box sx={{ py: 4, textAlign: 'center' }}>
+          <Typography variant="body2" color="text.secondary">
+            Your watchlist is empty
+          </Typography>
+        </Box>
+      ) : (
+        items.map((item) => (
+          <MenuItem
+            key={item.id}
+            onClick={() => { navigate(`/products/${item.id}`); onClose(); }}
+            sx={{ py: 1.5, px: 2, alignItems: 'flex-start' }}
+          >
+            <Box
+              component="img"
+              src={item.images?.[0]?.url || item.image || '/placeholder-image.jpg'}
+              sx={{
+                width: 60,
+                height: 60,
+                borderRadius: 1,
+                objectFit: 'cover',
+                mr: 2,
+              }}
+            />
+            <Box sx={{ flexGrow: 1 }}>
+              <Typography variant="body2" fontWeight="600" gutterBottom>
+                {item.title}
+              </Typography>
+              <Typography variant="body2" color="primary" fontWeight="bold">
+                {formatPrice(item.currentPrice || item.price || 0)}
+              </Typography>
+            </Box>
+            <IconButton
+              size="small"
+              onClick={(e) => handleRemove(e, item.id)}
+              sx={{
+                color: 'error.main',
+                '&:hover': { bgcolor: 'error.lighter' },
+              }}
+            >
+              <Delete fontSize="small" />
+            </IconButton>
+          </MenuItem>
+        ))
+      )}
       
-      <Divider />
-      <MenuItem onClick={() => { navigate('/bidder/watchlist'); onClose(); }} sx={{ justifyContent: 'center' }}>
-        <Typography variant="body2" color="primary" fontWeight="bold">
-          View Full Watchlist
-        </Typography>
-      </MenuItem>
+      {items.length > 0 && (
+        <>
+          <Divider />
+          <MenuItem onClick={() => { navigate('/bidder/watchlist'); onClose(); }} sx={{ justifyContent: 'center' }}>
+            <Typography variant="body2" color="primary" fontWeight="bold">
+              View Full Watchlist
+            </Typography>
+          </MenuItem>
+        </>
+      )}
     </Menu>
   );
 };

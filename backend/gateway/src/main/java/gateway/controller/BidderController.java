@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -28,10 +29,13 @@ import com.auction.proto.user.GetProductBidsRequest;
 import com.auction.proto.user.GetProductDetailsRequest;
 import com.auction.proto.user.GetProductQuestionsRequest;
 import com.auction.proto.user.GetRelatedProductsRequest;
+import com.auction.proto.user.GetUserNotificationsRequest;
 import com.auction.proto.user.GetWatchlistRequest;
+import com.auction.proto.user.MarkNotificationAsReadRequest;
 import com.auction.proto.user.PlaceBidRequest;
 import com.auction.proto.user.RemoveFromWatchlistRequest;
 import com.auction.proto.user.SetAutoBidRequest;
+
 import gateway.grpc.BidderGrpcClient;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -603,5 +607,88 @@ public class BidderController {
         pageInfoMap.put("hasNext", pageInfo.getHasNext());
         pageInfoMap.put("hasPrevious", pageInfo.getHasPrevious());
         return pageInfoMap;
+    }
+
+    @GetMapping("/notifications")
+    @Operation(summary = "Get user notifications", description = "Get all notifications for the authenticated user. Requires authentication.")
+    public ResponseEntity<Map<String, Object>> getUserNotifications() {
+        int userId = getUserId();
+        log.info("Get user notifications request - userId: {}", userId);
+
+        GetUserNotificationsRequest grpcRequest = GetUserNotificationsRequest.newBuilder()
+                .setUserId(userId)
+                .build();
+
+        try {
+            com.auction.proto.user.GetUserNotificationsResponse grpcResponse = bidderGrpcClient
+                    .getUserNotifications(grpcRequest)
+                    .timeout(Duration.ofSeconds(5))
+                    .block();
+
+            if (grpcResponse != null && grpcResponse.getSuccess()) {
+                List<Map<String, Object>> notifications = new ArrayList<>();
+                for (com.auction.proto.user.UserNotification notification : grpcResponse.getNotificationsList()) {
+                    Map<String, Object> notificationMap = new HashMap<>();
+                    notificationMap.put("id", notification.getId());
+                    notificationMap.put("userId", notification.getUserId());
+                    notificationMap.put("type", notification.getType());
+                    notificationMap.put("payload", notification.getPayload());
+                    notificationMap.put("isRead", notification.getIsRead());
+                    notificationMap.put("createdAt", notification.getCreatedAt());
+                    notifications.add(notificationMap);
+                }
+
+                Map<String, Object> response = new HashMap<>();
+                response.put("notifications", notifications);
+                response.put("unreadCount", grpcResponse.getUnreadCount());
+                return ResponseEntity.ok(response);
+            } else {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("error", grpcResponse != null ? grpcResponse.getMessage() : "Failed to get notifications");
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+            }
+        } catch (Exception e) {
+            log.error("Get user notifications error: {}", e.getMessage(), e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Failed to get notifications: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
+    @PutMapping("/notifications/{notificationId}/read")
+    @Operation(summary = "Mark notification as read", description = "Mark a specific notification as read. Requires authentication.")
+    public ResponseEntity<Map<String, Object>> markNotificationAsRead(
+            @Parameter(description = "Notification ID", required = true)
+            @PathVariable int notificationId) {
+
+        int userId = getUserId();
+        log.info("Mark notification as read request - notificationId: {}, userId: {}", notificationId, userId);
+
+        MarkNotificationAsReadRequest grpcRequest = MarkNotificationAsReadRequest.newBuilder()
+                .setNotificationId(notificationId)
+                .setUserId(userId)
+                .build();
+
+        try {
+            com.auction.proto.user.MarkNotificationAsReadResponse grpcResponse = bidderGrpcClient
+                    .markNotificationAsRead(grpcRequest)
+                    .timeout(Duration.ofSeconds(5))
+                    .block();
+
+            if (grpcResponse != null && grpcResponse.getSuccess()) {
+                Map<String, Object> response = new HashMap<>();
+                response.put("message", grpcResponse.getMessage());
+                return ResponseEntity.ok(response);
+            } else {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("error", grpcResponse != null ? grpcResponse.getMessage() : "Failed to mark notification as read");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+            }
+        } catch (Exception e) {
+            log.error("Mark notification as read error: {}", e.getMessage(), e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Failed to mark notification as read: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
     }
 }

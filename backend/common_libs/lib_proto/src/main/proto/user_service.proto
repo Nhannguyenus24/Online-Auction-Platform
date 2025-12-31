@@ -40,6 +40,12 @@ service UserService {
   
   // 11. Get product questions
   rpc GetProductQuestions(GetProductQuestionsRequest) returns (GetProductQuestionsResponse);
+
+  // 12 get user notifications
+  rpc GetUserNotifications(GetUserNotificationsRequest) returns (GetUserNotificationsResponse);
+  // 12 mark notification as read
+  rpc MarkNotificationAsRead(MarkNotificationAsReadRequest) returns (MarkNotificationAsReadResponse);
+
 }
 
 // ==================== Product Messages ====================
@@ -297,4 +303,38 @@ message GetMyBidsResponse {
   PageInfo page_info = 2;
   bool success = 3;
   string message = 4;
+}
+
+// ==================== 10. Get User Notifications ====================
+
+message UserNotification {
+  int32 id = 1;
+  int32 user_id = 2;
+  string type = 3;
+  string payload = 4;
+  bool is_read = 5;
+  int64 created_at = 6;
+}
+
+message GetUserNotificationsRequest {
+  int32 user_id = 1; // Authenticated user ID (from JWT)
+}
+
+message GetUserNotificationsResponse {
+  repeated UserNotification notifications = 1;
+  int64 unread_count = 2;
+  bool success = 3;
+  string message = 4;
+}
+
+// ==================== 11. Mark Notification As Read ====================
+
+message MarkNotificationAsReadRequest {
+  int32 notification_id = 1;
+  int32 user_id = 2; // Authenticated user ID (from JWT)
+}
+
+message MarkNotificationAsReadResponse {
+  bool success = 1;
+  string message = 2;
 }

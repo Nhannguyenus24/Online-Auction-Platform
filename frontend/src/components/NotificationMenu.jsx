@@ -5,20 +5,39 @@ import {
   Menu,
   MenuItem,
   Divider,
+  CircularProgress,
 } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
 
-const NotificationMenu = ({ anchorEl, open, onClose, notifications }) => {
-  const navigate = useNavigate();
+const NotificationMenu = ({ anchorEl, open, onClose, notifications, loading, onMarkAsRead }) => {
 
-  const handleNotificationClick = (notificationId) => {
-    // Handle notification click logic here
-    onClose();
+
+  const handleNotificationClick = (notification) => {
+    // Mark as read only if not already read
+    if (!notification.isRead && onMarkAsRead) {
+      onMarkAsRead(notification.id);
+    }
+
   };
 
-  const handleMarkAllRead = () => {
-    // Handle mark all as read logic here
-    console.log('Mark all notifications as read');
+  // Helper function to format time ago
+  const formatTimeAgo = (timestamp) => {
+    const now = Date.now();
+    
+    // Convert timestamp to milliseconds if it's in seconds (Unix timestamp)
+    // Unix timestamps in seconds are typically 10 digits, milliseconds are 13 digits
+    const timestampMs = timestamp < 10000000000 ? timestamp * 1000 : timestamp;
+    
+    const diff = now - timestampMs;
+    
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    
+    if (days > 0) return `${days} day${days > 1 ? 's' : ''} ago`;
+    if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+    if (minutes > 0) return `${minutes} min${minutes > 1 ? 's' : ''} ago`;
+    return 'Just now';
   };
 
   return (
@@ -42,57 +61,59 @@ const NotificationMenu = ({ anchorEl, open, onClose, notifications }) => {
         <Typography variant="h6" fontWeight="bold">
           Notifications
         </Typography>
-        <Button size="small" sx={{ textTransform: 'none' }} onClick={handleMarkAllRead}>
-          Mark all read
-        </Button>
       </Box>
       <Divider />
       
-      {notifications.map((notif) => (
-        <MenuItem
-          key={notif.id}
-          onClick={() => handleNotificationClick(notif.id)}
-          sx={{
-            py: 1.5,
-            px: 2,
-            bgcolor: notif.read ? 'transparent' : 'primary.lighter',
-            '&:hover': { bgcolor: 'grey.100' },
-          }}
-        >
-          <Box sx={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-            <Box sx={{ flexGrow: 1 }}>
-              <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-                {notif.title}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                {notif.message}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {notif.time}
-              </Typography>
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+          <CircularProgress size={24} />
+        </Box>
+      ) : notifications.length === 0 ? (
+        <Box sx={{ py: 4, textAlign: 'center' }}>
+          <Typography variant="body2" color="text.secondary">
+            No notifications yet
+          </Typography>
+        </Box>
+      ) : (
+        notifications.map((notif) => (
+          <MenuItem
+            key={notif.id}
+            onClick={() => handleNotificationClick(notif)}
+            sx={{
+              py: 1.5,
+              px: 2,
+              bgcolor: notif.isRead ? 'transparent' : 'primary.lighter',
+              '&:hover': { bgcolor: 'grey.100' },
+            }}
+          >
+            <Box sx={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+              <Box sx={{ flexGrow: 1 }}>
+                <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                  {notif.title}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                  {notif.message}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {formatTimeAgo(notif.createdAt)}
+                </Typography>
+              </Box>
+              {!notif.isRead && (
+                <Box
+                  sx={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    bgcolor: 'primary.main',
+                    mt: 0.5,
+                    flexShrink: 0,
+                  }}
+                />
+              )}
             </Box>
-            {!notif.read && (
-              <Box
-                sx={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: '50%',
-                  bgcolor: 'primary.main',
-                  mt: 0.5,
-                  flexShrink: 0,
-                }}
-              />
-            )}
-          </Box>
-        </MenuItem>
-      ))}
-      
-      <Divider />
-      <MenuItem onClick={() => { navigate('/notifications'); onClose(); }} sx={{ justifyContent: 'center' }}>
-        <Typography variant="body2" color="primary" fontWeight="bold">
-          View All Notifications
-        </Typography>
-      </MenuItem>
+          </MenuItem>
+        ))
+      )}
     </Menu>
   );
 };
