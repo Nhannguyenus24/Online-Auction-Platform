@@ -1,12 +1,24 @@
 package user.grpc;
 
-import com.auction.proto.admin.user.*;
-import org.springframework.grpc.server.service.GrpcService;
-import reactor.core.publisher.Mono;
-import user.service.AdminService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.grpc.server.service.GrpcService;
+
+import com.auction.proto.admin.user.ApproveUpgradeRequestRequest;
+import com.auction.proto.admin.user.ApproveUpgradeRequestResponse;
+import com.auction.proto.admin.user.GetUpgradeRequestsRequest;
+import com.auction.proto.admin.user.GetUpgradeRequestsResponse;
+import com.auction.proto.admin.user.ProfitStatisticsRequest;
+import com.auction.proto.admin.user.ProfitStatisticsResponse;
+import com.auction.proto.admin.user.ReactorAdminUserServiceGrpc;
+import com.auction.proto.admin.user.RegistrationStatisticsRequest;
+import com.auction.proto.admin.user.RegistrationStatisticsResponse;
+import com.auction.proto.admin.user.UserStatisticsRequest;
+import com.auction.proto.admin.user.UserStatisticsResponse;
 import com.auction.utils.JsonUtils;
+
+import reactor.core.publisher.Mono;
+import user.service.AdminService;
 
 /**
  * gRPC implementation of AdminUserService
@@ -53,6 +65,7 @@ public class AdminGrpcService extends ReactorAdminUserServiceGrpc.AdminUserServi
                 .flatMap(req ->
             adminService.getUpgradeRequests(req)
                 .map(result -> result)
+                .doOnNext(result -> log.info("Get upgrade requests successful: {}", JsonUtils.toJson(result)))
                 .onErrorResume(e -> {
                     log.error("Get upgrade requests error: {}", e.getMessage());
                     return Mono.just(GetUpgradeRequestsResponse.newBuilder().build());
@@ -81,7 +94,8 @@ public class AdminGrpcService extends ReactorAdminUserServiceGrpc.AdminUserServi
         return request.doOnNext(req -> log.info("Raw get profit statistics request: {}", JsonUtils.toJson(req)))
                 .flatMap(req ->
             adminService.getProfitStatistics(req)
-                .map(result -> ProfitStatisticsResponse.newBuilder().build())
+                .map(result -> result)
+                .doOnNext(result -> log.info("Profit statistics successful: {}", JsonUtils.toJson(result)))
                 .onErrorResume(e -> {
                     log.error("Get profit statistics error: {}", e.getMessage());
                     return Mono.just(ProfitStatisticsResponse.newBuilder().build());

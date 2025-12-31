@@ -20,7 +20,6 @@ import com.auction.proto.admin.user.UpgradeRequest;
 import com.auction.proto.admin.user.UserStatisticsRequest;
 import com.auction.proto.admin.user.UserStatisticsResponse;
 import com.auction.proto.admin.user.YearlyRegistration;
-import com.auction.proto.rating.GetRatingStatsResponse;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -161,44 +160,59 @@ public class AdminService {
         int skip = (page - 1) * pageSize;
 
         // Build query based on status filter
-        Query query;
+        Query countQuery;
+        Query selectQuery;
+        
         if (!request.getStatusFilter().isEmpty()) {
-            query = Query.query(Criteria.where("status").is(request.getStatusFilter()));
+            Criteria criteria = Criteria.where("status").is(request.getStatusFilter());
+            countQuery = Query.query(criteria);
+            selectQuery = Query.query(criteria).offset(skip).limit(pageSize);
         } else {
-            query = Query.empty();
+            countQuery = Query.empty();
+            selectQuery = Query.empty().offset(skip).limit(pageSize);
         }
 
-        return template.count(query, "upgrade_requests".getClass())
+        return template.count(countQuery, com.auction.entities.database.UpgradeRequest.class)
                 .flatMap(totalCount -> {
-                    Query queryWithPagination = Query.query(query.getCriteria().get())
-                            .offset(skip)
-                            .limit(pageSize);
-
-                    return template.select(queryWithPagination, com.auction.entities.database.UpgradeRequest.class)
+                    log.info("Total upgrade requests found: {}", totalCount);
+                    
+                    return template.select(selectQuery, com.auction.entities.database.UpgradeRequest.class)
                             .collectList()
                             .map(requests -> {
+                                log.info("Fetched {} upgrade requests for page {}", requests.size(), page);
+                                
                                 GetUpgradeRequestsResponse.Builder builder = GetUpgradeRequestsResponse.newBuilder()
                                         .setTotalCount(Math.toIntExact(totalCount))
                                         .setPage(page)
                                         .setTotalPages((int) Math.ceil((double) totalCount / pageSize));
 
-                                requests.forEach(req -> builder.addUpgradeRequests(
+                                requests.forEach(req -> {
+                                    long createdAtMillis = req.getCreatedAt() != null ? 
+                                            req.getCreatedAt().atZone(java.time.ZoneOffset.UTC).toInstant().toEpochMilli() : 0;
+                                    long reviewedAtMillis = req.getReviewedAt() != null ? 
+                                            req.getReviewedAt().atZone(java.time.ZoneOffset.UTC).toInstant().toEpochMilli() : 0;
+                                    
+                                    builder.addUpgradeRequests(
                                         UpgradeRequest.newBuilder()
                                                 .setId(req.getId())
                                                 .setUserId(req.getUserId())
+                                                .setUserEmail("")  // TODO: Join with users table to get email
+                                                .setUserFullName("")  // TODO: Join with users table to get full name
                                                 .setRequestedRole(req.getRequestedRole())
                                                 .setStatus(req.getStatus())
-                                                .setCreatedAt(req.getCreatedAt() != null ? 
-                                                        req.getCreatedAt().getSecond() * 1000 : 0)
-                                                .setReviewedAt(req.getReviewedAt() != null ? 
-                                                        req.getReviewedAt().getSecond() * 1000 : 0)
+                                                .setCreatedAt(createdAtMillis)
+                                                .setReviewedAt(reviewedAtMillis)
                                                 .setAdminId(req.getAdminId() != null ? req.getAdminId() : 0)
+                                                .setReason("")  // TODO: Add reason field if exists
                                                 .build()
-                                ));
+                                    );
+                                });
 
                                 return builder.build();
                             });
                 })
+                .doOnNext(response -> log.info("Returning upgrade requests response with {} items", 
+                        response.getUpgradeRequestsCount()))
                 .onErrorResume(error -> {
                     log.error("Error fetching upgrade requests", error);
                     return Mono.just(GetUpgradeRequestsResponse.newBuilder().build());
@@ -244,13 +258,94 @@ public class AdminService {
 
     /**
      * Get profit statistics by month or year
+     * Profit = 30% of total successful payment amounts
      */
-    public Mono<GetRatingStatsResponse> getProfitStatistics(ProfitStatisticsRequest request) {
+    public Mono<com.auction.proto.admin.user.ProfitStatisticsResponse> getProfitStatistics(ProfitStatisticsRequest request) {
         log.info("Fetching profit statistics - month: {}, year: {}", request.getMonth(), request.getYear());
 
-        // TODO: Implement profit calculation from orders and payments
-        // This requires access to order and payment services
-        
-        return Mono.just(GetRatingStatsResponse.newBuilder().build());
+        com.auction.proto.admin.user.ProfitStatisticsResponse.Builder responseBuilder = 
+                com.auction.proto.admin.user.ProfitStatisticsResponse.newBuilder();
+
+        // Build response with both monthly and yearly if requested
+        Mono<com.auction.proto.admin.user.ProfitStatisticsResponse> monthlyMono = Mono.just(responseBuilder.build());
+        Mono<com.auction.proto.admin.user.ProfitStatisticsResponse> yearlyMono = Mono.just(responseBuilder.build());
+
+        // Get monthly profit if month is specified
+        if (request.getMonth() != null && !request.getMonth().isEmpty()) {
+            monthlyMono = adminRepository.getMonthlyProfit(request.getMonth())
+                    .map(record -> {
+                        com.auction.proto.admin.user.MonthlyProfit monthlyProfit = 
+                                com.auction.proto.admin.user.MonthlyProfit.newBuilder()
+                                .setMonth(record.getPeriod())
+                                .setTotalSales(record.getTotalSales())
+                                .setProfit(record.getProfit())
+                                .setCompletedOrders(record.getCompletedOrders())
+                                .build();
+                        
+                        return com.auction.proto.admin.user.ProfitStatisticsResponse.newBuilder()
+                                .setMonthlyProfit(monthlyProfit)
+                                .build();
+                    })
+                    .defaultIfEmpty(com.auction.proto.admin.user.ProfitStatisticsResponse.newBuilder()
+                            .setMonthlyProfit(com.auction.proto.admin.user.MonthlyProfit.newBuilder()
+                                    .setMonth(request.getMonth())
+                                    .setTotalSales(0.0)
+                                    .setProfit(0.0)
+                                    .setCompletedOrders(0)
+                                    .build())
+                            .build());
+        }
+
+        // Get yearly profit if year is specified
+        if (request.getYear() != null && !request.getYear().isEmpty()) {
+            try {
+                int year = Integer.parseInt(request.getYear());
+                yearlyMono = adminRepository.getYearlyProfit(year)
+                        .map(record -> {
+                            com.auction.proto.admin.user.YearlyProfit yearlyProfit = 
+                                    com.auction.proto.admin.user.YearlyProfit.newBuilder()
+                                    .setYear(record.getPeriod())
+                                    .setTotalSales(record.getTotalSales())
+                                    .setProfit(record.getProfit())
+                                    .setCompletedOrders(record.getCompletedOrders())
+                                    .build();
+                            
+                            return com.auction.proto.admin.user.ProfitStatisticsResponse.newBuilder()
+                                    .setYearlyProfit(yearlyProfit)
+                                    .build();
+                        })
+                        .defaultIfEmpty(com.auction.proto.admin.user.ProfitStatisticsResponse.newBuilder()
+                                .setYearlyProfit(com.auction.proto.admin.user.YearlyProfit.newBuilder()
+                                        .setYear(request.getYear())
+                                        .setTotalSales(0.0)
+                                        .setProfit(0.0)
+                                        .setCompletedOrders(0)
+                                        .build())
+                                .build());
+            } catch (NumberFormatException e) {
+                log.error("Invalid year format: {}", request.getYear());
+            }
+        }
+
+        // Combine monthly and yearly results
+        return Mono.zip(monthlyMono, yearlyMono)
+                .map(tuple -> {
+                    com.auction.proto.admin.user.ProfitStatisticsResponse.Builder builder = 
+                            com.auction.proto.admin.user.ProfitStatisticsResponse.newBuilder();
+                    
+                    if (tuple.getT1().hasMonthlyProfit()) {
+                        builder.setMonthlyProfit(tuple.getT1().getMonthlyProfit());
+                    }
+                    
+                    if (tuple.getT2().hasYearlyProfit()) {
+                        builder.setYearlyProfit(tuple.getT2().getYearlyProfit());
+                    }
+                    
+                    return builder.build();
+                })
+                .onErrorResume(error -> {
+                    log.error("Error fetching profit statistics", error);
+                    return Mono.just(com.auction.proto.admin.user.ProfitStatisticsResponse.newBuilder().build());
+                });
     }
 }
