@@ -1,5 +1,6 @@
 package user.repository;
 
+import com.auction.entities.record.ProfitRecord;
 import org.springframework.data.r2dbc.repository.Query;
 import org.springframework.data.r2dbc.repository.R2dbcRepository;
 import org.springframework.stereotype.Repository;
@@ -8,7 +9,7 @@ import com.auction.entities.database.User;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import user.service.AdminService.RegistrationRecord;
+import com.auction.entities.record.RegistrationRecord;
 
 @Repository
 public interface AdminRepository extends R2dbcRepository<User, Integer> {
@@ -55,7 +56,7 @@ public interface AdminRepository extends R2dbcRepository<User, Integer> {
     
     // Get monthly profit statistics
     @Query("""
-        SELECT 
+        SELECT
             DATE_FORMAT(p.paid_at, '%Y-%m') as period,
             COALESCE(SUM(p.amount), 0) as total_sales,
             COALESCE(SUM(p.amount) * 0.3, 0) as profit,
@@ -70,7 +71,7 @@ public interface AdminRepository extends R2dbcRepository<User, Integer> {
     
     // Get yearly profit statistics
     @Query("""
-        SELECT 
+        SELECT
             YEAR(p.paid_at) as period,
             COALESCE(SUM(p.amount), 0) as total_sales,
             COALESCE(SUM(p.amount) * 0.3, 0) as profit,
@@ -82,25 +83,4 @@ public interface AdminRepository extends R2dbcRepository<User, Integer> {
         GROUP BY YEAR(p.paid_at)
         """)
     Mono<ProfitRecord> getYearlyProfit(int year);
-    
-    /**
-     * Record for profit statistics projection
-     */
-    record ProfitRecord(String period, Double totalSales, Double profit, Integer completedOrders) {
-        public String getPeriod() {
-            return period;
-        }
-        
-        public Double getTotalSales() {
-            return totalSales != null ? totalSales : 0.0;
-        }
-        
-        public Double getProfit() {
-            return profit != null ? profit : 0.0;
-        }
-        
-        public Integer getCompletedOrders() {
-            return completedOrders != null ? completedOrders : 0;
-        }
-    }
 }

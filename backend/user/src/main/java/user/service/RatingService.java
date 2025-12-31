@@ -5,7 +5,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.auction.entities.database.Review;
-import com.auction.entities.database.User;
 import com.auction.proto.rating.AddUserRatingRequest;
 import com.auction.proto.rating.AddUserRatingResponse;
 import com.auction.proto.rating.DeleteUserRatingRequest;
@@ -166,13 +165,13 @@ public class RatingService {
                 reviewRepository.countRatingsByScore(userId, 1)
         )
         .map(tuple -> {
-            int totalRatings = tuple.getT1() != null ? tuple.getT1() : 0;
-            double avgScore = tuple.getT2() != null ? tuple.getT2() : 0.0;
-            int fiveStar = tuple.getT3() != null ? tuple.getT3() : 0;
-            int fourStar = tuple.getT4() != null ? tuple.getT4() : 0;
-            int threeStar = tuple.getT5() != null ? tuple.getT5() : 0;
-            int twoStar = tuple.getT6() != null ? tuple.getT6() : 0;
-            int oneStar = tuple.getT7() != null ? tuple.getT7() : 0;
+            int totalRatings = tuple.getT1();
+            double avgScore = tuple.getT2();
+            int fiveStar = tuple.getT3();
+            int fourStar = tuple.getT4();
+            int threeStar = tuple.getT5();
+            int twoStar = tuple.getT6();
+            int oneStar = tuple.getT7();
 
             return GetRatingStatsResponse.newBuilder()
                     .setUserId(userId)
@@ -199,18 +198,16 @@ public class RatingService {
      */
     private Mono<RatingDetail> buildRatingDetail(Review review) {
         return userRepository.findByUserId(review.getFromUserId())
-                .map(fromUser -> {
-                    return RatingDetail.newBuilder()
-                            .setReviewId(review.getId())
-                            .setFromUserId(review.getFromUserId())
-                            .setFromUserName(fromUser != null ? fromUser.getFullName() : "Unknown")
-                            .setProductId(review.getProductId())
-                            .setProductTitle("")
-                            .setScore(review.getScore())
-                            .setComment(review.getComment() != null ? review.getComment() : "")
-                            .setCreatedAt(review.getCreatedAt() != null ? review.getCreatedAt().getSecond() : 0)
-                            .build();
-                })
+                .map(fromUser -> RatingDetail.newBuilder()
+                        .setReviewId(review.getId())
+                        .setFromUserId(review.getFromUserId())
+                        .setFromUserName(fromUser != null ? fromUser.getFullName() : "Unknown")
+                        .setProductId(review.getProductId())
+                        .setProductTitle("")
+                        .setScore(review.getScore())
+                        .setComment(review.getComment() != null ? review.getComment() : "")
+                        .setCreatedAt(review.getCreatedAt() != null ? review.getCreatedAt().getSecond() : 0)
+                        .build())
                 .switchIfEmpty(Mono.just(RatingDetail.newBuilder()
                         .setReviewId(review.getId())
                         .setFromUserId(review.getFromUserId())

@@ -32,27 +32,6 @@ public class AdminService {
     private final AdminRepository adminRepository;
     private final R2dbcEntityTemplate template;
 
-    /**
-     * Record for registration statistics projection
-     */
-    public record RegistrationRecord(String date, String month, String year, Integer count) {
-        public String getDate() {
-            return date;
-        }
-        
-        public String getMonth() {
-            return month;
-        }
-        
-        public String getYear() {
-            return year;
-        }
-        
-        public Integer getCount() {
-            return count != null ? count : 0;
-        }
-    }
-
     public AdminService(AdminRepository adminRepository, R2dbcEntityTemplate template) {
         this.adminRepository = adminRepository;
         this.template = template;
@@ -75,14 +54,14 @@ public class AdminService {
                 adminRepository.sumNegativeReviews()
         )
         .map(tuple -> {
-            int totalUsers = tuple.getT1() != null ? tuple.getT1() : 0;
-            int totalBidders = tuple.getT2() != null ? tuple.getT2() : 0;
-            int totalSellers = tuple.getT3() != null ? tuple.getT3() : 0;
-            int totalAdmins = tuple.getT4() != null ? tuple.getT4() : 0;
-            int verifiedUsers = tuple.getT5() != null ? tuple.getT5() : 0;
-            double avgRating = tuple.getT6() != null ? tuple.getT6() : 0.0;
-            int positiveReviews = tuple.getT7() != null ? tuple.getT7() : 0;
-            int negativeReviews = tuple.getT8() != null ? tuple.getT8() : 0;
+            int totalUsers = tuple.getT1();
+            int totalBidders = tuple.getT2();
+            int totalSellers = tuple.getT3();
+            int totalAdmins = tuple.getT4();
+            int verifiedUsers = tuple.getT5();
+            double avgRating = tuple.getT6();
+            int positiveReviews = tuple.getT7();
+            int negativeReviews = tuple.getT8();
             int unverifiedUsers = totalUsers - verifiedUsers;
 
             return UserStatisticsResponse.newBuilder()
@@ -108,8 +87,6 @@ public class AdminService {
      */
     public Mono<RegistrationStatisticsResponse> getRegistrationStatistics(RegistrationStatisticsRequest request) {
         log.info("Fetching registration statistics for period: {}", request.getPeriod());
-
-        String period = request.getPeriod().toLowerCase();
         int limit = request.getLimit() > 0 ? request.getLimit() : 30;
 
         Flux<DailyRegistration> dailyStats = adminRepository.getUserRegistrationsByDay(limit)
@@ -172,7 +149,7 @@ public class AdminService {
             selectQuery = Query.empty().offset(skip).limit(pageSize);
         }
 
-        return template.count(countQuery, com.auction.entities.database.UpgradeRequest.class)
+        return template.count(countQuery, UpgradeRequest.class)
                 .flatMap(totalCount -> {
                     log.info("Total upgrade requests found: {}", totalCount);
                     
@@ -271,7 +248,8 @@ public class AdminService {
         Mono<com.auction.proto.admin.user.ProfitStatisticsResponse> yearlyMono = Mono.just(responseBuilder.build());
 
         // Get monthly profit if month is specified
-        if (request.getMonth() != null && !request.getMonth().isEmpty()) {
+        request.getMonth();
+        if (!request.getMonth().isEmpty()) {
             monthlyMono = adminRepository.getMonthlyProfit(request.getMonth())
                     .map(record -> {
                         com.auction.proto.admin.user.MonthlyProfit monthlyProfit = 
@@ -297,7 +275,8 @@ public class AdminService {
         }
 
         // Get yearly profit if year is specified
-        if (request.getYear() != null && !request.getYear().isEmpty()) {
+        request.getYear();
+        if (!request.getYear().isEmpty()) {
             try {
                 int year = Integer.parseInt(request.getYear());
                 yearlyMono = adminRepository.getYearlyProfit(year)

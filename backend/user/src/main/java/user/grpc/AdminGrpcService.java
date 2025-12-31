@@ -79,6 +79,7 @@ public class AdminGrpcService extends ReactorAdminUserServiceGrpc.AdminUserServi
                 .flatMap(req ->
             adminService.approveUpgradeRequest(req)
                 .map(result -> result)
+                .doOnNext(result -> log.info("Approve upgrade request successful: {}", JsonUtils.toJson(result)))
                 .onErrorResume(e -> {
                     log.error("Approve upgrade request error: {}", e.getMessage());
                     return Mono.just(ApproveUpgradeRequestResponse.newBuilder()

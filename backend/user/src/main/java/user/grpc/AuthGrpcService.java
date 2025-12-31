@@ -39,6 +39,7 @@ public class AuthGrpcService extends ReactorAuthServiceGrpc.AuthServiceImplBase 
                 .setOtp(result.otp())  // OTP 6 chữ số gửi qua email
                 .setMessage(result.message())
                 .build())
+            .doOnNext(result -> log.info("Raw register response: {}", JsonUtils.toJson(result)))
             .onErrorResume(e -> {
                 log.error("Register error: {}", e.getMessage());
                 return Mono.just(RegisterResponse.newBuilder()
@@ -66,6 +67,7 @@ public class AuthGrpcService extends ReactorAuthServiceGrpc.AuthServiceImplBase 
                         .setRole(result.role())
                         .build())
                     .build())
+                .doOnNext(result -> log.info("Raw login response: {}", JsonUtils.toJson(result)))
                 .onErrorResume(e -> {
                     log.error("Login error: {}", e.getMessage());
                     return Mono.just(LoginResponse.newBuilder()
@@ -87,6 +89,7 @@ public class AuthGrpcService extends ReactorAuthServiceGrpc.AuthServiceImplBase 
                     .setMessage("Refresh success")
                     .setAccessTokenExpiresIn(900) // 15 minutes in seconds
                     .build())
+                .doOnNext(result -> log.info("Raw refresh token response: {}", JsonUtils.toJson(result)))
                 .onErrorResume(e -> {
                     log.error("Refresh token error: {}", e.getMessage());
                     return Mono.just(RefreshTokenResponse.newBuilder()
@@ -105,6 +108,7 @@ public class AuthGrpcService extends ReactorAuthServiceGrpc.AuthServiceImplBase 
                 .then(Mono.just(LogoutResponse.newBuilder()
                     .setSuccess(true)
                     .build()))
+                .doOnNext(result -> log.info("Raw logout response: {}", JsonUtils.toJson(result)))
                 .onErrorResume(e -> {
                     log.error("Logout error: {}", e.getMessage());
                     return Mono.just(LogoutResponse.newBuilder()
@@ -135,6 +139,7 @@ public class AuthGrpcService extends ReactorAuthServiceGrpc.AuthServiceImplBase 
                             .build();
                     }
                 })
+                .doOnNext(result -> log.info("Raw validate token response: {}", JsonUtils.toJson(result)))
         );
     }
 
@@ -151,6 +156,7 @@ public class AuthGrpcService extends ReactorAuthServiceGrpc.AuthServiceImplBase 
                 .setSuccess(true)
                 .setMessage(message)
                 .build())
+                .doOnNext(result -> log.info("Raw change password response: {}", JsonUtils.toJson(result)))
             .onErrorResume(e -> {
                 log.error("Change password error: {}", e.getMessage());
                 return Mono.just(ChangePasswordResponse.newBuilder()
@@ -173,6 +179,7 @@ public class AuthGrpcService extends ReactorAuthServiceGrpc.AuthServiceImplBase 
                 .setSuccess(true)
                 .setMessage(message)
                 .build())
+            .doOnNext(result -> log.info("Raw verify OTP response: {}", JsonUtils.toJson(result)))
             .onErrorResume(e -> {
                 log.error("Verify OTP error: {}", e.getMessage());
                 return Mono.just(VerifyOTPResponse.newBuilder()
@@ -189,6 +196,7 @@ public class AuthGrpcService extends ReactorAuthServiceGrpc.AuthServiceImplBase 
                 .flatMap(req ->
                 authService.reproduceOTP(req.getEmail()))
                 .map(message -> ReproduceOTPResponse.newBuilder().setSuccess(true).setMessage(message).build())
+                .doOnNext(result -> log.info("Raw reproduce OTP response: {}", JsonUtils.toJson(result)))
                 .onErrorResume(e -> {
                     log.error("Reproduce OTP error: {}", e.getMessage());
                     return Mono.just(ReproduceOTPResponse.newBuilder().setSuccess(false).setMessage(e.getMessage()).build());
@@ -220,6 +228,7 @@ public class AuthGrpcService extends ReactorAuthServiceGrpc.AuthServiceImplBase 
                                 .build());
                     }
                 })
+                .doOnNext(result -> log.info("Raw get profile response: {}", JsonUtils.toJson(result)))
                 .onErrorResume(e -> {
                     log.error("Get profile error: {}", e.getMessage());
                     return Mono.just(GetProfileResponse.newBuilder()
@@ -262,6 +271,7 @@ public class AuthGrpcService extends ReactorAuthServiceGrpc.AuthServiceImplBase 
                                 .build());
                     }
                 })
+                .doOnNext(result -> log.info("Raw update profile response: {}", JsonUtils.toJson(result)))
                 .onErrorResume(e -> {
                     log.error("Update profile error: {}", e.getMessage());
                     return Mono.just(UpdateProfileResponse.newBuilder()
@@ -292,6 +302,7 @@ public class AuthGrpcService extends ReactorAuthServiceGrpc.AuthServiceImplBase 
                                     .setRole(result.role())
                                     .build())
                             .build())
+                    .doOnNext(result -> log.info("Raw login response: {}", JsonUtils.toJson(result)))
                     .onErrorResume(e -> {
                         log.error("Google login error: {}", e.getMessage());
                         return Mono.just(LoginResponse.newBuilder()

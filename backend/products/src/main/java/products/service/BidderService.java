@@ -1,8 +1,6 @@
 package products.service;
 
-import java.time.ZoneOffset;
 import java.util.List;
-import java.time.LocalDateTime;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,7 +20,7 @@ import products.dto.ProductDetailsDto;
 import products.dto.ProductRowDto;
 import products.dto.QuestionRowDto;
 import products.repository.ProductRepository;
-import products.util.TimeUtils;
+import com.auction.utils.TimeUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -286,7 +284,7 @@ public class BidderService {
                                     .then(Mono.fromRunnable(() -> {
                                         // Reschedule auction end
                                         auctionService.scheduleEndAuction(
-                                            Long.valueOf(productId), 
+                                                (long) productId,
                                             TimeUtils.toInstant(newEndTime),
                                             () -> handleAuctionEnd(productId)
                                         );
@@ -379,7 +377,7 @@ public class BidderService {
                         return Mono.empty();
                     }
                     
-                    int winnerId = Integer.parseInt(eligibleWinners.get(0).toString());
+                    int winnerId = Integer.parseInt(eligibleWinners.getFirst().toString());
                     log.info("Winner for product {}: User ID {}", productId, winnerId);
                     
                     // Get winner's bid amount and product details to create order

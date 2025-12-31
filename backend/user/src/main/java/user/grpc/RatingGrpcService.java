@@ -27,6 +27,7 @@ public class RatingGrpcService extends ReactorRatingServiceGrpc.RatingServiceImp
                 .flatMap(req ->
             ratingService.addUserRating(req)
                 .map(result -> result)
+                .doOnNext(result -> log.info("Raw add user rating response: {}", JsonUtils.toJson(result)))
                 .onErrorResume(e -> {
                     log.error("Add user rating error: {}", e.getMessage());
                     return Mono.just(AddUserRatingResponse.newBuilder()
@@ -43,6 +44,7 @@ public class RatingGrpcService extends ReactorRatingServiceGrpc.RatingServiceImp
                 .flatMap(req ->
             ratingService.deleteUserRating(req)
                 .map(result -> result)
+                .doOnNext(result -> log.info("Raw delete user rating response: {}", JsonUtils.toJson(result)))
                 .onErrorResume(e -> {
                     log.error("Delete user rating error: {}", e.getMessage());
                     return Mono.just(DeleteUserRatingResponse.newBuilder()
@@ -59,6 +61,7 @@ public class RatingGrpcService extends ReactorRatingServiceGrpc.RatingServiceImp
                 .flatMap(req ->
             ratingService.getUserRatings(req)
                 .map(result -> result)
+                .doOnNext(result -> log.info("Raw get user rating response: {}", JsonUtils.toJson(result)))
                 .onErrorResume(e -> {
                     log.error("Get user ratings error: {}", e.getMessage());
                     return Mono.just(GetUserRatingsResponse.newBuilder()
@@ -74,6 +77,7 @@ public class RatingGrpcService extends ReactorRatingServiceGrpc.RatingServiceImp
                 .flatMap(req ->
             ratingService.getRatingStats(req)
                 .map(result -> result)
+                .doOnNext(result -> log.info("Raw get rating stats: {}", JsonUtils.toJson(result)))
                 .onErrorResume(e -> {
                     log.error("Get rating stats error: {}", e.getMessage());
                     return Mono.just(GetRatingStatsResponse.newBuilder()

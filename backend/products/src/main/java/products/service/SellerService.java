@@ -16,7 +16,7 @@ import com.auctionplatform.seller.grpc.ProductSummary;
 
 import products.repository.ProductRepository;
 import products.repository.SellerRepository;
-import products.util.TimeUtils;
+import com.auction.utils.TimeUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
