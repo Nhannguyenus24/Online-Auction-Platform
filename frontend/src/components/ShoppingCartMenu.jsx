@@ -66,7 +66,7 @@ const ShoppingCartMenu = ({ anchorEl, open, onClose, items, itemCount, loading, 
         items.map((item) => (
           <MenuItem
             key={item.id}
-            onClick={() => { navigate(`/products/${item.id}`); onClose(); }}
+            onClick={() => { navigate(`/product/${item.id}`); onClose(); }}
             sx={{ py: 1.5, px: 2, alignItems: 'flex-start' }}
           >
             <Box
