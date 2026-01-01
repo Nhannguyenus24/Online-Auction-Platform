@@ -10,6 +10,8 @@ import org.springframework.stereotype.Service;
 import com.auction.proto.admin.user.ApproveUpgradeRequestRequest;
 import com.auction.proto.admin.user.ApproveUpgradeRequestResponse;
 import com.auction.proto.admin.user.DailyRegistration;
+import com.auction.proto.admin.user.GetAllUsersRequest;
+import com.auction.proto.admin.user.GetAllUsersResponse;
 import com.auction.proto.admin.user.GetUpgradeRequestsRequest;
 import com.auction.proto.admin.user.GetUpgradeRequestsResponse;
 import com.auction.proto.admin.user.MonthlyRegistration;
@@ -17,6 +19,7 @@ import com.auction.proto.admin.user.ProfitStatisticsRequest;
 import com.auction.proto.admin.user.RegistrationStatisticsRequest;
 import com.auction.proto.admin.user.RegistrationStatisticsResponse;
 import com.auction.proto.admin.user.UpgradeRequest;
+import com.auction.proto.admin.user.UserInfo;
 import com.auction.proto.admin.user.UserStatisticsRequest;
 import com.auction.proto.admin.user.UserStatisticsResponse;
 import com.auction.proto.admin.user.YearlyRegistration;
@@ -24,6 +27,7 @@ import com.auction.proto.admin.user.YearlyRegistration;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import user.repository.AdminRepository;
+import user.repository.UserRepository;
 
 @Service
 public class AdminService {
@@ -31,10 +35,12 @@ public class AdminService {
     private static final Logger log = LoggerFactory.getLogger(AdminService.class);
     private final AdminRepository adminRepository;
     private final R2dbcEntityTemplate template;
+    private final UserRepository userRepository;
 
-    public AdminService(AdminRepository adminRepository, R2dbcEntityTemplate template) {
+    public AdminService(AdminRepository adminRepository, R2dbcEntityTemplate template, UserRepository userRepository) {
         this.adminRepository = adminRepository;
         this.template = template;
+        this.userRepository = userRepository;
     }
 
     /**
@@ -155,37 +161,71 @@ public class AdminService {
                     
                     return template.select(selectQuery, com.auction.entities.database.UpgradeRequest.class)
                             .collectList()
-                            .map(requests -> {
+                            .flatMap(requests -> {
                                 log.info("Fetched {} upgrade requests for page {}", requests.size(), page);
                                 
-                                GetUpgradeRequestsResponse.Builder builder = GetUpgradeRequestsResponse.newBuilder()
-                                        .setTotalCount(Math.toIntExact(totalCount))
-                                        .setPage(page)
-                                        .setTotalPages((int) Math.ceil((double) totalCount / pageSize));
+                                // Fetch user information for all requests
+                                return Flux.fromIterable(requests)
+                                        .flatMap(req -> {
+                                            return userRepository.findByUserId(req.getUserId())
+                                                    .map(user -> {
+                                                        long createdAtMillis = req.getCreatedAt() != null ? 
+                                                                req.getCreatedAt().atZone(java.time.ZoneOffset.UTC).toInstant().toEpochMilli() : 0;
+                                                        long reviewedAtMillis = req.getReviewedAt() != null ? 
+                                                                req.getReviewedAt().atZone(java.time.ZoneOffset.UTC).toInstant().toEpochMilli() : 0;
+                                                        long userCreatedAtMillis = user.getCreatedAt() != null ?
+                                                                user.getCreatedAt().atZone(java.time.ZoneOffset.UTC).toInstant().toEpochMilli() : 0;
+                                                        
+                                                        return UpgradeRequest.newBuilder()
+                                                                .setId(req.getId())
+                                                                .setUserId(req.getUserId())
+                                                                .setUserEmail(user.getEmail() != null ? user.getEmail() : "")
+                                                                .setUserFullName(user.getFullName() != null ? user.getFullName() : "")
+                                                                .setRequestedRole(req.getRequestedRole())
+                                                                .setStatus(req.getStatus())
+                                                                .setCreatedAt(createdAtMillis)
+                                                                .setReviewedAt(reviewedAtMillis)
+                                                                .setAdminId(req.getAdminId() != null ? req.getAdminId() : 0)
+                                                                .setReason("")
+                                                                // Additional user information
+                                                                .setUserPhone(user.getPhone() != null ? user.getPhone() : "")
+                                                                .setUserAddress(user.getAddress() != null ? user.getAddress() : "")
+                                                                .setIsEmailVerified(user.getIsEmailVerified() != null ? user.getIsEmailVerified() : false)
+                                                                .setPositiveReviews(user.getPositiveReviews() != null ? user.getPositiveReviews() : 0)
+                                                                .setNegativeReviews(user.getNegativeReviews() != null ? user.getNegativeReviews() : 0)
+                                                                .setRatingPercent(user.getRatingPercent() != null ? user.getRatingPercent().doubleValue() : 0.0)
+                                                                .setUserCreatedAt(userCreatedAtMillis)
+                                                                .setCurrentRole(user.getRole() != null ? user.getRole() : "")
+                                                                .build();
+                                                    })
+                                                    .defaultIfEmpty(
+                                                        // If user not found, return basic info
+                                                        UpgradeRequest.newBuilder()
+                                                                .setId(req.getId())
+                                                                .setUserId(req.getUserId())
+                                                                .setUserEmail("User not found")
+                                                                .setUserFullName("User not found")
+                                                                .setRequestedRole(req.getRequestedRole())
+                                                                .setStatus(req.getStatus())
+                                                                .setCreatedAt(req.getCreatedAt() != null ? 
+                                                                        req.getCreatedAt().atZone(java.time.ZoneOffset.UTC).toInstant().toEpochMilli() : 0)
+                                                                .setReviewedAt(req.getReviewedAt() != null ? 
+                                                                        req.getReviewedAt().atZone(java.time.ZoneOffset.UTC).toInstant().toEpochMilli() : 0)
+                                                                .setAdminId(req.getAdminId() != null ? req.getAdminId() : 0)
+                                                                .setReason("")
+                                                                .build()
+                                                    );
+                                        })
+                                        .collectList()
+                                        .map(upgradeRequests -> {
+                                            GetUpgradeRequestsResponse.Builder builder = GetUpgradeRequestsResponse.newBuilder()
+                                                    .setTotalCount(Math.toIntExact(totalCount))
+                                                    .setPage(page)
+                                                    .setTotalPages((int) Math.ceil((double) totalCount / pageSize))
+                                                    .addAllUpgradeRequests(upgradeRequests);
 
-                                requests.forEach(req -> {
-                                    long createdAtMillis = req.getCreatedAt() != null ? 
-                                            req.getCreatedAt().atZone(java.time.ZoneOffset.UTC).toInstant().toEpochMilli() : 0;
-                                    long reviewedAtMillis = req.getReviewedAt() != null ? 
-                                            req.getReviewedAt().atZone(java.time.ZoneOffset.UTC).toInstant().toEpochMilli() : 0;
-                                    
-                                    builder.addUpgradeRequests(
-                                        UpgradeRequest.newBuilder()
-                                                .setId(req.getId())
-                                                .setUserId(req.getUserId())
-                                                .setUserEmail("")  // TODO: Join with users table to get email
-                                                .setUserFullName("")  // TODO: Join with users table to get full name
-                                                .setRequestedRole(req.getRequestedRole())
-                                                .setStatus(req.getStatus())
-                                                .setCreatedAt(createdAtMillis)
-                                                .setReviewedAt(reviewedAtMillis)
-                                                .setAdminId(req.getAdminId() != null ? req.getAdminId() : 0)
-                                                .setReason("")  // TODO: Add reason field if exists
-                                                .build()
-                                    );
-                                });
-
-                                return builder.build();
+                                            return builder.build();
+                                        });
                             });
                 })
                 .doOnNext(response -> log.info("Returning upgrade requests response with {} items", 
@@ -325,6 +365,76 @@ public class AdminService {
                 .onErrorResume(error -> {
                     log.error("Error fetching profit statistics", error);
                     return Mono.just(com.auction.proto.admin.user.ProfitStatisticsResponse.newBuilder().build());
+                });
+    }
+
+    /**
+     * Get all users with pagination and search
+     */
+    public Mono<GetAllUsersResponse> getAllUsers(GetAllUsersRequest request) {
+        log.info("Fetching all users - search: {}, role: {}, page: {}, size: {}", 
+                request.getSearchQuery(), request.getRoleFilter(), request.getPage(), request.getPageSize());
+
+        int page = request.getPage() > 0 ? request.getPage() : 1;
+        int pageSize = request.getPageSize() > 0 ? request.getPageSize() : 20;
+        int skip = (page - 1) * pageSize;
+
+        // Build criteria
+        Criteria criteria = Criteria.empty();
+        
+        // Add role filter if specified
+        if (!request.getRoleFilter().isEmpty()) {
+            criteria = criteria.and(Criteria.where("role").is(request.getRoleFilter()));
+        }
+        
+        // Add search filter if specified (search by name, email, or phone)
+        if (!request.getSearchQuery().isEmpty()) {
+            String searchPattern = "%" + request.getSearchQuery() + "%";
+            Criteria searchCriteria = Criteria.where("full_name").like(searchPattern)
+                    .or("email").like(searchPattern)
+                    .or("phone").like(searchPattern);
+            criteria = criteria.isEmpty() ? searchCriteria : criteria.and(searchCriteria);
+        }
+
+        Query countQuery = criteria.isEmpty() ? Query.empty() : Query.query(criteria);
+        Query selectQuery = criteria.isEmpty() ? 
+                Query.empty().offset(skip).limit(pageSize) : 
+                Query.query(criteria).offset(skip).limit(pageSize);
+
+        return template.count(countQuery, com.auction.entities.database.User.class)
+                .flatMap(totalCount -> {
+                    log.info("Total users found: {}", totalCount);
+                    int totalPages = (int) Math.ceil((double) totalCount / pageSize);
+                    
+                    return template.select(selectQuery, com.auction.entities.database.User.class)
+                            .map(user -> UserInfo.newBuilder()
+                                    .setId(user.getId())
+                                    .setEmail(user.getEmail() != null ? user.getEmail() : "")
+                                    .setFullName(user.getFullName() != null ? user.getFullName() : "")
+                                    .setRole(user.getRole() != null ? user.getRole() : "bidder")
+                                    .setPhone(user.getPhone() != null ? user.getPhone() : "")
+                                    .setAddress(user.getAddress() != null ? user.getAddress() : "")
+                                    .setIsEmailVerified(user.getIsEmailVerified() != null ? user.getIsEmailVerified() : false)
+                                    .setPositiveReviews(user.getPositiveReviews() != null ? user.getPositiveReviews() : 0)
+                                    .setNegativeReviews(user.getNegativeReviews() != null ? user.getNegativeReviews() : 0)
+                                    .setRatingPercent(user.getRatingPercent() != null ? user.getRatingPercent().doubleValue() : 0.0)
+                                    .setCreatedAt(user.getCreatedAt() != null ? 
+                                            user.getCreatedAt().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli() : 0L)
+                                    .setUpdatedAt(user.getUpdatedAt() != null ? 
+                                            user.getUpdatedAt().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli() : 0L)
+                                    .build())
+                            .collectList()
+                            .map(users -> GetAllUsersResponse.newBuilder()
+                                    .addAllUsers(users)
+                                    .setTotalCount(totalCount.intValue())
+                                    .setPage(page)
+                                    .setTotalPages(totalPages)
+                                    .build());
+                })
+                .doOnNext(response -> log.info("Returning users response with {} items", response.getUsersCount()))
+                .onErrorResume(error -> {
+                    log.error("Error fetching users", error);
+                    return Mono.just(GetAllUsersResponse.newBuilder().build());
                 });
     }
 }

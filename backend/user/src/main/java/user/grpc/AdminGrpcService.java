@@ -6,6 +6,8 @@ import org.springframework.grpc.server.service.GrpcService;
 
 import com.auction.proto.admin.user.ApproveUpgradeRequestRequest;
 import com.auction.proto.admin.user.ApproveUpgradeRequestResponse;
+import com.auction.proto.admin.user.GetAllUsersRequest;
+import com.auction.proto.admin.user.GetAllUsersResponse;
 import com.auction.proto.admin.user.GetUpgradeRequestsRequest;
 import com.auction.proto.admin.user.GetUpgradeRequestsResponse;
 import com.auction.proto.admin.user.ProfitStatisticsRequest;
@@ -100,6 +102,20 @@ public class AdminGrpcService extends ReactorAdminUserServiceGrpc.AdminUserServi
                 .onErrorResume(e -> {
                     log.error("Get profit statistics error: {}", e.getMessage());
                     return Mono.just(ProfitStatisticsResponse.newBuilder().build());
+                })
+        );
+    }
+
+    @Override
+    public Mono<GetAllUsersResponse> getAllUsers(Mono<GetAllUsersRequest> request) {
+        return request.doOnNext(req -> log.info("Raw get all users request: {}", JsonUtils.toJson(req)))
+                .flatMap(req ->
+            adminService.getAllUsers(req)
+                .map(result -> result)
+                .doOnNext(result -> log.info("Get all users successful - count: {}", result.getUsersCount()))
+                .onErrorResume(e -> {
+                    log.error("Get all users error: {}", e.getMessage());
+                    return Mono.just(GetAllUsersResponse.newBuilder().build());
                 })
         );
     }

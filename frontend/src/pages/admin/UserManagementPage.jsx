@@ -57,6 +57,8 @@ import {
   TrendingDown,
   ThumbUp,
   ThumbDown,
+  Tabs,
+  Tab,
 } from '@mui/icons-material';
 import * as XLSX from 'xlsx';
 
@@ -67,14 +69,20 @@ const UserManagementPage = () => {
   const theme = useTheme();
   
   // State management
+  const [activeTab, setActiveTab] = useState(0); // 0: All Users, 1: Upgrade Requests
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedRequest, setSelectedRequest] = useState(null);
+  const [selectedUser, setSelectedUser] = useState(null);
   
   // Data states
+  const [users, setUsers] = useState([]);
+  const [usersTotalCount, setUsersTotalCount] = useState(0);
+  const [usersTotalPages, setUsersTotalPages] = useState(0);
   const [upgradeRequests, setUpgradeRequests] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
@@ -101,6 +109,27 @@ const UserManagementPage = () => {
       });
     } finally {
       setStatsLoading(false);
+    }
+  };
+
+  // Fetch all users
+  const fetchAllUsers = async () => {
+    setLoading(true);
+    try {
+      const roleParam = roleFilter === 'All' ? '' : roleFilter.toLowerCase();
+      const data = await adminApi.getAllUsers(searchQuery, roleParam, page + 1, rowsPerPage);
+      setUsers(data.users || []);
+      setUsersTotalCount(data.totalCount || 0);
+      setUsersTotalPages(data.totalPages || 0);
+    } catch (error) {
+      console.error('Failed to fetch users:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to load users',
+        severity: 'error'
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -131,8 +160,12 @@ const UserManagementPage = () => {
   }, []);
 
   useEffect(() => {
-    fetchUpgradeRequests();
-  }, [page, rowsPerPage, statusFilter]);
+    if (activeTab === 0) {
+      fetchAllUsers();
+    } else {
+      fetchUpgradeRequests();
+    }
+  }, [page, rowsPerPage, statusFilter, roleFilter, searchQuery, activeTab]);
 
   // Filter requests by search query
   const filteredRequests = useMemo(() => {
@@ -146,6 +179,14 @@ const UserManagementPage = () => {
       request.userId?.toString().includes(query)
     );
   }, [upgradeRequests, searchQuery]);
+
+  const handleTabChange = (event, newValue) => {
+    setActiveTab(newValue);
+    setPage(0);
+    setSearchQuery('');
+    setRoleFilter('All');
+    setStatusFilter('All');
+  };
 
   // Handlers
   const handleChangePage = (event, newPage) => {
@@ -169,7 +210,11 @@ const UserManagementPage = () => {
 
   const handleRefresh = () => {
     fetchStatistics();
-    fetchUpgradeRequests();
+    if (activeTab === 0) {
+      fetchAllUsers();
+    } else {
+      fetchUpgradeRequests();
+    }
   };
 
   const handleOpenApprovalDialog = (request, action) => {
@@ -219,6 +264,16 @@ const UserManagementPage = () => {
     }
   };
 
+  const getRoleColor = (role) => {
+    const roleLower = role?.toLowerCase();
+    switch (roleLower) {
+      case 'admin': return 'error';
+      case 'seller': return 'primary';
+      case 'bidder': return 'info';
+      default: return 'default';
+    }
+  };
+
   const getStatusColor = (status) => {
     const statusLower = status?.toLowerCase();
     switch (statusLower) {
@@ -242,46 +297,341 @@ const UserManagementPage = () => {
 
   // Export to Excel function
   const handleExportToExcel = () => {
-    // Prepare data for export
-    const exportData = filteredRequests.map(request => ({
-      'Request ID': request.id,
-      'User ID': request.userId,
-      'Name': request.userFullName,
-      'Email': request.userEmail,
-      'Requested Role': request.requestedRole,
-      'Status': request.status,
-      'Created Date': formatDate(request.createdAt),
-      'Reviewed Date': formatDate(request.reviewedAt),
-      'Reason': request.reason || 'N/A',
-    }));
+    if (activeTab === 0) {
+      // Export users
+      const exportData = users.map(user => ({
+        'User ID': user.id,
+        'Name': user.fullName,
+        'Email': user.email,
+        'Phone': user.phone || 'N/A',
+        'Address': user.address || 'N/A',
+        'Role': user.role,
+        'Email Verified': user.isEmailVerified ? 'Yes' : 'No',
+        'Positive Reviews': user.positiveReviews,
+        'Negative Reviews': user.negativeReviews,
+        'Rating %': user.ratingPercent.toFixed(2),
+        'Created Date': formatDate(user.createdAt),
+      }));
 
-    // Create worksheet
-    const worksheet = XLSX.utils.json_to_sheet(exportData);
-    
-    // Set column widths
-    const columnWidths = [
-      { wch: 12 }, // Request ID
-      { wch: 10 }, // User ID
-      { wch: 25 }, // Name
-      { wch: 30 }, // Email
-      { wch: 15 }, // Requested Role
-      { wch: 12 }, // Status
-      { wch: 20 }, // Created Date
-      { wch: 20 }, // Reviewed Date
-      { wch: 40 }, // Reason
-    ];
-    worksheet['!cols'] = columnWidths;
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      const columnWidths = [
+        { wch: 10 }, { wch: 25 }, { wch: 30 }, { wch: 18 },
+        { wch: 30 }, { wch: 10 }, { wch: 15 }, { wch: 18 },
+        { wch: 18 }, { wch: 12 }, { wch: 20 }
+      ];
+      worksheet['!cols'] = columnWidths;
 
-    // Create workbook
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Upgrade Requests');
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Users');
 
-    // Generate file name with current date
-    const date = new Date().toISOString().split('T')[0];
-    const fileName = `upgrade_requests_${date}.xlsx`;
+      const date = new Date().toISOString().split('T')[0];
+      const fileName = `users_export_${date}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+    } else {
+      // Export upgrade requests (existing code)
+      const exportData = filteredRequests.map(request => ({
+        'Request ID': request.id,
+        'User ID': request.userId,
+        'Name': request.userFullName,
+        'Email': request.userEmail,
+        'Requested Role': request.requestedRole,
+        'Status': request.status,
+        'Created Date': formatDate(request.createdAt),
+        'Reviewed Date': formatDate(request.reviewedAt),
+        'Reason': request.reason || 'N/A',
+      }));
 
-    // Export file
-    XLSX.writeFile(workbook, fileName);
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      const columnWidths = [
+        { wch: 12 }, { wch: 10 }, { wch: 25 }, { wch: 30 },
+        { wch: 15 }, { wch: 12 }, { wch: 20 }, { wch: 20 }, { wch: 40 }
+      ];
+      worksheet['!cols'] = columnWidths;
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Upgrade Requests');
+
+      const date = new Date().toISOString().split('T')[0];
+      const fileName = `upgrade_requests_${date}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+    }
+  };
+
+  // Render Users Table
+  const renderUsersTable = () => {
+    if (loading) {
+      return (
+        <Box display="flex" justifyContent="center" py={8}>
+          <CircularProgress />
+        </Box>
+      );
+    }
+
+    if (users.length === 0) {
+      return (
+        <Box py={8} textAlign="center">
+          <Typography variant="h6" color="text.secondary">
+            No users found
+          </Typography>
+          <Typography variant="body2" color="text.secondary" mt={1}>
+            {searchQuery || roleFilter !== 'All' 
+              ? 'Try adjusting your filters' 
+              : 'There are no users at this time'}
+          </Typography>
+        </Box>
+      );
+    }
+
+    return (
+      <>
+        <TableContainer>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>User ID</TableCell>
+                <TableCell>User</TableCell>
+                <TableCell>Email</TableCell>
+                <TableCell>Phone</TableCell>
+                <TableCell>Role</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Reviews</TableCell>
+                <TableCell>Created Date</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {users.map((user) => (
+                <TableRow
+                  key={user.id}
+                  sx={{
+                    '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.05) },
+                  }}
+                >
+                  <TableCell>
+                    <Typography variant="body2" fontWeight={600}>
+                      #{user.id}
+                    </Typography>
+                  </TableCell>
+                  
+                  <TableCell>
+                    <Stack direction="row" spacing={2} alignItems="center">
+                      <Avatar sx={{ bgcolor: theme.palette.primary.main }}>
+                        {user.fullName?.charAt(0).toUpperCase() || 'U'}
+                      </Avatar>
+                      <Box>
+                        <Typography variant="body2" fontWeight={600}>
+                          {user.fullName || 'N/A'}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </TableCell>
+                  
+                  <TableCell>
+                    <Typography variant="body2" color="text.secondary">
+                      {user.email || 'N/A'}
+                    </Typography>
+                  </TableCell>
+                  
+                  <TableCell>
+                    <Typography variant="body2" color="text.secondary">
+                      {user.phone || 'N/A'}
+                    </Typography>
+                  </TableCell>
+                  
+                  <TableCell>
+                    <Chip
+                      label={user.role?.toUpperCase() || 'BIDDER'}
+                      size="small"
+                      color={getRoleColor(user.role)}
+                      variant="outlined"
+                    />
+                  </TableCell>
+                  
+                  <TableCell>
+                    <Chip
+                      label={user.isEmailVerified ? 'VERIFIED' : 'UNVERIFIED'}
+                      size="small"
+                      color={user.isEmailVerified ? 'success' : 'warning'}
+                      icon={user.isEmailVerified ? <CheckCircle fontSize="small" /> : <Warning fontSize="small" />}
+                    />
+                  </TableCell>
+                  
+                  <TableCell>
+                    <Box>
+                      <Typography variant="body2" color="success.main">
+                        👍 {user.positiveReviews || 0}
+                      </Typography>
+                      <Typography variant="body2" color="error.main">
+                        👎 {user.negativeReviews || 0}
+                      </Typography>
+                    </Box>
+                  </TableCell>
+                  
+                  <TableCell>
+                    <Typography variant="body2" color="text.secondary">
+                      {formatDate(user.createdAt)}
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        <TablePagination
+          component="div"
+          count={usersTotalCount}
+          page={page}
+          onPageChange={handleChangePage}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          rowsPerPageOptions={[5, 10, 20, 50]}
+          sx={{ borderTop: `1px solid ${theme.palette.divider}`, mt: 2 }}
+        />
+      </>
+    );
+  };
+
+  // Render Upgrade Requests Table
+  const renderUpgradeRequestsTable = () => {
+    if (loading) {
+      return (
+        <Box display="flex" justifyContent="center" py={8}>
+          <CircularProgress />
+        </Box>
+      );
+    }
+
+    if (filteredRequests.length === 0) {
+      return (
+        <Box py={8} textAlign="center">
+          <Typography variant="h6" color="text.secondary">
+            No upgrade requests found
+          </Typography>
+          <Typography variant="body2" color="text.secondary" mt={1}>
+            {searchQuery || statusFilter !== 'All' 
+              ? 'Try adjusting your filters' 
+              : 'There are no upgrade requests at this time'}
+          </Typography>
+        </Box>
+      );
+    }
+
+    return (
+      <>
+        <TableContainer>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Request ID</TableCell>
+                <TableCell>User</TableCell>
+                <TableCell>Email</TableCell>
+                <TableCell>User ID</TableCell>
+                <TableCell>Requested Role</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Created Date</TableCell>
+                <TableCell>Reviewed Date</TableCell>
+                <TableCell align="center">Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {filteredRequests.map((request) => (
+                <TableRow
+                  key={request.id}
+                  sx={{
+                    '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.05) },
+                  }}
+                >
+                  <TableCell>
+                    <Typography variant="body2" fontWeight={600}>
+                      #{request.id}
+                    </Typography>
+                  </TableCell>
+                  
+                  <TableCell>
+                    <Stack direction="row" spacing={2} alignItems="center">
+                      <Avatar sx={{ bgcolor: theme.palette.primary.main }}>
+                        {request.userFullName?.charAt(0).toUpperCase()}
+                      </Avatar>
+                      <Box>
+                        <Typography variant="body2" fontWeight={600}>
+                          {request.userFullName || 'N/A'}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </TableCell>
+                  
+                  <TableCell>
+                    <Typography variant="body2" color="text.secondary">
+                      {request.userEmail || 'N/A'}
+                    </Typography>
+                  </TableCell>
+                  
+                  <TableCell>
+                    <Typography variant="body2" color="text.secondary">
+                      #{request.userId}
+                    </Typography>
+                  </TableCell>
+                  
+                  <TableCell>
+                    <Chip
+                      label={request.requestedRole?.toUpperCase() || 'SELLER'}
+                      size="small"
+                      color="primary"
+                      variant="outlined"
+                    />
+                  </TableCell>
+                  
+                  <TableCell>
+                    <Chip
+                      label={request.status?.toUpperCase() || 'PENDING'}
+                      size="small"
+                      color={getStatusColor(request.status)}
+                      icon={
+                        request.status?.toLowerCase() === 'approved' ? <CheckCircle fontSize="small" /> :
+                        request.status?.toLowerCase() === 'rejected' ? <Block fontSize="small" /> : undefined
+                      }
+                    />
+                  </TableCell>
+                  
+                  <TableCell>
+                    <Typography variant="body2" color="text.secondary">
+                      {formatDate(request.createdAt)}
+                    </Typography>
+                  </TableCell>
+                  
+                  <TableCell>
+                    <Typography variant="body2" color="text.secondary">
+                      {formatDate(request.reviewedAt)}
+                    </Typography>
+                  </TableCell>
+                  
+                  <TableCell align="center">
+                    <IconButton
+                      size="small"
+                      onClick={(e) => handleMenuOpen(e, request)}
+                      disabled={request.status?.toLowerCase() !== 'pending'}
+                    >
+                      <MoreVert />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        <TablePagination
+          component="div"
+          count={totalCount}
+          page={page}
+          onPageChange={handleChangePage}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          rowsPerPageOptions={[5, 10, 20, 50]}
+          sx={{ borderTop: `1px solid ${theme.palette.divider}`, mt: 2 }}
+        />
+      </>
+    );
   };
 
   return (
@@ -300,7 +650,7 @@ const UserManagementPage = () => {
             User Management
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Manage upgrade requests and monitor user statistics
+            Manage all users, upgrade requests and monitor statistics
           </Typography>
         </Box>
 
@@ -370,6 +720,14 @@ const UserManagementPage = () => {
 
         {/* User List Section */}
         <Paper sx={{ p: 4 }}>
+          {/* Tabs */}
+          <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+            <Tabs value={activeTab} onChange={handleTabChange}>
+              <Tab label="All Users" icon={<People />} iconPosition="start" />
+              <Tab label="Upgrade Requests" icon={<PersonAdd />} iconPosition="start" />
+            </Tabs>
+          </Box>
+
           <Stack direction="row" alignItems="center" spacing={2} mb={3}>
             <Avatar
               sx={{
@@ -380,7 +738,7 @@ const UserManagementPage = () => {
               <FilterList />
             </Avatar>
             <Typography variant="h5" fontWeight={700}>
-              Upgrade Requests (Bidder → Seller)
+              {activeTab === 0 ? 'All Users' : 'Upgrade Requests (Bidder → Seller)'}
             </Typography>
             <Box sx={{ flexGrow: 1 }} />
             <Tooltip title="Refresh">
@@ -399,7 +757,7 @@ const UserManagementPage = () => {
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} mb={3}>
             <TextField
               fullWidth
-              placeholder="Search by name, email, or ID..."
+              placeholder={activeTab === 0 ? "Search by name, email, or phone..." : "Search by name, email, or ID..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               InputProps={{
@@ -412,24 +770,41 @@ const UserManagementPage = () => {
               sx={{ maxWidth: { sm: 400 } }}
             />
 
-            <FormControl sx={{ minWidth: 150 }}>
-              <InputLabel>Status</InputLabel>
-              <Select
-                value={statusFilter}
-                label="Status"
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <MenuItem value="All">All Status</MenuItem>
-                <MenuItem value="Pending">Pending</MenuItem>
-                <MenuItem value="Approved">Approved</MenuItem>
-                <MenuItem value="Rejected">Rejected</MenuItem>
-              </Select>
-            </FormControl>
+            {activeTab === 0 ? (
+              <FormControl sx={{ minWidth: 150 }}>
+                <InputLabel>Role</InputLabel>
+                <Select
+                  value={roleFilter}
+                  label="Role"
+                  onChange={(e) => setRoleFilter(e.target.value)}
+                >
+                  <MenuItem value="All">All Roles</MenuItem>
+                  <MenuItem value="Bidder">Bidder</MenuItem>
+                  <MenuItem value="Seller">Seller</MenuItem>
+                  <MenuItem value="Admin">Admin</MenuItem>
+                </Select>
+              </FormControl>
+            ) : (
+              <FormControl sx={{ minWidth: 150 }}>
+                <InputLabel>Status</InputLabel>
+                <Select
+                  value={statusFilter}
+                  label="Status"
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                >
+                  <MenuItem value="All">All Status</MenuItem>
+                  <MenuItem value="Pending">Pending</MenuItem>
+                  <MenuItem value="Approved">Approved</MenuItem>
+                  <MenuItem value="Rejected">Rejected</MenuItem>
+                </Select>
+              </FormControl>
+            )}
 
             <Button
               variant="outlined"
               startIcon={<FilterList />}
               onClick={() => {
+                setRoleFilter('All');
                 setStatusFilter('All');
                 setSearchQuery('');
               }}
@@ -441,13 +816,16 @@ const UserManagementPage = () => {
           {/* Results Summary */}
           <Box mb={2}>
             <Typography variant="body2" color="text.secondary">
-              Showing {filteredRequests.length} of {totalCount} requests
-              {(statusFilter !== 'All' || searchQuery) && ' (filtered)'}
+              {activeTab === 0 
+                ? `Showing ${users.length} of ${usersTotalCount} users${(roleFilter !== 'All' || searchQuery) ? ' (filtered)' : ''}`
+                : `Showing ${filteredRequests.length} of ${totalCount} requests${(statusFilter !== 'All' || searchQuery) ? ' (filtered)' : ''}`
+              }
             </Typography>
           </Box>
 
-          {/* Loading State */}
-          {loading ? (
+          {/* Content based on active tab */}
+          {activeTab === 0 ? renderUsersTable() : renderUpgradeRequestsTable()}
+        </Paper>
             <Box display="flex" justifyContent="center" py={8}>
               <CircularProgress />
             </Box>

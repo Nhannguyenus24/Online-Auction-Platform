@@ -63,6 +63,16 @@ message UpgradeRequest {
   int64 reviewed_at = 8; // Timestamp in milliseconds
   int32 admin_id = 9; // ID of admin who reviewed the request
   string reason = 10; // Optional: reason for rejection
+  
+  // Additional user information
+  string user_phone = 11;
+  string user_address = 12;
+  bool is_email_verified = 13;
+  int32 positive_reviews = 14;
+  int32 negative_reviews = 15;
+  double rating_percent = 16;
+  int64 user_created_at = 17; // User registration timestamp in milliseconds
+  string current_role = 18; // User's current role
 }
 
 message GetUpgradeRequestsRequest {
@@ -115,6 +125,36 @@ message YearlyProfit {
   int32 completed_orders = 4; // Number of orders with successful payment
 }
 
+// User List Messages
+message UserInfo {
+  int32 id = 1;
+  string email = 2;
+  string full_name = 3;
+  string role = 4; // "bidder", "seller", "admin"
+  string phone = 5;
+  string address = 6;
+  bool is_email_verified = 7;
+  int32 positive_reviews = 8;
+  int32 negative_reviews = 9;
+  double rating_percent = 10;
+  int64 created_at = 11; // Timestamp in milliseconds
+  int64 updated_at = 12; // Timestamp in milliseconds
+}
+
+message GetAllUsersRequest {
+  string search_query = 1; // Optional: search by name, email, or phone
+  string role_filter = 2; // Optional: filter by role (bidder, seller, admin)
+  int32 page = 3; // Page number (1-based)
+  int32 page_size = 4; // Number of items per page
+}
+
+message GetAllUsersResponse {
+  repeated UserInfo users = 1;
+  int32 total_count = 2;
+  int32 page = 3;
+  int32 total_pages = 4;
+}
+
 // Admin User Service
 service AdminUserService {
   // Get overall user statistics
@@ -131,4 +171,7 @@ service AdminUserService {
   
   // Get profit statistics by month or year (profit = 30% of successful paid orders)
   rpc GetProfitStatistics(ProfitStatisticsRequest) returns (ProfitStatisticsResponse);
+  
+  // Get all users with pagination and search
+  rpc GetAllUsers(GetAllUsersRequest) returns (GetAllUsersResponse);
 }

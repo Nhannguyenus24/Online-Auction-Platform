@@ -23,6 +23,7 @@ import com.auction.proto.admin.product.DeleteCategoryRequest;
 import com.auction.proto.admin.product.RemoveProductRequest;
 import com.auction.proto.admin.product.UpdateCategoryRequest;
 import com.auction.proto.admin.user.ApproveUpgradeRequestRequest;
+import com.auction.proto.admin.user.GetAllUsersRequest;
 import com.auction.proto.admin.user.GetUpgradeRequestsRequest;
 import com.auction.proto.admin.user.ProfitStatisticsRequest;
 import com.auction.proto.admin.user.RegistrationStatisticsRequest;
@@ -191,6 +192,66 @@ public class AdminController {
     // ============================================================================
     // UPGRADE REQUESTS
     // ============================================================================
+
+    @GetMapping("/users")
+    @Operation(summary = "Get all users", description = "Get all users with pagination and search. Requires admin authentication.")
+    public ResponseEntity<UsersResponseDto> getAllUsers(
+            @Parameter(description = "Search query (name, email, or phone)")
+            @RequestParam(required = false, defaultValue = "") String searchQuery,
+            @Parameter(description = "Role filter (bidder, seller, admin)")
+            @RequestParam(required = false, defaultValue = "") String roleFilter,
+            @Parameter(description = "Page number (1-based)")
+            @RequestParam(defaultValue = "1") int page,
+            @Parameter(description = "Number of items per page")
+            @RequestParam(defaultValue = "20") int pageSize) {
+        
+        log.info("Get all users - searchQuery: {}, roleFilter: {}, page: {}, pageSize: {}", 
+                searchQuery, roleFilter, page, pageSize);
+
+        GetAllUsersRequest grpcRequest = GetAllUsersRequest.newBuilder()
+                .setSearchQuery(searchQuery)
+                .setRoleFilter(roleFilter)
+                .setPage(page)
+                .setPageSize(pageSize)
+                .build();
+
+        try {
+            var response = adminUserGrpcClient.getAllUsers(grpcRequest).block();
+            if (response == null) {
+                throw new RuntimeException("gRPC response is null");
+            }
+            
+            List<UserItemDto> users = response.getUsersList().stream()
+                .map(user -> new UserItemDto(
+                    user.getId(),
+                    user.getEmail(),
+                    user.getFullName(),
+                    user.getRole(),
+                    user.getPhone(),
+                    user.getAddress(),
+                    user.getIsEmailVerified(),
+                    user.getPositiveReviews(),
+                    user.getNegativeReviews(),
+                    user.getRatingPercent(),
+                    user.getCreatedAt(),
+                    user.getUpdatedAt()
+                ))
+                .toList();
+            
+            UsersResponseDto result = new UsersResponseDto(
+                users,
+                response.getTotalCount(),
+                response.getPage(),
+                response.getTotalPages()
+            );
+
+            log.info("Get all users successful - count: {}", users.size());
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Get all users error: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
 
     @GetMapping("/upgrade-requests")
     @Operation(summary = "Get upgrade requests", description = "Get all upgrade requests (bidder -> seller) with pagination. Requires admin authentication.")
@@ -571,6 +632,44 @@ public class AdminController {
         @Schema(description = "Current page number", example = "1")
         int page,
         @Schema(description = "Total number of pages", example = "3")
+        int totalPages
+    ) {}
+
+    public record UserItemDto(
+        @Schema(description = "User ID", example = "123")
+        int id,
+        @Schema(description = "User email", example = "user@example.com")
+        String email,
+        @Schema(description = "User full name", example = "John Doe")
+        String fullName,
+        @Schema(description = "User role", example = "bidder")
+        String role,
+        @Schema(description = "User phone", example = "+1234567890")
+        String phone,
+        @Schema(description = "User address", example = "123 Main St")
+        String address,
+        @Schema(description = "Email verification status", example = "true")
+        boolean isEmailVerified,
+        @Schema(description = "Positive reviews count", example = "15")
+        int positiveReviews,
+        @Schema(description = "Negative reviews count", example = "2")
+        int negativeReviews,
+        @Schema(description = "Rating percentage", example = "88.5")
+        double ratingPercent,
+        @Schema(description = "Created timestamp", example = "1704067200000")
+        long createdAt,
+        @Schema(description = "Updated timestamp", example = "1704153600000")
+        long updatedAt
+    ) {}
+
+    public record UsersResponseDto(
+        @Schema(description = "List of users")
+        List<UserItemDto> users,
+        @Schema(description = "Total number of users", example = "150")
+        int totalCount,
+        @Schema(description = "Current page number", example = "1")
+        int page,
+        @Schema(description = "Total number of pages", example = "8")
         int totalPages
     ) {}
 

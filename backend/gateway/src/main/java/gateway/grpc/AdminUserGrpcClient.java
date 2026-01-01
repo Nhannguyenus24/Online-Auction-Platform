@@ -9,6 +9,8 @@ import org.springframework.stereotype.Component;
 
 import com.auction.proto.admin.user.ApproveUpgradeRequestRequest;
 import com.auction.proto.admin.user.ApproveUpgradeRequestResponse;
+import com.auction.proto.admin.user.GetAllUsersRequest;
+import com.auction.proto.admin.user.GetAllUsersResponse;
 import com.auction.proto.admin.user.GetUpgradeRequestsRequest;
 import com.auction.proto.admin.user.GetUpgradeRequestsResponse;
 import com.auction.proto.admin.user.ProfitStatisticsRequest;
@@ -96,5 +98,14 @@ public class AdminUserGrpcClient {
     public Mono<ProfitStatisticsResponse> getProfitStatistics(ProfitStatisticsRequest request) {
         log.info("gRPC getProfitStatistics request: {}", JsonUtils.toJson(request));
         return adminUserServiceStub.getProfitStatistics(Mono.just(request));
+    }
+
+    // ============================================================================
+    // USER MANAGEMENT
+    // ============================================================================
+
+    public Mono<GetAllUsersResponse> getAllUsers(GetAllUsersRequest request) {
+        log.info("gRPC getAllUsers request: {}", JsonUtils.toJson(request));
+        return adminUserServiceStub.getAllUsers(Mono.just(request));
     }
 }

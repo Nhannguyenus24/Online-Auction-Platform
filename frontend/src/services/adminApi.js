@@ -19,6 +19,27 @@ import axiosInstance from '../utils/axios';
 
 export const adminApi = {
   /**
+   * Get all users with pagination and search
+   * Requires admin authentication
+   * @param {string} searchQuery - Search query (name, email, or phone)
+   * @param {string} roleFilter - Role filter (bidder, seller, admin)
+   * @param {number} page - Page number (1-based)
+   * @param {number} pageSize - Number of items per page
+   * @returns {Promise} - Users data
+   */
+  getAllUsers: async (searchQuery = '', roleFilter = '', page = 1, pageSize = 20) => {
+    try {
+      const response = await axiosInstance.get('/api/admin/users', {
+        params: { searchQuery, roleFilter, page, pageSize }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Get all users error:', error);
+      throw error;
+    }
+  },
+
+  /**
    * Get user statistics
    * Requires admin authentication
    * @param {string} roleFilter - Role filter (bidder, seller, admin)
