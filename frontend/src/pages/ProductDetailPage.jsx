@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import { useState, useRef, useEffect } from "react";
+=======
+import { useState, useRef, useEffect } from 'react';
+>>>>>>> 4908400446e374216968da11da063a748a693559
 import {
   Box,
   Container,
@@ -33,7 +37,11 @@ import {
   Link,
   Rating,
   Tooltip,
+<<<<<<< HEAD
 } from "@mui/material";
+=======
+} from '@mui/material';
+>>>>>>> 4908400446e374216968da11da063a748a693559
 import {
   AccessTime,
   Gavel,
@@ -48,6 +56,7 @@ import {
   ChevronRight,
   Cancel,
   Block,
+<<<<<<< HEAD
   Home,
   NavigateNext,
   Star,
@@ -59,11 +68,22 @@ import RichTextEditor from "../components/RichTextEditor";
 import Page from "../components/Page";
 import { formatPrice } from "../utils/formatNumber";
 import { productApi } from "../services/productApi";
+=======
+  NavigateNext,
+  Home,
+} from '@mui/icons-material';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
+import RichTextEditor from '../components/RichTextEditor';
+import Page from '../components/Page';
+import { productApi } from '../services/productApi';
+>>>>>>> 4908400446e374216968da11da063a748a693559
 
 
 function ProductDetailPage() {
   const navigate = useNavigate();
   const { id: productId } = useParams();
+<<<<<<< HEAD
   const { user } = useAuth();
 
   // Product data state
@@ -73,6 +93,10 @@ function ProductDetailPage() {
   const [relatedProducts, setRelatedProducts] = useState([]);
 
   // UI state
+=======
+  const { user, isAuthenticated } = useAuth();
+  
+>>>>>>> 4908400446e374216968da11da063a748a693559
   const [selectedImage, setSelectedImage] = useState(0);
   const [isWatchlisted, setIsWatchlisted] = useState(false);
   const [bidAmount, setBidAmount] = useState("");
@@ -80,17 +104,33 @@ function ProductDetailPage() {
   const [openBidDialog, setOpenBidDialog] = useState(false);
   const [answerTexts, setAnswerTexts] = useState({});
   const [submittingAnswer, setSubmittingAnswer] = useState({});
+<<<<<<< HEAD
   const [productDescription, setProductDescription] = useState("");
   const [newDescription, setNewDescription] = useState("");
   const [submittingDescription, setSubmittingDescription] = useState(false);
+=======
+  const [questions, setQuestions] = useState([]);
+  const [productDescription, setProductDescription] = useState('');
+  const [newDescription, setNewDescription] = useState('');
+  const [submittingDescription, setSubmittingDescription] = useState(false);
+  const [bidHistory, setBidHistory] = useState([]);
+>>>>>>> 4908400446e374216968da11da063a748a693559
   const [rejectedBids, setRejectedBids] = useState(new Set());
   const [openRejectDialog, setOpenRejectDialog] = useState(false);
   const [bidToReject, setBidToReject] = useState(null);
   const [rejectingBid, setRejectingBid] = useState(null);
   const [activeTab, setActiveTab] = useState(0);
+<<<<<<< HEAD
   const relatedProductsRef = useRef(null);
 
   // Loading and error states
+=======
+  const [relatedProducts, setRelatedProducts] = useState([]);
+  const relatedProductsRef = useRef(null);
+  
+  // Product data state
+  const [product, setProduct] = useState(null);
+>>>>>>> 4908400446e374216968da11da063a748a693559
   const [loading, setLoading] = useState({
     product: true,
     bidHistory: false,
@@ -104,6 +144,7 @@ function ProductDetailPage() {
     relatedProducts: null,
   });
 
+<<<<<<< HEAD
   // Check if current user is the seller/owner of this product
   const isSeller =
     user &&
@@ -318,6 +359,207 @@ function ProductDetailPage() {
 
     return () => clearInterval(interval);
   }, [productId, product]);
+=======
+  // Fetch product details
+  useEffect(() => {
+    if (!productId) return;
+
+    const fetchProductDetails = async () => {
+      setLoading((prev) => ({ ...prev, product: true }));
+      setError((prev) => ({ ...prev, product: null }));
+      
+      try {
+        const response = await productApi.getProductDetails(parseInt(productId));
+        if (response.success && response.product) {
+          const productData = response.product;
+          setProduct(productData);
+          
+          // Set description
+          if (productData.description) {
+            setProductDescription(productData.description);
+          }
+          
+          // Set watchlist status
+          if (productData.isInWatchlist !== undefined) {
+            setIsWatchlisted(productData.isInWatchlist);
+          }
+        } else {
+          setError((prev) => ({ ...prev, product: response.message || 'Failed to load product' }));
+        }
+      } catch (err) {
+        console.error('Error fetching product details:', err);
+        setError((prev) => ({ 
+          ...prev, 
+          product: err.response?.data?.message || err.message || 'Failed to load product details' 
+        }));
+      } finally {
+        setLoading((prev) => ({ ...prev, product: false }));
+      }
+    };
+
+    fetchProductDetails();
+  }, [productId]);
+
+  // Fetch bid history
+  useEffect(() => {
+    if (!productId || !isAuthenticated) return;
+
+    const fetchBidHistory = async () => {
+      setLoading((prev) => ({ ...prev, bidHistory: true }));
+      setError((prev) => ({ ...prev, bidHistory: null }));
+      
+      try {
+        const response = await productApi.getProductBids(parseInt(productId));
+        if (response.success) {
+          // Map API response to component format
+          const mappedBids = response.bids.map((bid) => ({
+            id: bid.id,
+            bidder: bid.bidderNameMasked || 'Anonymous',
+            amount: bid.amount,
+            time: new Date(parseInt(bid.createdAt)),
+            isAuto: bid.isAuto,
+            isCurrentUser: bid.isCurrentUser,
+          }));
+          setBidHistory(mappedBids);
+        } else {
+          setError((prev) => ({ ...prev, bidHistory: response.message || 'Failed to load bid history' }));
+        }
+      } catch (err) {
+        console.error('Error fetching bid history:', err);
+        setError((prev) => ({ 
+          ...prev, 
+          bidHistory: err.response?.data?.message || err.message || 'Failed to load bid history' 
+        }));
+      } finally {
+        setLoading((prev) => ({ ...prev, bidHistory: false }));
+      }
+    };
+
+    fetchBidHistory();
+  }, [productId, isAuthenticated]);
+
+  // Fetch questions
+  useEffect(() => {
+    if (!productId || !isAuthenticated) return;
+
+    const fetchQuestions = async () => {
+      setLoading((prev) => ({ ...prev, questions: true }));
+      setError((prev) => ({ ...prev, questions: null }));
+      
+      try {
+        const response = await productApi.getProductQuestions(parseInt(productId));
+        if (response.success) {
+          // Map API response to component format
+          const mappedQuestions = response.questions.map((q) => ({
+            id: q.id,
+            bidder: { 
+              name: q.askerName || 'Anonymous',
+              avatar: `https://i.pravatar.cc/150?img=${q.askerId || 1}` 
+            },
+            question: q.question,
+            answer: q.answer || null,
+            askedAt: new Date(parseInt(q.createdAt)),
+            answeredAt: q.answeredAt ? new Date(parseInt(q.answeredAt)) : null,
+          }));
+          setQuestions(mappedQuestions);
+        } else {
+          setError((prev) => ({ ...prev, questions: response.message || 'Failed to load questions' }));
+        }
+      } catch (err) {
+        console.error('Error fetching questions:', err);
+        setError((prev) => ({ 
+          ...prev, 
+          questions: err.response?.data?.message || err.message || 'Failed to load questions' 
+        }));
+      } finally {
+        setLoading((prev) => ({ ...prev, questions: false }));
+      }
+    };
+
+    fetchQuestions();
+  }, [productId, isAuthenticated]);
+
+  // Fetch related products
+  useEffect(() => {
+    if (!productId) {
+      console.log('Related products: No productId, skipping fetch');
+      return;
+    }
+    
+    if (!isAuthenticated) {
+      console.log('Related products: Not authenticated yet, waiting...');
+      return;
+    }
+
+    console.log('Related products: Fetching for productId:', productId, 'isAuthenticated:', isAuthenticated);
+
+    const fetchRelatedProducts = async () => {
+      setLoading((prev) => ({ ...prev, relatedProducts: true }));
+      setError((prev) => ({ ...prev, relatedProducts: null }));
+      
+      try {
+        console.log('Related products: Calling API...');
+        const response = await productApi.getRelatedProducts(parseInt(productId), 5);
+        console.log('Related products: API response:', response);
+        
+        if (response.success) {
+          // Map API response to component format
+          const mappedProducts = (response.products || []).map((p) => {
+            const primaryImage = p.images?.find(img => img.isPrimary) || p.images?.[0];
+            return {
+              id: p.id,
+              title: p.title,
+              image: primaryImage?.url || '/placeholder-image.jpg',
+              currentPrice: p.currentPrice || 0,
+              endTime: p.endsAt ? new Date(parseInt(p.endsAt)) : new Date(),
+              bidCount: p.bidsCount || 0,
+            };
+          });
+          console.log('Related products: Mapped products:', mappedProducts);
+          setRelatedProducts(mappedProducts);
+          
+          if (mappedProducts.length === 0) {
+            console.log('Related products: No related products found in same category');
+          }
+        } else {
+          console.warn('Related products: API returned success=false:', response.message);
+          setError((prev) => ({ ...prev, relatedProducts: response.message || 'Failed to load related products' }));
+        }
+      } catch (err) {
+        console.error('Error fetching related products:', err);
+        console.error('Error details:', {
+          message: err.message,
+          response: err.response?.data,
+          status: err.response?.status,
+        });
+        setError((prev) => ({ 
+          ...prev, 
+          relatedProducts: err.response?.data?.message || err.message || 'Failed to load related products' 
+        }));
+      } finally {
+        setLoading((prev) => ({ ...prev, relatedProducts: false }));
+      }
+    };
+
+    fetchRelatedProducts();
+  }, [productId, isAuthenticated]);
+
+  // Check if current user is the seller
+  const isSeller = user && user.roleName?.toLowerCase() === 'seller' && product && user.id === product.sellerId;
+  
+  // Get all images from product
+  const allImages = product?.images 
+    ? product.images.map(img => img.url)
+    : [];
+  // Check if auction has started (has bids)
+  const hasStartedBidding = (product?.bidsCount || 0) > 0 || bidHistory.length > 0;
+  const formatPrice = (price) => {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND',
+    }).format(price);
+  };
+>>>>>>> 4908400446e374216968da11da063a748a693559
 
   const getTimeLeft = (endTime) => {
     const now = new Date();
@@ -345,6 +587,7 @@ function ProductDetailPage() {
   };
 
   const handlePreviousImage = () => {
+<<<<<<< HEAD
     if (!product || !product.images || product.images.length <= 1) return;
     setSelectedImage((prev) => (prev === 0 ? product.images.length - 1 : prev - 1));
   };
@@ -352,11 +595,46 @@ function ProductDetailPage() {
   const handleNextImage = () => {
     if (!product || !product.images || product.images.length <= 1) return;
     setSelectedImage((prev) => (prev === product.images.length - 1 ? 0 : prev + 1));
+=======
+    setSelectedImage((prev) => 
+      prev === 0 ? allImages.length - 1 : prev - 1
+    );
+  };
+
+  const handleNextImage = () => {
+    setSelectedImage((prev) => 
+      prev === allImages.length - 1 ? 0 : prev + 1
+    );
+>>>>>>> 4908400446e374216968da11da063a748a693559
+  };
+
+  const handleBuyNow = () => {
+    if (!isAuthenticated) {
+      navigate('/auth/login');
+      return;
+    }
+    // TODO: Implement buy now API call
+    console.log('Buying now:', product?.buyNowPrice);
+  };
+
+  const handleScrollRelatedProducts = (direction) => {
+    if (relatedProductsRef.current) {
+      const scrollAmount = 400;
+      relatedProductsRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth',
+      });
+    }
   };
 
   const handlePlaceBid = () => {
+<<<<<<< HEAD
     if (!user) {
       navigate("/auth/login");
+=======
+    if (!isAuthenticated) {
+      navigate('/auth/login');
+>>>>>>> 4908400446e374216968da11da063a748a693559
       return;
     }
     setOpenBidDialog(true);
@@ -364,6 +642,7 @@ function ProductDetailPage() {
 
   const handleConfirmBid = async () => {
     if (!productId || !bidAmount) return;
+<<<<<<< HEAD
 
     const amount = Number(bidAmount);
     if (isNaN(amount) || amount <= 0) {
@@ -461,8 +740,56 @@ function ProductDetailPage() {
     if (!user) {
       navigate("/auth/login");
       return;
+=======
+    
+    try {
+      // TODO: Implement place bid API call
+      // await productApi.placeBid(parseInt(productId), parseFloat(bidAmount));
+      console.log('Placing bid:', bidAmount);
+      setOpenBidDialog(false);
+      setBidAmount('');
+      // Refresh bid history after placing bid
+      // await fetchBidHistory();
+    } catch (err) {
+      console.error('Error placing bid:', err);
     }
-    setIsWatchlisted(!isWatchlisted);
+  };
+
+  const handleAskQuestion = async () => {
+    if (!productId || !question.trim()) return;
+    
+    try {
+      // TODO: Implement ask question API call
+      // await productApi.askQuestion(parseInt(productId), question);
+      console.log('Posting question:', question);
+      setQuestion('');
+      // Refresh questions after posting
+      // await fetchQuestions();
+    } catch (err) {
+      console.error('Error posting question:', err);
+    }
+  };
+
+  const handleToggleWatchlist = async () => {
+    if (!isAuthenticated) {
+      navigate('/auth/login');
+      return;
+    }
+    
+    if (!productId) return;
+    
+    try {
+      // TODO: Implement watchlist toggle API call
+      // if (isWatchlisted) {
+      //   await productApi.removeFromWatchlist(parseInt(productId));
+      // } else {
+      //   await productApi.addToWatchlist(parseInt(productId));
+      // }
+      setIsWatchlisted(!isWatchlisted);
+    } catch (err) {
+      console.error('Error toggling watchlist:', err);
+>>>>>>> 4908400446e374216968da11da063a748a693559
+    }
   };
 
   const handleAnswerChange = (questionId, value) => {
@@ -479,6 +806,7 @@ function ProductDetailPage() {
     setSubmittingAnswer((prev) => ({ ...prev, [questionId]: true }));
 
     try {
+<<<<<<< HEAD
       const response = await productApi.answerQuestion(productId, questionId, answer);
       if (response.success) {
         // Refresh questions
@@ -497,6 +825,20 @@ function ProductDetailPage() {
           }));
           setQuestions(mappedQuestions);
         }
+=======
+      // TODO: Implement answer question API call
+      // await productApi.answerQuestion(parseInt(productId), questionId, answer);
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      
+      // Update the question with answer in state
+      setQuestions((prev) =>
+        prev.map((q) =>
+          q.id === questionId
+            ? { ...q, answer, answeredAt: new Date() }
+            : q
+        )
+      );
+>>>>>>> 4908400446e374216968da11da063a748a693559
 
         // Clear answer text
         setAnswerTexts((prev) => {
@@ -529,6 +871,7 @@ function ProductDetailPage() {
     setSubmittingDescription(true);
 
     try {
+<<<<<<< HEAD
       const response = await productApi.appendDescription(productId, newDescription);
       if (response.success) {
         // Refresh product to get updated description
@@ -545,6 +888,18 @@ function ProductDetailPage() {
         setNewDescription("");
         alert(response.message || "Description appended successfully!");
       }
+=======
+      // TODO: Implement append description API call
+      // await productApi.appendDescription(parseInt(productId), newDescription);
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      
+      // Append new description to existing description
+      const updatedDescription = productDescription + '\n<hr style="margin: 20px 0; border: none; border-top: 2px solid #e0e0e0;" />\n' + newDescription;
+      setProductDescription(updatedDescription);
+      
+      // Clear new description
+      setNewDescription('');
+>>>>>>> 4908400446e374216968da11da063a748a693559
     } catch (err) {
       console.error("Error submitting new description:", err);
       alert(err.response?.data?.message || err.message || "Failed to append description");
@@ -568,6 +923,7 @@ function ProductDetailPage() {
 
     setRejectingBid(bidToReject.id);
     try {
+<<<<<<< HEAD
       const response = await productApi.rejectBid(productId, bidToReject.bidderId);
       if (response.success) {
         // Mark bid as rejected
@@ -576,6 +932,23 @@ function ProductDetailPage() {
         handleCloseRejectDialog();
         alert(response.message || "Bid rejected successfully");
       }
+=======
+      // TODO: Implement reject bid API call
+      // await productApi.rejectBid(parseInt(productId), bidToReject.id);
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      
+      // Mark bid as rejected
+      setRejectedBids((prev) => new Set([...prev, bidToReject.id]));
+      
+      // Remove rejected bid from history (or keep it with rejected status)
+      // Option 1: Remove from list
+      // setBidHistory((prev) => prev.filter((bid) => bid.id !== bidToReject.id));
+      
+      // Option 2: Keep in list but mark as rejected (better UX)
+      // Already handled by rejectedBids Set
+      
+      handleCloseRejectDialog();
+>>>>>>> 4908400446e374216968da11da063a748a693559
     } catch (err) {
       console.error("Error rejecting bid:", err);
       alert(err.response?.data?.message || err.message || "Failed to reject bid");
@@ -584,6 +957,7 @@ function ProductDetailPage() {
     }
   };
 
+<<<<<<< HEAD
   const handleScrollRelatedProducts = (direction) => {
     if (relatedProductsRef.current) {
       const scrollAmount = 370; // 350px (card width) + 20px (gap)
@@ -608,6 +982,13 @@ function ProductDetailPage() {
         product.currentPrice + product.bidIncrement,
         product.currentPrice + product.bidIncrement * 2,
         product.currentPrice + product.bidIncrement * 3,
+=======
+  const suggestedBids = product
+    ? [
+        (product.currentPrice || 0) + (product.stepPrice || 0),
+        (product.currentPrice || 0) + (product.stepPrice || 0) * 2,
+        (product.currentPrice || 0) + (product.stepPrice || 0) * 3,
+>>>>>>> 4908400446e374216968da11da063a748a693559
       ]
     : [];
 
@@ -616,12 +997,16 @@ function ProductDetailPage() {
     return (
       <Page title="Loading Product...">
         <Box sx={{ bgcolor: "grey.50", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+<<<<<<< HEAD
           <Stack spacing={2} alignItems="center">
             <CircularProgress size={60} />
             <Typography variant="h6" color="text.secondary">
               Loading product...
             </Typography>
           </Stack>
+=======
+          <CircularProgress />
+>>>>>>> 4908400446e374216968da11da063a748a693559
         </Box>
       </Page>
     );
@@ -631,6 +1016,7 @@ function ProductDetailPage() {
   if (error.product || !product) {
     return (
       <Page title="Product Not Found">
+<<<<<<< HEAD
         <Box sx={{ bgcolor: "grey.50", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <Alert severity="error" sx={{ maxWidth: 600 }}>
             <Typography variant="h6" gutterBottom>
@@ -640,13 +1026,62 @@ function ProductDetailPage() {
               Go to Home
             </Button>
           </Alert>
+=======
+        <Box sx={{ bgcolor: "grey.50", minHeight: "100vh" }}>
+          <Container maxWidth="xl" sx={{ py: 4 }}>
+            <Alert severity="error">
+              {error.product || "Product not found"}
+            </Alert>
+            <Button onClick={() => navigate("/")} sx={{ mt: 2 }}>
+              Go to Home
+            </Button>
+          </Container>
+>>>>>>> 4908400446e374216968da11da063a748a693559
         </Box>
       </Page>
     );
   }
+<<<<<<< HEAD
 
   return (
     <Page title={`${product.title} - Product Detail`}>
+=======
+
+  // Map product data to expected format
+  const productData = {
+    id: product.id,
+    title: product.title,
+    description: product.description || '',
+    currentPrice: product.currentPrice || 0,
+    buyNowPrice: product.buyNowPrice || null,
+    startingPrice: product.startingPrice || 0,
+    bidIncrement: product.stepPrice || 0,
+    seller: {
+      id: product.sellerId || product.sellerInfo?.id,
+      name: product.sellerName || product.sellerInfo?.fullName || 'Unknown Seller',
+      rating: (product.sellerRatingPercent || product.sellerInfo?.ratingPercent || 0) / 20, // Convert from percent to 5-star scale
+      ratingCount: (product.sellerPositiveReviews || product.sellerInfo?.positiveReviews || 0) + 
+                   (product.sellerNegativeReviews || product.sellerInfo?.negativeReviews || 0),
+      avatar: `https://i.pravatar.cc/150?img=${product.sellerId || 1}`,
+    },
+    currentBidder: product.highestBidderMasked ? {
+      name: product.highestBidderMasked,
+      bidCount: 0, // This would need to come from API
+    } : null,
+    postedTime: product.createdAt ? new Date(parseInt(product.createdAt)) : new Date(),
+    endTime: product.endsAt ? new Date(parseInt(product.endsAt)) : new Date(),
+    status: product.status || 'ACTIVE',
+    category: {
+      id: product.categoryId,
+      name: product.categoryName || 'Uncategorized',
+    },
+    bidCount: product.bidsCount || 0,
+    watchCount: product.viewsCount || 0,
+  };
+
+  return (
+    <Page title={`${productData.title} - Product Detail`}>
+>>>>>>> 4908400446e374216968da11da063a748a693559
       <Box sx={{ bgcolor: "grey.50", minHeight: "100vh" }}>
         <Container maxWidth="xl" sx={{ py: 4 }}>
           {/* Breadcrumb */}
@@ -672,37 +1107,62 @@ function ProductDetailPage() {
                   <Home fontSize="small" />
                   Home
                 </Link>
+<<<<<<< HEAD
                 {product.category && (
                   <Link
                     component="button"
                     variant="body1"
                     onClick={() => navigate(`/category/${product.category.id}`)}
+=======
+                {productData.category && (
+                  <Link
+                    component="button"
+                    variant="body1"
+                    onClick={() => navigate(`/category/${productData.category.id}`)}
+>>>>>>> 4908400446e374216968da11da063a748a693559
                     sx={{
                       color: "text.secondary",
                       textDecoration: "none",
                       "&:hover": { color: "primary.main" },
                     }}
                   >
+<<<<<<< HEAD
                     {product.category.name}
                   </Link>
                 )}
                 <Typography variant="body1" color="text.primary" fontWeight={600}>
                   {product.title}
+=======
+                    {productData.category.name}
+                  </Link>
+                )}
+                <Typography variant="body1" color="text.primary" fontWeight={600}>
+                  {productData.title}
+>>>>>>> 4908400446e374216968da11da063a748a693559
                 </Typography>
               </Breadcrumbs>
             </CardContent>
           </Card>
 
+<<<<<<< HEAD
           <div style={{ display: "flex", gap: 10 }}>
             {/* Left Column - Images */}
             <Card
               elevation={0}
               sx={{ borderRadius: 2, boxShadow: "0 2px 12px rgba(0,0,0,0.08)" }}
+=======
+          <div style={{ display: "flex", gap: 10, alignItems: "stretch" }}>
+            {/* Left Column - Images */}
+            <Card
+              elevation={0}
+              sx={{ borderRadius: 2, boxShadow: "0 2px 12px rgba(0,0,0,0.08)", width: "60%", display: "flex", flexDirection: "column" }}
+>>>>>>> 4908400446e374216968da11da063a748a693559
             >
               <Box sx={{ position: "relative" }}>
                 <CardMedia
                   component="img"
                   image={allImages[selectedImage] || "/placeholder-image.jpg"}
+<<<<<<< HEAD
                   alt={product.title}
                   sx={{
                     width: "100%",
@@ -711,6 +1171,16 @@ function ProductDetailPage() {
                     bgcolor: "grey.100",
                   }}
                 />
+=======
+                  alt={productData.title}
+                    sx={{
+                      width: "100%",
+                      height: { xs: 300, md: 500 },
+                      objectFit: "contain",
+                      bgcolor: "grey.100",
+                    }}
+                  />
+>>>>>>> 4908400446e374216968da11da063a748a693559
                 {allImages.length > 1 && (
                   <>
                     <IconButton
@@ -772,6 +1242,7 @@ function ProductDetailPage() {
             </Card>
 
             {/* Right Column - Product Info */}
+<<<<<<< HEAD
             <Grid item xs={12} md={6}>
               <Stack spacing={3}>
                 {/* Title and Status */}
@@ -780,6 +1251,16 @@ function ProductDetailPage() {
                   sx={{ borderRadius: 2, boxShadow: "0 2px 12px rgba(0,0,0,0.08)" }}
                 >
                   <CardContent>
+=======
+            <div style={{ width: "40%", display: "flex", flexDirection: "column" }}>
+              <Stack spacing={3} sx={{ flex: 1, height: "100%" }}>
+                {/* Title and Status */}
+                <Card
+                  elevation={0}
+                  sx={{ borderRadius: 2, boxShadow: "0 2px 12px rgba(0,0,0,0.08)", height: "100%", display: "flex", flexDirection: "column" }}
+                >
+                  <CardContent sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
+>>>>>>> 4908400446e374216968da11da063a748a693559
                     <Stack
                       direction="row"
                       justifyContent="space-between"
@@ -788,11 +1269,19 @@ function ProductDetailPage() {
                     >
                       <Box sx={{ flex: 1 }}>
                         <Typography variant="h4" fontWeight="bold" gutterBottom>
+<<<<<<< HEAD
                           {product.title}
                         </Typography>
                         <Chip
                           label={product.status}
                           color={product.status === "ACTIVE" ? "success" : "default"}
+=======
+                          {productData.title}
+                        </Typography>
+                        <Chip
+                          label={productData.status}
+                          color={productData.status === "ACTIVE" ? "success" : "default"}
+>>>>>>> 4908400446e374216968da11da063a748a693559
                           size="small"
                           sx={{ mb: 2 }}
                         />
@@ -816,6 +1305,7 @@ function ProductDetailPage() {
                         color="primary.main"
                         gutterBottom
                       >
+<<<<<<< HEAD
                         {formatPrice(product.currentPrice)}
                       </Typography>
                       <Stack direction="row" spacing={2} alignItems="center">
@@ -825,6 +1315,17 @@ function ProductDetailPage() {
                         {product.buyNowPrice && (
                           <Typography variant="body2" color="text.secondary">
                             Buy Now: {formatPrice(product.buyNowPrice)}
+=======
+                        {formatPrice(productData.currentPrice)}
+                      </Typography>
+                      <Stack direction="row" spacing={2} alignItems="center">
+                        <Typography variant="body2" color="text.secondary">
+                          Starting: {formatPrice(productData.startingPrice)}
+                        </Typography>
+                        {productData.buyNowPrice && (
+                          <Typography variant="body2" color="text.secondary">
+                            Buy Now: {formatPrice(productData.buyNowPrice)}
+>>>>>>> 4908400446e374216968da11da063a748a693559
                           </Typography>
                         )}
                       </Stack>
@@ -835,7 +1336,11 @@ function ProductDetailPage() {
                       <Stack direction="row" spacing={1} alignItems="center">
                         <AccessTime fontSize="small" />
                         <Typography variant="body1" fontWeight="medium">
+<<<<<<< HEAD
                           Time Left: {getTimeLeft(product.endTime)}
+=======
+                          Time Left: {getTimeLeft(productData.endTime)}
+>>>>>>> 4908400446e374216968da11da063a748a693559
                         </Typography>
                       </Stack>
                     </Box>
@@ -847,7 +1352,11 @@ function ProductDetailPage() {
                           Bids
                         </Typography>
                         <Typography variant="h6" fontWeight="bold">
+<<<<<<< HEAD
                           {product.bidCount}
+=======
+                          {productData.bidCount}
+>>>>>>> 4908400446e374216968da11da063a748a693559
                         </Typography>
                       </Box>
                       <Box>
@@ -855,7 +1364,11 @@ function ProductDetailPage() {
                           Watchers
                         </Typography>
                         <Typography variant="h6" fontWeight="bold">
+<<<<<<< HEAD
                           {product.watchCount}
+=======
+                          {productData.watchCount}
+>>>>>>> 4908400446e374216968da11da063a748a693559
                         </Typography>
                       </Box>
                       <Box>
@@ -863,20 +1376,33 @@ function ProductDetailPage() {
                           Bid Increment
                         </Typography>
                         <Typography variant="h6" fontWeight="bold">
+<<<<<<< HEAD
                           {formatPrice(product.bidIncrement)}
+=======
+                          {formatPrice(productData.bidIncrement)}
+>>>>>>> 4908400446e374216968da11da063a748a693559
                         </Typography>
                       </Box>
                     </Stack>
 
                     {/* Current Bidder (if has bids) */}
+<<<<<<< HEAD
                     {hasStartedBidding && product.currentBidder && (
+=======
+                    {hasStartedBidding && productData.currentBidder && (
+>>>>>>> 4908400446e374216968da11da063a748a693559
                       <Box sx={{ mb: 3, p: 2, bgcolor: "grey.50", borderRadius: 1 }}>
                         <Typography variant="body2" color="text.secondary" gutterBottom>
                           Current Highest Bidder
                         </Typography>
                         <Typography variant="body1" fontWeight="medium">
+<<<<<<< HEAD
                           {product.currentBidder.name}
                           {product.currentBidder.bidCount > 0 && ` (${product.currentBidder.bidCount} bids)`}
+=======
+                          {productData.currentBidder.name}
+                          {productData.currentBidder.bidCount > 0 && ` (${productData.currentBidder.bidCount} bids)`}
+>>>>>>> 4908400446e374216968da11da063a748a693559
                         </Typography>
                       </Box>
                     )}
@@ -894,7 +1420,11 @@ function ProductDetailPage() {
                         >
                           Place Bid
                         </Button>
+<<<<<<< HEAD
                         {product.buyNowPrice && (
+=======
+                        {productData.buyNowPrice && (
+>>>>>>> 4908400446e374216968da11da063a748a693559
                           <Button
                             variant="outlined"
                             size="large"
@@ -912,27 +1442,47 @@ function ProductDetailPage() {
                     {/* Seller Info */}
                     <Divider sx={{ my: 2 }} />
                     <Box
+<<<<<<< HEAD
                       onClick={() => navigate(`/seller/${product.seller.id}`)}
+=======
+                      onClick={() => navigate(`/seller/${productData.seller.id}`)}
+>>>>>>> 4908400446e374216968da11da063a748a693559
                       sx={{ cursor: "pointer" }}
                     >
                       <Stack direction="row" spacing={2} alignItems="center">
                         <Avatar
+<<<<<<< HEAD
                           src={product.seller.avatar}
+=======
+                          src={productData.seller.avatar}
+>>>>>>> 4908400446e374216968da11da063a748a693559
                           sx={{ width: 56, height: 56 }}
                         />
                         <Box sx={{ flex: 1 }}>
                           <Typography variant="h6" fontWeight="medium">
+<<<<<<< HEAD
                             {product.seller.name}
                           </Typography>
                           <Stack direction="row" spacing={1} alignItems="center">
                             <Rating
                               value={product.seller.rating}
+=======
+                            {productData.seller.name}
+                          </Typography>
+                          <Stack direction="row" spacing={1} alignItems="center">
+                            <Rating
+                              value={productData.seller.rating}
+>>>>>>> 4908400446e374216968da11da063a748a693559
                               precision={0.1}
                               size="small"
                               readOnly
                             />
                             <Typography variant="body2" color="text.secondary">
+<<<<<<< HEAD
                               {product.seller.rating.toFixed(1)} ({product.seller.ratingCount}{" "}
+=======
+                              {productData.seller.rating.toFixed(1)} ({productData.seller.ratingCount}{" "}
+>>>>>>> 4908400446e374216968da11da063a748a693559
                               reviews)
                             </Typography>
                           </Stack>
@@ -942,7 +1492,11 @@ function ProductDetailPage() {
                   </CardContent>
                 </Card>
               </Stack>
+<<<<<<< HEAD
             </Grid>
+=======
+            </div>
+>>>>>>> 4908400446e374216968da11da063a748a693559
           </div>
 
           {/* Description Section */}
@@ -1168,11 +1722,19 @@ function ProductDetailPage() {
                                 >
                                   <Stack direction="row" spacing={1} alignItems="center" mb={1}>
                                     <Avatar
+<<<<<<< HEAD
                                       src={product.seller.avatar}
                                       sx={{ width: 24, height: 24 }}
                                     />
                                     <Typography variant="subtitle2" fontWeight="medium">
                                       {product.seller.name} (Seller)
+=======
+                                      src={productData.seller.avatar}
+                                      sx={{ width: 24, height: 24 }}
+                                    />
+                                    <Typography variant="subtitle2" fontWeight="medium">
+                                      {productData.seller.name} (Seller)
+>>>>>>> 4908400446e374216968da11da063a748a693559
                                     </Typography>
                                     <Typography variant="caption" color="text.secondary">
                                       {getRelativeTime(q.answeredAt)}
@@ -1374,11 +1936,19 @@ function ProductDetailPage() {
             <DialogContent>
               <Stack spacing={3} sx={{ mt: 1 }}>
                 <Alert severity="info">
+<<<<<<< HEAD
                   Current highest bid: <strong>{formatPrice(product.currentPrice)}</strong>
                   <br />
                   Minimum bid:{" "}
                   <strong>
                     {formatPrice(product.currentPrice + product.bidIncrement)}
+=======
+                  Current highest bid: <strong>{formatPrice(productData.currentPrice)}</strong>
+                  <br />
+                  Minimum bid:{" "}
+                  <strong>
+                    {formatPrice(productData.currentPrice + productData.bidIncrement)}
+>>>>>>> 4908400446e374216968da11da063a748a693559
                   </strong>
                 </Alert>
                 <TextField
@@ -1387,7 +1957,11 @@ function ProductDetailPage() {
                   fullWidth
                   value={bidAmount}
                   onChange={(e) => setBidAmount(e.target.value)}
+<<<<<<< HEAD
                   helperText={`Bid increment: ${formatPrice(product.bidIncrement)}`}
+=======
+                  helperText={`Bid increment: ${formatPrice(productData.bidIncrement)}`}
+>>>>>>> 4908400446e374216968da11da063a748a693559
                   InputProps={{
                     startAdornment: <Typography sx={{ mr: 1 }}>₫</Typography>,
                   }}
@@ -1418,7 +1992,11 @@ function ProductDetailPage() {
                 onClick={handleConfirmBid}
                 disabled={
                   !bidAmount ||
+<<<<<<< HEAD
                   Number(bidAmount) < product.currentPrice + product.bidIncrement
+=======
+                  Number(bidAmount) < productData.currentPrice + productData.bidIncrement
+>>>>>>> 4908400446e374216968da11da063a748a693559
                 }
               >
                 Confirm Bid

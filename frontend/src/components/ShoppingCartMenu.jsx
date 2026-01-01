@@ -103,14 +103,14 @@ const ShoppingCartMenu = ({ anchorEl, open, onClose, items, itemCount, loading, 
       )}
       
       {items.length > 0 && (
-        <>
+        <div>
           <Divider />
           <MenuItem onClick={() => { navigate('/bidder/watchlist'); onClose(); }} sx={{ justifyContent: 'center' }}>
             <Typography variant="body2" color="primary" fontWeight="bold">
               View Full Watchlist
             </Typography>
           </MenuItem>
-        </>
+        </div>
       )}
     </Menu>
   );

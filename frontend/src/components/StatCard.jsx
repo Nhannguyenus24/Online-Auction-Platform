@@ -149,7 +149,7 @@ const StatCard = ({
                 </Typography>
               </Stack>
             ) : (
-              <>
+              <div>
                 <Typography 
                   variant="h4" 
                   fontWeight={700} 
@@ -178,7 +178,7 @@ const StatCard = ({
                     </Typography>
                   </Stack>
                 )}
-              </>
+              </div>
             )}
           </Box>
           

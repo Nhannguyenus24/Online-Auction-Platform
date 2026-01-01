@@ -111,6 +111,7 @@ export const productApi = {
   },
 
   /**
+<<<<<<< HEAD
    * Get product by ID
    * Uses bidder endpoint (requires authentication if user is logged in)
    * Falls back to guest endpoint if available (currently not implemented in backend)
@@ -155,11 +156,35 @@ export const productApi = {
             });
         }
         console.error('Get product by ID error:', error);
+=======
+   * Get product details
+   * Requires authentication (bidder endpoint)
+   * @param {number} productId - Product ID
+   * @returns {Promise} - { success, message, product: {...} }
+   */
+  getProductDetails: (productId) => {
+    return axiosInstance
+      .get(`/api/bidder/products/${productId}`)
+      .then((response) => {
+        if (response.data.success && response.data.product) {
+          return {
+            success: true,
+            message: response.data.message || 'Product details retrieved successfully',
+            product: response.data.product,
+          };
+        } else {
+          throw new Error(response.data.message || 'Failed to get product details');
+        }
+      })
+      .catch((error) => {
+        console.error('Get product details error:', error);
+>>>>>>> 4908400446e374216968da11da063a748a693559
         throw error;
       });
   },
 
   /**
+<<<<<<< HEAD
    * Get bid history for a product
    * No authentication required
    * @param {number|string} productId - Product ID
@@ -170,12 +195,25 @@ export const productApi = {
   getBidHistory: (productId, page = 1, limit = 20) => {
     return axiosInstance
       .get(`/api/guest/products/${productId}/bids`, {
+=======
+   * Get product bid history
+   * Requires authentication
+   * @param {number} productId - Product ID
+   * @param {number} page - Page number (default: 1)
+   * @param {number} limit - Items per page (default: 20)
+   * @returns {Promise} - { success, message, bids: [...], pageInfo: {...} }
+   */
+  getProductBids: (productId, page = 1, limit = 20) => {
+    return axiosInstance
+      .get(`/api/bidder/products/${productId}/bids`, {
+>>>>>>> 4908400446e374216968da11da063a748a693559
         params: { page, limit },
       })
       .then((response) => {
         if (response.data.success) {
           return {
             success: true,
+<<<<<<< HEAD
             message: response.data.message || 'Bid history retrieved successfully',
             bids: response.data.bids || [],
             total: response.data.total || 0,
@@ -188,11 +226,24 @@ export const productApi = {
       })
       .catch((error) => {
         console.error('Get bid history error:', error);
+=======
+            message: response.data.message || 'Product bids retrieved successfully',
+            bids: response.data.bids || [],
+            pageInfo: response.data.pageInfo || {},
+          };
+        } else {
+          throw new Error(response.data.message || 'Failed to get product bids');
+        }
+      })
+      .catch((error) => {
+        console.error('Get product bids error:', error);
+>>>>>>> 4908400446e374216968da11da063a748a693559
         throw error;
       });
   },
 
   /**
+<<<<<<< HEAD
    * Get questions for a product
    * No authentication required
    * @param {number|string} productId - Product ID
@@ -201,10 +252,25 @@ export const productApi = {
   getQuestions: (productId) => {
     return axiosInstance
       .get(`/api/guest/products/${productId}/questions`)
+=======
+   * Get product questions
+   * Requires authentication
+   * @param {number} productId - Product ID
+   * @param {number} page - Page number (default: 1)
+   * @param {number} limit - Items per page (default: 20)
+   * @returns {Promise} - { success, message, questions: [...], pageInfo: {...} }
+   */
+  getProductQuestions: (productId, page = 1, limit = 20) => {
+    return axiosInstance
+      .get(`/api/bidder/products/${productId}/questions`, {
+        params: { page, limit },
+      })
+>>>>>>> 4908400446e374216968da11da063a748a693559
       .then((response) => {
         if (response.data.success) {
           return {
             success: true,
+<<<<<<< HEAD
             message: response.data.message || 'Questions retrieved successfully',
             questions: response.data.questions || [],
           };
@@ -214,12 +280,25 @@ export const productApi = {
       })
       .catch((error) => {
         console.error('Get questions error:', error);
+=======
+            message: response.data.message || 'Product questions retrieved successfully',
+            questions: response.data.questions || [],
+            pageInfo: response.data.pageInfo || {},
+          };
+        } else {
+          throw new Error(response.data.message || 'Failed to get product questions');
+        }
+      })
+      .catch((error) => {
+        console.error('Get product questions error:', error);
+>>>>>>> 4908400446e374216968da11da063a748a693559
         throw error;
       });
   },
 
   /**
    * Get related products
+<<<<<<< HEAD
    * No authentication required
    * @param {number|string} productId - Product ID
    * @returns {Promise} - { success, message, products: [...] }
@@ -227,6 +306,18 @@ export const productApi = {
   getRelatedProducts: (productId) => {
     return axiosInstance
       .get(`/api/guest/products/${productId}/related`)
+=======
+   * Requires authentication
+   * @param {number} productId - Product ID
+   * @param {number} limit - Number of products to return (default: 5, max: 20)
+   * @returns {Promise} - { success, message, products: [...] }
+   */
+  getRelatedProducts: (productId, limit = 5) => {
+    return axiosInstance
+      .get(`/api/bidder/products/${productId}/related`, {
+        params: { limit },
+      })
+>>>>>>> 4908400446e374216968da11da063a748a693559
       .then((response) => {
         if (response.data.success) {
           return {
@@ -243,6 +334,7 @@ export const productApi = {
         throw error;
       });
   },
+<<<<<<< HEAD
 
   /**
    * Place a bid on a product
@@ -432,6 +524,8 @@ export const productApi = {
         throw error;
       });
   },
+=======
+>>>>>>> 4908400446e374216968da11da063a748a693559
 };
 
 export default productApi;

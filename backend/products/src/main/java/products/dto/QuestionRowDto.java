@@ -11,7 +11,7 @@ public record QuestionRowDto(
     String askerName,
     String question,
     String answer,
-    int answeredBy,
+    Integer answeredBy,  // Changed from int to Integer to handle null values
     String answererName,
     ZonedDateTime createdAt,
     ZonedDateTime answeredAt

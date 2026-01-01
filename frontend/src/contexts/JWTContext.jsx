@@ -25,6 +25,9 @@ export function AuthProvider({ children }) {
   // Initialize auth state on app load
   useEffect(() => {
     const initialize = async () => {
+      let authResult = false;
+      let userData = null;
+      
       try {
         const accessToken = window.localStorage.getItem('accessToken');
         console.log('Auth init - accessToken exists:', !!accessToken);
@@ -36,32 +39,45 @@ export function AuthProvider({ children }) {
           // Try to get profile from API first (most reliable)
           try {
             const response = await authApi.getProfile();
-            console.log('Auth init - getProfile response:', response.data);
+            console.log('Auth init - getProfile response:', response);
+            console.log('Auth init - response.data:', response.data);
             
-            if (response.data?.profile) {
-              setUser(response.data.profile);
-              setIsAuthenticated(true);
-              console.log('Auth init - authenticated with profile:', response.data.profile);
+            // Check different possible response formats
+            const profile = response.data?.profile || response.data?.data?.profile || response.data;
+            
+            if (profile && (profile.id || profile.userId)) {
+              userData = {
+                id: profile.id || profile.userId,
+                email: profile.email,
+                fullName: profile.fullName || profile.name,
+                roles: profile.roles || [profile.role],
+                roleName: profile.roleName || profile.role || profile.roles?.[0],
+                phoneNumber: profile.phoneNumber,
+                address: profile.address,
+                isVerified: profile.isVerified,
+              };
+              authResult = true;
+              console.log('Auth init - authenticated with profile:', userData);
             } else {
               // If response doesn't have profile, try to use token payload as fallback
+              console.log('Auth init - no profile in response, trying token payload');
               const payload = await getPayload(accessToken);
               if (payload) {
-                const userData = {
+                userData = {
                   id: payload.userId || payload.sub,
                   email: payload.email,
                   fullName: payload.fullName || payload.name,
                   roles: payload.roles || [payload.role],
                   roleName: payload.roleName || payload.role || payload.roles?.[0],
                 };
-                setUser(userData);
-                setIsAuthenticated(true);
+                authResult = true;
                 console.log('Auth init - authenticated with payload:', userData);
               } else {
                 // Token is invalid, clear it
                 console.warn('Auth init - token invalid, clearing');
                 setSession(null);
-                setUser(null);
-                setIsAuthenticated(false);
+                authResult = false;
+                userData = null;
               }
             }
           } catch (profileError) {
@@ -69,37 +85,39 @@ export function AuthProvider({ children }) {
             console.warn('Auth init - profile API failed, trying token payload:', profileError);
             const payload = await getPayload(accessToken);
             if (payload) {
-              const userData = {
+              userData = {
                 id: payload.userId || payload.sub,
                 email: payload.email,
                 fullName: payload.fullName || payload.name,
                 roles: payload.roles || [payload.role],
                 roleName: payload.roleName || payload.role || payload.roles?.[0],
               };
-              setUser(userData);
-              setIsAuthenticated(true);
+              authResult = true;
               console.log('Auth init - authenticated with payload (fallback):', userData);
             } else {
               // Both profile API and token verification failed, clear token
               console.error('Auth init - token invalid or expired, clearing session');
               setSession(null);
-              setUser(null);
-              setIsAuthenticated(false);
+              authResult = false;
+              userData = null;
             }
           }
         } else {
           console.log('Auth init - no accessToken found');
-          setUser(null);
-          setIsAuthenticated(false);
+          authResult = false;
+          userData = null;
         }
       } catch (err) {
         console.error('Auth initialization error:', err);
         setSession(null);
-        setUser(null);
-        setIsAuthenticated(false);
+        authResult = false;
+        userData = null;
       } finally {
+        // Set state with the determined values
+        setUser(userData);
+        setIsAuthenticated(authResult);
         setIsInitialized(true);
-        console.log('Auth init - completed, isAuthenticated:', isAuthenticated);
+        console.log('Auth init - completed, isAuthenticated:', authResult, 'user:', userData);
       }
     };
 
@@ -115,9 +133,19 @@ export function AuthProvider({ children }) {
       
       // If userData is provided, use it directly (most reliable)
       if (userData) {
-        setUser(userData);
+        const finalUserData = {
+          id: userData.id || userData.userId,
+          email: userData.email,
+          fullName: userData.fullName || userData.name,
+          roles: userData.roles || [userData.role],
+          roleName: userData.roleName || userData.role || userData.roles?.[0],
+          phoneNumber: userData.phoneNumber,
+          address: userData.address,
+          isVerified: userData.isVerified,
+        };
+        setUser(finalUserData);
         setIsAuthenticated(true);
-        console.log('Login successful with userData:', userData);
+        console.log('Login successful with userData:', finalUserData);
         return;
       }
       
@@ -139,12 +167,27 @@ export function AuthProvider({ children }) {
         // If payload verification fails, try to get profile from API
         try {
           const response = await authApi.getProfile();
-          if (response.data?.profile) {
-            setUser(response.data.profile);
+          console.log('Login - getProfile response:', response);
+          
+          // Check different possible response formats
+          const profile = response.data?.profile || response.data?.data?.profile || response.data;
+          
+          if (profile && (profile.id || profile.userId)) {
+            const finalUserData = {
+              id: profile.id || profile.userId,
+              email: profile.email,
+              fullName: profile.fullName || profile.name,
+              roles: profile.roles || [profile.role],
+              roleName: profile.roleName || profile.role || profile.roles?.[0],
+              phoneNumber: profile.phoneNumber,
+              address: profile.address,
+              isVerified: profile.isVerified,
+            };
+            setUser(finalUserData);
             setIsAuthenticated(true);
-            console.log('Login successful with profile API:', response.data.profile);
+            console.log('Login successful with profile API:', finalUserData);
           } else {
-            console.warn('Login: token exists but cannot get user info');
+            console.warn('Login: token exists but cannot get user info, response:', response);
             // Still set authenticated if we have token, user info will be fetched later
             setIsAuthenticated(true);
           }
