@@ -650,7 +650,6 @@ public class BidderService {
         
         return Mono.zip(
             productRepository.getMyBids(userId, limit, offset)
-                .map(BidHistoryRowDto::fromMap)
                 .collectList(),
             productRepository.countMyBids(userId)
         ).map(tuple -> {
@@ -763,15 +762,15 @@ public class BidderService {
         return BidHistoryItem.newBuilder()
             .setBidId(dto.bidId())
             .setProductId(dto.productId())
-            .setProductTitle(dto.productTitle())
-            .setProductPrimaryImage(dto.productPrimaryImage())
+            .setProductTitle(dto.productTitle() != null ? dto.productTitle() : "")
+            .setProductPrimaryImage(dto.productPrimaryImage() != null ? dto.productPrimaryImage() : "")
             .setBidAmount(dto.bidAmount())
             .setCurrentPrice(dto.currentPrice())
-            .setIsAuto(dto.isAuto())
-            .setIsWinning(dto.isWinning())
-            .setProductStatus(dto.productStatus())
-            .setBidCreatedAt(dto.bidCreatedAt())
-            .setProductEndsAt(dto.productEndsAt())
+            .setIsAuto(dto.isAuto() != 0)
+            .setIsWinning(dto.isWinning() != 0)
+            .setProductStatus(dto.productStatus() != null ? dto.productStatus() : "")
+            .setBidCreatedAt(dto.bidCreatedAt().toEpochSecond())
+            .setProductEndsAt(dto.productEndsAt().toEpochSecond())
             .build();
     }
 

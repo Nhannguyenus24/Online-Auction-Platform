@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 
 import com.auction.entities.database.Product;
 
+import products.dto.BidHistoryRowDto;
 import products.dto.BidRowDto;
 import products.dto.ImageRowDto;
 import products.dto.ProductDetailsDto;
@@ -384,16 +385,18 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
     // Get user's bids with pagination
     @Query("""
         SELECT b.id as bid_id, b.product_id, p.title as product_title,
-               pi.url as product_primary_image, b.amount as bid_amount, p.current_price,
-               b.is_auto, (b.amount = (SELECT MAX(amount) FROM bids WHERE product_id = p.id)) as is_winning,
+               pi.url as product_primary_image, b.amount as bid_amount, p.current_price, p.status as product_status,
+               CAST(b.is_auto AS UNSIGNED) as is_auto, 
+               IF(b.amount = (SELECT MAX(amount) FROM bids WHERE product_id = p.id), 1, 0) as is_winning,
                p.status, b.created_at as bid_created_at, p.ends_at as product_ends_at
         FROM bids b
         LEFT JOIN products p ON b.product_id = p.id
+        LEFT JOIN product_images pi ON p.id = pi.product_id AND pi.is_primary = true
         WHERE b.bidder_id = :userId
         ORDER BY b.created_at DESC
         LIMIT :limit OFFSET :offset
         """)
-    Flux<Map<String, Object>> getMyBids(@Param("userId") Integer userId, @Param("limit") int limit, @Param("offset") int offset);
+    Flux<BidHistoryRowDto> getMyBids(@Param("userId") Integer userId, @Param("limit") int limit, @Param("offset") int offset);
     
     // Count user's bids
     @Query("SELECT COUNT(*) FROM bids WHERE bidder_id = :userId")
