@@ -451,7 +451,15 @@ const Header = () => {
               {userName || 'User'}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              {userRole ? userRole.charAt(0).toUpperCase() + userRole.slice(1) : 'User'}
+              {userRole === 'bidder' 
+                ? 'Bidder' 
+                : userRole === 'seller' 
+                ? 'Seller' 
+                : userRole === 'admin'
+                ? 'Admin'
+                : userRole 
+                ? userRole.charAt(0).toUpperCase() + userRole.slice(1) 
+                : 'Bidder'}
             </Typography>
           </Box>
         <Divider />

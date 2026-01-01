@@ -41,7 +41,7 @@ import {
 import Page from '../../components/Page';
 import { formatPrice } from '../../utils/formatNumber';
 import { fVNDate } from '../../utils/formatTime';
-import { mockGetBiddingHistory, mockGetWonItems } from '../../mocks';
+import { bidderApi } from '../../services/bidderApi';
 
 const BidderAuctionHistoryPage = () => {
   const navigate = useNavigate();
@@ -63,10 +63,10 @@ const BidderAuctionHistoryPage = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Fetch all data (no pagination from API for now, as we filter client-side)
+        // Fetch all data (fetch large limit to get all data for client-side filtering)
         const [biddingRes, wonRes] = await Promise.all([
-          mockGetBiddingHistory(500, 1, 1000), // Get all data
-          mockGetWonItems(500),
+          bidderApi.getBiddingHistory(1, 1000), // Get all data
+          bidderApi.getWonItems(1, 1000),
         ]);
         setAllBiddingHistory(biddingRes.data || []);
         setWonItems(wonRes.data || []);

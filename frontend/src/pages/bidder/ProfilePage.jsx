@@ -39,11 +39,7 @@ import Page from '../../components/Page';
 import { formatPrice } from '../../utils/formatNumber';
 import { fVNDate } from '../../utils/formatTime';
 import { authApi } from '../../utils/api';
-import {
-  mockGetRatingsReceived,
-  mockGetRatingsGiven,
-  mockGetItemsNeedingRating,
-} from '../../mocks';
+import { bidderApi } from '../../services/bidderApi';
 
 // Default profile data structure
 const defaultProfileData = {
@@ -277,9 +273,9 @@ const BidderProfilePage = () => {
         setLoading((prev) => ({ ...prev, ratings: true }));
         try {
           const [receivedRes, givenRes, needingRes] = await Promise.all([
-            mockGetRatingsReceived(500),
-            mockGetRatingsGiven(500),
-            mockGetItemsNeedingRating(500),
+            bidderApi.getRatingsReceived(),
+            bidderApi.getRatingsGiven(),
+            bidderApi.getItemsNeedingRating(),
           ]);
           setRatingsReceived(receivedRes.data || []);
           setRatingsGiven(givenRes.data || []);

@@ -21,7 +21,7 @@ import Page from '../../components/Page';
 import StatCard from '../../components/StatCard';
 import ProductCard from '../../components/ProductCard';
 import { formatPrice } from '../../utils/formatNumber';
-import { mockGetBiddingHistory, mockGetWonItems } from '../../mocks';
+import { bidderApi } from '../../services/bidderApi';
 
 const BidderHomePage = () => {
   const navigate = useNavigate();
@@ -39,9 +39,9 @@ const BidderHomePage = () => {
       // Fetch active bids (bidding history with future endTime)
       try {
         setLoading((prev) => ({ ...prev, active: true }));
-        const biddingRes = await mockGetBiddingHistory(500);
+        const biddingRes = await bidderApi.getBiddingHistory(1, 100);
         const activeBidsData = (biddingRes.data || []).filter((bid) => {
-          const endTime = new Date(bid.endTime);
+          const endTime = new Date(bid.endTime || bid.endsAt);
           return endTime > new Date();
         });
         setActiveBids(activeBidsData);
@@ -55,13 +55,13 @@ const BidderHomePage = () => {
       // Fetch won items
       try {
         setLoading((prev) => ({ ...prev, won: true }));
-        const wonRes = await mockGetWonItems(500);
+        const wonRes = await bidderApi.getWonItems(1, 100);
         const wonData = wonRes.data || [];
         setWonItems(wonData);
         setStats((prev) => ({
           ...prev,
           wonItems: wonData.length,
-          totalSpent: wonData.reduce((sum, item) => sum + (item.winningPrice || 0), 0),
+          totalSpent: wonData.reduce((sum, item) => sum + (item.winningPrice || item.currentPrice || 0), 0),
         }));
       } catch (err) {
         console.error('Error fetching won items:', err);
