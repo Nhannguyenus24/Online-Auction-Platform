@@ -265,7 +265,7 @@ const HomePage = () => {
           borderColor: "primary.main",
         },
       }}
-      onClick={() => navigate(`/products/${product.id}`)}
+      onClick={() => navigate(`/product/${product.id}`)}
     >
       <Box sx={{ position: "relative", paddingTop: "75%", bgcolor: "grey.50" }}>
         <CardMedia
@@ -717,7 +717,7 @@ const HomePage = () => {
                       onMouseLeave={(e) =>
                         (e.currentTarget.style.backgroundColor = "transparent")
                       }
-                      onClick={() => navigate(`/products/${product.id}`)}
+                      onClick={() => navigate(`/product/${product.id}`)}
                     >
                       <td style={{ padding: "16px" }}>
                         <Box
@@ -982,7 +982,7 @@ const HomePage = () => {
                       onMouseLeave={(e) =>
                         (e.currentTarget.style.backgroundColor = "transparent")
                       }
-                      onClick={() => navigate(`/products/${product.id}`)}
+                      onClick={() => navigate(`/product/${product.id}`)}
                     >
                       <td style={{ padding: "16px" }}>
                         <Box
