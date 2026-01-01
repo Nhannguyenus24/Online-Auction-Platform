@@ -111,7 +111,6 @@ export const productApi = {
   },
 
   /**
-<<<<<<< HEAD
    * Get product by ID
    * Uses bidder endpoint (requires authentication if user is logged in)
    * Falls back to guest endpoint if available (currently not implemented in backend)
@@ -156,7 +155,11 @@ export const productApi = {
             });
         }
         console.error('Get product by ID error:', error);
-=======
+        throw error;
+      });
+  },
+
+  /**
    * Get product details
    * Requires authentication (bidder endpoint)
    * @param {number} productId - Product ID
@@ -178,13 +181,11 @@ export const productApi = {
       })
       .catch((error) => {
         console.error('Get product details error:', error);
->>>>>>> 4908400446e374216968da11da063a748a693559
         throw error;
       });
   },
 
   /**
-<<<<<<< HEAD
    * Get bid history for a product
    * No authentication required
    * @param {number|string} productId - Product ID
@@ -195,25 +196,12 @@ export const productApi = {
   getBidHistory: (productId, page = 1, limit = 20) => {
     return axiosInstance
       .get(`/api/guest/products/${productId}/bids`, {
-=======
-   * Get product bid history
-   * Requires authentication
-   * @param {number} productId - Product ID
-   * @param {number} page - Page number (default: 1)
-   * @param {number} limit - Items per page (default: 20)
-   * @returns {Promise} - { success, message, bids: [...], pageInfo: {...} }
-   */
-  getProductBids: (productId, page = 1, limit = 20) => {
-    return axiosInstance
-      .get(`/api/bidder/products/${productId}/bids`, {
->>>>>>> 4908400446e374216968da11da063a748a693559
         params: { page, limit },
       })
       .then((response) => {
         if (response.data.success) {
           return {
             success: true,
-<<<<<<< HEAD
             message: response.data.message || 'Bid history retrieved successfully',
             bids: response.data.bids || [],
             total: response.data.total || 0,
@@ -226,7 +214,27 @@ export const productApi = {
       })
       .catch((error) => {
         console.error('Get bid history error:', error);
-=======
+        throw error;
+      });
+  },
+
+  /**
+   * Get product bid history
+   * Requires authentication
+   * @param {number} productId - Product ID
+   * @param {number} page - Page number (default: 1)
+   * @param {number} limit - Items per page (default: 20)
+   * @returns {Promise} - { success, message, bids: [...], pageInfo: {...} }
+   */
+  getProductBids: (productId, page = 1, limit = 20) => {
+    return axiosInstance
+      .get(`/api/bidder/products/${productId}/bids`, {
+        params: { page, limit },
+      })
+      .then((response) => {
+        if (response.data.success) {
+          return {
+            success: true,
             message: response.data.message || 'Product bids retrieved successfully',
             bids: response.data.bids || [],
             pageInfo: response.data.pageInfo || {},
@@ -237,13 +245,11 @@ export const productApi = {
       })
       .catch((error) => {
         console.error('Get product bids error:', error);
->>>>>>> 4908400446e374216968da11da063a748a693559
         throw error;
       });
   },
 
   /**
-<<<<<<< HEAD
    * Get questions for a product
    * No authentication required
    * @param {number|string} productId - Product ID
@@ -252,7 +258,24 @@ export const productApi = {
   getQuestions: (productId) => {
     return axiosInstance
       .get(`/api/guest/products/${productId}/questions`)
-=======
+      .then((response) => {
+        if (response.data.success) {
+          return {
+            success: true,
+            message: response.data.message || 'Questions retrieved successfully',
+            questions: response.data.questions || [],
+          };
+        } else {
+          throw new Error(response.data.message || 'Failed to get questions');
+        }
+      })
+      .catch((error) => {
+        console.error('Get questions error:', error);
+        throw error;
+      });
+  },
+
+  /**
    * Get product questions
    * Requires authentication
    * @param {number} productId - Product ID
@@ -265,22 +288,10 @@ export const productApi = {
       .get(`/api/bidder/products/${productId}/questions`, {
         params: { page, limit },
       })
->>>>>>> 4908400446e374216968da11da063a748a693559
       .then((response) => {
         if (response.data.success) {
           return {
             success: true,
-<<<<<<< HEAD
-            message: response.data.message || 'Questions retrieved successfully',
-            questions: response.data.questions || [],
-          };
-        } else {
-          throw new Error(response.data.message || 'Failed to get questions');
-        }
-      })
-      .catch((error) => {
-        console.error('Get questions error:', error);
-=======
             message: response.data.message || 'Product questions retrieved successfully',
             questions: response.data.questions || [],
             pageInfo: response.data.pageInfo || {},
@@ -291,22 +302,12 @@ export const productApi = {
       })
       .catch((error) => {
         console.error('Get product questions error:', error);
->>>>>>> 4908400446e374216968da11da063a748a693559
         throw error;
       });
   },
 
   /**
    * Get related products
-<<<<<<< HEAD
-   * No authentication required
-   * @param {number|string} productId - Product ID
-   * @returns {Promise} - { success, message, products: [...] }
-   */
-  getRelatedProducts: (productId) => {
-    return axiosInstance
-      .get(`/api/guest/products/${productId}/related`)
-=======
    * Requires authentication
    * @param {number} productId - Product ID
    * @param {number} limit - Number of products to return (default: 5, max: 20)
@@ -317,7 +318,6 @@ export const productApi = {
       .get(`/api/bidder/products/${productId}/related`, {
         params: { limit },
       })
->>>>>>> 4908400446e374216968da11da063a748a693559
       .then((response) => {
         if (response.data.success) {
           return {
@@ -334,7 +334,6 @@ export const productApi = {
         throw error;
       });
   },
-<<<<<<< HEAD
 
   /**
    * Place a bid on a product
@@ -524,8 +523,6 @@ export const productApi = {
         throw error;
       });
   },
-=======
->>>>>>> 4908400446e374216968da11da063a748a693559
 };
 
 export default productApi;

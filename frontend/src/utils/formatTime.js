@@ -98,7 +98,7 @@ export function fAge(dateOfBirth) {
   let age = today.getFullYear() - birthDate.getFullYear();
   const m = today.getMonth() - birthDate.getMonth();
   if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-    // eslint-disable-next-line no-plusplus
+     
     age--;
   }
   return age;
