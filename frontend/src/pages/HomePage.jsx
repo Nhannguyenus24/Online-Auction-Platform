@@ -702,7 +702,7 @@ const HomePage = () => {
                   ) : (
                     endingSoonProducts.map((product, index) => (
                     <tr
-                      key={product.id}
+                      key={`ending-soon-${product.id}-${index}`}
                       style={{
                         borderBottom:
                           index < endingSoonProducts.length - 1
@@ -967,7 +967,7 @@ const HomePage = () => {
                   ) : (
                     mostBidsProducts.map((product, index) => (
                     <tr
-                      key={product.id}
+                      key={`most-bids-${product.id}-${index}`}
                       style={{
                         borderBottom:
                           index < mostBidsProducts.length - 1

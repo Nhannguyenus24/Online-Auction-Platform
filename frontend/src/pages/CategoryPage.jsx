@@ -302,9 +302,9 @@ const CategoryPage = () => {
             </CardContent>
           </Card>
 
-          <Grid container spacing={3}>
+          <div style={{ display: "flex", gap: 10, alignItems: "stretch" }}>
             {/* Sidebar - Subcategories */}
-            <Grid item xs={12} md={3}>
+            <div style={{ width: "30%" }}>
               <Card elevation={0} sx={{ 
                 borderRadius: 2,
                 boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
@@ -356,13 +356,14 @@ const CategoryPage = () => {
                   </Stack>
                 </CardContent>
               </Card>
-            </Grid>
+            </div>
 
             {/* Main Content - Products */}
-            <Grid item xs={12} md={9}>
+            <div style={{ width: "70%" }}>
               {/* Toolbar */}
               <Card elevation={0} sx={{ 
                 mb: 3,
+                width:350,
                 borderRadius: 2,
                 boxShadow: '0 2px 12px rgba(0,0,0,0.08)'
               }}>
@@ -394,9 +395,9 @@ const CategoryPage = () => {
               </Card>
 
               {/* Products Grid */}
-              <Grid container spacing={3}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
                 {products.map((product) => (
-                  <Grid item xs={12} sm={6} lg={4} key={product.id}>
+                  <div style={{ width: '32.33%', key: product.id }}>
                     <Card
                       elevation={0}
                       sx={{
@@ -519,9 +520,9 @@ const CategoryPage = () => {
                         </Box>
                       </CardContent>
                     </Card>
-                  </Grid>
+                  </div>
                 ))}
-              </Grid>
+              </div>
 
               {/* Pagination */}
               {totalPages > 1 && (
@@ -546,8 +547,8 @@ const CategoryPage = () => {
                   />
                 </Box>
               )}
-            </Grid>
-          </Grid>
+            </div>
+          </div>
         </Container>
       </Box>
     </Page>

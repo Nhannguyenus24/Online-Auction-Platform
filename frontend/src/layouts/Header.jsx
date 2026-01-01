@@ -662,19 +662,6 @@ const Header = () => {
             )}
           </Box>
         </Box>
-
-        <Divider />
-        <MenuItem
-          onClick={() => {
-            navigate('/categories');
-            handleCloseCategoryMenu();
-          }}
-          sx={{ justifyContent: 'center', py: 1.5 }}
-        >
-          <Typography variant="body2" color="primary" fontWeight="bold">
-            View All Categories
-          </Typography>
-        </MenuItem>
       </Menu>
     </AppBar>
   );

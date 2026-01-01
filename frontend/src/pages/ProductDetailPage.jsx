@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   Box,
   Container,
@@ -55,186 +55,242 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import RichTextEditor from '../components/RichTextEditor';
 import Page from '../components/Page';
+import { productApi } from '../services/productApi';
 
-// Mock data - replace with API calls
-const mockProduct = {
-  id: 1,
-  title: "Vintage Rolex Submariner Watch - Rare 1960s Edition",
-  description: `
-    <h3>Product Description</h3>
-    <p>This is a stunning vintage Rolex Submariner from the 1960s era. The watch is in excellent condition with minimal signs of wear.</p>
-    
-    <h4>Features:</h4>
-    <ul>
-      <li>Authentic Rolex movement</li>
-      <li>Original dial and hands</li>
-      <li>Stainless steel case and bracelet</li>
-      <li>Water-resistant to 200m</li>
-      <li>Includes original box and papers</li>
-    </ul>
-    
-    <h4>Condition:</h4>
-    <p>The watch has been professionally serviced and is in excellent working condition. Minor scratches on the case and bracelet are consistent with age.</p>
-    
-    <h4>Shipping:</h4>
-    <p>Fully insured shipping included. International shipping available.</p>
-  `,
-  mainImage: "https://images.unsplash.com/photo-1523170335258-f5ed11844a49?w=800",
-  additionalImages: [
-    "https://images.unsplash.com/photo-1523170335258-f5ed11844a49?w=800",
-    "https://images.unsplash.com/photo-1587836374062-d60b6c8b6a44?w=800",
-    "https://images.unsplash.com/photo-1614164185128-e4ec99c436d7?w=800",
-    "https://images.unsplash.com/photo-1611987265762-37e0e6d3f7c6?w=800",
-  ],
-  currentPrice: 25000000,
-  buyNowPrice: 35000000,
-  startingPrice: 20000000,
-  bidIncrement: 500000,
-  seller: {
-    id: 101,
-    name: "John Smith",
-    rating: 4.8,
-    ratingCount: 245,
-    avatar: "https://i.pravatar.cc/150?img=12",
-  },
-  currentBidder: {
-    name: "u***r123", // masked
-    bidCount: 15,
-  },
-  postedTime: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
-  endTime: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000), // 1 day left
-  status: "ACTIVE",
-  category: {
-    id: 5,
-    name: "Watches & Jewelry",
-  },
-  bidCount: 23,
-  watchCount: 45,
-};
-
-const mockBidHistory = [
-  { id: 1, bidder: "u***r123", amount: 25000000, time: new Date(Date.now() - 30 * 60 * 1000) },
-  { id: 2, bidder: "b***r456", amount: 24500000, time: new Date(Date.now() - 2 * 60 * 60 * 1000) },
-  { id: 3, bidder: "u***r123", amount: 24000000, time: new Date(Date.now() - 5 * 60 * 60 * 1000) },
-  { id: 4, bidder: "s***r789", amount: 23500000, time: new Date(Date.now() - 8 * 60 * 60 * 1000) },
-  { id: 5, bidder: "b***r456", amount: 23000000, time: new Date(Date.now() - 12 * 60 * 60 * 1000) },
-];
-
-const mockQuestions = [
-  {
-    id: 1,
-    bidder: { name: "Alice", avatar: "https://i.pravatar.cc/150?img=1" },
-    question: "Is this watch authentic? Do you have certificate of authenticity?",
-    answer: "Yes, this is 100% authentic. I have the original certificate and papers from Rolex. Will be included with the watch.",
-    askedAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
-    answeredAt: new Date(Date.now() - 23 * 60 * 60 * 1000),
-  },
-  {
-    id: 2,
-    bidder: { name: "Bob", avatar: "https://i.pravatar.cc/150?img=2" },
-    question: "What is the condition of the movement? Has it been serviced recently?",
-    answer: "The movement is in excellent condition. It was serviced by a certified Rolex technician 6 months ago. All documentation included.",
-    askedAt: new Date(Date.now() - 36 * 60 * 60 * 1000),
-    answeredAt: new Date(Date.now() - 35 * 60 * 60 * 1000),
-  },
-  {
-    id: 3,
-    bidder: { name: "Charlie", avatar: "https://i.pravatar.cc/150?img=3" },
-    question: "Do you ship internationally?",
-    answer: null,
-    askedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-    answeredAt: null,
-  },
-];
-
-const mockRelatedProducts = [
-  {
-    id: 2,
-    title: "Omega Speedmaster Professional Moonwatch",
-    image: "https://images.unsplash.com/photo-1622434641406-a158123450f9?w=400",
-    currentPrice: 18000000,
-    endTime: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
-    bidCount: 18,
-  },
-  {
-    id: 3,
-    title: "TAG Heuer Carrera Automatic Chronograph",
-    image: "https://images.unsplash.com/photo-1606403726988-eb66a8c2d233?w=400",
-    currentPrice: 12000000,
-    endTime: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
-    bidCount: 12,
-  },
-  {
-    id: 4,
-    title: "Breitling Navitimer Chronograph",
-    image: "https://images.unsplash.com/photo-1614164185128-e4ec99c436d7?w=400",
-    currentPrice: 15000000,
-    endTime: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000),
-    bidCount: 9,
-  },
-  {
-    id: 5,
-    title: "Cartier Santos 100 XL Automatic",
-    image: "https://images.unsplash.com/photo-1611987265762-37e0e6d3f7c6?w=400",
-    currentPrice: 22000000,
-    endTime: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
-    bidCount: 25,
-  },
-  {
-    id: 6,
-    title: "IWC Portugieser Automatic",
-    image: "https://images.unsplash.com/photo-1587836374062-d60b6c8b6a44?w=400",
-    currentPrice: 20000000,
-    endTime: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000),
-    bidCount: 14,
-  },
-];
 
 function ProductDetailPage() {
   const navigate = useNavigate();
-  const { id: _productId } = useParams();
+  const { id: productId } = useParams();
+  const { user, isAuthenticated } = useAuth();
+  
   const [selectedImage, setSelectedImage] = useState(0);
   const [isWatchlisted, setIsWatchlisted] = useState(false);
   const [bidAmount, setBidAmount] = useState('');
   const [question, setQuestion] = useState('');
   const [openBidDialog, setOpenBidDialog] = useState(false);
-  const [isLoggedIn] = useState(false); // Replace with actual auth state
-  const [answerTexts, setAnswerTexts] = useState({}); // Store answers for each question
-  const [submittingAnswer, setSubmittingAnswer] = useState({}); // Track which answer is being submitted
-  const [questions, setQuestions] = useState(mockQuestions); // Use state to manage questions
-  const [productDescription, setProductDescription] = useState(mockProduct.description); // Use state to manage description
-  const [newDescription, setNewDescription] = useState(''); // New description to append
-  const [submittingDescription, setSubmittingDescription] = useState(false); // Track description submission
-  const [bidHistory] = useState(mockBidHistory); // Use state to manage bid history
-  const [rejectedBids, setRejectedBids] = useState(new Set()); // Track rejected bid IDs
-  const [openRejectDialog, setOpenRejectDialog] = useState(false); // Dialog state
-  const [bidToReject, setBidToReject] = useState(null); // Bid to reject
-  const [rejectingBid, setRejectingBid] = useState(null); // Track which bid is being rejected
+  const [answerTexts, setAnswerTexts] = useState({});
+  const [submittingAnswer, setSubmittingAnswer] = useState({});
+  const [questions, setQuestions] = useState([]);
+  const [productDescription, setProductDescription] = useState('');
+  const [newDescription, setNewDescription] = useState('');
+  const [submittingDescription, setSubmittingDescription] = useState(false);
+  const [bidHistory, setBidHistory] = useState([]);
+  const [rejectedBids, setRejectedBids] = useState(new Set());
+  const [openRejectDialog, setOpenRejectDialog] = useState(false);
+  const [bidToReject, setBidToReject] = useState(null);
+  const [rejectingBid, setRejectingBid] = useState(null);
   const [activeTab, setActiveTab] = useState(0);
-  const [loading] = useState({
+  const [relatedProducts, setRelatedProducts] = useState([]);
+  const relatedProductsRef = useRef(null);
+  
+  // Product data state
+  const [product, setProduct] = useState(null);
+  const [loading, setLoading] = useState({
+    product: true,
     bidHistory: false,
     questions: false,
     relatedProducts: false,
   });
-  const [error] = useState({
+  const [error, setError] = useState({
+    product: null,
     bidHistory: null,
     questions: null,
     relatedProducts: null,
   });
-  const [relatedProducts] = useState(mockRelatedProducts);
-  const relatedProductsRef = useRef(null);
 
-  // Use mockProduct as product for now
-  const product = mockProduct;
-  const allImages = [product.mainImage, ...product.additionalImages];
+  // Fetch product details
+  useEffect(() => {
+    if (!productId) return;
 
-  const { user } = useAuth();
-  // Check if current user is the seller/owner of this product
-  // Mock: Assume user.id === 101 is the seller for this product
-  let isSeller = user && user.roleName?.toLowerCase() === 'seller' && user.id === product.seller.id;
-  isSeller = true;
+    const fetchProductDetails = async () => {
+      setLoading((prev) => ({ ...prev, product: true }));
+      setError((prev) => ({ ...prev, product: null }));
+      
+      try {
+        const response = await productApi.getProductDetails(parseInt(productId));
+        if (response.success && response.product) {
+          const productData = response.product;
+          setProduct(productData);
+          
+          // Set description
+          if (productData.description) {
+            setProductDescription(productData.description);
+          }
+          
+          // Set watchlist status
+          if (productData.isInWatchlist !== undefined) {
+            setIsWatchlisted(productData.isInWatchlist);
+          }
+        } else {
+          setError((prev) => ({ ...prev, product: response.message || 'Failed to load product' }));
+        }
+      } catch (err) {
+        console.error('Error fetching product details:', err);
+        setError((prev) => ({ 
+          ...prev, 
+          product: err.response?.data?.message || err.message || 'Failed to load product details' 
+        }));
+      } finally {
+        setLoading((prev) => ({ ...prev, product: false }));
+      }
+    };
+
+    fetchProductDetails();
+  }, [productId]);
+
+  // Fetch bid history
+  useEffect(() => {
+    if (!productId || !isAuthenticated) return;
+
+    const fetchBidHistory = async () => {
+      setLoading((prev) => ({ ...prev, bidHistory: true }));
+      setError((prev) => ({ ...prev, bidHistory: null }));
+      
+      try {
+        const response = await productApi.getProductBids(parseInt(productId));
+        if (response.success) {
+          // Map API response to component format
+          const mappedBids = response.bids.map((bid) => ({
+            id: bid.id,
+            bidder: bid.bidderNameMasked || 'Anonymous',
+            amount: bid.amount,
+            time: new Date(parseInt(bid.createdAt)),
+            isAuto: bid.isAuto,
+            isCurrentUser: bid.isCurrentUser,
+          }));
+          setBidHistory(mappedBids);
+        } else {
+          setError((prev) => ({ ...prev, bidHistory: response.message || 'Failed to load bid history' }));
+        }
+      } catch (err) {
+        console.error('Error fetching bid history:', err);
+        setError((prev) => ({ 
+          ...prev, 
+          bidHistory: err.response?.data?.message || err.message || 'Failed to load bid history' 
+        }));
+      } finally {
+        setLoading((prev) => ({ ...prev, bidHistory: false }));
+      }
+    };
+
+    fetchBidHistory();
+  }, [productId, isAuthenticated]);
+
+  // Fetch questions
+  useEffect(() => {
+    if (!productId || !isAuthenticated) return;
+
+    const fetchQuestions = async () => {
+      setLoading((prev) => ({ ...prev, questions: true }));
+      setError((prev) => ({ ...prev, questions: null }));
+      
+      try {
+        const response = await productApi.getProductQuestions(parseInt(productId));
+        if (response.success) {
+          // Map API response to component format
+          const mappedQuestions = response.questions.map((q) => ({
+            id: q.id,
+            bidder: { 
+              name: q.askerName || 'Anonymous',
+              avatar: `https://i.pravatar.cc/150?img=${q.askerId || 1}` 
+            },
+            question: q.question,
+            answer: q.answer || null,
+            askedAt: new Date(parseInt(q.createdAt)),
+            answeredAt: q.answeredAt ? new Date(parseInt(q.answeredAt)) : null,
+          }));
+          setQuestions(mappedQuestions);
+        } else {
+          setError((prev) => ({ ...prev, questions: response.message || 'Failed to load questions' }));
+        }
+      } catch (err) {
+        console.error('Error fetching questions:', err);
+        setError((prev) => ({ 
+          ...prev, 
+          questions: err.response?.data?.message || err.message || 'Failed to load questions' 
+        }));
+      } finally {
+        setLoading((prev) => ({ ...prev, questions: false }));
+      }
+    };
+
+    fetchQuestions();
+  }, [productId, isAuthenticated]);
+
+  // Fetch related products
+  useEffect(() => {
+    if (!productId) {
+      console.log('Related products: No productId, skipping fetch');
+      return;
+    }
+    
+    if (!isAuthenticated) {
+      console.log('Related products: Not authenticated yet, waiting...');
+      return;
+    }
+
+    console.log('Related products: Fetching for productId:', productId, 'isAuthenticated:', isAuthenticated);
+
+    const fetchRelatedProducts = async () => {
+      setLoading((prev) => ({ ...prev, relatedProducts: true }));
+      setError((prev) => ({ ...prev, relatedProducts: null }));
+      
+      try {
+        console.log('Related products: Calling API...');
+        const response = await productApi.getRelatedProducts(parseInt(productId), 5);
+        console.log('Related products: API response:', response);
+        
+        if (response.success) {
+          // Map API response to component format
+          const mappedProducts = (response.products || []).map((p) => {
+            const primaryImage = p.images?.find(img => img.isPrimary) || p.images?.[0];
+            return {
+              id: p.id,
+              title: p.title,
+              image: primaryImage?.url || '/placeholder-image.jpg',
+              currentPrice: p.currentPrice || 0,
+              endTime: p.endsAt ? new Date(parseInt(p.endsAt)) : new Date(),
+              bidCount: p.bidsCount || 0,
+            };
+          });
+          console.log('Related products: Mapped products:', mappedProducts);
+          setRelatedProducts(mappedProducts);
+          
+          if (mappedProducts.length === 0) {
+            console.log('Related products: No related products found in same category');
+          }
+        } else {
+          console.warn('Related products: API returned success=false:', response.message);
+          setError((prev) => ({ ...prev, relatedProducts: response.message || 'Failed to load related products' }));
+        }
+      } catch (err) {
+        console.error('Error fetching related products:', err);
+        console.error('Error details:', {
+          message: err.message,
+          response: err.response?.data,
+          status: err.response?.status,
+        });
+        setError((prev) => ({ 
+          ...prev, 
+          relatedProducts: err.response?.data?.message || err.message || 'Failed to load related products' 
+        }));
+      } finally {
+        setLoading((prev) => ({ ...prev, relatedProducts: false }));
+      }
+    };
+
+    fetchRelatedProducts();
+  }, [productId, isAuthenticated]);
+
+  // Check if current user is the seller
+  const isSeller = user && user.roleName?.toLowerCase() === 'seller' && product && user.id === product.sellerId;
+  
+  // Get all images from product
+  const allImages = product?.images 
+    ? product.images.map(img => img.url)
+    : [];
   // Check if auction has started (has bids)
-  const hasStartedBidding = product.bidCount > 0 || bidHistory.length > 0;
+  const hasStartedBidding = (product?.bidsCount || 0) > 0 || bidHistory.length > 0;
   const formatPrice = (price) => {
     return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
@@ -280,18 +336,18 @@ function ProductDetailPage() {
   };
 
   const handleBuyNow = () => {
-    if (!isLoggedIn) {
+    if (!isAuthenticated) {
       navigate('/auth/login');
       return;
     }
-    // API call to buy now
-    console.log('Buying now:', product.buyNowPrice);
+    // TODO: Implement buy now API call
+    console.log('Buying now:', product?.buyNowPrice);
   };
 
   const handleScrollRelatedProducts = (direction) => {
-    if (relatedProductsRef) {
+    if (relatedProductsRef.current) {
       const scrollAmount = 400;
-      relatedProductsRef.scrollBy({
+      relatedProductsRef.current.scrollBy({
         left: direction === 'left' ? -scrollAmount : scrollAmount,
         behavior: 'smooth',
       });
@@ -299,36 +355,63 @@ function ProductDetailPage() {
   };
 
   const handlePlaceBid = () => {
-    if (!isLoggedIn) {
+    if (!isAuthenticated) {
       navigate('/auth/login');
       return;
     }
     setOpenBidDialog(true);
   };
 
-  const handleConfirmBid = () => {
-    // API call to place bid
-    console.log('Placing bid:', bidAmount);
-    setOpenBidDialog(false);
-    setBidAmount('');
+  const handleConfirmBid = async () => {
+    if (!productId || !bidAmount) return;
+    
+    try {
+      // TODO: Implement place bid API call
+      // await productApi.placeBid(parseInt(productId), parseFloat(bidAmount));
+      console.log('Placing bid:', bidAmount);
+      setOpenBidDialog(false);
+      setBidAmount('');
+      // Refresh bid history after placing bid
+      // await fetchBidHistory();
+    } catch (err) {
+      console.error('Error placing bid:', err);
+    }
   };
 
-  const handleAskQuestion = () => {
-    if (!isLoggedIn) {
+  const handleAskQuestion = async () => {
+    if (!productId || !question.trim()) return;
+    
+    try {
+      // TODO: Implement ask question API call
+      // await productApi.askQuestion(parseInt(productId), question);
+      console.log('Posting question:', question);
+      setQuestion('');
+      // Refresh questions after posting
+      // await fetchQuestions();
+    } catch (err) {
+      console.error('Error posting question:', err);
+    }
+  };
+
+  const handleToggleWatchlist = async () => {
+    if (!isAuthenticated) {
       navigate('/auth/login');
       return;
     }
-    // API call to post question
-    console.log('Posting question:', question);
-    setQuestion('');
-  };
-
-  const handleToggleWatchlist = () => {
-    if (!isLoggedIn) {
-      navigate('/auth/login');
-      return;
+    
+    if (!productId) return;
+    
+    try {
+      // TODO: Implement watchlist toggle API call
+      // if (isWatchlisted) {
+      //   await productApi.removeFromWatchlist(parseInt(productId));
+      // } else {
+      //   await productApi.addToWatchlist(parseInt(productId));
+      // }
+      setIsWatchlisted(!isWatchlisted);
+    } catch (err) {
+      console.error('Error toggling watchlist:', err);
     }
-    setIsWatchlisted(!isWatchlisted);
   };
 
   const handleAnswerChange = (questionId, value) => {
@@ -345,8 +428,8 @@ function ProductDetailPage() {
     setSubmittingAnswer((prev) => ({ ...prev, [questionId]: true }));
 
     try {
-      // Mock API call - replace with actual API
-      // await axiosInstance.post(`/products/${mockProduct.id}/questions/${questionId}/answer`, { answer });
+      // TODO: Implement answer question API call
+      // await productApi.answerQuestion(parseInt(productId), questionId, answer);
       await new Promise((resolve) => setTimeout(resolve, 500));
       
       // Update the question with answer in state
@@ -387,8 +470,8 @@ function ProductDetailPage() {
     setSubmittingDescription(true);
 
     try {
-      // Mock API call - replace with actual API
-      // await axiosInstance.post(`/products/${mockProduct.id}/description/append`, { description: newDescription });
+      // TODO: Implement append description API call
+      // await productApi.appendDescription(parseInt(productId), newDescription);
       await new Promise((resolve) => setTimeout(resolve, 500));
       
       // Append new description to existing description
@@ -419,8 +502,8 @@ function ProductDetailPage() {
 
     setRejectingBid(bidToReject.id);
     try {
-      // Mock API call - replace with actual API
-      // await axiosInstance.post(`/products/${mockProduct.id}/bids/${bidToReject.id}/reject`);
+      // TODO: Implement reject bid API call
+      // await productApi.rejectBid(parseInt(productId), bidToReject.id);
       await new Promise((resolve) => setTimeout(resolve, 500));
       
       // Mark bid as rejected
@@ -441,14 +524,77 @@ function ProductDetailPage() {
     }
   };
 
-  const suggestedBids = [
-    product.currentPrice + product.bidIncrement,
-    product.currentPrice + product.bidIncrement * 2,
-    product.currentPrice + product.bidIncrement * 3,
-  ];
+  const suggestedBids = product
+    ? [
+        (product.currentPrice || 0) + (product.stepPrice || 0),
+        (product.currentPrice || 0) + (product.stepPrice || 0) * 2,
+        (product.currentPrice || 0) + (product.stepPrice || 0) * 3,
+      ]
+    : [];
+
+  // Show loading state
+  if (loading.product) {
+    return (
+      <Page title="Loading Product...">
+        <Box sx={{ bgcolor: "grey.50", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <CircularProgress />
+        </Box>
+      </Page>
+    );
+  }
+
+  // Show error state
+  if (error.product || !product) {
+    return (
+      <Page title="Product Not Found">
+        <Box sx={{ bgcolor: "grey.50", minHeight: "100vh" }}>
+          <Container maxWidth="xl" sx={{ py: 4 }}>
+            <Alert severity="error">
+              {error.product || "Product not found"}
+            </Alert>
+            <Button onClick={() => navigate("/")} sx={{ mt: 2 }}>
+              Go to Home
+            </Button>
+          </Container>
+        </Box>
+      </Page>
+    );
+  }
+
+  // Map product data to expected format
+  const productData = {
+    id: product.id,
+    title: product.title,
+    description: product.description || '',
+    currentPrice: product.currentPrice || 0,
+    buyNowPrice: product.buyNowPrice || null,
+    startingPrice: product.startingPrice || 0,
+    bidIncrement: product.stepPrice || 0,
+    seller: {
+      id: product.sellerId || product.sellerInfo?.id,
+      name: product.sellerName || product.sellerInfo?.fullName || 'Unknown Seller',
+      rating: (product.sellerRatingPercent || product.sellerInfo?.ratingPercent || 0) / 20, // Convert from percent to 5-star scale
+      ratingCount: (product.sellerPositiveReviews || product.sellerInfo?.positiveReviews || 0) + 
+                   (product.sellerNegativeReviews || product.sellerInfo?.negativeReviews || 0),
+      avatar: `https://i.pravatar.cc/150?img=${product.sellerId || 1}`,
+    },
+    currentBidder: product.highestBidderMasked ? {
+      name: product.highestBidderMasked,
+      bidCount: 0, // This would need to come from API
+    } : null,
+    postedTime: product.createdAt ? new Date(parseInt(product.createdAt)) : new Date(),
+    endTime: product.endsAt ? new Date(parseInt(product.endsAt)) : new Date(),
+    status: product.status || 'ACTIVE',
+    category: {
+      id: product.categoryId,
+      name: product.categoryName || 'Uncategorized',
+    },
+    bidCount: product.bidsCount || 0,
+    watchCount: product.viewsCount || 0,
+  };
 
   return (
-    <Page title={`${product.title} - Product Detail`}>
+    <Page title={`${productData.title} - Product Detail`}>
       <Box sx={{ bgcolor: "grey.50", minHeight: "100vh" }}>
         <Container maxWidth="xl" sx={{ py: 4 }}>
           {/* Breadcrumb */}
@@ -474,38 +620,38 @@ function ProductDetailPage() {
                   <Home fontSize="small" />
                   Home
                 </Link>
-                {product.category && (
+                {productData.category && (
                   <Link
                     component="button"
                     variant="body1"
-                    onClick={() => navigate(`/category/${product.category.id}`)}
+                    onClick={() => navigate(`/category/${productData.category.id}`)}
                     sx={{
                       color: "text.secondary",
                       textDecoration: "none",
                       "&:hover": { color: "primary.main" },
                     }}
                   >
-                    {product.category.name}
+                    {productData.category.name}
                   </Link>
                 )}
                 <Typography variant="body1" color="text.primary" fontWeight={600}>
-                  {product.title}
+                  {productData.title}
                 </Typography>
               </Breadcrumbs>
             </CardContent>
           </Card>
 
-          <div style={{ display: "flex", gap: 10 }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "stretch" }}>
             {/* Left Column - Images */}
             <Card
               elevation={0}
-              sx={{ borderRadius: 2, boxShadow: "0 2px 12px rgba(0,0,0,0.08)" }}
+              sx={{ borderRadius: 2, boxShadow: "0 2px 12px rgba(0,0,0,0.08)", width: "60%", display: "flex", flexDirection: "column" }}
             >
               <Box sx={{ position: "relative" }}>
                 <CardMedia
                   component="img"
                   image={allImages[selectedImage] || "/placeholder-image.jpg"}
-                  alt={product.title}
+                  alt={productData.title}
                     sx={{
                       width: "100%",
                       height: { xs: 300, md: 500 },
@@ -574,14 +720,14 @@ function ProductDetailPage() {
             </Card>
 
             {/* Right Column - Product Info */}
-            <Grid item xs={12} md={6}>
-              <Stack spacing={3}>
+            <div style={{ width: "40%", display: "flex", flexDirection: "column" }}>
+              <Stack spacing={3} sx={{ flex: 1, height: "100%" }}>
                 {/* Title and Status */}
                 <Card
                   elevation={0}
-                  sx={{ borderRadius: 2, boxShadow: "0 2px 12px rgba(0,0,0,0.08)" }}
+                  sx={{ borderRadius: 2, boxShadow: "0 2px 12px rgba(0,0,0,0.08)", height: "100%", display: "flex", flexDirection: "column" }}
                 >
-                  <CardContent>
+                  <CardContent sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
                     <Stack
                       direction="row"
                       justifyContent="space-between"
@@ -590,11 +736,11 @@ function ProductDetailPage() {
                     >
                       <Box sx={{ flex: 1 }}>
                         <Typography variant="h4" fontWeight="bold" gutterBottom>
-                          {product.title}
+                          {productData.title}
                         </Typography>
                         <Chip
-                          label={product.status}
-                          color={product.status === "ACTIVE" ? "success" : "default"}
+                          label={productData.status}
+                          color={productData.status === "ACTIVE" ? "success" : "default"}
                           size="small"
                           sx={{ mb: 2 }}
                         />
@@ -618,15 +764,15 @@ function ProductDetailPage() {
                         color="primary.main"
                         gutterBottom
                       >
-                        {formatPrice(product.currentPrice)}
+                        {formatPrice(productData.currentPrice)}
                       </Typography>
                       <Stack direction="row" spacing={2} alignItems="center">
                         <Typography variant="body2" color="text.secondary">
-                          Starting: {formatPrice(product.startingPrice)}
+                          Starting: {formatPrice(productData.startingPrice)}
                         </Typography>
-                        {product.buyNowPrice && (
+                        {productData.buyNowPrice && (
                           <Typography variant="body2" color="text.secondary">
-                            Buy Now: {formatPrice(product.buyNowPrice)}
+                            Buy Now: {formatPrice(productData.buyNowPrice)}
                           </Typography>
                         )}
                       </Stack>
@@ -637,7 +783,7 @@ function ProductDetailPage() {
                       <Stack direction="row" spacing={1} alignItems="center">
                         <AccessTime fontSize="small" />
                         <Typography variant="body1" fontWeight="medium">
-                          Time Left: {getTimeLeft(product.endTime)}
+                          Time Left: {getTimeLeft(productData.endTime)}
                         </Typography>
                       </Stack>
                     </Box>
@@ -649,7 +795,7 @@ function ProductDetailPage() {
                           Bids
                         </Typography>
                         <Typography variant="h6" fontWeight="bold">
-                          {product.bidCount}
+                          {productData.bidCount}
                         </Typography>
                       </Box>
                       <Box>
@@ -657,7 +803,7 @@ function ProductDetailPage() {
                           Watchers
                         </Typography>
                         <Typography variant="h6" fontWeight="bold">
-                          {product.watchCount}
+                          {productData.watchCount}
                         </Typography>
                       </Box>
                       <Box>
@@ -665,20 +811,20 @@ function ProductDetailPage() {
                           Bid Increment
                         </Typography>
                         <Typography variant="h6" fontWeight="bold">
-                          {formatPrice(product.bidIncrement)}
+                          {formatPrice(productData.bidIncrement)}
                         </Typography>
                       </Box>
                     </Stack>
 
                     {/* Current Bidder (if has bids) */}
-                    {hasStartedBidding && product.currentBidder && (
+                    {hasStartedBidding && productData.currentBidder && (
                       <Box sx={{ mb: 3, p: 2, bgcolor: "grey.50", borderRadius: 1 }}>
                         <Typography variant="body2" color="text.secondary" gutterBottom>
                           Current Highest Bidder
                         </Typography>
                         <Typography variant="body1" fontWeight="medium">
-                          {product.currentBidder.name}
-                          {product.currentBidder.bidCount > 0 && ` (${product.currentBidder.bidCount} bids)`}
+                          {productData.currentBidder.name}
+                          {productData.currentBidder.bidCount > 0 && ` (${productData.currentBidder.bidCount} bids)`}
                         </Typography>
                       </Box>
                     )}
@@ -696,7 +842,7 @@ function ProductDetailPage() {
                         >
                           Place Bid
                         </Button>
-                        {product.buyNowPrice && (
+                        {productData.buyNowPrice && (
                           <Button
                             variant="outlined"
                             size="large"
@@ -714,27 +860,27 @@ function ProductDetailPage() {
                     {/* Seller Info */}
                     <Divider sx={{ my: 2 }} />
                     <Box
-                      onClick={() => navigate(`/seller/${product.seller.id}`)}
+                      onClick={() => navigate(`/seller/${productData.seller.id}`)}
                       sx={{ cursor: "pointer" }}
                     >
                       <Stack direction="row" spacing={2} alignItems="center">
                         <Avatar
-                          src={product.seller.avatar}
+                          src={productData.seller.avatar}
                           sx={{ width: 56, height: 56 }}
                         />
                         <Box sx={{ flex: 1 }}>
                           <Typography variant="h6" fontWeight="medium">
-                            {product.seller.name}
+                            {productData.seller.name}
                           </Typography>
                           <Stack direction="row" spacing={1} alignItems="center">
                             <Rating
-                              value={product.seller.rating}
+                              value={productData.seller.rating}
                               precision={0.1}
                               size="small"
                               readOnly
                             />
                             <Typography variant="body2" color="text.secondary">
-                              {product.seller.rating.toFixed(1)} ({product.seller.ratingCount}{" "}
+                              {productData.seller.rating.toFixed(1)} ({productData.seller.ratingCount}{" "}
                               reviews)
                             </Typography>
                           </Stack>
@@ -744,7 +890,7 @@ function ProductDetailPage() {
                   </CardContent>
                 </Card>
               </Stack>
-            </Grid>
+            </div>
           </div>
 
           {/* Description Section */}
@@ -970,11 +1116,11 @@ function ProductDetailPage() {
                                 >
                                   <Stack direction="row" spacing={1} alignItems="center" mb={1}>
                                     <Avatar
-                                      src={product.seller.avatar}
+                                      src={productData.seller.avatar}
                                       sx={{ width: 24, height: 24 }}
                                     />
                                     <Typography variant="subtitle2" fontWeight="medium">
-                                      {product.seller.name} (Seller)
+                                      {productData.seller.name} (Seller)
                                     </Typography>
                                     <Typography variant="caption" color="text.secondary">
                                       {getRelativeTime(q.answeredAt)}
@@ -1176,11 +1322,11 @@ function ProductDetailPage() {
             <DialogContent>
               <Stack spacing={3} sx={{ mt: 1 }}>
                 <Alert severity="info">
-                  Current highest bid: <strong>{formatPrice(product.currentPrice)}</strong>
+                  Current highest bid: <strong>{formatPrice(productData.currentPrice)}</strong>
                   <br />
                   Minimum bid:{" "}
                   <strong>
-                    {formatPrice(product.currentPrice + product.bidIncrement)}
+                    {formatPrice(productData.currentPrice + productData.bidIncrement)}
                   </strong>
                 </Alert>
                 <TextField
@@ -1189,7 +1335,7 @@ function ProductDetailPage() {
                   fullWidth
                   value={bidAmount}
                   onChange={(e) => setBidAmount(e.target.value)}
-                  helperText={`Bid increment: ${formatPrice(product.bidIncrement)}`}
+                  helperText={`Bid increment: ${formatPrice(productData.bidIncrement)}`}
                   InputProps={{
                     startAdornment: <Typography sx={{ mr: 1 }}>₫</Typography>,
                   }}
@@ -1220,7 +1366,7 @@ function ProductDetailPage() {
                 onClick={handleConfirmBid}
                 disabled={
                   !bidAmount ||
-                  Number(bidAmount) < product.currentPrice + product.bidIncrement
+                  Number(bidAmount) < productData.currentPrice + productData.bidIncrement
                 }
               >
                 Confirm Bid
