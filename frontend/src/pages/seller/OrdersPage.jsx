@@ -36,7 +36,7 @@ import {
 import Page from '../../components/Page';
 import { formatPrice } from '../../utils/formatNumber';
 import { fVNDate } from '../../utils/formatTime';
-import { mockGetSellerOrders } from '../../mocks';
+import { sellerApi } from '../../services/sellerApi';
 
 const SellerOrdersPage = () => {
   const navigate = useNavigate();
@@ -59,7 +59,7 @@ const SellerOrdersPage = () => {
     const fetchOrders = async () => {
       try {
         setLoading(true);
-        const response = await mockGetSellerOrders(500);
+        const response = await sellerApi.getOrders(1, 500);
         setOrders(response.data || []);
       } catch (err) {
         console.error('Error fetching orders:', err);

@@ -51,7 +51,24 @@ const Header = () => {
   
   // Get user info from auth context
   const userName = user?.fullName || user?.name || '';
-  const userRole = user?.roles?.[0]?.toLowerCase() || user?.roleName?.toLowerCase() || '';
+  
+  // Get role from multiple possible sources and normalize it
+  const getNormalizedRole = () => {
+    // Try multiple ways to get role: role (string), roles[0] (array), roleName
+    const rawRole = user?.role || user?.roles?.[0] || user?.roleName || '';
+    
+    if (!rawRole) return '';
+    
+    // Convert to string and lowercase
+    const roleStr = String(rawRole).toLowerCase();
+    
+    // Remove "ROLE_" prefix if present (e.g., "ROLE_SELLER" -> "seller")
+    const normalizedRole = roleStr.replace(/^role_/, '');
+    
+    return normalizedRole;
+  };
+  
+  const userRole = getNormalizedRole();
   const userAvatar = user?.avatar || user?.profilePicture || '';
   
   // Menu states

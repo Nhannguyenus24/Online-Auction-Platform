@@ -36,8 +36,7 @@ import {
 } from '@mui/icons-material';
 import Page from '../../components/Page';
 import { formatPrice } from '../../utils/formatNumber';
-import { fVNDate } from '../../utils/formatTime';
-import { mockGetSellerProducts } from '../../mocks';
+import { sellerApi } from '../../services/sellerApi';
 
 const SellerProductsPage = () => {
   const navigate = useNavigate();
@@ -58,7 +57,7 @@ const SellerProductsPage = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const response = await mockGetSellerProducts(false, 500);
+        const response = await sellerApi.getActiveListings(1, 500, 'active');
         setAllProducts(response.data || []);
       } catch (err) {
         console.error('Error fetching products:', err);
@@ -138,7 +137,8 @@ const SellerProductsPage = () => {
       hasNext: currentPage < totalPages,
       hasPrevious: currentPage > 1,
     });
-  }, [filteredProducts.length, pageSize]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredProducts.length, pageSize, pagination.currentPage]);
 
   // Get paginated products
   const paginatedProducts = (() => {

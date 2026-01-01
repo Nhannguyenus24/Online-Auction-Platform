@@ -30,7 +30,7 @@ import Page from '../../components/Page';
 import StatCard from '../../components/StatCard';
 import ProductCard from '../../components/ProductCard';
 import { formatPrice } from '../../utils/formatNumber';
-import { mockGetSellerProducts, mockGetSellerWonItems } from '../../mocks';
+import { sellerApi } from '../../services/sellerApi';
 
 const SellerHomePage = () => {
   const navigate = useNavigate();
@@ -51,12 +51,12 @@ const SellerHomePage = () => {
     const fetchAllData = async () => {
       try {
         // Fetch active listings
-        const activeRes = await mockGetSellerProducts(false, 500);
-        const active = (activeRes.data || []).filter((p) => p.status === 'active');
+        const activeRes = await sellerApi.getActiveListings(1, 500, 'active');
+        const active = activeRes.data || [];
         setActiveListings(active);
         
         // Fetch won items
-        const wonRes = await mockGetSellerWonItems(false, 500);
+        const wonRes = await sellerApi.getWinnerItems(1, 500);
         const wonData = wonRes.data || [];
         setWonItems(wonData);
         
@@ -86,9 +86,8 @@ const SellerHomePage = () => {
         // Active Listings
         try {
           setLoading((prev) => ({ ...prev, active: true }));
-          const response = await mockGetSellerProducts(false, 500);
-          // Filter only active listings
-          const active = (response.data || []).filter((p) => p.status === 'active');
+          const response = await sellerApi.getActiveListings(1, 500, 'active');
+          const active = response.data || [];
           setActiveListings(active);
         } catch (err) {
           console.error('Error fetching active listings:', err);
@@ -100,7 +99,7 @@ const SellerHomePage = () => {
         // Won Items
         try {
           setLoading((prev) => ({ ...prev, won: true }));
-          const response = await mockGetSellerWonItems(false, 500);
+          const response = await sellerApi.getWinnerItems(1, 500);
           const wonData = response.data || [];
           setWonItems(wonData);
         } catch (err) {

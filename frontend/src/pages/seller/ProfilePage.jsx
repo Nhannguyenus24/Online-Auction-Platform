@@ -42,26 +42,8 @@ import {
 import Page from '../../components/Page';
 import { formatPrice } from '../../utils/formatNumber';
 import { fVNDate } from '../../utils/formatTime';
-import {
-  mockGetSellerRatingsReceived,
-  mockGetSellerRatingsGiven,
-  mockGetSellerItemsNeedingRating,
-} from '../../mocks';
-
-// Mock user data - will be replaced with API call later
-const mockUserData = {
-  id: 1,
-  name: 'Jane Seller',
-  email: 'jane.seller@example.com',
-  phone: '+84 987 654 321',
-  address: '456 Business Street, Ho Chi Minh City',
-  dateOfBirth: '1985-05-20',
-  avatar: 'https://i.pravatar.cc/150?img=5',
-  rating: 4.8,
-  totalRatings: 32,
-  positiveRatings: 30,
-  negativeRatings: 2,
-};
+import { sellerApi } from '../../services/sellerApi';
+import { authApi } from '../../utils/api';
 
 const SellerProfilePage = () => {
   const navigate = useNavigate();
@@ -78,13 +60,26 @@ const SellerProfilePage = () => {
   const [ratingsGiven, setRatingsGiven] = useState([]);
   const [itemsNeedingRating, setItemsNeedingRating] = useState([]);
   const [loading, setLoading] = useState({
+    profile: false,
     ratings: false,
   });
   const [ratingSubTab, setRatingSubTab] = useState(0); // 0: Received, 1: Given, 2: Rate Winners
   const [ratingForm, setRatingForm] = useState({}); // { productId: { rating: 1/-1, comment: '' } }
 
   // Form states
-  const [profileData, setProfileData] = useState(mockUserData);
+  const [profileData, setProfileData] = useState({
+    id: null,
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    dateOfBirth: '',
+    avatar: '',
+    rating: 0,
+    totalRatings: 0,
+    positiveRatings: 0,
+    negativeRatings: 0,
+  });
   const [passwordData, setPasswordData] = useState({
     oldPassword: '',
     newPassword: '',
@@ -120,10 +115,31 @@ const SellerProfilePage = () => {
     setTimeout(() => setSuccessMessage(''), 3000);
   };
 
-  const handleCancelEdit = () => {
-    setProfileData(mockUserData);
-    setIsEditing(false);
-    setErrorMessage('');
+  const handleCancelEdit = async () => {
+    try {
+      setLoading((prev) => ({ ...prev, profile: true }));
+      const response = await authApi.getProfile();
+      const profile = response.data?.profile || {};
+      setProfileData({
+        id: profile.userId || profile.id || null,
+        name: profile.fullName || '',
+        email: profile.email || '',
+        phone: profile.phoneNumber || '',
+        address: profile.address || '',
+        dateOfBirth: profile.dateOfBirth || '',
+        avatar: profile.avatar || profile.profilePicture || '',
+        rating: profile.rating || 0,
+        totalRatings: profile.totalRatings || 0,
+        positiveRatings: profile.positiveRatings || 0,
+        negativeRatings: profile.negativeRatings || 0,
+      });
+    } catch (err) {
+      console.error('Error fetching profile:', err);
+    } finally {
+      setLoading((prev) => ({ ...prev, profile: false }));
+      setIsEditing(false);
+      setErrorMessage('');
+    }
   };
 
 
@@ -156,6 +172,36 @@ const SellerProfilePage = () => {
     setTimeout(() => setSuccessMessage(''), 3000);
   };
 
+  // Fetch profile data on mount
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        setLoading((prev) => ({ ...prev, profile: true }));
+        const response = await authApi.getProfile();
+        const profile = response.data?.profile || {};
+        setProfileData({
+          id: profile.userId || profile.id || null,
+          name: profile.fullName || '',
+          email: profile.email || '',
+          phone: profile.phoneNumber || '',
+          address: profile.address || '',
+          dateOfBirth: profile.dateOfBirth || '',
+          avatar: profile.avatar || profile.profilePicture || '',
+          rating: profile.rating || 0,
+          totalRatings: profile.totalRatings || 0,
+          positiveRatings: profile.positiveRatings || 0,
+          negativeRatings: profile.negativeRatings || 0,
+        });
+      } catch (err) {
+        console.error('Error fetching profile:', err);
+      } finally {
+        setLoading((prev) => ({ ...prev, profile: false }));
+      }
+    };
+
+    fetchProfile();
+  }, []);
+
   // Fetch data when tab changes
   useEffect(() => {
     const fetchData = async () => {
@@ -163,9 +209,9 @@ const SellerProfilePage = () => {
         setLoading((prev) => ({ ...prev, ratings: true }));
         try {
           const [receivedRes, givenRes, needingRes] = await Promise.all([
-            mockGetSellerRatingsReceived(500),
-            mockGetSellerRatingsGiven(500),
-            mockGetSellerItemsNeedingRating(500),
+            sellerApi.getRatingsReceived(),
+            sellerApi.getRatingsGiven(),
+            sellerApi.getItemsNeedingRating(),
           ]);
           setRatingsReceived(receivedRes.data || []);
           setRatingsGiven(givenRes.data || []);
@@ -736,15 +782,29 @@ const SellerProfilePage = () => {
                                           variant="contained"
                                           size="small"
                                           disabled={!ratingForm[item.productId]?.rating}
-                                          onClick={() => {
-                                            console.log('Submit rating:', {
-                                              productId: item.productId,
-                                              winnerId: item.winnerId,
-                                              ...ratingForm[item.productId],
-                                            });
-                                            // Will be implemented with API call later
-                                            setSuccessMessage('Rating submitted successfully!');
-                                            setTimeout(() => setSuccessMessage(''), 3000);
+                                          onClick={async () => {
+                                            try {
+                                              const orderId = item.orderId || item.id;
+                                              const rating = ratingForm[item.productId]?.rating;
+                                              const comment = ratingForm[item.productId]?.comment || '';
+                                              await sellerApi.rateBidder(orderId, rating, comment);
+                                              setSuccessMessage('Rating submitted successfully!');
+                                              setTimeout(() => setSuccessMessage(''), 3000);
+                                              // Remove item from list
+                                              setItemsNeedingRating((prev) =>
+                                                prev.filter((i) => i.id !== item.id)
+                                              );
+                                              // Clear form
+                                              setRatingForm((prev) => {
+                                                const newForm = { ...prev };
+                                                delete newForm[item.productId];
+                                                return newForm;
+                                              });
+                                            } catch (err) {
+                                              console.error('Error submitting rating:', err);
+                                              setErrorMessage(err.response?.data?.message || 'Failed to submit rating');
+                                              setTimeout(() => setErrorMessage(''), 5000);
+                                            }
                                           }}
                                         >
                                           Submit Rating
