@@ -149,7 +149,7 @@ public class AdminService {
             selectQuery = Query.empty().offset(skip).limit(pageSize);
         }
 
-        return template.count(countQuery, UpgradeRequest.class)
+        return template.count(countQuery, com.auction.entities.database.UpgradeRequest.class)
                 .flatMap(totalCount -> {
                     log.info("Total upgrade requests found: {}", totalCount);
                     

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Box,
   Container,
@@ -35,6 +35,7 @@ import {
   CardContent,
   Divider,
   Badge,
+  CircularProgress,
 } from '@mui/material';
 import {
   Inventory,
@@ -52,73 +53,204 @@ import {
   EmojiEvents,
   RemoveCircleOutline,
 } from '@mui/icons-material';
-
-// Mock data generator
-const generateMockProducts = (count) => {
-  const statuses = ['Active', 'Completed', 'Cancelled', 'Pending'];
-  const categories = ['Electronics', 'Fashion', 'Home & Garden', 'Sports', 'Art & Collectibles', 'Jewelry', 'Automotive'];
-  const productNames = [
-    'iPhone 15 Pro Max', 'MacBook Pro M3', 'Sony WH-1000XM5', 'Samsung Galaxy S24',
-    'Nike Air Jordan 1', 'Vintage Rolex Watch', 'Gaming PC RTX 4090', 'Canon EOS R5',
-    'Designer Handbag', 'Antique Painting', 'Mountain Bike', 'Smart Home Hub',
-    'Leather Jacket', 'Diamond Ring', 'Vintage Car Parts', 'Professional Camera Lens',
-  ];
-  
-  return Array.from({ length: count }, (_, i) => {
-    const status = statuses[i % statuses.length];
-    const isCompleted = status === 'Completed';
-    const currentPrice = Math.floor(Math.random() * 5000) + 500;
-    const startPrice = Math.floor(currentPrice * 0.6);
-    const bidCount = Math.floor(Math.random() * 50) + 1;
-    const winner = isCompleted ? {
-      id: 2000 + i,
-      name: `User ${i + 1}`,
-      email: `user${i + 1}@example.com`,
-      finalPrice: currentPrice,
-    } : null;
-    
-    return {
-      id: 5000 + i,
-      name: productNames[i % productNames.length] + ` #${i + 1}`,
-      image: `https://picsum.photos/seed/${i + 100}/400/300`,
-      category: categories[i % categories.length],
-      startPrice,
-      currentPrice,
-      buyNowPrice: isCompleted ? null : Math.floor(currentPrice * 1.5),
-      bidCount,
-      status,
-      seller: {
-        id: 1000 + i,
-        name: `Seller ${i + 1}`,
-        rating: (Math.random() * 2 + 3).toFixed(1),
-      },
-      winner,
-      startDate: new Date(Date.now() - Math.floor(Math.random() * 30 * 24 * 60 * 60 * 1000)).toLocaleDateString(),
-      endDate: isCompleted 
-        ? new Date(Date.now() - Math.floor(Math.random() * 7 * 24 * 60 * 60 * 1000)).toLocaleDateString()
-        : new Date(Date.now() + Math.floor(Math.random() * 7 * 24 * 60 * 60 * 1000)).toLocaleDateString(),
-      description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore.',
-      views: Math.floor(Math.random() * 1000) + 50,
-      isFlagged: Math.random() > 0.9,
-    };
-  });
-};
+import { useSnackbar } from 'notistack';
+import { categoryApi } from '../../services/categoryApi';
+import { adminApi } from '../../services/adminApi';
+import axiosInstance from '../../utils/axios';
 
 const ProductManagementPage = () => {
   const theme = useTheme();
+  const { enqueueSnackbar } = useSnackbar();
   
   // State management
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
-  const [categoryFilter, setCategoryFilter] = useState('All');
+  const [categoryFilter, setCategoryFilter] = useState('');
   const [openViewDialog, setOpenViewDialog] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [allProducts, setAllProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [removeReason, setRemoveReason] = useState('');
 
-  // Generate mock data
-  const allProducts = useMemo(() => generateMockProducts(125), []);
+  // Fetch categories and products on component mount
+  useEffect(() => {
+    initializeData();
+  }, []);
+
+  // Reset page to 0 when any filter changes
+  useEffect(() => {
+    setPage(0);
+  }, [searchQuery, statusFilter, categoryFilter]);
+
+  const initializeData = async () => {
+    setLoading(true);
+    try {
+      // First fetch categories
+      const categoryResponse = await categoryApi.getCategories();
+      if (categoryResponse.success) {
+        const cats = [];
+        categoryResponse.data.forEach(parent => {
+          cats.push({ id: parent.id, name: parent.name });
+          if (parent.children) {
+            parent.children.forEach(child => {
+              cats.push({ id: child.id, name: child.name });
+            });
+          }
+        });
+        setCategories(cats);
+
+        // Set first category as default and fetch its products
+        if (cats.length > 0) {
+          setCategoryFilter(cats[0].name);
+          await fetchProductsByCategory(cats[0].name);
+        }
+      }
+    } catch (error) {
+      console.error('Error initializing data:', error);
+      enqueueSnackbar('Lỗi khi tải dữ liệu', { variant: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAllProducts = async (categoriesToFetch = categories) => {
+    try {
+      const allProductsData = [];
+      
+      // Fetch products from all categories in parallel
+      const fetchPromises = categoriesToFetch.map(cat => 
+        axiosInstance.get('/api/guest/products/by-category', {
+          params: {
+            categoryId: cat.id,
+            status: 'all',
+            page: 1,
+            limit: 100,
+          }
+        }).then(response => {
+          if (response.data.success && response.data.products) {
+            return response.data.products;
+          }
+          return [];
+        }).catch(error => {
+          console.error(`Error fetching products for category ${cat.id}:`, error);
+          return [];
+        })
+      );
+
+      const results = await Promise.all(fetchPromises);
+      results.forEach(products => {
+        allProductsData.push(...products);
+      });
+
+      // Remove duplicates by product id
+      const uniqueProducts = allProductsData.reduce((acc, product) => {
+        if (!acc.find(p => p.id === product.id)) {
+          acc.push(product);
+        }
+        return acc;
+      }, []);
+
+      // Transform products to match the expected format
+      const transformedProducts = uniqueProducts.map(product => ({
+        id: product.id,
+        name: product.title,
+        image: product.images && product.images.length > 0 ? product.images[0].url : '',
+        category: product.categoryName || 'Unknown',
+        categoryId: product.categoryId,
+        startPrice: product.startingPrice || 0,
+        currentPrice: product.currentPrice || 0,
+        buyNowPrice: product.buyNowPrice || 0,
+        bidCount: product.bidsCount || 0,
+        status: product.status === 'active' ? 'Active' : 
+                product.status === 'ended' ? 'Completed' : 
+                product.status === 'cancelled' ? 'Cancelled' : 'Pending',
+        seller: {
+          id: product.sellerId,
+          name: product.sellerName || 'Unknown',
+          rating: product.sellerRatingPercent ? (product.sellerRatingPercent / 20).toFixed(1) : '0.0',
+        },
+        startDate: product.startsAt ? new Date(product.startsAt * 1000).toLocaleDateString() : '',
+        endDate: product.endsAt ? new Date(product.endsAt * 1000).toLocaleDateString() : '',
+        description: product.description || '',
+        views: product.viewsCount || 0,
+        isFlagged: false,
+        winner: product.status === 'ended' && product.highestBidderMasked ? {
+          name: product.highestBidderMasked,
+          finalPrice: product.currentPrice,
+        } : null,
+      }));
+
+      setAllProducts(transformedProducts);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      enqueueSnackbar('Lỗi khi tải danh sách sản phẩm', { variant: 'error' });
+    }
+  };
+
+  const fetchProductsByCategory = async (categoryName) => {
+    setLoading(true);
+    try {
+      // Find category by name
+      const category = categories.find(cat => cat.name === categoryName);
+      if (!category) {
+        enqueueSnackbar('Không tìm thấy danh mục', { variant: 'error' });
+        return;
+      }
+
+      const response = await axiosInstance.get('/api/guest/products/by-category', {
+        params: {
+          categoryId: category.id,
+          status: '',
+          page: 1,
+          limit: 20,
+        }
+      });
+
+      if (response.data.success && response.data.products) {
+        // Transform products
+        const transformedProducts = response.data.products.map(product => ({
+          id: product.id,
+          name: product.title,
+          image: product.images && product.images.length > 0 ? product.images[0].url : '',
+          category: product.categoryName || 'Unknown',
+          categoryId: product.categoryId,
+          startPrice: product.startingPrice || 0,
+          currentPrice: product.currentPrice || 0,
+          buyNowPrice: product.buyNowPrice || 0,
+          bidCount: product.bidsCount || 0,
+          status: product.status === 'active' ? 'Active' : 
+                  product.status === 'ended' ? 'Completed' : 
+                  product.status === 'cancelled' ? 'Cancelled' : 'Pending',
+          seller: {
+            id: product.sellerId,
+            name: product.sellerName || 'Unknown',
+            rating: product.sellerRatingPercent ? (product.sellerRatingPercent / 20).toFixed(1) : '0.0',
+          },
+          startDate: product.startsAt ? new Date(product.startsAt * 1000).toLocaleDateString() : '',
+          endDate: product.endsAt ? new Date(product.endsAt * 1000).toLocaleDateString() : '',
+          description: product.description || '',
+          views: product.viewsCount || 0,
+          isFlagged: false,
+          winner: product.status === 'ended' && product.highestBidderMasked ? {
+            name: product.highestBidderMasked,
+            finalPrice: product.currentPrice,
+          } : null,
+        }));
+
+        setAllProducts(transformedProducts);
+      }
+    } catch (error) {
+      console.error('Error fetching products by category:', error);
+      enqueueSnackbar('Lỗi khi tải sản phẩm theo danh mục', { variant: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Filter logic
   const filteredProducts = useMemo(() => {
@@ -140,12 +272,6 @@ const ProductManagementPage = () => {
     const startIndex = page * rowsPerPage;
     return filteredProducts.slice(startIndex, startIndex + rowsPerPage);
   }, [filteredProducts, page, rowsPerPage]);
-
-  // Unique categories for filter
-  const categories = useMemo(() => 
-    [...new Set(allProducts.map(p => p.category))],
-    [allProducts]
-  );
 
   // Statistics
   const stats = useMemo(() => {
@@ -177,10 +303,42 @@ const ProductManagementPage = () => {
     setOpenDeleteDialog(true);
   };
 
-  const handleConfirmDelete = () => {
-    console.log('Removing product:', selectedProduct);
-    setOpenDeleteDialog(false);
-    setSelectedProduct(null);
+  const handleCategoryFilterChange = async (newCategory) => {
+    setCategoryFilter(newCategory);
+    setPage(0); // Reset to first page
+    
+    // Fetch products for specific category
+    await fetchProductsByCategory(newCategory);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!selectedProduct || !removeReason.trim()) {
+      enqueueSnackbar('Vui lòng nhập lý do xóa sản phẩm', { variant: 'warning' });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const response = await adminApi.removeProduct(selectedProduct.id, removeReason);
+      
+      if (response.success) {
+        enqueueSnackbar(response.message || 'Xóa sản phẩm thành công', { variant: 'success' });
+        await fetchAllProducts();
+        setOpenDeleteDialog(false);
+        setSelectedProduct(null);
+        setRemoveReason('');
+      } else {
+        enqueueSnackbar(response.message || 'Xóa sản phẩm thất bại', { variant: 'error' });
+      }
+    } catch (error) {
+      console.error('Error removing product:', error);
+      enqueueSnackbar(
+        error.response?.data?.message || 'Lỗi khi xóa sản phẩm', 
+        { variant: 'error' }
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   const getStatusColor = (status) => {
@@ -346,11 +504,11 @@ const ProductManagementPage = () => {
               <Select
                 value={categoryFilter}
                 label="Category"
-                onChange={(e) => setCategoryFilter(e.target.value)}
+                onChange={(e) => handleCategoryFilterChange(e.target.value)}
+                disabled={loading}
               >
-                <MenuItem value="All">All Categories</MenuItem>
                 {categories.map(cat => (
-                  <MenuItem key={cat} value={cat}>{cat}</MenuItem>
+                  <MenuItem key={cat.id} value={cat.name}>{cat.name}</MenuItem>
                 ))}
               </Select>
             </FormControl>
@@ -360,7 +518,9 @@ const ProductManagementPage = () => {
               startIcon={<FilterList />}
               onClick={() => {
                 setStatusFilter('All');
-                setCategoryFilter('All');
+                if (categories.length > 0) {
+                  handleCategoryFilterChange(categories[0].name);
+                }
                 setSearchQuery('');
               }}
             >
@@ -376,6 +536,13 @@ const ProductManagementPage = () => {
             </Typography>
           </Box>
 
+          {/* Loading State */}
+          {loading ? (
+            <Box display="flex" justifyContent="center" alignItems="center" py={8}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <>
           {/* Products Table */}
           <TableContainer>
             <Table>
@@ -452,13 +619,13 @@ const ProductManagementPage = () => {
                     
                     <TableCell align="right">
                       <Typography variant="body2" color="text.secondary">
-                        ${product.startPrice.toLocaleString()}
+                        ${product.startPrice.toFixed(2)}
                       </Typography>
                     </TableCell>
                     
                     <TableCell align="right">
                       <Typography variant="body2" fontWeight={600} color="success.main">
-                        ${product.currentPrice.toLocaleString()}
+                        ${product.currentPrice.toFixed(2)}
                       </Typography>
                     </TableCell>
                     
@@ -526,6 +693,8 @@ const ProductManagementPage = () => {
             rowsPerPageOptions={[5, 10, 25, 50]}
             sx={{ borderTop: `1px solid ${theme.palette.divider}`, mt: 2 }}
           />
+            </>
+          )}
         </Paper>
 
         {/* View Product Dialog */}
@@ -573,22 +742,22 @@ const ProductManagementPage = () => {
                       <Grid item xs={6}>
                         <Typography variant="body2" color="text.secondary">Start Price</Typography>
                         <Typography variant="h6" color="text.primary">
-                          ${selectedProduct.startPrice.toLocaleString()}
+                          ${selectedProduct.startPrice.toFixed(2)}
                         </Typography>
                       </Grid>
                       <Grid item xs={6}>
                         <Typography variant="body2" color="text.secondary">Current Price</Typography>
                         <Typography variant="h6" color="success.main">
-                          ${selectedProduct.currentPrice.toLocaleString()}
+                          ${selectedProduct.currentPrice.toFixed(2)}
                         </Typography>
                       </Grid>
                     </Grid>
                     
-                    {selectedProduct.buyNowPrice && (
+                    {selectedProduct.buyNowPrice && selectedProduct.buyNowPrice > 0 && (
                       <Box>
                         <Typography variant="body2" color="text.secondary">Buy Now Price</Typography>
                         <Typography variant="h6" color="primary.main">
-                          ${selectedProduct.buyNowPrice.toLocaleString()}
+                          ${selectedProduct.buyNowPrice.toFixed(2)}
                         </Typography>
                       </Box>
                     )}
@@ -639,7 +808,7 @@ const ProductManagementPage = () => {
                           <strong>Winner:</strong> {selectedProduct.winner.name}
                         </Typography>
                         <Typography variant="body2">
-                          <strong>Final Price:</strong> ${selectedProduct.winner.finalPrice.toLocaleString()}
+                          <strong>Final Price:</strong> ${selectedProduct.winner.finalPrice.toFixed(2)}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
                           Email: {selectedProduct.winner.email}
@@ -685,15 +854,33 @@ const ProductManagementPage = () => {
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
               This action will take down the product listing. This cannot be undone.
             </Typography>
+            <TextField
+              fullWidth
+              label="Reason for removal"
+              multiline
+              rows={3}
+              value={removeReason}
+              onChange={(e) => setRemoveReason(e.target.value)}
+              required
+              sx={{ mt: 2 }}
+              placeholder="Please provide a reason for removing this product..."
+            />
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setOpenDeleteDialog(false)}>Cancel</Button>
+            <Button onClick={() => {
+              setOpenDeleteDialog(false);
+              setRemoveReason('');
+            }} disabled={saving}>
+              Cancel
+            </Button>
             <Button 
               onClick={handleConfirmDelete} 
               variant="contained"
               color="error"
+              disabled={!removeReason.trim() || saving}
+              startIcon={saving ? <CircularProgress size={20} /> : null}
             >
-              Remove Product
+              {saving ? 'Removing...' : 'Remove Product'}
             </Button>
           </DialogActions>
         </Dialog>

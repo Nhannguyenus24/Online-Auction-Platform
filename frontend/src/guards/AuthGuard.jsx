@@ -12,7 +12,6 @@ const ROLE_PREFIX_MAP = {
 export default function AuthGuard({ children }) {
   const { isAuthenticated, isInitialized, user } = useAuth();
   const { pathname } = useLocation();
-
   // un authenticate → show loading
   if (!isInitialized) return <LoadingScreen />;
 
@@ -20,7 +19,7 @@ export default function AuthGuard({ children }) {
   if (!isAuthenticated) return <Navigate to="/404" replace />;
 
   // user not exist → 404
-  if (!user || !user.roleName) return <Navigate to="/404" replace />;
+  if (!user || !user.role) return <Navigate to="/404" replace />;
 
   // check role
   const matchedPrefix = Object.keys(ROLE_PREFIX_MAP).find((prefix) =>
@@ -29,7 +28,7 @@ export default function AuthGuard({ children }) {
 
   if (matchedPrefix) {
     const requiredRole = ROLE_PREFIX_MAP[matchedPrefix];
-    if (user.roleName.toLowerCase() !== requiredRole.toLowerCase()) {
+    if (user.role.toLowerCase() !== requiredRole.toLowerCase()) {
       return <Navigate to="/404" replace />;
     }
   }

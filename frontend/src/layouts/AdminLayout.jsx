@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { Outlet } from 'react-router-dom';
 import {
   Box,
   List,
@@ -31,7 +32,7 @@ import {
 const DRAWER_WIDTH = 260;
 const COLLAPSED_WIDTH = 70;
 
-const AdminLayout = ({ children }) => {
+const AdminLayout = () => {
   const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -63,7 +64,6 @@ const AdminLayout = ({ children }) => {
       id: 'main',
       items: [
         { title: 'Dashboard', path: '/admin/dashboard', icon: <DashboardIcon /> },
-        { title: 'Auctions', path: '/admin/auctions', icon: <GavelIcon /> },
         { title: 'Users', path: '/admin/users', icon: <PeopleIcon /> },
         { title: 'Products', path: '/admin/products', icon: <InventoryIcon /> },
         { title: 'Categories', path: '/admin/categories', icon: <CategoryIcon /> },
@@ -257,7 +257,7 @@ const AdminLayout = ({ children }) => {
           minHeight: '100vh',
         }}
       >
-        {children}
+        <Outlet />
       </Box>
     </Box>
   );

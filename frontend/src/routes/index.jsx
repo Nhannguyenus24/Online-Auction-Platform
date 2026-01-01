@@ -90,6 +90,7 @@ export default function Router() {
         { path: "users", element: <UserManagementPage /> },
         { path: "categories", element: <CategoryManagementPage /> },
         { path: "products", element: <ProductManagementPage /> },
+        { path: "", element: <Navigate to="/admin/dashboard" replace /> },
       ],
     },
     {

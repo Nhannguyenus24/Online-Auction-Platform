@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Box,
   Container,
@@ -29,6 +29,7 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  CircularProgress,
 } from '@mui/material';
 import {
   Category,
@@ -40,41 +41,13 @@ import {
   Warning,
   CheckCircle,
 } from '@mui/icons-material';
-
-// Mock data generator
-const generateMockCategories = () => {
-  const categories = [
-    { id: 1, name: 'Electronics', parentId: null, description: 'Electronic devices and gadgets', productCount: 245, status: 'Active', createdAt: '2024-01-15', updatedAt: '2024-11-20' },
-    { id: 2, name: 'Smartphones', parentId: 1, description: 'Mobile phones and accessories', productCount: 120, status: 'Active', createdAt: '2024-01-16', updatedAt: '2024-11-18' },
-    { id: 3, name: 'Laptops', parentId: 1, description: 'Portable computers', productCount: 85, status: 'Active', createdAt: '2024-01-16', updatedAt: '2024-11-15' },
-    { id: 4, name: 'Tablets', parentId: 1, description: 'Tablet devices', productCount: 40, status: 'Active', createdAt: '2024-01-17', updatedAt: '2024-11-10' },
-    
-    { id: 5, name: 'Fashion', parentId: null, description: 'Clothing and accessories', productCount: 180, status: 'Active', createdAt: '2024-02-01', updatedAt: '2024-11-19' },
-    { id: 6, name: 'Men\'s Clothing', parentId: 5, description: 'Clothing for men', productCount: 75, status: 'Active', createdAt: '2024-02-02', updatedAt: '2024-11-17' },
-    { id: 7, name: 'Women\'s Clothing', parentId: 5, description: 'Clothing for women', productCount: 95, status: 'Active', createdAt: '2024-02-02', updatedAt: '2024-11-16' },
-    { id: 8, name: 'Accessories', parentId: 5, description: 'Fashion accessories', productCount: 10, status: 'Active', createdAt: '2024-02-03', updatedAt: '2024-11-14' },
-    
-    { id: 9, name: 'Home & Garden', parentId: null, description: 'Home and garden products', productCount: 156, status: 'Active', createdAt: '2024-02-10', updatedAt: '2024-11-21' },
-    { id: 10, name: 'Furniture', parentId: 9, description: 'Home furniture', productCount: 65, status: 'Active', createdAt: '2024-02-11', updatedAt: '2024-11-12' },
-    { id: 11, name: 'Garden Tools', parentId: 9, description: 'Tools for gardening', productCount: 45, status: 'Active', createdAt: '2024-02-11', updatedAt: '2024-11-11' },
-    { id: 12, name: 'Decor', parentId: 9, description: 'Home decoration items', productCount: 46, status: 'Active', createdAt: '2024-02-12', updatedAt: '2024-11-09' },
-    
-    { id: 13, name: 'Sports', parentId: null, description: 'Sports equipment and apparel', productCount: 98, status: 'Active', createdAt: '2024-03-01', updatedAt: '2024-11-08' },
-    { id: 14, name: 'Fitness Equipment', parentId: 13, description: 'Gym and fitness equipment', productCount: 42, status: 'Active', createdAt: '2024-03-02', updatedAt: '2024-11-07' },
-    { id: 15, name: 'Outdoor Sports', parentId: 13, description: 'Outdoor sporting goods', productCount: 56, status: 'Active', createdAt: '2024-03-02', updatedAt: '2024-11-06' },
-    
-    { id: 16, name: 'Books', parentId: null, description: 'Books and literature', productCount: 0, status: 'Inactive', createdAt: '2024-03-10', updatedAt: '2024-11-05' },
-    { id: 17, name: 'Art & Collectibles', parentId: null, description: 'Artwork and collectible items', productCount: 134, status: 'Active', createdAt: '2024-03-15', updatedAt: '2024-11-04' },
-    { id: 18, name: 'Jewelry', parentId: null, description: 'Jewelry and watches', productCount: 89, status: 'Active', createdAt: '2024-03-20', updatedAt: '2024-11-03' },
-    { id: 19, name: 'Automotive', parentId: null, description: 'Car parts and accessories', productCount: 67, status: 'Active', createdAt: '2024-04-01', updatedAt: '2024-11-02' },
-    { id: 20, name: 'Toys & Games', parentId: null, description: 'Toys and gaming products', productCount: 112, status: 'Active', createdAt: '2024-04-10', updatedAt: '2024-11-01' },
-  ];
-  
-  return categories;
-};
+import { useSnackbar } from 'notistack';
+import { categoryApi } from '../../services/categoryApi';
+import { adminApi } from '../../services/adminApi';
 
 const CategoryManagementPage = () => {
   const theme = useTheme();
+  const { enqueueSnackbar } = useSnackbar();
   
   // State management
   const [page, setPage] = useState(0);
@@ -89,9 +62,58 @@ const CategoryManagementPage = () => {
     description: '',
     status: 'Active',
   });
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [allCategories, setAllCategories] = useState([]);
 
-  // Generate mock data
-  const allCategories = useMemo(() => generateMockCategories(), []);
+  // Fetch categories on component mount
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  const fetchCategories = async () => {
+    setLoading(true);
+    try {
+      const response = await categoryApi.getCategories();
+      if (response.success) {
+        // Flatten the nested structure into a flat list
+        const flatCategories = [];
+        response.data.forEach(parent => {
+          flatCategories.push({
+            id: parent.id,
+            name: parent.name,
+            parentId: null,
+            description: '',
+            productCount: 0,
+            status: 'Active',
+            createdAt: new Date(parent.createdAt).toISOString().split('T')[0],
+            updatedAt: new Date(parent.createdAt).toISOString().split('T')[0],
+          });
+          
+          if (parent.children && parent.children.length > 0) {
+            parent.children.forEach(child => {
+              flatCategories.push({
+                id: child.id,
+                name: child.name,
+                parentId: parent.id,
+                description: '',
+                productCount: 0,
+                status: 'Active',
+                createdAt: new Date(child.createdAt).toISOString().split('T')[0],
+                updatedAt: new Date(child.createdAt).toISOString().split('T')[0],
+              });
+            });
+          }
+        });
+        setAllCategories(flatCategories);
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      enqueueSnackbar(error.response?.data?.message || 'Lỗi khi tải danh mục', { variant: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Filter logic
   const filteredCategories = useMemo(() => {
@@ -155,16 +177,80 @@ const CategoryManagementPage = () => {
     setSelectedCategory(null);
   };
 
-  const handleSaveCategory = () => {
-    // Here you would call your API
-    console.log('Saving category:', formData);
-    handleCloseDialog();
+  const handleSaveCategory = async () => {
+    if (!formData.name.trim()) {
+      enqueueSnackbar('Vui lòng nhập tên danh mục', { variant: 'warning' });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      if (dialogMode === 'create') {
+        const response = await adminApi.createCategory(
+          formData.name,
+          formData.parentId || 0
+        );
+        
+        if (response.success) {
+          enqueueSnackbar(response.message || 'Tạo danh mục thành công', { variant: 'success' });
+          await fetchCategories();
+          handleCloseDialog();
+        } else {
+          enqueueSnackbar(response.message || 'Tạo danh mục thất bại', { variant: 'error' });
+        }
+      } else if (dialogMode === 'edit' && selectedCategory) {
+        const response = await adminApi.updateCategory(
+          selectedCategory.id,
+          formData.name,
+          formData.parentId || 0
+        );
+        
+        if (response.success) {
+          enqueueSnackbar(response.message || 'Cập nhật danh mục thành công', { variant: 'success' });
+          await fetchCategories();
+          handleCloseDialog();
+        } else {
+          enqueueSnackbar(response.message || 'Cập nhật danh mục thất bại', { variant: 'error' });
+        }
+      }
+    } catch (error) {
+      console.error('Error saving category:', error);
+      enqueueSnackbar(
+        error.response?.data?.message || 'Lỗi khi lưu danh mục', 
+        { variant: 'error' }
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleDeleteCategory = () => {
-    // Here you would call your API
-    console.log('Deleting category:', selectedCategory);
-    handleCloseDialog();
+  const handleDeleteCategory = async () => {
+    if (!selectedCategory) return;
+
+    setSaving(true);
+    try {
+      const response = await adminApi.deleteCategory(selectedCategory.id);
+      
+      if (response.success) {
+        enqueueSnackbar(response.message || 'Xóa danh mục thành công', { variant: 'success' });
+        await fetchCategories();
+        handleCloseDialog();
+      } else {
+        if (response.hasProducts) {
+          enqueueSnackbar('Không thể xóa danh mục đang có sản phẩm', { variant: 'error' });
+        } else {
+          enqueueSnackbar(response.message || 'Xóa danh mục thất bại', { variant: 'error' });
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting category:', error);
+      enqueueSnackbar(
+        error.response?.data?.message || 'Lỗi khi xóa danh mục', 
+        { variant: 'error' }
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   const getParentCategoryName = (parentId) => {
@@ -224,6 +310,7 @@ const CategoryManagementPage = () => {
               placeholder="Search by name, description, or ID..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              disabled={loading}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -243,8 +330,15 @@ const CategoryManagementPage = () => {
             </Typography>
           </Box>
 
-          {/* Categories Table */}
-          <TableContainer>
+          {/* Loading State */}
+          {loading ? (
+            <Box display="flex" justifyContent="center" alignItems="center" py={8}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <>
+              {/* Categories Table */}
+              <TableContainer>
             <Table>
               <TableHead>
                 <TableRow>
@@ -385,6 +479,8 @@ const CategoryManagementPage = () => {
             rowsPerPageOptions={[5, 10, 25, 50]}
             sx={{ borderTop: `1px solid ${theme.palette.divider}`, mt: 2 }}
           />
+            </>
+          )}
         </Paper>
 
         {/* Create/Edit Dialog */}
@@ -448,13 +544,16 @@ const CategoryManagementPage = () => {
             </Stack>
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleCloseDialog}>Cancel</Button>
+            <Button onClick={handleCloseDialog} disabled={saving}>
+              Cancel
+            </Button>
             <Button 
               onClick={handleSaveCategory} 
               variant="contained"
-              disabled={!formData.name}
+              disabled={!formData.name || saving}
+              startIcon={saving ? <CircularProgress size={20} /> : null}
             >
-              {dialogMode === 'create' ? 'Create' : 'Save Changes'}
+              {saving ? 'Saving...' : (dialogMode === 'create' ? 'Create' : 'Save Changes')}
             </Button>
           </DialogActions>
         </Dialog>
@@ -481,13 +580,17 @@ const CategoryManagementPage = () => {
             </Typography>
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleCloseDialog}>Cancel</Button>
+            <Button onClick={handleCloseDialog} disabled={saving}>
+              Cancel
+            </Button>
             <Button 
               onClick={handleDeleteCategory} 
               variant="contained"
               color="error"
+              disabled={saving}
+              startIcon={saving ? <CircularProgress size={20} /> : null}
             >
-              Delete
+              {saving ? 'Deleting...' : 'Delete'}
             </Button>
           </DialogActions>
         </Dialog>

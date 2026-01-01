@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Box,
   Container,
@@ -30,8 +30,13 @@ import {
   ListItemIcon,
   ListItemText,
   Badge,
-  Rating,
-  AvatarGroup,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  CircularProgress,
+  Alert,
+  Snackbar,
 } from '@mui/material';
 import {
   People,
@@ -50,101 +55,97 @@ import {
   Refresh,
   TrendingUp,
   TrendingDown,
+  ThumbUp,
+  ThumbDown,
 } from '@mui/icons-material';
 import * as XLSX from 'xlsx';
 
 import StatCard from '../../components/StatCard';
-
-// Mock data generator
-const generateMockUsers = (count) => {
-  const roles = ['Bidder', 'Seller', 'Admin'];
-  const statuses = ['Active', 'Inactive', 'Suspended', 'Pending'];
-  const firstNames = ['John', 'Emma', 'Michael', 'Sophia', 'James', 'Olivia', 'William', 'Ava', 'David', 'Isabella'];
-  const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez'];
-  
-  return Array.from({ length: count }, (_, i) => {
-    const firstName = firstNames[i % firstNames.length];
-    const lastName = lastNames[Math.floor(i / firstNames.length) % lastNames.length];
-    const role = roles[i % roles.length];
-    const status = statuses[i % statuses.length];
-    const reputationScore = Math.floor(Math.random() * 500) + 1;
-    const hasParticipated = Math.random() > 0.3;
-    
-    return {
-      id: 1000 + i,
-      avatar: `https://i.pravatar.cc/150?img=${(i % 50) + 1}`,
-      name: `${firstName} ${lastName}`,
-      email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@example.com`,
-      phone: `+1 ${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`,
-      role,
-      reputationScore,
-      status,
-      registrationDate: new Date(Date.now() - Math.floor(Math.random() * 365 * 24 * 60 * 60 * 1000)).toLocaleDateString(),
-      lastActive: new Date(Date.now() - Math.floor(Math.random() * 30 * 24 * 60 * 60 * 1000)).toLocaleDateString(),
-      auctionsParticipated: hasParticipated ? Math.floor(Math.random() * 50) + 1 : 0,
-      totalSpent: hasParticipated ? Math.floor(Math.random() * 50000) + 1000 : 0,
-      isRisky: status === 'Suspended' || reputationScore < 100,
-    };
-  });
-};
+import { adminApi } from '../../services/adminApi';
 
 const UserManagementPage = () => {
   const theme = useTheme();
   
   // State management
-  const [currentDate] = useState(() => Date.now());
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [searchQuery, setSearchQuery] = useState('');
-  const [roleFilter, setRoleFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
   const [anchorEl, setAnchorEl] = useState(null);
-  const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  
+  // Data states
+  const [upgradeRequests, setUpgradeRequests] = useState([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [statistics, setStatistics] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [statsLoading, setStatsLoading] = useState(false);
+  
+  // Dialog states
+  const [approvalDialog, setApprovalDialog] = useState({ open: false, request: null, action: '' });
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
-  // Generate mock data
-  const allUsers = useMemo(() => generateMockUsers(156), []);
+  // Fetch user statistics
+  const fetchStatistics = async () => {
+    setStatsLoading(true);
+    try {
+      const data = await adminApi.getUserStatistics('');
+      setStatistics(data);
+    } catch (error) {
+      console.error('Failed to fetch statistics:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to load statistics',
+        severity: 'error'
+      });
+    } finally {
+      setStatsLoading(false);
+    }
+  };
 
-  // Week ago date for filtering new registrations
-  const weekAgoDate = useMemo(() => new Date(currentDate - 7 * 24 * 60 * 60 * 1000), [currentDate]);
+  // Fetch upgrade requests
+  const fetchUpgradeRequests = async () => {
+    setLoading(true);
+    try {
+      const statusParam = statusFilter === 'All' ? '' : statusFilter.toLowerCase();
+      const data = await adminApi.getUpgradeRequests(statusParam, page + 1, rowsPerPage);
+      setUpgradeRequests(data.upgradeRequests || []);
+      setTotalCount(data.totalCount || 0);
+      setTotalPages(data.totalPages || 0);
+    } catch (error) {
+      console.error('Failed to fetch upgrade requests:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to load upgrade requests',
+        severity: 'error'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // Filter and search logic
-  const filteredUsers = useMemo(() => {
-    return allUsers.filter(user => {
-      const matchesSearch = 
-        user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        user.id.toString().includes(searchQuery);
-      
-      const matchesRole = roleFilter === 'All' || user.role === roleFilter;
-      const matchesStatus = statusFilter === 'All' || user.status === statusFilter;
-      
-      return matchesSearch && matchesRole && matchesStatus;
-    });
-  }, [allUsers, searchQuery, roleFilter, statusFilter]);
+  // Load data on mount and when filters change
+  useEffect(() => {
+    fetchStatistics();
+  }, []);
 
-  // Paginated data
-  const paginatedUsers = useMemo(() => {
-    const startIndex = page * rowsPerPage;
-    return filteredUsers.slice(startIndex, startIndex + rowsPerPage);
-  }, [filteredUsers, page, rowsPerPage]);
+  useEffect(() => {
+    fetchUpgradeRequests();
+  }, [page, rowsPerPage, statusFilter]);
 
-  // Statistics
-  const stats = useMemo(() => {
-    const totalUsers = allUsers.length;
-    const newRegistrations = allUsers.filter(u => {
-      const regDate = new Date(u.registrationDate);
-      return regDate > weekAgoDate;
-    }).length;
-    const participatedUsers = allUsers.filter(u => u.auctionsParticipated > 0).length;
-    const riskyAccounts = allUsers.filter(u => u.isRisky).length;
+  // Filter requests by search query
+  const filteredRequests = useMemo(() => {
+    if (!searchQuery) return upgradeRequests;
     
-    return {
-      totalUsers,
-      newRegistrations,
-      participatedUsers,
-      riskyAccounts,
-    };
-  }, [allUsers, weekAgoDate]);
+    const query = searchQuery.toLowerCase();
+    return upgradeRequests.filter(request => 
+      request.userFullName?.toLowerCase().includes(query) ||
+      request.userEmail?.toLowerCase().includes(query) ||
+      request.id?.toString().includes(query) ||
+      request.userId?.toString().includes(query)
+    );
+  }, [upgradeRequests, searchQuery]);
 
   // Handlers
   const handleChangePage = (event, newPage) => {
@@ -156,51 +157,102 @@ const UserManagementPage = () => {
     setPage(0);
   };
 
-  const handleMenuOpen = (event, user) => {
+  const handleMenuOpen = (event, request) => {
     setAnchorEl(event.currentTarget);
-    setSelectedUser(user);
+    setSelectedRequest(request);
   };
 
   const handleMenuClose = () => {
     setAnchorEl(null);
-    setSelectedUser(null);
+    setSelectedRequest(null);
+  };
+
+  const handleRefresh = () => {
+    fetchStatistics();
+    fetchUpgradeRequests();
+  };
+
+  const handleOpenApprovalDialog = (request, action) => {
+    setApprovalDialog({ open: true, request, action });
+    handleMenuClose();
+  };
+
+  const handleCloseApprovalDialog = () => {
+    setApprovalDialog({ open: false, request: null, action: '' });
+  };
+
+  const handleProcessRequest = async () => {
+    const { request, action } = approvalDialog;
+    if (!request) return;
+
+    try {
+      const response = await adminApi.processUpgradeRequest(
+        request.id,
+        action,
+        action === 'reject' ? 'Does not meet seller requirements' : ''
+      );
+
+      if (response.success) {
+        setSnackbar({
+          open: true,
+          message: `Request ${action === 'approve' ? 'approved' : 'rejected'} successfully`,
+          severity: 'success'
+        });
+        fetchUpgradeRequests();
+        fetchStatistics();
+      } else {
+        setSnackbar({
+          open: true,
+          message: response.message || `Failed to ${action} request`,
+          severity: 'error'
+        });
+      }
+    } catch (error) {
+      console.error('Process request error:', error);
+      setSnackbar({
+        open: true,
+        message: `Failed to ${action} request`,
+        severity: 'error'
+      });
+    } finally {
+      handleCloseApprovalDialog();
+    }
   };
 
   const getStatusColor = (status) => {
-    switch (status) {
-      case 'Active': return 'success';
-      case 'Inactive': return 'default';
-      case 'Suspended': return 'error';
-      case 'Pending': return 'warning';
+    const statusLower = status?.toLowerCase();
+    switch (statusLower) {
+      case 'approved': return 'success';
+      case 'pending': return 'warning';
+      case 'rejected': return 'error';
       default: return 'default';
     }
   };
 
-  const getRoleColor = (role) => {
-    switch (role) {
-      case 'Admin': return 'error';
-      case 'Seller': return 'primary';
-      case 'Bidder': return 'info';
-      default: return 'default';
-    }
+  const formatDate = (timestamp) => {
+    if (!timestamp || timestamp === 0) return 'N/A';
+    return new Date(timestamp).toLocaleDateString('vi-VN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   // Export to Excel function
   const handleExportToExcel = () => {
     // Prepare data for export
-    const exportData = filteredUsers.map(user => ({
-      'ID': user.id,
-      'Name': user.name,
-      'Email': user.email,
-      'Phone': user.phone,
-      'Role': user.role,
-      'Reputation Score': user.reputationScore,
-      'Status': user.status,
-      'Registration Date': user.registrationDate,
-      'Last Active': user.lastActive,
-      'Auctions Participated': user.auctionsParticipated,
-      'Total Spent': `$${user.totalSpent.toLocaleString()}`,
-      'Is Risky': user.isRisky ? 'Yes' : 'No',
+    const exportData = filteredRequests.map(request => ({
+      'Request ID': request.id,
+      'User ID': request.userId,
+      'Name': request.userFullName,
+      'Email': request.userEmail,
+      'Requested Role': request.requestedRole,
+      'Status': request.status,
+      'Created Date': formatDate(request.createdAt),
+      'Reviewed Date': formatDate(request.reviewedAt),
+      'Reason': request.reason || 'N/A',
     }));
 
     // Create worksheet
@@ -208,28 +260,25 @@ const UserManagementPage = () => {
     
     // Set column widths
     const columnWidths = [
-      { wch: 8 },  // ID
-      { wch: 20 }, // Name
+      { wch: 12 }, // Request ID
+      { wch: 10 }, // User ID
+      { wch: 25 }, // Name
       { wch: 30 }, // Email
-      { wch: 18 }, // Phone
-      { wch: 10 }, // Role
-      { wch: 15 }, // Reputation Score
+      { wch: 15 }, // Requested Role
       { wch: 12 }, // Status
-      { wch: 18 }, // Registration Date
-      { wch: 18 }, // Last Active
-      { wch: 20 }, // Auctions Participated
-      { wch: 15 }, // Total Spent
-      { wch: 10 }, // Is Risky
+      { wch: 20 }, // Created Date
+      { wch: 20 }, // Reviewed Date
+      { wch: 40 }, // Reason
     ];
     worksheet['!cols'] = columnWidths;
 
     // Create workbook
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Users');
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Upgrade Requests');
 
     // Generate file name with current date
     const date = new Date().toISOString().split('T')[0];
-    const fileName = `users_export_${date}.xlsx`;
+    const fileName = `upgrade_requests_${date}.xlsx`;
 
     // Export file
     XLSX.writeFile(workbook, fileName);
@@ -251,7 +300,7 @@ const UserManagementPage = () => {
             User Management
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Manage and monitor all user accounts on your platform
+            Manage upgrade requests and monitor user statistics
           </Typography>
         </Box>
 
@@ -271,45 +320,52 @@ const UserManagementPage = () => {
             </Typography>
           </Stack>
           
-          <Grid container spacing={3}>
-            <Grid item xs={12} sm={6} lg={3}>
-              <StatCard
-                title="Total Users"
-                value={stats.totalUsers}
-                icon={People}
-                trend={12}
-                color={theme.palette.primary.main}
-              />
+          {statsLoading ? (
+            <Box display="flex" justifyContent="center" py={4}>
+              <CircularProgress />
+            </Box>
+          ) : statistics ? (
+            <Grid container spacing={3}>
+              <Grid item xs={12} sm={6} lg={3}>
+                <StatCard
+                  title="Total Users"
+                  value={statistics.totalUsers || 0}
+                  icon={People}
+                  trend={12}
+                  color={theme.palette.primary.main}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} lg={3}>
+                <StatCard
+                  title="Total Bidders"
+                  value={statistics.totalBidders || 0}
+                  icon={Gavel}
+                  trend={8}
+                  color={theme.palette.info.main}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} lg={3}>
+                <StatCard
+                  title="Total Sellers"
+                  value={statistics.totalSellers || 0}
+                  icon={PersonAdd}
+                  trend={15}
+                  color={theme.palette.success.main}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} lg={3}>
+                <StatCard
+                  title="Verified Users"
+                  value={statistics.verifiedUsers || 0}
+                  icon={CheckCircle}
+                  trend={-5}
+                  color={theme.palette.warning.main}
+                />
+              </Grid>
             </Grid>
-            <Grid item xs={12} sm={6} lg={3}>
-              <StatCard
-                title="New Registrations"
-                value={stats.newRegistrations}
-                icon={PersonAdd}
-                trend={8}
-                color={theme.palette.success.main}
-                subtitle="Last 7 days"
-              />
-            </Grid>
-            <Grid item xs={12} sm={6} lg={3}>
-              <StatCard
-                title="Auction Participants"
-                value={stats.participatedUsers}
-                icon={Gavel}
-                trend={15}
-                color={theme.palette.info.main}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6} lg={3}>
-              <StatCard
-                title="Risky Accounts"
-                value={stats.riskyAccounts}
-                icon={Warning}
-                trend={-5}
-                color={theme.palette.error.main}
-              />
-            </Grid>
-          </Grid>
+          ) : (
+            <Alert severity="error">Failed to load statistics</Alert>
+          )}
         </Paper>
 
         {/* User List Section */}
@@ -324,11 +380,11 @@ const UserManagementPage = () => {
               <FilterList />
             </Avatar>
             <Typography variant="h5" fontWeight={700}>
-              User List
+              Upgrade Requests (Bidder → Seller)
             </Typography>
             <Box sx={{ flexGrow: 1 }} />
             <Tooltip title="Refresh">
-              <IconButton color="primary">
+              <IconButton color="primary" onClick={handleRefresh}>
                 <Refresh />
               </IconButton>
             </Tooltip>
@@ -355,20 +411,6 @@ const UserManagementPage = () => {
               }}
               sx={{ maxWidth: { sm: 400 } }}
             />
-            
-            <FormControl sx={{ minWidth: 150 }}>
-              <InputLabel>Role</InputLabel>
-              <Select
-                value={roleFilter}
-                label="Role"
-                onChange={(e) => setRoleFilter(e.target.value)}
-              >
-                <MenuItem value="All">All Roles</MenuItem>
-                <MenuItem value="Bidder">Bidder</MenuItem>
-                <MenuItem value="Seller">Seller</MenuItem>
-                <MenuItem value="Admin">Admin</MenuItem>
-              </Select>
-            </FormControl>
 
             <FormControl sx={{ minWidth: 150 }}>
               <InputLabel>Status</InputLabel>
@@ -378,10 +420,9 @@ const UserManagementPage = () => {
                 onChange={(e) => setStatusFilter(e.target.value)}
               >
                 <MenuItem value="All">All Status</MenuItem>
-                <MenuItem value="Active">Active</MenuItem>
-                <MenuItem value="Inactive">Inactive</MenuItem>
-                <MenuItem value="Suspended">Suspended</MenuItem>
                 <MenuItem value="Pending">Pending</MenuItem>
+                <MenuItem value="Approved">Approved</MenuItem>
+                <MenuItem value="Rejected">Rejected</MenuItem>
               </Select>
             </FormControl>
 
@@ -389,7 +430,6 @@ const UserManagementPage = () => {
               variant="outlined"
               startIcon={<FilterList />}
               onClick={() => {
-                setRoleFilter('All');
                 setStatusFilter('All');
                 setSearchQuery('');
               }}
@@ -401,159 +441,145 @@ const UserManagementPage = () => {
           {/* Results Summary */}
           <Box mb={2}>
             <Typography variant="body2" color="text.secondary">
-              Showing {paginatedUsers.length} of {filteredUsers.length} users
-              {(roleFilter !== 'All' || statusFilter !== 'All' || searchQuery) && ' (filtered)'}
+              Showing {filteredRequests.length} of {totalCount} requests
+              {(statusFilter !== 'All' || searchQuery) && ' (filtered)'}
             </Typography>
           </Box>
 
-          {/* User Table */}
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>ID</TableCell>
-                  <TableCell>User</TableCell>
-                  <TableCell>Email</TableCell>
-                  <TableCell>Phone</TableCell>
-                  <TableCell>Role</TableCell>
-                  <TableCell align="center">Reputation</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Registration Date</TableCell>
-                  <TableCell>Last Active</TableCell>
-                  <TableCell align="center">Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {paginatedUsers.map((user) => (
-                  <TableRow
-                    key={user.id}
-                    sx={{
-                      '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.05) },
-                    }}
-                  >
-                    <TableCell>
-                      <Typography variant="body2" fontWeight={600}>
-                        #{user.id}
-                      </Typography>
-                    </TableCell>
-                    
-                    <TableCell>
-                      <Stack direction="row" spacing={2} alignItems="center">
-                        <Badge
-                          overlap="circular"
-                          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-                          variant="dot"
-                          sx={{
-                            '& .MuiBadge-badge': {
-                              backgroundColor: user.status === 'Active' ? '#44b700' : '#ccc',
-                              boxShadow: `0 0 0 2px ${theme.palette.background.paper}`,
-                            },
-                          }}
-                        >
-                          <Avatar src={user.avatar} alt={user.name} />
-                        </Badge>
-                        <Box>
-                          <Typography variant="body2" fontWeight={600}>
-                            {user.name}
-                          </Typography>
-                          {user.isRisky && (
-                            <Chip
-                              icon={<Warning fontSize="small" />}
-                              label="Risky"
-                              size="small"
-                              color="error"
-                              variant="outlined"
-                              sx={{ mt: 0.5, height: 20, fontSize: '0.7rem' }}
-                            />
-                          )}
-                        </Box>
-                      </Stack>
-                    </TableCell>
-                    
-                    <TableCell>
-                      <Typography variant="body2" color="text.secondary">
-                        {user.email}
-                      </Typography>
-                    </TableCell>
-                    
-                    <TableCell>
-                      <Typography variant="body2" color="text.secondary">
-                        {user.phone}
-                      </Typography>
-                    </TableCell>
-                    
-                    <TableCell>
-                      <Chip
-                        label={user.role}
-                        size="small"
-                        color={getRoleColor(user.role)}
-                        variant="outlined"
-                      />
-                    </TableCell>
-                    
-                    <TableCell align="center">
-                      <Box>
-                        <Typography variant="body2" fontWeight={600} color="primary">
-                          {user.reputationScore}
-                        </Typography>
-                        <Rating
-                          value={Math.min(5, user.reputationScore / 100)}
-                          readOnly
-                          size="small"
-                          precision={0.5}
-                        />
-                      </Box>
-                    </TableCell>
-                    
-                    <TableCell>
-                      <Chip
-                        label={user.status}
-                        size="small"
-                        color={getStatusColor(user.status)}
-                        icon={
-                          user.status === 'Active' ? <CheckCircle fontSize="small" /> :
-                          user.status === 'Suspended' ? <Block fontSize="small" /> : undefined
-                        }
-                      />
-                    </TableCell>
-                    
-                    <TableCell>
-                      <Typography variant="body2" color="text.secondary">
-                        {user.registrationDate}
-                      </Typography>
-                    </TableCell>
-                    
-                    <TableCell>
-                      <Typography variant="body2" color="text.secondary">
-                        {user.lastActive}
-                      </Typography>
-                    </TableCell>
-                    
-                    <TableCell align="center">
-                      <IconButton
-                        size="small"
-                        onClick={(e) => handleMenuOpen(e, user)}
+          {/* Loading State */}
+          {loading ? (
+            <Box display="flex" justifyContent="center" py={8}>
+              <CircularProgress />
+            </Box>
+          ) : filteredRequests.length === 0 ? (
+            <Box py={8} textAlign="center">
+              <Typography variant="h6" color="text.secondary">
+                No upgrade requests found
+              </Typography>
+              <Typography variant="body2" color="text.secondary" mt={1}>
+                {searchQuery || statusFilter !== 'All' 
+                  ? 'Try adjusting your filters' 
+                  : 'There are no upgrade requests at this time'}
+              </Typography>
+            </Box>
+          ) : (
+            <>
+              {/* User Table */}
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Request ID</TableCell>
+                      <TableCell>User</TableCell>
+                      <TableCell>Email</TableCell>
+                      <TableCell>User ID</TableCell>
+                      <TableCell>Requested Role</TableCell>
+                      <TableCell>Status</TableCell>
+                      <TableCell>Created Date</TableCell>
+                      <TableCell>Reviewed Date</TableCell>
+                      <TableCell align="center">Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {filteredRequests.map((request) => (
+                      <TableRow
+                        key={request.id}
+                        sx={{
+                          '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.05) },
+                        }}
                       >
-                        <MoreVert />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                        <TableCell>
+                          <Typography variant="body2" fontWeight={600}>
+                            #{request.id}
+                          </Typography>
+                        </TableCell>
+                        
+                        <TableCell>
+                          <Stack direction="row" spacing={2} alignItems="center">
+                            <Avatar sx={{ bgcolor: theme.palette.primary.main }}>
+                              {request.userFullName?.charAt(0).toUpperCase()}
+                            </Avatar>
+                            <Box>
+                              <Typography variant="body2" fontWeight={600}>
+                                {request.userFullName || 'N/A'}
+                              </Typography>
+                            </Box>
+                          </Stack>
+                        </TableCell>
+                        
+                        <TableCell>
+                          <Typography variant="body2" color="text.secondary">
+                            {request.userEmail || 'N/A'}
+                          </Typography>
+                        </TableCell>
+                        
+                        <TableCell>
+                          <Typography variant="body2" color="text.secondary">
+                            #{request.userId}
+                          </Typography>
+                        </TableCell>
+                        
+                        <TableCell>
+                          <Chip
+                            label={request.requestedRole?.toUpperCase() || 'SELLER'}
+                            size="small"
+                            color="primary"
+                            variant="outlined"
+                          />
+                        </TableCell>
+                        
+                        <TableCell>
+                          <Chip
+                            label={request.status?.toUpperCase() || 'PENDING'}
+                            size="small"
+                            color={getStatusColor(request.status)}
+                            icon={
+                              request.status?.toLowerCase() === 'approved' ? <CheckCircle fontSize="small" /> :
+                              request.status?.toLowerCase() === 'rejected' ? <Block fontSize="small" /> : undefined
+                            }
+                          />
+                        </TableCell>
+                        
+                        <TableCell>
+                          <Typography variant="body2" color="text.secondary">
+                            {formatDate(request.createdAt)}
+                          </Typography>
+                        </TableCell>
+                        
+                        <TableCell>
+                          <Typography variant="body2" color="text.secondary">
+                            {formatDate(request.reviewedAt)}
+                          </Typography>
+                        </TableCell>
+                        
+                        <TableCell align="center">
+                          <IconButton
+                            size="small"
+                            onClick={(e) => handleMenuOpen(e, request)}
+                            disabled={request.status?.toLowerCase() !== 'pending'}
+                          >
+                            <MoreVert />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
 
-          {/* Pagination */}
-          <TablePagination
-            component="div"
-            count={filteredUsers.length}
-            page={page}
-            onPageChange={handleChangePage}
-            rowsPerPage={rowsPerPage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-            rowsPerPageOptions={[5, 10, 25, 50]}
-            sx={{ borderTop: `1px solid ${theme.palette.divider}`, mt: 2 }}
-          />
+              {/* Pagination */}
+              <TablePagination
+                component="div"
+                count={totalCount}
+                page={page}
+                onPageChange={handleChangePage}
+                rowsPerPage={rowsPerPage}
+                onRowsPerPageChange={handleChangeRowsPerPage}
+                rowsPerPageOptions={[5, 10, 20, 50]}
+                sx={{ borderTop: `1px solid ${theme.palette.divider}`, mt: 2 }}
+              />
+            </>
+          )}
         </Paper>
 
         {/* Action Menu */}
@@ -564,31 +590,83 @@ const UserManagementPage = () => {
           transformOrigin={{ horizontal: 'right', vertical: 'top' }}
           anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
         >
-          <MenuItem onClick={handleMenuClose}>
+          <MenuItem onClick={() => handleOpenApprovalDialog(selectedRequest, 'approve')}>
             <ListItemIcon>
-              <Visibility fontSize="small" />
+              <ThumbUp fontSize="small" color="success" />
             </ListItemIcon>
-            <ListItemText>View Details</ListItemText>
+            <ListItemText>Approve Request</ListItemText>
           </MenuItem>
-          <MenuItem onClick={handleMenuClose}>
+          <MenuItem onClick={() => handleOpenApprovalDialog(selectedRequest, 'reject')}>
             <ListItemIcon>
-              <Edit fontSize="small" />
+              <ThumbDown fontSize="small" color="error" />
             </ListItemIcon>
-            <ListItemText>Edit User</ListItemText>
-          </MenuItem>
-          <MenuItem onClick={handleMenuClose}>
-            <ListItemIcon>
-              <Block fontSize="small" color="warning" />
-            </ListItemIcon>
-            <ListItemText>Suspend Account</ListItemText>
-          </MenuItem>
-          <MenuItem onClick={handleMenuClose}>
-            <ListItemIcon>
-              <Delete fontSize="small" color="error" />
-            </ListItemIcon>
-            <ListItemText>Delete User</ListItemText>
+            <ListItemText>Reject Request</ListItemText>
           </MenuItem>
         </Menu>
+
+        {/* Approval Dialog */}
+        <Dialog
+          open={approvalDialog.open}
+          onClose={handleCloseApprovalDialog}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle>
+            {approvalDialog.action === 'approve' ? 'Approve Upgrade Request' : 'Reject Upgrade Request'}
+          </DialogTitle>
+          <DialogContent>
+            <Typography variant="body1" gutterBottom>
+              Are you sure you want to {approvalDialog.action} this upgrade request?
+            </Typography>
+            {approvalDialog.request && (
+              <Box mt={2} p={2} bgcolor={alpha(theme.palette.primary.main, 0.05)} borderRadius={1}>
+                <Typography variant="body2" color="text.secondary">
+                  <strong>User:</strong> {approvalDialog.request.userFullName}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  <strong>Email:</strong> {approvalDialog.request.userEmail}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  <strong>Requested Role:</strong> {approvalDialog.request.requestedRole?.toUpperCase()}
+                </Typography>
+                {approvalDialog.request.reason && (
+                  <Typography variant="body2" color="text.secondary" mt={1}>
+                    <strong>Reason:</strong> {approvalDialog.request.reason}
+                  </Typography>
+                )}
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseApprovalDialog}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleProcessRequest}
+              variant="contained"
+              color={approvalDialog.action === 'approve' ? 'success' : 'error'}
+              startIcon={approvalDialog.action === 'approve' ? <ThumbUp /> : <ThumbDown />}
+            >
+              {approvalDialog.action === 'approve' ? 'Approve' : 'Reject'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Snackbar for notifications */}
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={6000}
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        >
+          <Alert 
+            onClose={() => setSnackbar({ ...snackbar, open: false })} 
+            severity={snackbar.severity}
+            sx={{ width: '100%' }}
+          >
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
       </Container>
     </Box>
   );
