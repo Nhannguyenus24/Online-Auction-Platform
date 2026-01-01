@@ -357,7 +357,6 @@ const CategoryPage = () => {
               </Card>
 
               {/* Products Grid */}
-<<<<<<< HEAD
               {loading ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
                   <CircularProgress />
@@ -399,50 +398,6 @@ const CategoryPage = () => {
                             component="img"
                             image={getProductImage(product)}
                             alt={product.title}
-=======
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-                {products.map((product) => (
-                  <div style={{ width: '32.33%', key: product.id }}>
-                    <Card
-                      elevation={0}
-                      sx={{
-                        cursor: 'pointer',
-                        height: '100%',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        border: '1px solid',
-                        borderColor: 'grey.200',
-                        borderRadius: 2,
-                        overflow: 'hidden',
-                        transition: 'all 0.3s',
-                        '&:hover': {
-                          boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-                          transform: 'translateY(-4px)',
-                          borderColor: 'primary.main',
-                        },
-                      }}
-                      onClick={() => navigate(`/product/${product.id}`)}
-                    >
-                      <Box sx={{ position: 'relative', paddingTop: '75%', bgcolor: 'grey.50' }}>
-                        <CardMedia
-                          component="img"
-                          image={product.image}
-                          alt={product.title}
-                          sx={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover',
-                          }}
-                        />
-                        {product.featured && (
-                          <Chip
-                            icon={<TrendingUp sx={{ fontSize: 16 }} />}
-                            label="Featured"
-                            size="small"
->>>>>>> 4908400446e374216968da11da063a748a693559
                             sx={{
                               position: 'absolute',
                               top: 0,
@@ -472,7 +427,6 @@ const CategoryPage = () => {
                             </Typography>
                           </Box>
                         </Box>
-<<<<<<< HEAD
                         <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', p: 2.5 }}>
                           <Typography
                             variant="h6"
@@ -521,13 +475,6 @@ const CategoryPage = () => {
                   ))}
                 </Grid>
               )}
-=======
-                      </CardContent>
-                    </Card>
-                  </div>
-                ))}
-              </div>
->>>>>>> 4908400446e374216968da11da063a748a693559
 
               {/* Pagination */}
               {!loading && totalPages > 1 && (
