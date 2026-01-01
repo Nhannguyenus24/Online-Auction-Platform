@@ -41,6 +41,7 @@ const BidderLayout = () => {
     { title: 'Dashboard', path: '/bidder/home', icon: <HomeIcon /> },
     { title: 'Watch List', path: '/bidder/watchlist', icon: <FavoriteIcon /> },
     { title: 'Auction History', path: '/bidder/auction-history', icon: <HistoryIcon /> },
+    { title: 'Checkout', path: '/bidder/checkout', icon: <ShoppingCartIcon /> },
     { title: 'Chat', path: '/bidder/chat', icon: <ChatIcon /> },
     { title: 'Profile', path: '/bidder/profile', icon: <PersonIcon /> },
   ];

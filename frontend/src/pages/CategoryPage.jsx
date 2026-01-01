@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Box,
@@ -18,6 +18,8 @@ import {
   FormControl,
   InputLabel,
   Pagination,
+  CircularProgress,
+  Alert,
 } from '@mui/material';
 import {
   Home,
@@ -28,163 +30,87 @@ import {
 } from '@mui/icons-material';
 import Page from '../components/Page';
 import { formatPrice } from '../utils/formatNumber';
-
-// Mock data for 2-level categories
-const mockCategories = {
-  electronics: {
-    id: 'electronics',
-    name: 'Electronics',
-    children: [
-      { id: 'watches', name: 'Watches', icon: '⌚', count: 45 },
-      { id: 'laptops', name: 'Laptops', icon: '💻', count: 38 },
-      { id: 'smartphones', name: 'Smartphones', icon: '📱', count: 52 },
-      { id: 'headphones', name: 'Headphones', icon: '🎧', count: 29 },
-      { id: 'cameras', name: 'Cameras', icon: '📷', count: 23 },
-    ],
-  },
-  fashion: {
-    id: 'fashion',
-    name: 'Fashion',
-    children: [
-      { id: 'mens-clothing', name: "Men's Clothing", icon: '👔', count: 67 },
-      { id: 'womens-clothing', name: "Women's Clothing", icon: '👗', count: 89 },
-      { id: 'shoes', name: 'Shoes', icon: '👟', count: 54 },
-      { id: 'accessories', name: 'Accessories', icon: '👜', count: 41 },
-    ],
-  },
-  home: {
-    id: 'home',
-    name: 'Home & Living',
-    children: [
-      { id: 'furniture', name: 'Furniture', icon: '🛋️', count: 32 },
-      { id: 'decor', name: 'Decor', icon: '🖼️', count: 28 },
-      { id: 'kitchen', name: 'Kitchen', icon: '🍳', count: 45 },
-      { id: 'garden', name: 'Garden', icon: '🌿', count: 19 },
-    ],
-  },
-  collectibles: {
-    id: 'collectibles',
-    name: 'Collectibles',
-    children: [
-      { id: 'art', name: 'Art', icon: '🎨', count: 25 },
-      { id: 'coins', name: 'Coins', icon: '🪙', count: 18 },
-      { id: 'stamps', name: 'Stamps', icon: '📮', count: 12 },
-      { id: 'antiques', name: 'Antiques', icon: '🏺', count: 34 },
-    ],
-  },
-};
-
-// Mock products data
-const mockProducts = {
-  watches: [
-    {
-      id: 1,
-      title: 'Luxury Swiss Automatic Watch - Rose Gold',
-      image: 'https://images.unsplash.com/photo-1523170335258-f5ed11844a49?w=400',
-      currentPrice: 25000000,
-      bidCount: 23,
-      endTime: '2025-11-28T15:30:00',
-      condition: 'New',
-      featured: true,
-    },
-    {
-      id: 2,
-      title: 'Vintage Chronograph Watch - Leather Strap',
-      image: 'https://images.unsplash.com/photo-1524805444758-089113d48a6d?w=400',
-      currentPrice: 8500000,
-      bidCount: 15,
-      endTime: '2025-11-27T18:00:00',
-      condition: 'Used',
-      featured: false,
-    },
-    {
-      id: 3,
-      title: 'Smart Watch Pro - Fitness Tracker',
-      image: 'https://images.unsplash.com/photo-1579586337278-3befd40fd17a?w=400',
-      currentPrice: 4200000,
-      bidCount: 31,
-      endTime: '2025-11-29T12:00:00',
-      condition: 'New',
-      featured: true,
-    },
-    {
-      id: 4,
-      title: 'Diver Watch - 200m Water Resistant',
-      image: 'https://images.unsplash.com/photo-1522312346375-d1a52e2b99b3?w=400',
-      currentPrice: 12000000,
-      bidCount: 18,
-      endTime: '2025-11-28T20:00:00',
-      condition: 'New',
-      featured: false,
-    },
-    {
-      id: 5,
-      title: 'Classic Dress Watch - Minimalist Design',
-      image: 'https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?w=400',
-      currentPrice: 6800000,
-      bidCount: 12,
-      endTime: '2025-11-27T14:00:00',
-      condition: 'New',
-      featured: false,
-    },
-    {
-      id: 6,
-      title: 'Pilot Watch - Aviation Collection',
-      image: 'https://images.unsplash.com/photo-1533139502658-0198f920d8e8?w=400',
-      currentPrice: 15500000,
-      bidCount: 27,
-      endTime: '2025-11-30T10:00:00',
-      condition: 'New',
-      featured: true,
-    },
-  ],
-  laptops: [
-    {
-      id: 7,
-      title: 'Gaming Laptop RTX 4090 - 32GB RAM',
-      image: 'https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=400',
-      currentPrice: 45000000,
-      bidCount: 42,
-      endTime: '2025-11-28T16:00:00',
-      condition: 'New',
-      featured: true,
-    },
-    {
-      id: 8,
-      title: 'MacBook Pro 16" M3 Max - Space Gray',
-      image: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400',
-      currentPrice: 65000000,
-      bidCount: 38,
-      endTime: '2025-11-29T14:00:00',
-      condition: 'New',
-      featured: true,
-    },
-  ],
-};
+import { categoryApi } from '../services/categoryApi';
+import { productApi } from '../services/productApi';
 
 const CategoryPage = () => {
   const navigate = useNavigate();
   const { parentCategory, childCategory } = useParams();
   
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [categories, setCategories] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [totalProducts, setTotalProducts] = useState(0);
   const [sortBy, setSortBy] = useState('ending-soon');
   const [page, setPage] = useState(1);
   const itemsPerPage = 12;
 
-  // Get current category data
-  const currentParent = mockCategories[parentCategory] || mockCategories.electronics;
-  const currentChild = currentParent.children.find(c => c.id === childCategory);
-  
-  // Get products for current category
-  const allProducts = mockProducts[childCategory] || mockProducts.watches;
-  
+  // Find current parent and child categories from API data
+  const currentParent = categories.find(
+    (cat) => String(cat.id) === String(parentCategory)
+  );
+  const currentChild = currentParent?.children?.find(
+    (child) => String(child.id) === String(childCategory)
+  );
+
+  // Fetch categories on mount
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await categoryApi.getCategories();
+        setCategories(response.data || []);
+      } catch (err) {
+        console.error('Error fetching categories:', err);
+        setError('Failed to load categories. Please try again later.');
+      }
+    };
+
+    fetchCategories();
+  }, []);
+
+  // Fetch products when category or filters change
+  useEffect(() => {
+    const fetchProducts = async () => {
+      if (!childCategory && !parentCategory) {
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        // Use childCategory if available, otherwise use parentCategory
+        const categoryId = childCategory || parentCategory;
+        const response = await productApi.getProductsByCategory(
+          categoryId,
+          page,
+          itemsPerPage,
+          sortBy
+        );
+        
+        setProducts(response.products || []);
+        setTotalProducts(response.total || 0);
+      } catch (err) {
+        console.error('Error fetching products:', err);
+        setError('Failed to load products. Please try again later.');
+        setProducts([]);
+        setTotalProducts(0);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, [parentCategory, childCategory, page, sortBy, itemsPerPage]);
+
   // Calculate pagination
-  const totalPages = Math.ceil(allProducts.length / itemsPerPage);
-  const startIndex = (page - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const products = allProducts.slice(startIndex, endIndex);
+  const totalPages = Math.ceil(totalProducts / itemsPerPage);
 
   // Calculate time left
   const getTimeLeft = (endTime) => {
+    if (!endTime) return 'N/A';
     const end = new Date(endTime);
     const now = new Date();
     const diff = end - now;
@@ -199,6 +125,49 @@ const CategoryPage = () => {
     if (hours > 0) return `${hours}h ${minutes}m`;
     return `${minutes}m`;
   };
+
+  // Handle sort change
+  const handleSortChange = (newSort) => {
+    setSortBy(newSort);
+    setPage(1); // Reset to first page when sort changes
+  };
+
+  // Handle page change
+  const handlePageChange = (event, value) => {
+    setPage(value);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Get product image URL
+  const getProductImage = (product) => {
+    if (product.images && product.images.length > 0) {
+      const primaryImage = product.images.find(img => img.isPrimary);
+      return primaryImage ? primaryImage.url : product.images[0].url;
+    }
+    return 'https://via.placeholder.com/400';
+  };
+
+  if (loading && categories.length === 0) {
+    return (
+      <Page title="Categories - Auction">
+        <Container maxWidth="xl" sx={{ py: 8 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+            <CircularProgress />
+          </Box>
+        </Container>
+      </Page>
+    );
+  }
+
+  if (error && categories.length === 0) {
+    return (
+      <Page title="Categories - Auction">
+        <Container maxWidth="xl" sx={{ py: 8 }}>
+          <Alert severity="error">{error}</Alert>
+        </Container>
+      </Page>
+    );
+  }
 
   return (
     <Page title={`${currentChild?.name || currentParent.name} - Auction`}>
@@ -288,14 +257,14 @@ const CategoryPage = () => {
             <CardContent sx={{ p: 4, position: 'relative', zIndex: 1 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
                 <Typography variant="h2" sx={{ fontSize: '3rem' }}>
-                  {currentChild?.icon || '📦'}
+                  📦
                 </Typography>
                 <Box>
                   <Typography variant="h3" fontWeight="bold" gutterBottom>
                     {currentChild?.name || currentParent.name}
                   </Typography>
                   <Typography variant="h6" sx={{ opacity: 0.9 }}>
-                    {allProducts.length} active auctions • {currentChild?.count || 45} total items
+                    {totalProducts} active auctions
                   </Typography>
                 </Box>
               </Box>
@@ -322,7 +291,7 @@ const CategoryPage = () => {
                 </Box>
                 <CardContent sx={{ p: 0 }}>
                   <Stack spacing={0}>
-                    {currentParent.children.map((subcat) => (
+                    {currentParent?.children?.map((subcat) => (
                       <Button
                         key={subcat.id}
                         onClick={() => navigate(`/category/${parentCategory}/${subcat.id}`)}
@@ -331,10 +300,10 @@ const CategoryPage = () => {
                           px: 3,
                           py: 2,
                           borderRadius: 0,
-                          bgcolor: subcat.id === childCategory ? 'primary.lighter' : 'transparent',
-                          color: subcat.id === childCategory ? 'primary.main' : 'text.primary',
-                          fontWeight: subcat.id === childCategory ? 'bold' : 'normal',
-                          borderLeft: subcat.id === childCategory ? 3 : 0,
+                          bgcolor: String(subcat.id) === String(childCategory) ? 'primary.lighter' : 'transparent',
+                          color: String(subcat.id) === String(childCategory) ? 'primary.main' : 'text.primary',
+                          fontWeight: String(subcat.id) === String(childCategory) ? 'bold' : 'normal',
+                          borderLeft: String(subcat.id) === String(childCategory) ? 3 : 0,
                           borderColor: 'primary.main',
                           '&:hover': {
                             bgcolor: 'grey.100',
@@ -342,15 +311,8 @@ const CategoryPage = () => {
                         }}
                       >
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                          <Typography sx={{ fontSize: '1.5rem' }}>{subcat.icon}</Typography>
                           <Typography>{subcat.name}</Typography>
                         </Box>
-                        <Chip 
-                          label={subcat.count} 
-                          size="small" 
-                          color={subcat.id === childCategory ? 'primary' : 'default'}
-                          sx={{ fontWeight: 'bold' }}
-                        />
                       </Button>
                     ))}
                   </Stack>
@@ -373,14 +335,14 @@ const CategoryPage = () => {
                   py: 2
                 }}>
                   <Typography variant="body1" color="text.secondary">
-                    Showing <strong>{startIndex + 1}-{Math.min(endIndex, allProducts.length)}</strong> of <strong>{allProducts.length}</strong> items
+                    Showing <strong>{(page - 1) * itemsPerPage + 1}-{Math.min(page * itemsPerPage, totalProducts)}</strong> of <strong>{totalProducts}</strong> items
                   </Typography>
                   <FormControl size="small" sx={{ minWidth: 200 }}>
                     <InputLabel>Sort By</InputLabel>
                     <Select
                       value={sortBy}
                       label="Sort By"
-                      onChange={(e) => setSortBy(e.target.value)}
+                      onChange={(e) => handleSortChange(e.target.value)}
                       sx={{ borderRadius: 2 }}
                     >
                       <MenuItem value="ending-soon">Ending Soon</MenuItem>
@@ -394,145 +356,132 @@ const CategoryPage = () => {
               </Card>
 
               {/* Products Grid */}
-              <Grid container spacing={3}>
-                {products.map((product) => (
-                  <Grid item xs={12} sm={6} lg={4} key={product.id}>
-                    <Card
-                      elevation={0}
-                      sx={{
-                        cursor: 'pointer',
-                        height: '100%',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        border: '1px solid',
-                        borderColor: 'grey.200',
-                        borderRadius: 2,
-                        overflow: 'hidden',
-                        transition: 'all 0.3s',
-                        '&:hover': {
-                          boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-                          transform: 'translateY(-4px)',
-                          borderColor: 'primary.main',
-                        },
-                      }}
-                      onClick={() => navigate(`/product/${product.id}`)}
-                    >
-                      <Box sx={{ position: 'relative', paddingTop: '75%', bgcolor: 'grey.50' }}>
-                        <CardMedia
-                          component="img"
-                          image={product.image}
-                          alt={product.title}
-                          sx={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover',
-                          }}
-                        />
-                        {product.featured && (
-                          <Chip
-                            icon={<TrendingUp sx={{ fontSize: 16 }} />}
-                            label="Featured"
-                            size="small"
+              {loading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+                  <CircularProgress />
+                </Box>
+              ) : error ? (
+                <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>
+              ) : products.length === 0 ? (
+                <Box sx={{ textAlign: 'center', py: 8 }}>
+                  <Typography variant="h6" color="text.secondary">
+                    No products found in this category
+                  </Typography>
+                </Box>
+              ) : (
+                <Grid container spacing={3}>
+                  {products.map((product) => (
+                    <Grid item xs={12} sm={6} lg={4} key={product.id}>
+                      <Card
+                        elevation={0}
+                        sx={{
+                          cursor: 'pointer',
+                          height: '100%',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          border: '1px solid',
+                          borderColor: 'grey.200',
+                          borderRadius: 2,
+                          overflow: 'hidden',
+                          transition: 'all 0.3s',
+                          '&:hover': {
+                            boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                            transform: 'translateY(-4px)',
+                            borderColor: 'primary.main',
+                          },
+                        }}
+                        onClick={() => navigate(`/product/${product.id}`)}
+                      >
+                        <Box sx={{ position: 'relative', paddingTop: '75%', bgcolor: 'grey.50' }}>
+                          <CardMedia
+                            component="img"
+                            image={getProductImage(product)}
+                            alt={product.title}
                             sx={{
                               position: 'absolute',
-                              top: 12,
-                              left: 12,
-                              bgcolor: 'rgba(255,193,7,0.95)',
-                              color: 'grey.900',
-                              fontWeight: 'bold',
-                              backdropFilter: 'blur(10px)',
+                              top: 0,
+                              left: 0,
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover',
                             }}
                           />
-                        )}
-                        <Box sx={{
-                          position: 'absolute',
-                          top: 12,
-                          right: 12,
-                          bgcolor: 'rgba(255,255,255,0.95)',
-                          backdropFilter: 'blur(10px)',
-                          px: 1.5,
-                          py: 0.5,
-                          borderRadius: 1.5,
-                          boxShadow: 1,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 0.5,
-                        }}>
-                          <LocalOffer sx={{ fontSize: 14, color: 'primary.main' }} />
-                          <Typography variant="caption" fontWeight="bold" color="primary">
-                            {product.bidCount} bids
-                          </Typography>
-                        </Box>
-                      </Box>
-                      <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', p: 2.5 }}>
-                        <Box sx={{ display: 'flex', gap: 1, mb: 1.5 }}>
-                          <Chip 
-                            label={product.condition} 
-                            size="small" 
-                            color={product.condition === 'New' ? 'success' : 'default'}
-                            sx={{ fontWeight: 'bold', fontSize: '0.7rem' }}
-                          />
-                        </Box>
-                        <Typography
-                          variant="h6"
-                          gutterBottom
-                          sx={{
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            display: '-webkit-box',
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: 'vertical',
-                            minHeight: 56,
-                            fontWeight: 600,
-                            lineHeight: 1.4,
-                            fontSize: '1rem',
-                            mb: 2,
-                          }}
-                        >
-                          {product.title}
-                        </Typography>
-                        <Box sx={{ mt: 'auto' }}>
-                          <Typography variant="body2" color="text.secondary" gutterBottom>
-                            Current Bid
-                          </Typography>
-                          <Typography variant="h5" color="primary" fontWeight="bold" sx={{ mb: 2 }}>
-                            {formatPrice(product.currentPrice)}
-                          </Typography>
-                          <Box
-                            sx={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 0.5,
-                              pt: 2,
-                              borderTop: 1,
-                              borderColor: 'divider',
-                            }}
-                          >
-                            <AccessTime sx={{ fontSize: 18, color: 'error.main' }} />
-                            <Typography variant="body2" color="error.main" fontWeight="bold">
-                              {getTimeLeft(product.endTime)} left
+                          <Box sx={{
+                            position: 'absolute',
+                            top: 12,
+                            right: 12,
+                            bgcolor: 'rgba(255,255,255,0.95)',
+                            backdropFilter: 'blur(10px)',
+                            px: 1.5,
+                            py: 0.5,
+                            borderRadius: 1.5,
+                            boxShadow: 1,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 0.5,
+                          }}>
+                            <LocalOffer sx={{ fontSize: 14, color: 'primary.main' }} />
+                            <Typography variant="caption" fontWeight="bold" color="primary">
+                              {product.bidsCount || 0} bids
                             </Typography>
                           </Box>
                         </Box>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                ))}
-              </Grid>
+                        <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', p: 2.5 }}>
+                          <Typography
+                            variant="h6"
+                            gutterBottom
+                            sx={{
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical',
+                              minHeight: 56,
+                              fontWeight: 600,
+                              lineHeight: 1.4,
+                              fontSize: '1rem',
+                              mb: 2,
+                            }}
+                          >
+                            {product.title}
+                          </Typography>
+                          <Box sx={{ mt: 'auto' }}>
+                            <Typography variant="body2" color="text.secondary" gutterBottom>
+                              Current Bid
+                            </Typography>
+                            <Typography variant="h5" color="primary" fontWeight="bold" sx={{ mb: 2 }}>
+                              {formatPrice(product.currentPrice)}
+                            </Typography>
+                            <Box
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 0.5,
+                                pt: 2,
+                                borderTop: 1,
+                                borderColor: 'divider',
+                              }}
+                            >
+                              <AccessTime sx={{ fontSize: 18, color: 'error.main' }} />
+                              <Typography variant="body2" color="error.main" fontWeight="bold">
+                                {getTimeLeft(product.endsAt || product.timeRemaining)} left
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  ))}
+                </Grid>
+              )}
 
               {/* Pagination */}
-              {totalPages > 1 && (
+              {!loading && totalPages > 1 && (
                 <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
                   <Pagination
                     count={totalPages}
                     page={page}
-                    onChange={(e, value) => {
-                      setPage(value);
-                      window.scrollTo({ top: 0, behavior: 'smooth' });
-                    }}
+                    onChange={handlePageChange}
                     color="primary"
                     size="large"
                     showFirstButton

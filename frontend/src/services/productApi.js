@@ -378,6 +378,60 @@ export const productApi = {
         throw error;
       });
   },
+
+  /**
+   * Get products by category
+   * No authentication required
+   * @param {number|string} categoryId - Category ID (level 2 category)
+   * @param {number} page - Page number (default 1)
+   * @param {number} limit - Items per page (default 20)
+   * @param {string} sort - Sort option (default 'ending-soon')
+   *   Options: 'ending-soon', 'newly-listed', 'price-low', 'price-high', 'most-bids'
+   *   Maps to: 'ENDING_SOON_DESC', 'NEWEST_FIRST', 'PRICE_ASC', 'PRICE_DESC', 'MOST_BIDS'
+   * @returns {Promise} - { success, message, products: [...], total, page, limit }
+   */
+  getProductsByCategory: (categoryId, page = 1, limit = 20, sort = 'ending-soon') => {
+    // Map frontend sort values to backend sortOrder values
+    const sortOrderMap = {
+      'ending-soon': 'ENDING_SOON_DESC',
+      'newly-listed': 'NEWEST_FIRST',
+      'price-low': 'PRICE_ASC',
+      'price-high': 'PRICE_DESC',
+      'most-bids': 'MOST_BIDS',
+    };
+    const sortOrder = sortOrderMap[sort] || 'ENDING_SOON_DESC';
+
+    return axiosInstance
+      .get('/api/guest/products/by-category', {
+        params: { 
+          categoryId, 
+          page, 
+          limit, 
+          sortOrder,
+          status: 'active', // Only show active products
+        },
+      })
+      .then((response) => {
+        if (response.data.success) {
+          // Backend returns pageInfo object, extract values
+          const pageInfo = response.data.pageInfo || {};
+          return {
+            success: true,
+            message: response.data.message || 'Products retrieved successfully',
+            products: response.data.products || [],
+            total: pageInfo.totalItems || 0,
+            page: pageInfo.currentPage || page,
+            limit: pageInfo.pageSize || limit,
+          };
+        } else {
+          throw new Error(response.data.message || 'Failed to get products by category');
+        }
+      })
+      .catch((error) => {
+        console.error('Get products by category error:', error);
+        throw error;
+      });
+  },
 };
 
 export default productApi;

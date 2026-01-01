@@ -45,41 +45,13 @@ import {
 import Page from '../../components/Page';
 import { formatPrice } from '../../utils/formatNumber';
 import { fVNDate } from '../../utils/formatTime';
-import { mockGetWonItems } from '../../mocks';
-
-// Mock order data - replace with API call
-const getMockOrder = (orderId) => {
-  // In real app, fetch from API using orderId
-  return {
-    id: orderId || 'ORD-001',
-    productId: 201,
-    productTitle: 'Vintage Rolex Submariner - 1985',
-    productImage: 'https://images.unsplash.com/photo-1611652022419-a9419f74343d?w=400',
-    winningPrice: 120000000,
-    shippingFee: 500000,
-    totalAmount: 120500000,
-    seller: {
-      id: 101,
-      name: 'Seller A',
-      rating: 4.8,
-      avatar: 'https://i.pravatar.cc/150?img=12',
-    },
-    wonDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-    status: 'pending_payment', // pending_payment, paid, shipping, completed, rated
-    paymentMethod: null,
-    shippingAddress: null,
-    sellerConfirmed: false,
-    shippingInvoice: null,
-    receivedConfirmed: false,
-    buyerRating: null,
-    sellerRating: null,
-  };
-};
+import { orderApi } from '../../services/orderApi';
 
 const BidderOrderCompletionPage = () => {
   const navigate = useNavigate();
   const { orderId } = useParams();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [order, setOrder] = useState(null);
   const [activeStep, setActiveStep] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState('');
@@ -98,29 +70,62 @@ const BidderOrderCompletionPage = () => {
 
   useEffect(() => {
     const fetchOrder = async () => {
-      setLoading(true);
-      try {
-        // Mock: In real app, fetch order by orderId
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        const orderData = getMockOrder(orderId);
-        setOrder(orderData);
+      if (!orderId) {
+        setError('Order ID is required');
+        setLoading(false);
+        return;
+      }
 
-        // Determine active step based on order status
-        if (orderData.status === 'pending_payment') {
-          setActiveStep(0);
-        } else if (orderData.status === 'paid' && !orderData.shippingAddress) {
-          setActiveStep(1);
-        } else if (orderData.status === 'paid' && orderData.shippingAddress && !orderData.sellerConfirmed) {
-          setActiveStep(2);
-        } else if (orderData.status === 'shipping' && !orderData.receivedConfirmed) {
-          setActiveStep(3);
-        } else if (orderData.status === 'completed' && !orderData.buyerRating) {
-          setActiveStep(4);
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await orderApi.getOrder(orderId);
+        if (response.success && response.order) {
+          const orderData = response.order;
+          setOrder(orderData);
+
+          // Pre-fill payment method if available
+          if (orderData.paymentMethod) {
+            setPaymentMethod(orderData.paymentMethod);
+          }
+
+          // Pre-fill shipping info if available
+          if (orderData.shippingAddress) {
+            setShippingInfo({
+              fullName: orderData.shippingAddress.fullName || '',
+              phone: orderData.shippingAddress.phone || '',
+              address: orderData.shippingAddress.address || '',
+              city: orderData.shippingAddress.city || '',
+              postalCode: orderData.shippingAddress.postalCode || '',
+            });
+          }
+
+          // Pre-fill rating if available
+          if (orderData.buyerRating) {
+            setBuyerRating(orderData.buyerRating);
+            setBuyerComment(orderData.buyerComment || '');
+          }
+
+          // Determine active step based on order status
+          if (orderData.status === 'pending_payment' || orderData.status === 'PENDING_PAYMENT') {
+            setActiveStep(0);
+          } else if ((orderData.status === 'paid' || orderData.status === 'PAID') && !orderData.shippingAddress) {
+            setActiveStep(1);
+          } else if ((orderData.status === 'paid' || orderData.status === 'PAID') && orderData.shippingAddress && !orderData.sellerConfirmed) {
+            setActiveStep(2);
+          } else if ((orderData.status === 'shipping' || orderData.status === 'SHIPPING') && !orderData.receivedConfirmed) {
+            setActiveStep(3);
+          } else if ((orderData.status === 'completed' || orderData.status === 'COMPLETED') && !orderData.buyerRating) {
+            setActiveStep(4);
+          } else {
+            setActiveStep(5); // Completed
+          }
         } else {
-          setActiveStep(5); // Completed
+          setError('Order not found');
         }
       } catch (err) {
         console.error('Error fetching order:', err);
+        setError(err.response?.data?.message || err.message || 'Failed to load order. Please try again.');
       } finally {
         setLoading(false);
       }
@@ -143,19 +148,26 @@ const BidderOrderCompletionPage = () => {
       return;
     }
 
+    if (!orderId) {
+      alert('Order ID is missing');
+      return;
+    }
+
     setSubmitting(true);
+    setError(null);
     try {
-      // Mock API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      setOrder((prev) => ({
-        ...prev,
-        status: 'paid',
-        paymentMethod,
-      }));
-      setActiveStep(1);
+      const response = await orderApi.submitPayment(orderId, { method: paymentMethod });
+      if (response.success && response.order) {
+        setOrder(response.order);
+        setActiveStep(1);
+      } else {
+        throw new Error(response.message || 'Payment failed');
+      }
     } catch (err) {
       console.error('Payment error:', err);
-      alert('Payment failed. Please try again.');
+      const errorMessage = err.response?.data?.message || err.message || 'Payment failed. Please try again.';
+      setError(errorMessage);
+      alert(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -167,18 +179,26 @@ const BidderOrderCompletionPage = () => {
       return;
     }
 
+    if (!orderId) {
+      alert('Order ID is missing');
+      return;
+    }
+
     setSubmitting(true);
+    setError(null);
     try {
-      // Mock API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      setOrder((prev) => ({
-        ...prev,
-        shippingAddress: { ...shippingInfo },
-      }));
-      setActiveStep(2);
+      const response = await orderApi.submitShipping(orderId, shippingInfo);
+      if (response.success && response.order) {
+        setOrder(response.order);
+        setActiveStep(2);
+      } else {
+        throw new Error(response.message || 'Failed to submit shipping address');
+      }
     } catch (err) {
       console.error('Shipping error:', err);
-      alert('Failed to submit shipping address. Please try again.');
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to submit shipping address. Please try again.';
+      setError(errorMessage);
+      alert(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -191,19 +211,27 @@ const BidderOrderCompletionPage = () => {
 
   const handleConfirmReceive = async () => {
     setOpenConfirmDialog(false);
+    
+    if (!orderId) {
+      alert('Order ID is missing');
+      return;
+    }
+
     setSubmitting(true);
+    setError(null);
     try {
-      // Mock API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      setOrder((prev) => ({
-        ...prev,
-        status: 'completed',
-        receivedConfirmed: true,
-      }));
-      setActiveStep(4);
+      const response = await orderApi.confirmReceive(orderId);
+      if (response.success && response.order) {
+        setOrder(response.order);
+        setActiveStep(4);
+      } else {
+        throw new Error(response.message || 'Failed to confirm receive');
+      }
     } catch (err) {
       console.error('Confirmation error:', err);
-      alert('Failed to confirm. Please try again.');
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to confirm. Please try again.';
+      setError(errorMessage);
+      alert(errorMessage);
     } finally {
       setSubmitting(false);
       setConfirmAction(null);
@@ -216,20 +244,26 @@ const BidderOrderCompletionPage = () => {
       return;
     }
 
+    if (!orderId) {
+      alert('Order ID is missing');
+      return;
+    }
+
     setSubmitting(true);
+    setError(null);
     try {
-      // Mock API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      setOrder((prev) => ({
-        ...prev,
-        buyerRating,
-        buyerComment,
-        status: 'rated',
-      }));
-      setActiveStep(5);
+      const response = await orderApi.rateSeller(orderId, buyerRating, buyerComment);
+      if (response.success && response.order) {
+        setOrder(response.order);
+        setActiveStep(5);
+      } else {
+        throw new Error(response.message || 'Failed to submit rating');
+      }
     } catch (err) {
       console.error('Rating error:', err);
-      alert('Failed to submit rating. Please try again.');
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to submit rating. Please try again.';
+      setError(errorMessage);
+      alert(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -253,6 +287,21 @@ const BidderOrderCompletionPage = () => {
         <Container maxWidth="lg" sx={{ py: 8 }}>
           <Box sx={{ display: 'flex', justifyContent: 'center' }}>
             <CircularProgress />
+          </Box>
+        </Container>
+      </Page>
+    );
+  }
+
+  if (error && !order) {
+    return (
+      <Page title="Order Not Found - Online Auction Platform">
+        <Container maxWidth="lg" sx={{ py: 8 }}>
+          <Alert severity="error">{error}</Alert>
+          <Box sx={{ mt: 2, textAlign: 'center' }}>
+            <Button variant="contained" onClick={() => navigate('/bidder/profile')}>
+              Back to Profile
+            </Button>
           </Box>
         </Container>
       </Page>
@@ -295,6 +344,11 @@ const BidderOrderCompletionPage = () => {
           <Grid item xs={12} md={8}>
             <Card elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 3 }}>
               <CardContent sx={{ p: 4 }}>
+                {error && (
+                  <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
+                    {error}
+                  </Alert>
+                )}
                 <Stepper activeStep={activeStep} orientation="vertical">
                   {/* Step 0: Payment */}
                   <Step>
@@ -320,6 +374,7 @@ const BidderOrderCompletionPage = () => {
                             <RadioGroup
                               value={paymentMethod}
                               onChange={(e) => setPaymentMethod(e.target.value)}
+                              disabled={submitting}
                             >
                               <FormControlLabel
                                 value="momo"
@@ -613,7 +668,7 @@ const BidderOrderCompletionPage = () => {
                         <Box sx={{ mt: 2 }}>
                           <Box sx={{ mb: 3 }}>
                             <Typography variant="subtitle1" gutterBottom fontWeight="bold">
-                              Rate Seller: {order.seller.name}
+                              Rate Seller: {order.seller?.name || 'Seller'}
                             </Typography>
                             <Rating
                               value={buyerRating}
@@ -695,8 +750,8 @@ const BidderOrderCompletionPage = () => {
                 <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
                   <Box
                     component="img"
-                    src={order.productImage}
-                    alt={order.productTitle}
+                    src={order.productImage || 'https://via.placeholder.com/80'}
+                    alt={order.productTitle || 'Product'}
                     sx={{
                       width: 80,
                       height: 80,
@@ -711,7 +766,7 @@ const BidderOrderCompletionPage = () => {
                       {order.productTitle}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      Won on {fVNDate(order.wonDate)}
+                      {order.wonDate ? `Won on ${fVNDate(order.wonDate)}` : 'Won item'}
                     </Typography>
                   </Box>
                 </Box>
@@ -754,18 +809,22 @@ const BidderOrderCompletionPage = () => {
                   <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
                     Seller Information
                   </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 1 }}>
-                    <Avatar src={order.seller.avatar} sx={{ width: 40, height: 40 }} />
-                    <Box>
-                      <Typography variant="body2" fontWeight="bold">
-                        {order.seller.name}
-                      </Typography>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <Star sx={{ fontSize: 14, color: 'warning.main' }} />
-                        <Typography variant="caption">{order.seller.rating}</Typography>
+                  {order.seller && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 1 }}>
+                      <Avatar src={order.seller.avatar || order.seller.avatarUrl} sx={{ width: 40, height: 40 }} />
+                      <Box>
+                        <Typography variant="body2" fontWeight="bold">
+                          {order.seller.name || 'Seller'}
+                        </Typography>
+                        {order.seller.rating && (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <Star sx={{ fontSize: 14, color: 'warning.main' }} />
+                            <Typography variant="caption">{order.seller.rating}</Typography>
+                          </Box>
+                        )}
                       </Box>
                     </Box>
-                  </Box>
+                  )}
                 </Box>
               </CardContent>
             </Card>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -22,6 +22,7 @@ import {
   Chip,
   Stack,
   Paper,
+  CircularProgress,
 } from '@mui/material';
 import {
   CreditCard,
@@ -33,32 +34,13 @@ import {
 } from '@mui/icons-material';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { formatPrice } from '../../utils/formatNumber';
 import Page from '../../components/Page';
+import { orderApi } from '../../services/orderApi';
 
 // Initialize Stripe (replace with your publishable key)
 const stripePromise = loadStripe('pk_test_YOUR_PUBLISHABLE_KEY');
-
-// Mock cart data
-const mockCartItems = [
-  {
-    id: 1,
-    title: 'Vintage Rolex Submariner',
-    image: 'https://images.unsplash.com/photo-1523170335258-f5ed11844a49?w=300',
-    price: 180000000,
-    seller: 'Luxury Watch Store',
-    shippingFee: 500000,
-  },
-  {
-    id: 2,
-    title: 'MacBook Pro 16" M3 Max',
-    image: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=300',
-    price: 65000000,
-    seller: 'Tech Hub',
-    shippingFee: 300000,
-  },
-];
 
 const CheckoutForm = ({ cartItems, onSuccess }) => {
   const stripe = useStripe();
@@ -155,8 +137,11 @@ const CheckoutForm = ({ cartItems, onSuccess }) => {
 
 const BidderCheckoutPage = () => {
   const navigate = useNavigate();
+  const { id: orderIdFromRoute } = useParams();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [activeStep, setActiveStep] = useState(0);
-  const [cartItems, setCartItems] = useState(mockCartItems);
+  const [cartItems, setCartItems] = useState([]);
   const [paymentMethod, setPaymentMethod] = useState('stripe');
   const [orderId, setOrderId] = useState('');
   const [shippingInfo, setShippingInfo] = useState({
@@ -167,6 +152,61 @@ const BidderCheckoutPage = () => {
     postalCode: '',
   });
 
+  // Load cart items from localStorage or fetch order if orderId provided
+  useEffect(() => {
+    const loadCartItems = async () => {
+      try {
+        // If orderId is provided in route, fetch order details
+        if (orderIdFromRoute) {
+          setLoading(true);
+          const response = await orderApi.getOrder(orderIdFromRoute);
+          if (response.success && response.order) {
+            const order = response.order;
+            // Convert order to cart item format
+            setCartItems([{
+              id: order.productId || order.id,
+              title: order.productTitle || 'Product',
+              image: order.productImage || 'https://via.placeholder.com/300',
+              price: order.winningPrice || order.totalAmount || 0,
+              seller: order.seller?.name || 'Seller',
+              shippingFee: order.shippingFee || 0,
+            }]);
+            setOrderId(order.id || orderIdFromRoute);
+            // Pre-fill shipping info if available
+            if (order.shippingAddress) {
+              setShippingInfo({
+                fullName: order.shippingAddress.fullName || '',
+                phone: order.shippingAddress.phone || '',
+                address: order.shippingAddress.address || '',
+                city: order.shippingAddress.city || '',
+                postalCode: order.shippingAddress.postalCode || '',
+              });
+            }
+          }
+          setLoading(false);
+        } else {
+          // Try to load from localStorage
+          const savedCartItems = localStorage.getItem('checkoutCartItems');
+          if (savedCartItems) {
+            try {
+              const parsed = JSON.parse(savedCartItems);
+              setCartItems(Array.isArray(parsed) ? parsed : []);
+            } catch (e) {
+              console.error('Error parsing cart items from localStorage:', e);
+              setCartItems([]);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error loading cart items:', err);
+        setError('Failed to load cart items. Please try again.');
+        setLoading(false);
+      }
+    };
+
+    loadCartItems();
+  }, [orderIdFromRoute]);
+
   const steps = ['Shopping Cart', 'Shipping Info', 'Payment', 'Confirmation'];
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.price, 0);
@@ -174,7 +214,14 @@ const BidderCheckoutPage = () => {
   const total = subtotal + shippingTotal;
 
   const handleRemoveItem = (id) => {
-    setCartItems(cartItems.filter(item => item.id !== id));
+    const updatedItems = cartItems.filter(item => item.id !== id);
+    setCartItems(updatedItems);
+    // Update localStorage
+    if (updatedItems.length > 0) {
+      localStorage.setItem('checkoutCartItems', JSON.stringify(updatedItems));
+    } else {
+      localStorage.removeItem('checkoutCartItems');
+    }
   };
 
   const handleNext = () => {
@@ -201,6 +248,33 @@ const BidderCheckoutPage = () => {
   const handleShippingChange = (field) => (event) => {
     setShippingInfo({ ...shippingInfo, [field]: event.target.value });
   };
+
+  if (loading) {
+    return (
+      <Page title="Checkout - Online Auction Platform">
+        <Container maxWidth="lg" sx={{ py: 8 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+            <CircularProgress />
+          </Box>
+        </Container>
+      </Page>
+    );
+  }
+
+  if (error && cartItems.length === 0) {
+    return (
+      <Page title="Checkout - Online Auction Platform">
+        <Container maxWidth="lg" sx={{ py: 8 }}>
+          <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
+          <Box sx={{ textAlign: 'center' }}>
+            <Button variant="contained" onClick={() => navigate('/')}>
+              Back to Home
+            </Button>
+          </Box>
+        </Container>
+      </Page>
+    );
+  }
 
   if (cartItems.length === 0 && activeStep === 0) {
     return (
@@ -264,60 +338,72 @@ const BidderCheckoutPage = () => {
                   {/* Step 0: Cart Items */}
                   {activeStep === 0 && (
                     <Box>
+                      {error && (
+                        <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
+                      )}
                       <Typography variant="h5" fontWeight="bold" gutterBottom>
                         Shopping Cart ({cartItems.length} items)
                       </Typography>
                       <Divider sx={{ my: 2 }} />
                       
-                      <Stack spacing={2}>
-                        {cartItems.map((item) => (
-                          <Paper key={item.id} variant="outlined" sx={{ p: 2 }}>
-                            <Box sx={{ display: 'flex', gap: 2 }}>
-                              <Box
-                                component="img"
-                                src={item.image}
-                                alt={item.title}
-                                sx={{
-                                  width: 100,
-                                  height: 100,
-                                  objectFit: 'cover',
-                                  borderRadius: 1,
-                                }}
-                              />
-                              <Box sx={{ flex: 1 }}>
-                                <Typography variant="h6" fontWeight="bold" gutterBottom>
-                                  {item.title}
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary" gutterBottom>
-                                  Seller: {item.seller}
-                                </Typography>
-                                <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
-                                  <Chip label={`Item: ${formatPrice(item.price)}`} color="primary" size="small" />
-                                  <Chip label={`Shipping: ${formatPrice(item.shippingFee)}`} size="small" />
+                      {cartItems.length === 0 ? (
+                        <Box sx={{ textAlign: 'center', py: 4 }}>
+                          <Typography variant="body1" color="text.secondary">
+                            No items in cart
+                          </Typography>
+                        </Box>
+                      ) : (
+                        <Stack spacing={2}>
+                          {cartItems.map((item) => (
+                            <Paper key={item.id} variant="outlined" sx={{ p: 2 }}>
+                              <Box sx={{ display: 'flex', gap: 2 }}>
+                                <Box
+                                  component="img"
+                                  src={item.image || 'https://via.placeholder.com/300'}
+                                  alt={item.title}
+                                  sx={{
+                                    width: 100,
+                                    height: 100,
+                                    objectFit: 'cover',
+                                    borderRadius: 1,
+                                  }}
+                                />
+                                <Box sx={{ flex: 1 }}>
+                                  <Typography variant="h6" fontWeight="bold" gutterBottom>
+                                    {item.title}
+                                  </Typography>
+                                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                                    Seller: {item.seller || 'N/A'}
+                                  </Typography>
+                                  <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
+                                    <Chip label={`Item: ${formatPrice(item.price || 0)}`} color="primary" size="small" />
+                                    <Chip label={`Shipping: ${formatPrice(item.shippingFee || 0)}`} size="small" />
+                                  </Box>
+                                </Box>
+                                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+                                  <IconButton
+                                    color="error"
+                                    size="small"
+                                    onClick={() => handleRemoveItem(item.id)}
+                                  >
+                                    <Delete />
+                                  </IconButton>
+                                  <Typography variant="h6" fontWeight="bold" color="primary">
+                                    {formatPrice((item.price || 0) + (item.shippingFee || 0))}
+                                  </Typography>
                                 </Box>
                               </Box>
-                              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-                                <IconButton
-                                  color="error"
-                                  size="small"
-                                  onClick={() => handleRemoveItem(item.id)}
-                                >
-                                  <Delete />
-                                </IconButton>
-                                <Typography variant="h6" fontWeight="bold" color="primary">
-                                  {formatPrice(item.price + item.shippingFee)}
-                                </Typography>
-                              </Box>
-                            </Box>
-                          </Paper>
-                        ))}
-                      </Stack>
+                            </Paper>
+                          ))}
+                        </Stack>
+                      )}
 
                       <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
                         <Button
                           variant="contained"
                           size="large"
                           onClick={handleNext}
+                          disabled={cartItems.length === 0}
                           sx={{ minWidth: 200 }}
                         >
                           Continue to Shipping
