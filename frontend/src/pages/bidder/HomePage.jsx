@@ -39,11 +39,31 @@ const BidderHomePage = () => {
       // Fetch active bids (bidding history with future endTime)
       try {
         setLoading((prev) => ({ ...prev, active: true }));
-        const biddingRes = await bidderApi.getBiddingHistory(1, 100);
-        const activeBidsData = (biddingRes.data || []).filter((bid) => {
-          const endTime = new Date(bid.endTime || bid.endsAt);
-          return endTime > new Date();
+        const biddingRes = await bidderApi.getBiddingHistory(1, 100, 'all');
+        
+        // Map API response to component format
+        const mappedBids = (biddingRes.data || []).map((bid) => ({
+          id: bid.bidId,
+          productId: bid.productId,
+          title: bid.productTitle,
+          image: bid.productPrimaryImage,
+          myBid: bid.bidAmount,
+          currentPrice: bid.currentPrice,
+          isHighestBidder: bid.isWinning,
+          endTime: bid.productEndsAt * 1000, // Convert Unix timestamp to milliseconds
+          bidCount: null, // Not available in API response
+          condition: null, // Not available in API response
+          productStatus: bid.productStatus,
+        }));
+        
+        // Filter active bids (not ended and not won)
+        const activeBidsData = mappedBids.filter((bid) => {
+          const endTime = new Date(bid.endTime);
+          const now = new Date();
+          const isEnded = bid.productStatus === 'ended' || endTime <= now;
+          return !isEnded;
         });
+        
         setActiveBids(activeBidsData);
         setStats((prev) => ({ ...prev, activeBids: activeBidsData.length }));
       } catch (err) {
@@ -56,7 +76,22 @@ const BidderHomePage = () => {
       try {
         setLoading((prev) => ({ ...prev, won: true }));
         const wonRes = await bidderApi.getWonItems(1, 100);
-        const wonData = wonRes.data || [];
+        
+        // Map API response to component format for won items
+        const wonData = (wonRes.data || []).map((item) => ({
+          id: item.bidId,
+          productId: item.productId,
+          title: item.productTitle,
+          image: item.productPrimaryImage,
+          winningPrice: item.currentPrice, // Use currentPrice as winningPrice for won items
+          currentPrice: item.currentPrice,
+          isHighestBidder: item.isWinning,
+          endTime: item.productEndsAt * 1000, // Convert Unix timestamp to milliseconds
+          bidCount: null, // Not available in API response
+          condition: null, // Not available in API response
+          status: item.productStatus, // For won items status display
+        }));
+        
         setWonItems(wonData);
         setStats((prev) => ({
           ...prev,

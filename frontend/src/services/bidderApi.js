@@ -26,23 +26,25 @@ export const bidderApi = {
    * Requires bidder authentication
    * @param {number} page - Page number (default 1)
    * @param {number} limit - Items per page (default 20)
-   * @returns {Promise} - { success, message, data: [...], page, limit, total, totalPages }
+   * @param {string} filter - Filter (all, winning, outbid, won, lost) (default 'all')
+   * @returns {Promise} - { success, message, data: [...], pageInfo: {...} }
    */
-  getBiddingHistory: (page = 1, limit = 20) => {
+  getBiddingHistory: (page = 1, limit = 20, filter = 'all') => {
     return axiosInstance
-      .get('/api/bidder/profile/bids', {
-        params: { page, limit },
+      .get('/api/bidder/bids', {
+        params: { page, limit, filter },
       })
       .then((response) => {
         if (response.data.success) {
           return {
             success: true,
             message: response.data.message || 'Bidding history retrieved successfully',
-            data: response.data.data || response.data.bids || [],
-            page: response.data.page || page,
-            limit: response.data.limit || limit,
-            total: response.data.total || 0,
-            totalPages: response.data.totalPages || 1,
+            data: response.data.bids || [],
+            pageInfo: response.data.pageInfo || {},
+            page: response.data.pageInfo?.currentPage || page,
+            limit: response.data.pageInfo?.pageSize || limit,
+            total: response.data.pageInfo?.totalItems || 0,
+            totalPages: response.data.pageInfo?.totalPages || 1,
           };
         } else {
           throw new Error(response.data.message || 'Failed to get bidding history');
@@ -59,23 +61,24 @@ export const bidderApi = {
    * Requires bidder authentication
    * @param {number} page - Page number (default 1)
    * @param {number} limit - Items per page (default 20)
-   * @returns {Promise} - { success, message, data: [...], page, limit, total, totalPages }
+   * @returns {Promise} - { success, message, data: [...], pageInfo: {...} }
    */
   getWonItems: (page = 1, limit = 20) => {
     return axiosInstance
-      .get('/api/bidder/profile/wins', {
-        params: { page, limit },
+      .get('/api/bidder/bids', {
+        params: { page, limit, filter: 'won' },
       })
       .then((response) => {
         if (response.data.success) {
           return {
             success: true,
             message: response.data.message || 'Won items retrieved successfully',
-            data: response.data.data || response.data.wins || [],
-            page: response.data.page || page,
-            limit: response.data.limit || limit,
-            total: response.data.total || 0,
-            totalPages: response.data.totalPages || 1,
+            data: response.data.bids || [],
+            pageInfo: response.data.pageInfo || {},
+            page: response.data.pageInfo?.currentPage || page,
+            limit: response.data.pageInfo?.pageSize || limit,
+            total: response.data.pageInfo?.totalItems || 0,
+            totalPages: response.data.pageInfo?.totalPages || 1,
           };
         } else {
           throw new Error(response.data.message || 'Failed to get won items');

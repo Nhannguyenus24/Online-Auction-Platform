@@ -157,6 +157,58 @@ export const orderApi = {
         throw error;
       });
   },
+
+  /**
+   * Create Stripe payment intent
+   * Requires authentication
+   * @param {number} amount - Amount in dollars
+   * @param {string} currency - Currency code (default: 'usd')
+   * @returns {Promise} - { success, clientSecret, paymentIntentId }
+   */
+  createPaymentIntent: (amount, currency = 'usd') => {
+    return axiosInstance
+      .post('/api/payment/create-payment-intent', { amount, currency })
+      .then((response) => {
+        if (response.data.success) {
+          return {
+            success: true,
+            clientSecret: response.data.clientSecret,
+            paymentIntentId: response.data.paymentIntentId,
+          };
+        } else {
+          throw new Error(response.data.message || 'Failed to create payment intent');
+        }
+      })
+      .catch((error) => {
+        console.error('Create payment intent error:', error);
+        throw error;
+      });
+  },
+
+  /**
+   * Confirm payment after successful Stripe payment
+   * Requires authentication
+   * @param {string} paymentIntentId - Payment intent ID from Stripe
+   * @returns {Promise} - { success, message }
+   */
+  confirmPayment: (paymentIntentId) => {
+    return axiosInstance
+      .post('/api/payment/confirm-payment', { paymentIntentId })
+      .then((response) => {
+        if (response.data.success) {
+          return {
+            success: true,
+            message: response.data.message || 'Payment confirmed successfully',
+          };
+        } else {
+          throw new Error(response.data.message || 'Failed to confirm payment');
+        }
+      })
+      .catch((error) => {
+        console.error('Confirm payment error:', error);
+        throw error;
+      });
+  },
 };
 
 export default orderApi;

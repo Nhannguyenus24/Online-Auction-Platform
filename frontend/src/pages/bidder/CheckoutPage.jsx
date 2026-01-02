@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useForm, Controller } from 'react-hook-form';
 import {
   Box,
   Typography,
@@ -38,31 +39,55 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { formatPrice } from '../../utils/formatNumber';
 import Page from '../../components/Page';
 import { orderApi } from '../../services/orderApi';
+import { bidderApi } from '../../services/bidderApi';
 
-// Initialize Stripe (replace with your publishable key)
-const stripePromise = loadStripe('pk_test_YOUR_PUBLISHABLE_KEY');
+// Initialize Stripe (replace with your publishable key from .env)
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_YOUR_PUBLISHABLE_KEY');
 
 const CheckoutForm = ({ cartItems, onSuccess }) => {
   const stripe = useStripe();
   const elements = useElements();
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState(null);
+  const [clientSecret, setClientSecret] = useState(null);
+
+  // Calculate total amount
+  const totalAmount = cartItems.reduce((sum, item) => sum + item.price + item.shippingFee, 0);
+
+  // Create payment intent when component mounts
+  useEffect(() => {
+    const createPaymentIntent = async () => {
+      try {
+        const response = await orderApi.createPaymentIntent(totalAmount, 'usd');
+        setClientSecret(response.clientSecret);
+      } catch (err) {
+        setError('Failed to initialize payment. Please try again.');
+        console.error('Error creating payment intent:', err);
+      }
+    };
+
+    if (totalAmount > 0) {
+      createPaymentIntent();
+    }
+  }, [totalAmount]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     
-    if (!stripe || !elements) return;
+    if (!stripe || !elements || !clientSecret) {
+      setError('Payment system not ready. Please wait...');
+      return;
+    }
 
     setProcessing(true);
     setError(null);
 
     try {
-      const cardElement = elements.getElement(CardElement);
-      
-      // Create payment method
-      const { error: stripeError, paymentMethod } = await stripe.createPaymentMethod({
-        type: 'card',
-        card: cardElement,
+      // Confirm payment with Stripe
+      const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
+        payment_method: {
+          card: elements.getElement(CardElement),
+        },
       });
 
       if (stripeError) {
@@ -71,15 +96,18 @@ const CheckoutForm = ({ cartItems, onSuccess }) => {
         return;
       }
 
-      // Here you would send paymentMethod.id to your backend
-      console.log('Payment Method:', paymentMethod);
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      onSuccess();
+      // Payment succeeded, confirm with backend
+      if (paymentIntent.status === 'succeeded') {
+        try {
+          await orderApi.confirmPayment(paymentIntent.id);
+          onSuccess();
+        } catch (confirmError) {
+          setError('Payment succeeded but failed to confirm. Please contact support.');
+          console.error('Error confirming payment:', confirmError);
+        }
+      }
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Payment failed. Please try again.');
     } finally {
       setProcessing(false);
     }
@@ -126,10 +154,10 @@ const CheckoutForm = ({ cartItems, onSuccess }) => {
         variant="contained"
         size="large"
         fullWidth
-        disabled={!stripe || processing}
+        disabled={!stripe || !elements || !clientSecret || processing}
         sx={{ mt: 3, py: 1.5, fontWeight: 'bold' }}
       >
-        {processing ? 'Processing...' : `Pay ${formatPrice(cartItems.reduce((sum, item) => sum + item.price + item.shippingFee, 0))}`}
+        {processing ? 'Processing...' : `Pay ${formatPrice(totalAmount)}`}
       </Button>
     </form>
   );
@@ -144,21 +172,36 @@ const BidderCheckoutPage = () => {
   const [cartItems, setCartItems] = useState([]);
   const [paymentMethod, setPaymentMethod] = useState('stripe');
   const [orderId, setOrderId] = useState('');
-  const [shippingInfo, setShippingInfo] = useState({
-    fullName: '',
-    phone: '',
-    address: '',
-    city: '',
-    postalCode: '',
+  
+  // React Hook Form for shipping information
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+    reset,
+    watch,
+  } = useForm({
+    defaultValues: {
+      fullName: '',
+      phone: '',
+      address: '',
+      city: '',
+      postalCode: '',
+    },
+    mode: 'onBlur',
   });
 
-  // Load cart items from localStorage or fetch order if orderId provided
+  const shippingInfo = watch();
+
+  // Load cart items from API (won items that need payment) or fetch order if orderId provided
   useEffect(() => {
     const loadCartItems = async () => {
       try {
+        setLoading(true);
+        setError(null);
+        
         // If orderId is provided in route, fetch order details
         if (orderIdFromRoute) {
-          setLoading(true);
           const response = await orderApi.getOrder(orderIdFromRoute);
           if (response.success && response.order) {
             const order = response.order;
@@ -170,11 +213,12 @@ const BidderCheckoutPage = () => {
               price: order.winningPrice || order.totalAmount || 0,
               seller: order.seller?.name || 'Seller',
               shippingFee: order.shippingFee || 0,
+              productId: order.productId,
             }]);
             setOrderId(order.id || orderIdFromRoute);
             // Pre-fill shipping info if available
             if (order.shippingAddress) {
-              setShippingInfo({
+              reset({
                 fullName: order.shippingAddress.fullName || '',
                 phone: order.shippingAddress.phone || '',
                 address: order.shippingAddress.address || '',
@@ -183,29 +227,46 @@ const BidderCheckoutPage = () => {
               });
             }
           }
-          setLoading(false);
         } else {
-          // Try to load from localStorage
-          const savedCartItems = localStorage.getItem('checkoutCartItems');
-          if (savedCartItems) {
-            try {
-              const parsed = JSON.parse(savedCartItems);
-              setCartItems(Array.isArray(parsed) ? parsed : []);
-            } catch (e) {
-              console.error('Error parsing cart items from localStorage:', e);
-              setCartItems([]);
-            }
-          }
+          // Load won items that need payment (cart items)
+          const wonRes = await bidderApi.getWonItems(1, 100);
+          const wonItems = wonRes.data || [];
+          
+          // Map won items to cart item format
+          // In auction system, cart = won items that haven't been paid yet
+          const cartItemsData = wonItems.map((item) => ({
+            id: item.productId,
+            productId: item.productId,
+            title: item.productTitle,
+            image: item.productPrimaryImage || 'https://via.placeholder.com/300',
+            price: item.currentPrice || 0, // Winning price
+            seller: 'Seller', // Not available in API response, can be fetched separately if needed
+            shippingFee: 0, // Default shipping fee, can be updated
+          }));
+          
+          setCartItems(cartItemsData);
         }
       } catch (err) {
         console.error('Error loading cart items:', err);
         setError('Failed to load cart items. Please try again.');
+        // Fallback to localStorage if API fails
+        const savedCartItems = localStorage.getItem('checkoutCartItems');
+        if (savedCartItems) {
+          try {
+            const parsed = JSON.parse(savedCartItems);
+            setCartItems(Array.isArray(parsed) ? parsed : []);
+          } catch (e) {
+            console.error('Error parsing cart items from localStorage:', e);
+            setCartItems([]);
+          }
+        }
+      } finally {
         setLoading(false);
       }
     };
 
     loadCartItems();
-  }, [orderIdFromRoute]);
+  }, [orderIdFromRoute, reset]);
 
   const steps = ['Shopping Cart', 'Shipping Info', 'Payment', 'Confirmation'];
 
@@ -226,12 +287,14 @@ const BidderCheckoutPage = () => {
 
   const handleNext = () => {
     if (activeStep === 1) {
-      // Validate shipping info
-      if (!shippingInfo.fullName || !shippingInfo.phone || !shippingInfo.address) {
-        alert('Please fill in all required fields');
-        return;
-      }
+      // Validation will be handled by form submit
+      return;
     }
+    setActiveStep((prevStep) => prevStep + 1);
+  };
+
+  const onShippingSubmit = () => {
+    // Shipping form is valid, proceed to next step
     setActiveStep((prevStep) => prevStep + 1);
   };
 
@@ -245,9 +308,6 @@ const BidderCheckoutPage = () => {
     setActiveStep(3);
   };
 
-  const handleShippingChange = (field) => (event) => {
-    setShippingInfo({ ...shippingInfo, [field]: event.target.value });
-  };
 
   if (loading) {
     return (
@@ -330,9 +390,9 @@ const BidderCheckoutPage = () => {
             </CardContent>
           </Card>
 
-          <Grid container spacing={3}>
+          <Stack direction="row" spacing={2}>
             {/* Main Content */}
-            <Grid item xs={12} md={8}>
+            <Box sx={{ flex: 1 }}>
               <Card>
                 <CardContent sx={{ p: 4 }}>
                   {/* Step 0: Cart Items */}
@@ -414,7 +474,7 @@ const BidderCheckoutPage = () => {
 
                   {/* Step 1: Shipping Information */}
                   {activeStep === 1 && (
-                    <Box>
+                    <Box component="form" onSubmit={handleSubmit(onShippingSubmit)}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
                         <LocalShipping color="primary" />
                         <Typography variant="h5" fontWeight="bold">
@@ -423,63 +483,118 @@ const BidderCheckoutPage = () => {
                       </Box>
                       <Divider sx={{ mb: 3 }} />
 
-                      <Grid container spacing={2}>
-                        <Grid item xs={12}>
-                          <TextField
-                            fullWidth
-                            label="Full Name"
-                            required
-                            value={shippingInfo.fullName}
-                            onChange={handleShippingChange('fullName')}
-                          />
-                        </Grid>
-                        <Grid item xs={12} sm={6}>
-                          <TextField
-                            fullWidth
-                            label="Phone Number"
-                            required
-                            value={shippingInfo.phone}
-                            onChange={handleShippingChange('phone')}
-                          />
-                        </Grid>
-                        <Grid item xs={12} sm={6}>
-                          <TextField
-                            fullWidth
-                            label="City"
-                            required
-                            value={shippingInfo.city}
-                            onChange={handleShippingChange('city')}
-                          />
-                        </Grid>
-                        <Grid item xs={12}>
-                          <TextField
-                            fullWidth
-                            label="Address"
-                            required
-                            multiline
-                            rows={3}
-                            value={shippingInfo.address}
-                            onChange={handleShippingChange('address')}
-                          />
-                        </Grid>
-                        <Grid item xs={12} sm={6}>
-                          <TextField
-                            fullWidth
-                            label="Postal Code"
-                            value={shippingInfo.postalCode}
-                            onChange={handleShippingChange('postalCode')}
-                          />
-                        </Grid>
-                      </Grid>
+                      <Stack spacing={2}>
+                        <Controller
+                          name="fullName"
+                          control={control}
+                          rules={{
+                            required: 'Full name is required',
+                            minLength: {
+                              value: 2,
+                              message: 'Full name must be at least 2 characters',
+                            },
+                          }}
+                          render={({ field }) => (
+                            <TextField
+                              {...field}
+                              fullWidth
+                              label="Full Name"
+                              required
+                              error={!!errors.fullName}
+                              helperText={errors.fullName?.message}
+                            />
+                          )}
+                        />
+                        <Controller
+                          name="phone"
+                          control={control}
+                          rules={{
+                            required: 'Phone number is required',
+                            pattern: {
+                              value: /^[0-9+\-\s()]+$/,
+                              message: 'Please enter a valid phone number',
+                            },
+                          }}
+                          render={({ field }) => (
+                            <TextField
+                              {...field}
+                              fullWidth
+                              label="Phone Number"
+                              required
+                              error={!!errors.phone}
+                              helperText={errors.phone?.message}
+                            />
+                          )}
+                        />
+                        <Controller
+                          name="city"
+                          control={control}
+                          rules={{
+                            required: 'City is required',
+                          }}
+                          render={({ field }) => (
+                            <TextField
+                              {...field}
+                              fullWidth
+                              label="City"
+                              required
+                              error={!!errors.city}
+                              helperText={errors.city?.message}
+                            />
+                          )}
+                        />
+                        <Controller
+                          name="address"
+                          control={control}
+                          rules={{
+                            required: 'Address is required',
+                            minLength: {
+                              value: 5,
+                              message: 'Address must be at least 5 characters',
+                            },
+                          }}
+                          render={({ field }) => (
+                            <TextField
+                              {...field}
+                              fullWidth
+                              label="Address"
+                              required
+                              multiline
+                              rows={3}
+                              error={!!errors.address}
+                              helperText={errors.address?.message}
+                            />
+                          )}
+                        />
+                        <Controller
+                          name="postalCode"
+                          control={control}
+                          rules={{
+                            pattern: {
+                              value: /^[0-9A-Za-z\s-]+$/,
+                              message: 'Please enter a valid postal code',
+                            },
+                          }}
+                          render={({ field }) => (
+                            <TextField
+                              {...field}
+                              fullWidth
+                              label="Postal Code"
+                              error={!!errors.postalCode}
+                              helperText={errors.postalCode?.message}
+                            />
+                          )}
+                        />
+                      </Stack>
 
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
                         <Button onClick={handleBack}>
                           Back
                         </Button>
                         <Button
+                          type="submit"
                           variant="contained"
                           size="large"
-                          onClick={handleNext}
                           sx={{ minWidth: 200 }}
                         >
                           Continue to Payment
@@ -514,18 +629,6 @@ const BidderCheckoutPage = () => {
                                 <Typography>Credit/Debit Card (Stripe)</Typography>
                               </Box>
                             }
-                          />
-                          <FormControlLabel
-                            value="momo"
-                            control={<Radio />}
-                            label="MoMo Wallet"
-                            disabled
-                          />
-                          <FormControlLabel
-                            value="zalopay"
-                            control={<Radio />}
-                            label="ZaloPay"
-                            disabled
                           />
                         </RadioGroup>
                       </FormControl>
@@ -569,7 +672,7 @@ const BidderCheckoutPage = () => {
                         <Button variant="outlined" onClick={() => navigate('/bidder')}>
                           Back to Home
                         </Button>
-                        <Button variant="contained" onClick={() => navigate('/bidder/history')}>
+                        <Button variant="contained" onClick={() => navigate('/bidder/auction-history')}>
                           View Order History
                         </Button>
                       </Stack>
@@ -577,11 +680,11 @@ const BidderCheckoutPage = () => {
                   )}
                 </CardContent>
               </Card>
-            </Grid>
+            </Box>
 
             {/* Order Summary */}
-            <Grid item xs={12} md={4}>
-              <Card sx={{ position: 'sticky', top: 20 }}>
+            <Box sx={{ width: 400, position: 'sticky', top: 20, alignSelf: 'flex-start' }}>
+              <Card>
                 <CardContent sx={{ p: 3 }}>
                   <Typography variant="h6" fontWeight="bold" gutterBottom>
                     Order Summary
@@ -632,15 +735,10 @@ const BidderCheckoutPage = () => {
                     </Box>
                   )}
 
-                  <Alert severity="info" sx={{ mt: 2 }}>
-                    <Typography variant="caption">
-                      Secure payment powered by Stripe
-                    </Typography>
-                  </Alert>
                 </CardContent>
               </Card>
-            </Grid>
-          </Grid>
+            </Box>
+          </Stack>
         </Container>
       </Box>
     </Page>

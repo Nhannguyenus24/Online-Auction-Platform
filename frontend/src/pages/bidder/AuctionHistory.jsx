@@ -65,11 +65,33 @@ const BidderAuctionHistoryPage = () => {
       try {
         // Fetch all data (fetch large limit to get all data for client-side filtering)
         const [biddingRes, wonRes] = await Promise.all([
-          bidderApi.getBiddingHistory(1, 1000), // Get all data
+          bidderApi.getBiddingHistory(1, 1000, 'all'), // Get all data
           bidderApi.getWonItems(1, 1000),
         ]);
-        setAllBiddingHistory(biddingRes.data || []);
-        setWonItems(wonRes.data || []);
+        
+        // Map API response to component format
+        const mappedBids = (biddingRes.data || []).map((bid) => ({
+          id: bid.bidId,
+          productId: bid.productId,
+          title: bid.productTitle,
+          image: bid.productPrimaryImage,
+          myBid: bid.bidAmount,
+          currentPrice: bid.currentPrice,
+          isHighestBidder: bid.isWinning,
+          endTime: bid.productEndsAt * 1000, // Convert Unix timestamp to milliseconds
+          bidDate: bid.bidCreatedAt * 1000, // Convert Unix timestamp to milliseconds
+          bidCount: 0, // Not available in API response
+          condition: null, // Not available in API response
+          productStatus: bid.productStatus,
+        }));
+        
+        // Map won items to simple format with productId
+        const mappedWonItems = (wonRes.data || []).map((item) => ({
+          productId: item.productId,
+        }));
+        
+        setAllBiddingHistory(mappedBids);
+        setWonItems(mappedWonItems);
       } catch (err) {
         console.error('Error fetching auction history:', err);
       } finally {
@@ -101,7 +123,8 @@ const BidderAuctionHistoryPage = () => {
   const getStatus = (bid) => {
     const endTime = new Date(bid.endTime);
     const now = new Date();
-    const isEnded = endTime <= now;
+    // Use productStatus if available, otherwise check endTime
+    const isEnded = bid.productStatus === 'ended' || endTime <= now;
     const isWon = wonItems.some((item) => item.productId === bid.productId);
 
     if (isWon) return { label: 'Won', color: 'success', icon: <EmojiEvents /> };
@@ -119,12 +142,14 @@ const BidderAuctionHistoryPage = () => {
       case 1: // Active
         return allBiddingHistory.filter((bid) => {
           const endTime = new Date(bid.endTime);
-          return endTime > now && !wonProductIds.has(bid.productId);
+          const isEnded = bid.productStatus === 'ended' || endTime <= now;
+          return !isEnded && !wonProductIds.has(bid.productId);
         });
       case 2: // Ended
         return allBiddingHistory.filter((bid) => {
           const endTime = new Date(bid.endTime);
-          return endTime <= now && !wonProductIds.has(bid.productId);
+          const isEnded = bid.productStatus === 'ended' || endTime <= now;
+          return isEnded && !wonProductIds.has(bid.productId);
         });
       case 3: // Won
         return allBiddingHistory.filter((bid) => wonProductIds.has(bid.productId));
@@ -230,8 +255,9 @@ const BidderAuctionHistoryPage = () => {
                     <AccessTime /> Active ({allBiddingHistory.filter((bid) => {
                       const endTime = new Date(bid.endTime);
                       const now = new Date();
+                      const isEnded = bid.productStatus === 'ended' || endTime <= now;
                       const wonProductIds = new Set(wonItems.map((item) => item.productId));
-                      return endTime > now && !wonProductIds.has(bid.productId);
+                      return !isEnded && !wonProductIds.has(bid.productId);
                     }).length})
                   </Box>
                 }
@@ -242,8 +268,9 @@ const BidderAuctionHistoryPage = () => {
                     <Cancel /> Ended ({allBiddingHistory.filter((bid) => {
                       const endTime = new Date(bid.endTime);
                       const now = new Date();
+                      const isEnded = bid.productStatus === 'ended' || endTime <= now;
                       const wonProductIds = new Set(wonItems.map((item) => item.productId));
-                      return endTime <= now && !wonProductIds.has(bid.productId);
+                      return isEnded && !wonProductIds.has(bid.productId);
                     }).length})
                   </Box>
                 }
@@ -313,7 +340,7 @@ const BidderAuctionHistoryPage = () => {
                       const status = getStatus(bid);
                       const endTime = new Date(bid.endTime);
                       const now = new Date();
-                      const isEnded = endTime <= now;
+                      const isEnded = bid.productStatus === 'ended' || endTime <= now;
 
                       return (
                         <TableRow
@@ -352,12 +379,14 @@ const BidderAuctionHistoryPage = () => {
                                       sx={{ height: 20, fontSize: '0.7rem' }}
                                     />
                                   )}
-                                  <Chip
-                                    icon={<Gavel sx={{ fontSize: 12 }} />}
-                                    label={`${bid.bidCount} bids`}
-                                    size="small"
-                                    sx={{ height: 20, fontSize: '0.7rem' }}
-                                  />
+                                  {bid.bidCount !== undefined && bid.bidCount !== null && (
+                                    <Chip
+                                      icon={<Gavel sx={{ fontSize: 12 }} />}
+                                      label={`${bid.bidCount} bids`}
+                                      size="small"
+                                      sx={{ height: 20, fontSize: '0.7rem' }}
+                                    />
+                                  )}
                                 </Box>
                               </Box>
                             </Box>
