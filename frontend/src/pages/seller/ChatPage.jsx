@@ -31,10 +31,12 @@ import { formatPrice } from '../../utils/formatNumber';
 import useChatSocket from '../../hooks/useChatSocket';
 import useConversationsSocket from '../../hooks/useConversationsSocket';
 import { getMessagesByOrder, getConversations, markConversationAsRead } from '../../services/chatApi';
+import { useAuth } from '../../hooks/useAuth';
 
 const SellerChatPage = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const messagesEndRef = useRef(null);
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState([]);
@@ -103,8 +105,11 @@ const SellerChatPage = () => {
         // Message from other party and we're NOT viewing it -> refresh from DB to get accurate unread count
         // Add small delay to ensure backend has committed the transaction
         console.log('Refreshing conversations from DB for seller...');
+        const userId = user?.id?.toString();
+        if (!userId) return; // Don't refresh if user is not loaded
+        
         setTimeout(() => {
-          getConversations('SELLER', 'mock-seller')
+          getConversations('SELLER', userId)
             .then((data) => {
               console.log('Refreshed conversations:', data);
               const updatedConversations = (data || []).map(mapConversationToUI);
@@ -115,7 +120,7 @@ const SellerChatPage = () => {
               if (targetConv && targetConv.unreadCount === 0) {
                 console.log('Unread count is 0, retrying refresh after delay...');
                 setTimeout(() => {
-                  getConversations('SELLER', 'mock-seller')
+                  getConversations('SELLER', userId)
                     .then((retryData) => {
                       console.log('Retry refreshed conversations:', retryData);
                       setConversations((retryData || []).map(mapConversationToUI));
@@ -172,7 +177,7 @@ const SellerChatPage = () => {
         });
       }
     },
-    [orderId, mapConversationToUI]
+    [orderId, mapConversationToUI, user]
   );
 
   const { connected: socketConnected, error: socketError, sendMessage } = useChatSocket({
@@ -192,10 +197,13 @@ const SellerChatPage = () => {
 
   // Load conversations list
   useEffect(() => {
+    if (!user?.id) return; // Don't load if user is not available
+    
     let isMounted = true;
     setLoadingConversations(true);
+    const userId = user.id.toString();
 
-    getConversations('SELLER', 'mock-seller')
+    getConversations('SELLER', userId)
       .then((data) => {
         if (!isMounted) return;
         setConversations((data || []).map(mapConversationToUI));
@@ -211,21 +219,22 @@ const SellerChatPage = () => {
     return () => {
       isMounted = false;
     };
-  }, [mapConversationToUI]);
+  }, [mapConversationToUI, user]);
 
   // Refresh conversations list when returning from a conversation (orderId becomes null)
   useEffect(() => {
-    if (!orderId) {
-      // We're on the conversation list page, refresh to get latest unread counts
-      getConversations('SELLER', 'mock-seller')
-        .then((data) => {
-          setConversations((data || []).map(mapConversationToUI));
-        })
-        .catch(() => {
-          // Silently fail, don't show error
-        });
-    }
-  }, [orderId, mapConversationToUI]);
+    if (!orderId || !user?.id) return; // Don't refresh if user is not available
+    
+    // We're on the conversation list page, refresh to get latest unread counts
+    const userId = user.id.toString();
+    getConversations('SELLER', userId)
+      .then((data) => {
+        setConversations((data || []).map(mapConversationToUI));
+      })
+      .catch(() => {
+        // Silently fail, don't show error
+      });
+  }, [orderId, mapConversationToUI, user]);
 
   // Load messages when orderId selected and mark as read
   useEffect(() => {
@@ -237,10 +246,16 @@ const SellerChatPage = () => {
     setMessages([]);
 
     // Mark conversation as read
+    const userId = user?.id?.toString();
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+    
     markConversationAsRead(orderId, 'SELLER')
       .then(() => {
         // Refresh conversations list to update unread status
-        return getConversations('SELLER', 'mock-seller');
+        return getConversations('SELLER', userId);
       })
       .then((data) => {
         if (!isMounted) return;
@@ -272,7 +287,7 @@ const SellerChatPage = () => {
     return () => {
       isMounted = false;
     };
-  }, [mapDtoToMessage, mapConversationToUI, orderId]);
+  }, [mapDtoToMessage, mapConversationToUI, orderId, user]);
 
   useEffect(() => {
     // Auto scroll to bottom when messages change or orderId changes
@@ -290,12 +305,12 @@ const SellerChatPage = () => {
   };
 
   const handleSendMessage = async () => {
-    if (!message.trim() || !orderId) return;
+    if (!message.trim() || !orderId || !user?.id) return;
     const payload = {
       orderId: orderId,
       senderRole: 'SELLER',
-      senderName: `Seller ${orderId}`,
-      senderEmail: `seller+${orderId}@example.com`,
+      senderName: user.fullName || user.name || `User ${user.id}`,
+      senderEmail: user.email || `user${user.id}@example.com`,
       content: message.trim(),
     };
 
@@ -303,7 +318,8 @@ const SellerChatPage = () => {
       setSending(true);
       sendMessage(payload);
       setMessage('');
-    } catch {
+    } catch (err) {
+      console.error('Error sending message:', err);
       setError('Không thể gửi tin nhắn. Vui lòng kiểm tra kết nối và thử lại.');
     } finally {
       setSending(false);
