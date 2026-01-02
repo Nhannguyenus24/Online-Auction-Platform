@@ -5,8 +5,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.auction.proto.guest.*;
-import com.auction.utils.JsonUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -15,6 +13,15 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import com.auction.proto.guest.GetCategoriesRequest;
+import com.auction.proto.guest.GetTopBidCountProductsRequest;
+import com.auction.proto.guest.GetTopEndingProductsRequest;
+import com.auction.proto.guest.GetTopPriceProductsRequest;
+import com.auction.proto.guest.ListProductsByCategoryRequest;
+import com.auction.proto.guest.ListProductsByNameRequest;
+import com.auction.proto.guest.SortOrder;
+import com.auction.utils.JsonUtils;
 
 import gateway.grpc.GuestGrpcClient;
 import io.swagger.v3.oas.annotations.Operation;
@@ -264,6 +271,80 @@ public class GuestController {
                     Map<String, Object> error = new HashMap<>();
                     error.put("success", false);
                     error.put("message", "Failed to list products: " + e.getMessage());
+                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error));
+                });
+    }
+
+    @GetMapping("/products/search")
+    @Operation(summary = "Search products by name", description = "Search products by name with full text search, filters and pagination. Supports price range, sorting, and status filtering.")
+    public Mono<ResponseEntity<Map<String, Object>>> listProductsByName(
+            @Parameter(description = "Search keyword for product title") 
+            @RequestParam(required = false) String searchKeyword,
+            @Parameter(description = "Minimum price") 
+            @RequestParam(required = false) Double minPrice,
+            @Parameter(description = "Maximum price") 
+            @RequestParam(required = false) Double maxPrice,
+            @Parameter(description = "Product status filter (active, ended, all)") 
+            @RequestParam(defaultValue = "active") String status,
+            @Parameter(description = "Sort order (ENDING_SOON_DESC, ENDING_SOON_ASC, PRICE_ASC, PRICE_DESC, NEWEST_FIRST, OLDEST_FIRST, MOST_BIDS, MOST_VIEWS)") 
+            @RequestParam(defaultValue = "ENDING_SOON_DESC") String sortOrder,
+            @Parameter(description = "Page number (1-based)") 
+            @RequestParam(defaultValue = "1") int page,
+            @Parameter(description = "Number of items per page (max 100)") 
+            @RequestParam(defaultValue = "20") int limit) {
+        
+        log.info("Search products by name request - searchKeyword: {}, page: {}, limit: {}", searchKeyword, page, limit);
+
+        // Build request
+        ListProductsByNameRequest.Builder requestBuilder = ListProductsByNameRequest.newBuilder()
+                .setSearchKeyword(searchKeyword != null ? searchKeyword : "")
+                .setStatus(status)
+                .setSortOrder(parseSortOrder(sortOrder))
+                .setPage(page)
+                .setLimit(limit);
+
+        if (minPrice != null) {
+            requestBuilder.setMinPrice(minPrice);
+        } else {
+            requestBuilder.setMinPrice(0);
+        }
+        if (maxPrice != null) {
+            requestBuilder.setMaxPrice(maxPrice);
+        } else {
+            requestBuilder.setMaxPrice(999999999);
+        }
+
+        return guestGrpcClient.listProductsByName(requestBuilder.build())
+                .map(response -> {
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("success", response.getSuccess());
+                    result.put("message", response.getMessage());
+                    
+                    if (response.getSuccess()) {
+                        List<Map<String, Object>> products = new ArrayList<>();
+                        response.getProductsList().forEach(product -> {
+                            products.add(mapProduct(product));
+                        });
+                        
+                        Map<String, Object> pageInfo = new HashMap<>();
+                        pageInfo.put("currentPage", response.getPageInfo().getCurrentPage());
+                        pageInfo.put("pageSize", response.getPageInfo().getPageSize());
+                        pageInfo.put("totalItems", response.getPageInfo().getTotalItems());
+                        pageInfo.put("totalPages", response.getPageInfo().getTotalPages());
+                        pageInfo.put("hasNext", response.getPageInfo().getHasNext());
+                        pageInfo.put("hasPrevious", response.getPageInfo().getHasPrevious());
+                        
+                        result.put("products", products);
+                        result.put("pageInfo", pageInfo);
+                    }
+                    
+                    return ResponseEntity.ok(result);
+                })
+                .onErrorResume(e -> {
+                    log.error("Search products by name error: {}", e.getMessage(), e);
+                    Map<String, Object> error = new HashMap<>();
+                    error.put("success", false);
+                    error.put("message", "Failed to search products: " + e.getMessage());
                     return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error));
                 });
     }

@@ -15,6 +15,7 @@ import com.auction.proto.guest.GetTopPriceProductsRequest;
 import com.auction.proto.guest.GetTopProductsResponse;
 import com.auction.proto.guest.ListProductsByCategoryRequest;
 import com.auction.proto.guest.ListProductsByCategoryResponse;
+import com.auction.proto.guest.ListProductsByNameRequest;
 import com.auction.proto.guest.ReactorGuestServiceGrpc;
 import com.auction.utils.JsonUtils;
 
@@ -87,5 +88,11 @@ public class GuestGrpcClient {
     public Mono<ListProductsByCategoryResponse> listProductsByCategory(ListProductsByCategoryRequest request) {
         log.info("gRPC listProductsByCategory request: {}", JsonUtils.toJson(request));
         return guestServiceStub.listProductsByCategory(Mono.just(request));
+    }
+
+    // List Products by Name
+    public Mono<ListProductsByCategoryResponse> listProductsByName(ListProductsByNameRequest request) {
+        log.info("gRPC listProductsByName request: {}", JsonUtils.toJson(request));
+        return guestServiceStub.listProductsByName(Mono.just(request));
     }
 }

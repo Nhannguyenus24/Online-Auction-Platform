@@ -22,6 +22,9 @@ service GuestService {
   
   // 5. List products by category level 2 with filters and pagination
   rpc ListProductsByCategory(ListProductsByCategoryRequest) returns (ListProductsByCategoryResponse);
+
+  // 6. List products by name with filters and pagination
+  rpc ListProductsByName(ListProductsByNameRequest) returns (ListProductsByCategoryResponse);
 }
 
 // ==================== Category Messages ====================
@@ -106,14 +109,14 @@ message GetTopProductsResponse {
 
 enum SortOrder {
   SORT_ORDER_UNSPECIFIED = 0;
-  ENDING_SOON_DESC = 1;      // End time descending (ending soonest first)
-  ENDING_SOON_ASC = 2;       // End time ascending (ending latest first)
-  PRICE_ASC = 3;             // Price ascending (lowest first)
-  PRICE_DESC = 4;            // Price descending (highest first)
-  NEWEST_FIRST = 5;          // Created date descending (newest first)
-  OLDEST_FIRST = 6;          // Created date ascending (oldest first)
-  MOST_BIDS = 7;             // Bid count descending (most bids first)
-  MOST_VIEWS = 8;            // View count descending (most views first)
+  ENDING_SOON_DESC = 1; // End time descending (ending soonest first)
+  ENDING_SOON_ASC = 2; // End time ascending (ending latest first)
+  PRICE_ASC = 3; // Price ascending (lowest first)
+  PRICE_DESC = 4; // Price descending (highest first)
+  NEWEST_FIRST = 5; // Created date descending (newest first)
+  OLDEST_FIRST = 6; // Created date ascending (oldest first)
+  MOST_BIDS = 7; // Bid count descending (most bids first)
+  MOST_VIEWS = 8; // View count descending (most views first)
 }
 
 message ListProductsByCategoryRequest {
@@ -121,31 +124,47 @@ message ListProductsByCategoryRequest {
   
   // Filter options
   string search_keyword = 2; // Optional: Search by product title (supports Vietnamese)
-  double min_price = 3;      // Optional: Minimum current price
-  double max_price = 4;      // Optional: Maximum current price
-  string status = 5;         // Optional: Filter by status (active, ended, all), default: active
+  double min_price = 3; // Optional: Minimum current price
+  double max_price = 4; // Optional: Maximum current price
+  string status = 5; // Optional: Filter by status (active, ended, all), default: active
   
   // Sorting
-  SortOrder sort_order = 6;  // Default: ENDING_SOON_DESC
+  SortOrder sort_order = 6; // Default: ENDING_SOON_DESC
   
   // Pagination
-  int32 page = 7;            // Default: 1 (1-based indexing)
-  int32 limit = 8;           // Default: 20, Max: 100
+  int32 page = 7; // Default: 1 (1-based indexing)
+  int32 limit = 8; // Default: 20, Max: 100
+}
+
+message ListProductsByNameRequest {
+  string search_keyword = 1; // Required: Search by product title (supports Vietnamese)
+  // Filter options
+  double min_price = 2; // Optional: Minimum current price
+  double max_price = 3; // Optional: Maximum current price
+  string status = 4; // Optional: Filter by status (active, ended, all), default: active
+  
+  // Sorting
+  SortOrder sort_order = 5; // Default: ENDING_SOON_DESC
+  
+  // Pagination
+  int32 page = 6; // Default: 1 (1-based indexing)
+  int32 limit = 7; // Default: 20, Max: 100
+
 }
 
 message PageInfo {
-  int32 current_page = 1;    // Current page number (1-based)
-  int32 page_size = 2;       // Number of items per page
-  int64 total_items = 3;     // Total number of items
-  int32 total_pages = 4;     // Total number of pages
-  bool has_next = 5;         // Has next page
-  bool has_previous = 6;     // Has previous page
+  int32 current_page = 1; // Current page number (1-based)
+  int32 page_size = 2; // Number of items per page
+  int64 total_items = 3; // Total number of items
+  int32 total_pages = 4; // Total number of pages
+  bool has_next = 5; // Has next page
+  bool has_previous = 6; // Has previous page
 }
 
 message ListProductsByCategoryResponse {
   repeated Product products = 1;
   PageInfo page_info = 2;
-  Category category = 3;     // Category information
+  Category category = 3; // Category information
   bool success = 4;
   string message = 5;
 }

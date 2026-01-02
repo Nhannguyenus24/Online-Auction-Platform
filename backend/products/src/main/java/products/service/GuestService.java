@@ -8,12 +8,12 @@ import com.auction.proto.guest.Category;
 import com.auction.proto.guest.PageInfo;
 import com.auction.proto.guest.Product;
 import com.auction.proto.guest.ProductImage;
+import com.auction.utils.TimeUtils;
 
 import products.dto.ImageRowDto;
 import products.dto.ProductRowDto;
 import products.repository.CategoryRepository;
 import products.repository.ProductRepository;
-import com.auction.utils.TimeUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -116,6 +116,56 @@ public class GuestService {
         });
     }
 
+    public Mono<ProductListByNameResult> listProductsByName(String searchKeyword, 
+                                                              double minPrice, double maxPrice, 
+                                                              String status, String sortOrder, 
+                                                              int page, int limit) {
+        int offset = (page - 1) * limit;
+        
+        return Mono.zip(
+            productRepository.listProductsByNameAdvanced(
+                searchKeyword,
+                minPrice,
+                maxPrice,
+                status.isEmpty() ? null : status,
+                sortOrder,
+                limit,
+                offset
+            ).collectList(),
+            productRepository.countProductsByName(
+                searchKeyword,
+                minPrice,
+                maxPrice,
+                status.isEmpty() ? null : status
+            )
+        ).flatMap(tuple -> {
+            var productRows = tuple.getT1();
+            var totalCount = tuple.getT2();
+            
+            // Fetch images for all products and collect into List<Product>
+            var productsMono = Flux.fromIterable(productRows)
+                .flatMap(productRowDto -> 
+                    productRepository.getProductImages(productRowDto.id())
+                        .map(this::mapToProductImage)
+                        .collectList()
+                        .map(images -> mapRowToProductWithImages(productRowDto, images))
+                )
+                .collectList();
+            
+            return productsMono.map(products -> {
+                var pageInfo = PageInfo.newBuilder()
+                        .setCurrentPage(page)
+                        .setPageSize(limit)
+                        .setTotalItems(totalCount)
+                        .setTotalPages((totalCount + limit - 1) / limit)
+                        .setHasNext(page * limit < totalCount)
+                        .setHasPrevious(page > 1)
+                        .build();
+                return new ProductListByNameResult(products, pageInfo);
+            });
+        });
+    }
+
     // Helper methods for mapping
     private Category mapEntityToCategory(com.auction.entities.database.Category entity) {
         return Category.newBuilder()
@@ -165,4 +215,5 @@ public class GuestService {
     }
     // Helper records for return types
     public record ProductListResult(List<Product> products, PageInfo pageInfo, Category category) {}
+    public record ProductListByNameResult(List<Product> products, PageInfo pageInfo) {}
 }
