@@ -14,6 +14,7 @@ import com.auction.proto.user.PageInfo;
 import com.auction.proto.user.Product;
 import com.auction.proto.user.ProductImage;
 import com.auction.proto.user.Question;
+import com.auction.proto.user.SellerInfo;
 import com.auction.rabbitmq.services.ReactiveRabbitProducer;
 import com.auction.utils.TimeUtils;
 
@@ -702,7 +703,7 @@ public class BidderService {
     private Product mapDtoToProductWithUserData(ProductDetailsDto dto, List<ProductImage> images,
                                                  List<Question> questions, boolean isInWatchlist, 
                                                  boolean isHighestBidder, double userMaxAutoBid) {
-        return Product.newBuilder()
+        Product.Builder productBuilder = Product.newBuilder()
             .setId(dto.id())
             .setSellerId(dto.sellerId())
             .setCategoryId(dto.categoryId())
@@ -726,8 +727,22 @@ public class BidderService {
             .addAllQuestions(questions)
             .setIsInWatchlist(isInWatchlist)
             .setIsUserHighestBidder(isHighestBidder)
-            .setUserMaxAutoBid(userMaxAutoBid)
-            .build();
+            .setUserMaxAutoBid(userMaxAutoBid);
+        
+        // Map seller info if available
+        if (dto.sellerName() != null) {
+            SellerInfo sellerInfo = SellerInfo.newBuilder()
+                .setId(dto.sellerId())
+                .setFullName(dto.sellerName())
+                .setEmail(dto.sellerEmail() != null ? dto.sellerEmail() : "")
+                .setRatingPercent(dto.sellerRatingPercent())
+                .setPositiveReviews(dto.sellerPositiveReviews())
+                .setNegativeReviews(dto.sellerNegativeReviews())
+                .build();
+            productBuilder.setSellerInfo(sellerInfo);
+        }
+        
+        return productBuilder.build();
     }
     
     private Question mapDtoToQuestion(QuestionRowDto dto) {

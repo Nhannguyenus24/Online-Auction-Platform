@@ -570,16 +570,29 @@ public class BidderController {
         productMap.put("isUserHighestBidder", product.getIsUserHighestBidder());
         productMap.put("userMaxAutoBid", product.getUserMaxAutoBid());
 
-        // Map seller info
+        // Map seller info - both nested and flat for frontend compatibility
         if (product.hasSellerInfo()) {
-            Map<String, Object> sellerInfo = new HashMap<>();
-            sellerInfo.put("id", product.getSellerInfo().getId());
-            sellerInfo.put("fullName", product.getSellerInfo().getFullName());
-            sellerInfo.put("email", product.getSellerInfo().getEmail());
-            sellerInfo.put("ratingPercent", product.getSellerInfo().getRatingPercent());
-            sellerInfo.put("positiveReviews", product.getSellerInfo().getPositiveReviews());
-            sellerInfo.put("negativeReviews", product.getSellerInfo().getNegativeReviews());
-            productMap.put("sellerInfo", sellerInfo);
+            var sellerInfo = product.getSellerInfo();
+            Map<String, Object> sellerInfoMap = new HashMap<>();
+            sellerInfoMap.put("id", sellerInfo.getId());
+            sellerInfoMap.put("fullName", sellerInfo.getFullName());
+            sellerInfoMap.put("email", sellerInfo.getEmail());
+            sellerInfoMap.put("ratingPercent", sellerInfo.getRatingPercent());
+            sellerInfoMap.put("positiveReviews", sellerInfo.getPositiveReviews());
+            sellerInfoMap.put("negativeReviews", sellerInfo.getNegativeReviews());
+            productMap.put("sellerInfo", sellerInfoMap);
+            
+            // Also add flat fields for frontend compatibility
+            productMap.put("sellerName", sellerInfo.getFullName());
+            productMap.put("sellerRatingPercent", sellerInfo.getRatingPercent());
+            productMap.put("sellerRatingCount", sellerInfo.getPositiveReviews() + sellerInfo.getNegativeReviews());
+            productMap.put("sellerAvatar", ""); // Avatar not available in proto, set to empty string
+        } else {
+            // If seller info is not available, set defaults
+            productMap.put("sellerName", "Unknown Seller");
+            productMap.put("sellerRatingPercent", 0.0);
+            productMap.put("sellerRatingCount", 0);
+            productMap.put("sellerAvatar", "");
         }
 
         // Map images

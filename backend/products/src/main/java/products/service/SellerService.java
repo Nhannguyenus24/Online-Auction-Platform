@@ -122,7 +122,13 @@ public class SellerService {
         
         return Mono.zip(
             sellerRepository.findActiveListingsBySellerId(sellerId, pageSize, offset)
-                .map(this::mapToProductSummary)
+                .flatMap(product -> 
+                    productRepository.getProductImages(product.getId())
+                        .next()
+                        .map(img -> img.url())
+                        .defaultIfEmpty("")
+                        .map(primaryImageUrl -> mapToProductSummary(product, primaryImageUrl))
+                )
                 .collectList(),
             sellerRepository.countActiveListingsBySellerId(sellerId)
         ).map(tuple -> new ProductListResult(
@@ -141,7 +147,13 @@ public class SellerService {
         
         return Mono.zip(
             sellerRepository.findWinnerItemsBySellerId(sellerId, pageSize, offset)
-                .map(this::mapToProductSummary)
+                .flatMap(product -> 
+                    productRepository.getProductImages(product.getId())
+                        .next()
+                        .map(img -> img.url())
+                        .defaultIfEmpty("")
+                        .map(primaryImageUrl -> mapToProductSummary(product, primaryImageUrl))
+                )
                 .collectList(),
             sellerRepository.countWinnerItemsBySellerId(sellerId)
         ).map(tuple -> new ProductListResult(
@@ -406,7 +418,7 @@ public class SellerService {
     // HELPER METHODS
     // ============================================================================
 
-    private ProductSummary mapToProductSummary(Product product) {
+    private ProductSummary mapToProductSummary(Product product, String primaryImageUrl) {
         return ProductSummary.newBuilder()
             .setId(product.getId())
             .setTitle(product.getTitle())
@@ -415,7 +427,7 @@ public class SellerService {
             .setViewsCount(product.getViewsCount())
             .setBidsCount(product.getBidsCount())
             .setEndsAt(TimeUtils.toEpochSecond(product.getEndsAt()) * 1000 + "")
-            .setPrimaryImageUrl("")
+            .setPrimaryImageUrl(primaryImageUrl != null ? primaryImageUrl : "")
             .build();
     }
 

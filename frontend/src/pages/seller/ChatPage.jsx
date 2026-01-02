@@ -488,7 +488,7 @@ const SellerChatPage = () => {
       <Page title="Chat - Seller">
         <Container maxWidth="lg" sx={{ py: 2 }}>
           <Box sx={{ textAlign: 'center', py: 6 }}>
-            <Typography variant="h6">Không tìm thấy conversation.</Typography>
+            <Typography variant="h6">No conversation found.</Typography>
           </Box>
         </Container>
       </Page>

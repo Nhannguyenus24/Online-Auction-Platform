@@ -937,10 +937,7 @@ function ProductDetailPage() {
 
                     {/* Seller Info */}
                     <Divider sx={{ my: 2 }} />
-                    <Box
-                      onClick={() => navigate(`/seller/${product.seller.id}`)}
-                      sx={{ cursor: "pointer" }}
-                    >
+                    <Box>
                       <Stack direction="row" spacing={2} alignItems="center">
                         <Avatar
                           src={product.seller.avatar}
