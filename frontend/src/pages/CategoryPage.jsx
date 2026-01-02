@@ -30,6 +30,7 @@ import {
 } from '@mui/icons-material';
 import Page from '../components/Page';
 import { formatPrice } from '../utils/formatNumber';
+import { normalizeTimestamp } from '../utils/formatTime';
 import { categoryApi } from '../services/categoryApi';
 import { productApi } from '../services/productApi';
 
@@ -111,7 +112,7 @@ const CategoryPage = () => {
   // Calculate time left
   const getTimeLeft = (endTime) => {
     if (!endTime) return 'N/A';
-    const end = new Date(endTime);
+    const end = normalizeTimestamp(endTime);
     const now = new Date();
     const diff = end - now;
     

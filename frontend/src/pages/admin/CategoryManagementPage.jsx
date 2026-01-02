@@ -42,6 +42,7 @@ import {
   CheckCircle,
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
+import { normalizeTimestamp } from '../../utils/formatTime';
 import { categoryApi } from '../../services/categoryApi';
 import { adminApi } from '../../services/adminApi';
 
@@ -86,8 +87,8 @@ const CategoryManagementPage = () => {
             description: '',
             productCount: 0,
             status: 'Active',
-            createdAt: new Date(parent.createdAt).toISOString().split('T')[0],
-            updatedAt: new Date(parent.createdAt).toISOString().split('T')[0],
+            createdAt: normalizeTimestamp(parent.createdAt).toISOString().split('T')[0],
+            updatedAt: normalizeTimestamp(parent.createdAt).toISOString().split('T')[0],
           });
           
           if (parent.children && parent.children.length > 0) {
@@ -99,8 +100,8 @@ const CategoryManagementPage = () => {
                 description: '',
                 productCount: 0,
                 status: 'Active',
-                createdAt: new Date(child.createdAt).toISOString().split('T')[0],
-                updatedAt: new Date(child.createdAt).toISOString().split('T')[0],
+                createdAt: normalizeTimestamp(child.createdAt).toISOString().split('T')[0],
+                updatedAt: normalizeTimestamp(child.createdAt).toISOString().split('T')[0],
               });
             });
           }

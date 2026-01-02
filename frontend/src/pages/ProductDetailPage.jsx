@@ -56,6 +56,7 @@ import { useAuth } from '../hooks/useAuth';
 import RichTextEditor from '../components/RichTextEditor';
 import Page from '../components/Page';
 import { formatPrice } from '../utils/formatNumber';
+import { normalizeTimestamp } from '../utils/formatTime';
 import { productApi } from '../services/productApi';
 import { watchlistApi } from '../services/watchlistApi';
 
@@ -139,8 +140,8 @@ function ProductDetailPage() {
                   bidCount: 0, // API might not provide this
                 }
               : null,
-            postedTime: apiProduct.createdAt ? new Date(apiProduct.createdAt) : new Date(),
-            endTime: apiProduct.endsAt ? new Date(apiProduct.endsAt) : new Date(),
+            postedTime: apiProduct.createdAt ? normalizeTimestamp(apiProduct.createdAt) : new Date(),
+            endTime: apiProduct.endsAt ? normalizeTimestamp(apiProduct.endsAt) : new Date(),
             status: apiProduct.status || "ACTIVE",
             category: apiProduct.category
               ? {
@@ -198,7 +199,7 @@ function ProductDetailPage() {
               bidder: bid.bidderMasked || bid.bidderName || "Anonymous",
               bidderId: bid.bidderId,
               amount: bid.amount || bid.bidAmount,
-              time: bid.createdAt ? new Date(bid.createdAt) : new Date(bid.bidTime || Date.now()),
+              time: bid.createdAt ? normalizeTimestamp(bid.createdAt) : new Date(bid.bidTime || Date.now()),
             }));
             setBidHistory(mappedBids);
           }
@@ -228,8 +229,8 @@ function ProductDetailPage() {
               },
               question: q.question,
               answer: q.answer,
-              askedAt: q.createdAt ? new Date(q.createdAt) : new Date(q.askedAt || Date.now()),
-              answeredAt: q.answeredAt ? new Date(q.answeredAt) : null,
+              askedAt: q.createdAt ? normalizeTimestamp(q.createdAt) : new Date(q.askedAt || Date.now()),
+              answeredAt: q.answeredAt ? normalizeTimestamp(q.answeredAt) : null,
             }));
             setQuestions(mappedQuestions);
           }
@@ -258,7 +259,7 @@ function ProductDetailPage() {
                 title: p.title,
                 image: primaryImage?.url || p.image || "/placeholder-image.jpg",
                 currentPrice: p.currentPrice || 0,
-                endTime: p.endsAt ? new Date(p.endsAt) : new Date(),
+                endTime: p.endsAt ? normalizeTimestamp(p.endsAt) : new Date(),
                 bidCount: p.bidsCount || 0,
               };
             });
@@ -330,7 +331,8 @@ function ProductDetailPage() {
 
   const getTimeLeft = (endTime) => {
     const now = new Date();
-    const diff = endTime - now;
+    const normalizedEndTime = endTime instanceof Date ? endTime : normalizeTimestamp(endTime);
+    const diff = normalizedEndTime - now;
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
@@ -342,7 +344,8 @@ function ProductDetailPage() {
 
   const getRelativeTime = (date) => {
     const now = new Date();
-    const diff = now - date;
+    const normalizedDate = date instanceof Date ? date : normalizeTimestamp(date);
+    const diff = now - normalizedDate;
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));

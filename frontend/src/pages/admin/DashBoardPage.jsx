@@ -47,6 +47,7 @@ import { PieChart } from '@mui/x-charts/PieChart';
 import { SparkLineChart } from '@mui/x-charts/SparkLineChart';
 
 import StatCard from '../../components/StatCard';
+import { normalizeTimestamp } from '../../utils/formatTime';
 import adminApi from '../../services/adminApi';
 
 const DashBoardPage = () => {
@@ -629,7 +630,7 @@ const DashBoardPage = () => {
                       </TableCell>
                       <TableCell>
                         <Typography variant="caption" color="text.secondary">
-                          {new Date(request.createdAt).toLocaleString()}
+                          {normalizeTimestamp(request.createdAt).toLocaleString()}
                         </Typography>
                       </TableCell>
                     </TableRow>

@@ -36,6 +36,7 @@ import {
 } from '@mui/icons-material';
 import Page from '../../components/Page';
 import { formatPrice } from '../../utils/formatNumber';
+import { normalizeTimestamp } from '../../utils/formatTime';
 import { sellerApi } from '../../services/sellerApi';
 
 const SellerProductsPage = () => {
@@ -64,8 +65,8 @@ const SellerProductsPage = () => {
           // Parse endsAt timestamp (can be string or number)
           let endTime = null;
           if (listing.endsAt) {
-            const timestamp = typeof listing.endsAt === 'string' ? parseInt(listing.endsAt) : listing.endsAt;
-            endTime = new Date(timestamp).toISOString();
+            // Normalize timestamp from backend (seconds to milliseconds if needed)
+            endTime = normalizeTimestamp(listing.endsAt);
           }
           
           return {
@@ -96,7 +97,7 @@ const SellerProductsPage = () => {
 
   const getTimeLeft = (endTime) => {
     if (!endTime) return 'N/A';
-    const end = new Date(endTime);
+    const end = normalizeTimestamp(endTime);
     const now = new Date();
     const diff = end - now;
 
@@ -125,7 +126,7 @@ const SellerProductsPage = () => {
     switch (tabValue) {
       case 1: // Active (Đang bid) - có bids và chưa ended
         return allProducts.filter((product) => {
-          const endTime = new Date(product.endTime);
+          const endTime = normalizeTimestamp(product.endTime);
           return hasStartedBidding(product) && endTime > now && product.status === 'active';
         });
       case 2: // Not Started (Chưa bid) - chưa có bids
@@ -183,7 +184,7 @@ const SellerProductsPage = () => {
 
   const getStatusChip = (product) => {
     const now = new Date();
-    const endTime = new Date(product.endTime);
+    const endTime = normalizeTimestamp(product.endTime);
     const isEnded = endTime <= now;
     const hasBids = hasStartedBidding(product);
 
@@ -254,7 +255,7 @@ const SellerProductsPage = () => {
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Gavel /> Bidding Started ({allProducts.filter((p) => {
                       const now = new Date();
-                      const endTime = new Date(p.endTime);
+                      const endTime = normalizeTimestamp(p.endTime);
                       return hasStartedBidding(p) && endTime > now && p.status === 'active';
                     }).length})
                   </Box>

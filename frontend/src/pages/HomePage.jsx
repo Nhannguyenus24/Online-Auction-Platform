@@ -26,6 +26,7 @@ import {
 } from "@mui/icons-material";
 import Page from "../components/Page";
 import { formatPrice } from "../utils/formatNumber";
+import { normalizeTimestamp } from "../utils/formatTime";
 import { productApi } from "../services/productApi";
 import { categoryApi } from "../services/categoryApi";
 
@@ -96,7 +97,7 @@ const mapProductFromAPI = (apiProduct) => {
     image: imageUrl,
     currentPrice: apiProduct.currentPrice || 0,
     bidCount: apiProduct.bidsCount || 0,
-    endTime: apiProduct.endsAt || apiProduct.timeRemaining,
+    endTime: apiProduct.endsAt ? normalizeTimestamp(apiProduct.endsAt) : (apiProduct.timeRemaining ? normalizeTimestamp(apiProduct.timeRemaining) : null),
     condition: apiProduct.status === 'ended' ? 'Used' : 'New', // Default to 'New' for active products
   };
 };
@@ -219,7 +220,8 @@ const HomePage = () => {
 
   // Calculate time left
   const getTimeLeft = (endTime) => {
-    const end = new Date(endTime);
+    if (!endTime) return "N/A";
+    const end = normalizeTimestamp(endTime);
     const now = currentTime;
     const diff = end - now;
 

@@ -31,7 +31,7 @@ import {
 } from '@mui/icons-material';
 import Page from '../../components/Page';
 import { formatPrice } from '../../utils/formatNumber';
-import { fVNDate } from '../../utils/formatTime';
+import { fVNDate, normalizeTimestamp } from '../../utils/formatTime';
 import { watchlistApi } from '../../services/watchlistApi';
 
 const BidderWatchListPage = () => {
@@ -98,7 +98,7 @@ const BidderWatchListPage = () => {
 
   // Calculate time left
   const getTimeLeft = (endTime) => {
-    const end = new Date(endTime);
+    const end = normalizeTimestamp(endTime);
     const now = new Date();
     const diff = end - now;
 
@@ -202,7 +202,7 @@ const BidderWatchListPage = () => {
                   </TableHead>
                   <TableBody>
                     {watchList.map((product) => {
-                      const endTime = new Date(product.endsAt || product.endTime);
+                      const endTime = normalizeTimestamp(product.endsAt || product.endTime);
                       const now = new Date();
                       const isEnded = endTime <= now || product.status === 'ended';
 

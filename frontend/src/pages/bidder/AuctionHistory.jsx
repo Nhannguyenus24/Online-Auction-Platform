@@ -40,7 +40,7 @@ import {
 } from '@mui/icons-material';
 import Page from '../../components/Page';
 import { formatPrice } from '../../utils/formatNumber';
-import { fVNDate } from '../../utils/formatTime';
+import { fVNDate, normalizeTimestamp } from '../../utils/formatTime';
 import { bidderApi } from '../../services/bidderApi';
 
 const BidderAuctionHistoryPage = () => {
@@ -78,8 +78,8 @@ const BidderAuctionHistoryPage = () => {
           myBid: bid.bidAmount,
           currentPrice: bid.currentPrice,
           isHighestBidder: bid.isWinning,
-          endTime: bid.productEndsAt * 1000, // Convert Unix timestamp to milliseconds
-          bidDate: bid.bidCreatedAt * 1000, // Convert Unix timestamp to milliseconds
+          endTime: normalizeTimestamp(bid.productEndsAt), // Normalize timestamp from backend
+          bidDate: normalizeTimestamp(bid.bidCreatedAt), // Normalize timestamp from backend
           bidCount: 0, // Not available in API response
           condition: null, // Not available in API response
           productStatus: bid.productStatus,
@@ -103,7 +103,7 @@ const BidderAuctionHistoryPage = () => {
   }, []);
 
   const getTimeLeft = (endTime) => {
-    const end = new Date(endTime);
+    const end = normalizeTimestamp(endTime);
     const now = new Date();
     const diff = end - now;
 
@@ -141,13 +141,13 @@ const BidderAuctionHistoryPage = () => {
     switch (tabValue) {
       case 1: // Active
         return allBiddingHistory.filter((bid) => {
-          const endTime = new Date(bid.endTime);
+          const endTime = normalizeTimestamp(bid.endTime);
           const isEnded = bid.productStatus === 'ended' || endTime <= now;
           return !isEnded && !wonProductIds.has(bid.productId);
         });
       case 2: // Ended
         return allBiddingHistory.filter((bid) => {
-          const endTime = new Date(bid.endTime);
+          const endTime = normalizeTimestamp(bid.endTime);
           const isEnded = bid.productStatus === 'ended' || endTime <= now;
           return isEnded && !wonProductIds.has(bid.productId);
         });
@@ -253,7 +253,7 @@ const BidderAuctionHistoryPage = () => {
                 label={
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <AccessTime /> Active ({allBiddingHistory.filter((bid) => {
-                      const endTime = new Date(bid.endTime);
+                      const endTime = normalizeTimestamp(bid.endTime);
                       const now = new Date();
                       const isEnded = bid.productStatus === 'ended' || endTime <= now;
                       const wonProductIds = new Set(wonItems.map((item) => item.productId));
@@ -266,7 +266,7 @@ const BidderAuctionHistoryPage = () => {
                 label={
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Cancel /> Ended ({allBiddingHistory.filter((bid) => {
-                      const endTime = new Date(bid.endTime);
+                      const endTime = normalizeTimestamp(bid.endTime);
                       const now = new Date();
                       const isEnded = bid.productStatus === 'ended' || endTime <= now;
                       const wonProductIds = new Set(wonItems.map((item) => item.productId));
@@ -338,7 +338,7 @@ const BidderAuctionHistoryPage = () => {
                   <TableBody>
                     {filteredBids.map((bid) => {
                       const status = getStatus(bid);
-                      const endTime = new Date(bid.endTime);
+                      const endTime = normalizeTimestamp(bid.endTime);
                       const now = new Date();
                       const isEnded = bid.productStatus === 'ended' || endTime <= now;
 

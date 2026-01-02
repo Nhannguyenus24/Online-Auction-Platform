@@ -15,6 +15,7 @@ import {
   Visibility,
 } from '@mui/icons-material';
 import { formatPrice } from '../utils/formatNumber';
+import { normalizeTimestamp } from '../utils/formatTime';
 
 const ProductCard = ({
   product,
@@ -28,7 +29,7 @@ const ProductCard = ({
 
   const getTimeLeft = (endTime) => {
     if (!endTime) return 'N/A';
-    const end = new Date(endTime);
+    const end = normalizeTimestamp(endTime);
     const now = new Date();
     const diff = end - now;
 

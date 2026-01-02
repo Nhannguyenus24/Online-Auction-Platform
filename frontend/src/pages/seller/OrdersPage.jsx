@@ -35,7 +35,7 @@ import {
 } from '@mui/icons-material';
 import Page from '../../components/Page';
 import { formatPrice } from '../../utils/formatNumber';
-import { fVNDate } from '../../utils/formatTime';
+import { fVNDate, normalizeTimestamp } from '../../utils/formatTime';
 import { sellerApi } from '../../services/sellerApi';
 
 const SellerOrdersPage = () => {
@@ -71,7 +71,7 @@ const SellerOrdersPage = () => {
           amount: order.amount || 0,
           status: order.status || 'pending',
           paymentMethod: order.paymentMethod || '',
-          orderDate: order.createdAt ? new Date(parseInt(order.createdAt)).toISOString() : new Date().toISOString(),
+          orderDate: order.createdAt ? normalizeTimestamp(order.createdAt).toISOString() : new Date().toISOString(),
           productImage: null, // Not available in orders endpoint
         }));
         setOrders(mappedOrders);

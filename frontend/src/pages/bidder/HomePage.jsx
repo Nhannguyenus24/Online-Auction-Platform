@@ -25,6 +25,7 @@ import Page from '../../components/Page';
 import StatCard from '../../components/StatCard';
 import ProductCard from '../../components/ProductCard';
 import { formatPrice } from '../../utils/formatNumber';
+import { normalizeTimestamp } from '../../utils/formatTime';
 import { bidderApi } from '../../services/bidderApi';
 
 const BidderHomePage = () => {
@@ -56,7 +57,7 @@ const BidderHomePage = () => {
           myBid: bid.bidAmount,
           currentPrice: bid.currentPrice,
           isHighestBidder: bid.isWinning,
-          endTime: bid.productEndsAt * 1000, // Convert Unix timestamp to milliseconds
+          endTime: normalizeTimestamp(bid.productEndsAt), // Normalize timestamp from backend
           bidCount: null, // Not available in API response
           condition: null, // Not available in API response
           productStatus: bid.productStatus,
@@ -64,7 +65,7 @@ const BidderHomePage = () => {
         
         // Filter active bids (not ended and not won)
         const activeBidsData = mappedBids.filter((bid) => {
-          const endTime = new Date(bid.endTime);
+          const endTime = normalizeTimestamp(bid.endTime);
           const now = new Date();
           const isEnded = bid.productStatus === 'ended' || endTime <= now;
           return !isEnded;
@@ -92,7 +93,7 @@ const BidderHomePage = () => {
           winningPrice: item.currentPrice, // Use currentPrice as winningPrice for won items
           currentPrice: item.currentPrice,
           isHighestBidder: item.isWinning,
-          endTime: item.productEndsAt * 1000, // Convert Unix timestamp to milliseconds
+          endTime: normalizeTimestamp(item.productEndsAt), // Normalize timestamp from backend
           bidCount: null, // Not available in API response
           condition: null, // Not available in API response
           status: item.productStatus, // For won items status display

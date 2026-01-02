@@ -2,16 +2,35 @@ import { format, getTime, formatDistanceToNow, isSameDay } from 'date-fns';
 
 // ----------------------------------------------------------------------
 
+/**
+ * Normalize timestamp from backend to JavaScript Date object
+ * Backend returns timestamps as epoch seconds, but JavaScript Date needs milliseconds
+ * @param {number|string|Date} timestamp - Timestamp from backend (epoch seconds or milliseconds)
+ * @returns {Date} - Normalized Date object
+ */
+export function normalizeTimestamp(timestamp) {
+  if (!timestamp) return new Date();
+  if (timestamp instanceof Date) return timestamp;
+  
+  const num = typeof timestamp === 'string' ? parseFloat(timestamp) : timestamp;
+  if (isNaN(num)) return new Date();
+  
+  // If timestamp is less than 1e12 (year 2001), it's likely in seconds, convert to milliseconds
+  // If timestamp is >= 1e12, it's already in milliseconds
+  const milliseconds = num < 1e12 ? num * 1000 : num;
+  return new Date(milliseconds);
+}
+
 export function fDate(date) {
-  return format(new Date(date), 'dd MMMM yyyy');
+  return format(normalizeTimestamp(date), 'dd MMMM yyyy');
 }
 
 export function fVNDate(date, formatStr = 'dd/MM/yyyy') {
-  if (date) return format(new Date(date), formatStr);
+  if (date) return format(normalizeTimestamp(date), formatStr);
   return '';
 }
 export function fVNDateStr(date) {
-  const date2 = new Date(date);
+  const date2 = normalizeTimestamp(date);
   const day = date2.getDate();
   const month = date2.getMonth() + 1;
   const year = date2.getFullYear();
@@ -21,7 +40,7 @@ export function fVNDateStr(date) {
 }
 
 export function countDaysFromDate(inputDate) {
-  const inputDateObject = new Date(inputDate);
+  const inputDateObject = normalizeTimestamp(inputDate);
 
   // Get the current date
   const currentDate = new Date();
@@ -36,11 +55,11 @@ export function countDaysFromDate(inputDate) {
 }
 
 export function fVNDateTime(date) {
-  return format(new Date(date), 'dd/MM/yyyy HH:mm');
+  return format(normalizeTimestamp(date), 'dd/MM/yyyy HH:mm');
 }
 
 export function fDateTimeStr(date) {
-  const dateTime = new Date(date); // replace this with your own date and time object
+  const dateTime = normalizeTimestamp(date); // replace this with your own date and time object
   const options = {
     weekday: 'long',
     hour: 'numeric',
@@ -67,19 +86,19 @@ export function fSQLDate(date) {
 }
 
 export function fDateTime(date) {
-  return format(new Date(date), 'dd MMM yyyy HH:mm');
+  return format(normalizeTimestamp(date), 'dd MMM yyyy HH:mm');
 }
 
 export function fTimestamp(date) {
-  return getTime(new Date(date));
+  return getTime(normalizeTimestamp(date));
 }
 
 export function fDateTimeSuffix(date) {
-  return format(new Date(date), 'dd/MM/yyyy hh:mm p');
+  return format(normalizeTimestamp(date), 'dd/MM/yyyy hh:mm p');
 }
 
 export function fToNow(date) {
-  return formatDistanceToNow(new Date(date), {
+  return formatDistanceToNow(normalizeTimestamp(date), {
     addSuffix: true,
   });
 }
@@ -94,7 +113,7 @@ export function fWorkTime(timeStr) {
 
 export function fAge(dateOfBirth) {
   const today = new Date();
-  const birthDate = new Date(dateOfBirth);
+  const birthDate = normalizeTimestamp(dateOfBirth);
   let age = today.getFullYear() - birthDate.getFullYear();
   const m = today.getMonth() - birthDate.getMonth();
   if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
@@ -106,7 +125,7 @@ export function fAge(dateOfBirth) {
 
 export function isBirthday(dateOfBirth) {
   const today = new Date();
-  const birthDate = new Date(dateOfBirth);
+  const birthDate = normalizeTimestamp(dateOfBirth);
 
   return today.getMonth() === birthDate.getMonth() && today.getDate() === birthDate.getDate();
 }

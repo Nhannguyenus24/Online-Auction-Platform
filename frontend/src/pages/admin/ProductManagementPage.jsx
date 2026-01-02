@@ -54,6 +54,7 @@ import {
   RemoveCircleOutline,
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
+import { normalizeTimestamp } from '../../utils/formatTime';
 import { categoryApi } from '../../services/categoryApi';
 import { adminApi } from '../../services/adminApi';
 import axiosInstance from '../../utils/axios';
@@ -174,8 +175,8 @@ const ProductManagementPage = () => {
           name: product.sellerName || 'Unknown',
           rating: product.sellerRatingPercent ? (product.sellerRatingPercent / 20).toFixed(1) : '0.0',
         },
-        startDate: product.startsAt ? new Date(product.startsAt * 1000).toLocaleDateString() : '',
-        endDate: product.endsAt ? new Date(product.endsAt * 1000).toLocaleDateString() : '',
+        startDate: product.startsAt ? normalizeTimestamp(product.startsAt).toLocaleDateString() : '',
+        endDate: product.endsAt ? normalizeTimestamp(product.endsAt).toLocaleDateString() : '',
         description: product.description || '',
         views: product.viewsCount || 0,
         isFlagged: false,
@@ -231,8 +232,8 @@ const ProductManagementPage = () => {
             name: product.sellerName || 'Unknown',
             rating: product.sellerRatingPercent ? (product.sellerRatingPercent / 20).toFixed(1) : '0.0',
           },
-          startDate: product.startsAt ? new Date(product.startsAt * 1000).toLocaleDateString() : '',
-          endDate: product.endsAt ? new Date(product.endsAt * 1000).toLocaleDateString() : '',
+          startDate: product.startsAt ? normalizeTimestamp(product.startsAt).toLocaleDateString() : '',
+          endDate: product.endsAt ? normalizeTimestamp(product.endsAt).toLocaleDateString() : '',
           description: product.description || '',
           views: product.viewsCount || 0,
           isFlagged: false,

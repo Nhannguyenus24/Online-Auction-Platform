@@ -37,7 +37,7 @@ import {
 } from '@mui/icons-material';
 import Page from '../../components/Page';
 import { formatPrice } from '../../utils/formatNumber';
-import { fVNDate } from '../../utils/formatTime';
+import { fVNDate, normalizeTimestamp } from '../../utils/formatTime';
 import { authApi } from '../../utils/api';
 import { bidderApi } from '../../services/bidderApi';
 
@@ -293,7 +293,7 @@ const BidderProfilePage = () => {
 
   // Calculate time left
   const getTimeLeft = (endTime) => {
-    const end = new Date(endTime);
+    const end = normalizeTimestamp(endTime);
     const now = new Date();
     const diff = end - now;
 
