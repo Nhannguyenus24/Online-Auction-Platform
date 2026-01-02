@@ -832,6 +832,7 @@ public class SellerController {
             map.put("endsAt", listing.getEndsAt());
             map.put("isAutoExtend", listing.getIsAutoExtend());
             map.put("autoExtendSeconds", listing.getAutoExtendSeconds());
+            map.put("primaryImageUrl", listing.getPrimaryImageUrl());
             result.add(map);
         });
         return result;

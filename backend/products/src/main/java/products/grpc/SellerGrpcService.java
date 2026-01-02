@@ -137,15 +137,16 @@ public class SellerGrpcService extends ReactorSellerServiceGrpc.SellerServiceImp
     @Override
     public Mono<RatingsResponse> getSellerRatings(Mono<GetSellerRatingsRequest> request) {
         return request.doOnNext(req -> log.info("Get seller ratings request: {}", JsonUtils.toJson(req)))
-            .map(req -> {
-                // TODO: Implement ratings from reviews/user service
-                return RatingsResponse.newBuilder()
-                    .setPositiveReviews(0)
-                    .setNegativeReviews(0)
-                    .setRatingPercent(0.0f)
-                    .setTotalCount(0)
-                    .build();
-            })
+            .flatMap(req ->
+                sellerService.getSellerRatings(req.getSellerId(), req.getPage(), req.getPageSize())
+                    .map(result -> RatingsResponse.newBuilder()
+                        .setPositiveReviews(result.positiveReviews())
+                        .setNegativeReviews(result.negativeReviews())
+                        .setRatingPercent(result.ratingPercent())
+                        .addAllReviews(result.reviews())
+                        .setTotalCount(result.totalCount())
+                        .build())
+            )
             .doOnNext(resp -> log.info("Get seller ratings response: {}", JsonUtils.toJson(resp)))
             .onErrorResume(e -> {
                 log.error("Get seller ratings error: {}", e.getMessage(), e);

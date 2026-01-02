@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Box,
   Container,
@@ -24,7 +24,7 @@ import {
   InputLabel,
   Button,
   Stack,
-} from '@mui/material';
+} from "@mui/material";
 import {
   Inventory,
   AccessTime,
@@ -33,11 +33,11 @@ import {
   AddBox,
   CheckCircle,
   Cancel,
-} from '@mui/icons-material';
-import Page from '../../components/Page';
-import { formatPrice } from '../../utils/formatNumber';
-import { normalizeTimestamp } from '../../utils/formatTime';
-import { sellerApi } from '../../services/sellerApi';
+} from "@mui/icons-material";
+import Page from "../../components/Page";
+import { formatPrice } from "../../utils/formatNumber";
+import { normalizeTimestamp } from "../../utils/formatTime";
+import { sellerApi } from "../../services/sellerApi";
 
 const SellerProductsPage = () => {
   const navigate = useNavigate();
@@ -59,7 +59,7 @@ const SellerProductsPage = () => {
       setLoading(true);
       try {
         // Fetch all active listings with a large page size to get all data
-        const response = await sellerApi.getListings('active', 1, 500);
+        const response = await sellerApi.getListings("active", 1, 500);
         // Map the response to match the expected format
         const mappedProducts = (response.listings || []).map((listing) => {
           // Parse endsAt timestamp (can be string or number)
@@ -68,7 +68,7 @@ const SellerProductsPage = () => {
             // Normalize timestamp from backend (seconds to milliseconds if needed)
             endTime = normalizeTimestamp(listing.endsAt);
           }
-          
+
           return {
             id: listing.id,
             productId: listing.id,
@@ -79,13 +79,13 @@ const SellerProductsPage = () => {
             bidCount: listing.bidsCount || 0,
             views: 0, // Not available in listings endpoint
             endTime: endTime,
-            image: null, // Not available in listings endpoint - will show placeholder
+            image: listing.primaryImageUrl || null, // Use primaryImageUrl from API response
             condition: null, // Not available in listings endpoint
           };
         });
         setAllProducts(mappedProducts);
       } catch (err) {
-        console.error('Error fetching products:', err);
+        console.error("Error fetching products:", err);
         setAllProducts([]);
       } finally {
         setLoading(false);
@@ -96,19 +96,19 @@ const SellerProductsPage = () => {
   }, []);
 
   const getTimeLeft = (endTime) => {
-    if (!endTime) return 'N/A';
+    if (!endTime) return "N/A";
     const end = normalizeTimestamp(endTime);
     const now = new Date();
     const diff = end - now;
 
-    if (diff <= 0) return 'Ended';
+    if (diff <= 0) return "Ended";
 
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
     const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
-    const pad = (num) => String(num).padStart(2, '0');
+    const pad = (num) => String(num).padStart(2, "0");
 
     if (days > 0) return `${days}d ${pad(hours)}h ${pad(minutes)}m`;
     if (hours > 0) return `${pad(hours)}h ${pad(minutes)}m ${pad(seconds)}s`;
@@ -127,14 +127,14 @@ const SellerProductsPage = () => {
       case 1: // Active (Đang bid) - có bids và chưa ended
         return allProducts.filter((product) => {
           const endTime = normalizeTimestamp(product.endTime);
-          return hasStartedBidding(product) && endTime > now && product.status === 'active';
+          return hasStartedBidding(product) && endTime > now && product.status === "active";
         });
       case 2: // Not Started (Chưa bid) - chưa có bids
         return allProducts.filter((product) => {
-          return !hasStartedBidding(product) && product.status === 'active';
+          return !hasStartedBidding(product) && product.status === "active";
         });
       default: // All
-        return allProducts.filter((product) => product.status === 'active');
+        return allProducts.filter((product) => product.status === "active");
     }
   };
 
@@ -189,12 +189,12 @@ const SellerProductsPage = () => {
     const hasBids = hasStartedBidding(product);
 
     if (isEnded) {
-      return { label: 'Ended', color: 'default', icon: <Cancel /> };
+      return { label: "Ended", color: "default", icon: <Cancel /> };
     }
     if (hasBids) {
-      return { label: 'Active', color: 'success', icon: <CheckCircle /> };
+      return { label: "Active", color: "success", icon: <CheckCircle /> };
     }
-    return { label: 'Not Started', color: 'warning', icon: <AccessTime /> };
+    return { label: "Not Started", color: "warning", icon: <AccessTime /> };
   };
 
   return (
@@ -209,16 +209,19 @@ const SellerProductsPage = () => {
           </Typography>
         </Box>
 
-        <Card elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 3 }}>
+        <Card
+          elevation={0}
+          sx={{ border: "1px solid", borderColor: "divider", borderRadius: 3 }}
+        >
           <Box
             sx={{
               p: 3,
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              color: 'white',
-              borderRadius: '12px 12px 0 0',
+              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              color: "white",
+              borderRadius: "12px 12px 0 0",
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
               <Inventory sx={{ fontSize: 28 }} />
               <Typography variant="h5" fontWeight={700}>
                 My Listings
@@ -229,7 +232,7 @@ const SellerProductsPage = () => {
             </Typography>
           </Box>
 
-          <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+          <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
             <Tabs
               value={tabValue}
               onChange={handleTabChange}
@@ -237,36 +240,45 @@ const SellerProductsPage = () => {
               scrollButtons="auto"
               sx={{
                 px: 3,
-                '& .MuiTab-root': {
-                  textTransform: 'none',
+                "& .MuiTab-root": {
+                  textTransform: "none",
                   fontWeight: 600,
                 },
               }}
             >
               <Tab
                 label={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Inventory /> All ({allProducts.filter((p) => p.status === 'active').length})
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <Inventory /> All ({allProducts.filter((p) => p.status === "active").length}
+                    )
                   </Box>
                 }
               />
               <Tab
                 label={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Gavel /> Bidding Started ({allProducts.filter((p) => {
-                      const now = new Date();
-                      const endTime = normalizeTimestamp(p.endTime);
-                      return hasStartedBidding(p) && endTime > now && p.status === 'active';
-                    }).length})
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <Gavel /> Bidding Started (
+                    {
+                      allProducts.filter((p) => {
+                        const now = new Date();
+                        const endTime = normalizeTimestamp(p.endTime);
+                        return hasStartedBidding(p) && endTime > now && p.status === "active";
+                      }).length
+                    }
+                    )
                   </Box>
                 }
               />
               <Tab
                 label={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <AccessTime /> Not Bid Yet ({allProducts.filter((p) => {
-                      return !hasStartedBidding(p) && p.status === 'active';
-                    }).length})
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <AccessTime /> Not Bid Yet (
+                    {
+                      allProducts.filter((p) => {
+                        return !hasStartedBidding(p) && p.status === "active";
+                      }).length
+                    }
+                    )
                   </Box>
                 }
               />
@@ -275,28 +287,32 @@ const SellerProductsPage = () => {
 
           <CardContent sx={{ p: 0 }}>
             {loading ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+              <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
                 <CircularProgress />
               </Box>
             ) : filteredProducts.length === 0 ? (
-              <Box sx={{ textAlign: 'center', py: 8, px: 3 }}>
-                <Inventory sx={{ fontSize: 64, color: 'grey.300', mb: 2 }} />
+              <Box sx={{ textAlign: "center", py: 8, px: 3 }}>
+                <Inventory sx={{ fontSize: 64, color: "grey.300", mb: 2 }} />
                 <Typography variant="h6" color="text.secondary" gutterBottom>
                   {tabValue === 1
-                    ? 'No Active Listings with Bids'
+                    ? "No Active Listings with Bids"
                     : tabValue === 2
-                    ? 'No Listings Waiting for Bids'
-                    : 'No Active Listings'}
+                    ? "No Listings Waiting for Bids"
+                    : "No Active Listings"}
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                   {tabValue === 1
-                    ? 'You have no active listings with bids at the moment.'
+                    ? "You have no active listings with bids at the moment."
                     : tabValue === 2
-                    ? 'All your listings have received bids.'
-                    : 'Start selling by creating your first auction listing'}
+                    ? "All your listings have received bids."
+                    : "Start selling by creating your first auction listing"}
                 </Typography>
                 {tabValue === 2 && (
-                  <Button variant="contained" onClick={() => navigate('/seller/create-auction')} startIcon={<AddBox />}>
+                  <Button
+                    variant="contained"
+                    onClick={() => navigate("/seller/create-auction")}
+                    startIcon={<AddBox />}
+                  >
                     Create Auction
                   </Button>
                 )}
@@ -306,27 +322,25 @@ const SellerProductsPage = () => {
                 <TableContainer>
                   <Table>
                     <TableHead>
-                      <TableRow sx={{ bgcolor: 'grey.50' }}>
-                        <TableCell sx={{ fontWeight: 'bold', py: 2 }}>Product</TableCell>
-                        <TableCell align="center" sx={{ fontWeight: 'bold', py: 2 }}>
+                      <TableRow sx={{ bgcolor: "grey.50" }}>
+                        <TableCell sx={{ fontWeight: "bold", py: 2 }}>Product</TableCell>
+                        <TableCell align="center" sx={{ fontWeight: "bold", py: 2 }}>
                           Starting Price
                         </TableCell>
-                        <TableCell align="center" sx={{ fontWeight: 'bold', py: 2 }}>
+                        <TableCell align="center" sx={{ fontWeight: "bold", py: 2 }}>
                           Current Price
                         </TableCell>
-                        <TableCell align="center" sx={{ fontWeight: 'bold', py: 2 }}>
+                        <TableCell align="center" sx={{ fontWeight: "bold", py: 2 }}>
                           Bids
                         </TableCell>
-                        <TableCell align="center" sx={{ fontWeight: 'bold', py: 2 }}>
-                          Views
-                        </TableCell>
-                        <TableCell align="center" sx={{ fontWeight: 'bold', py: 2 }}>
+
+                        <TableCell align="center" sx={{ fontWeight: "bold", py: 2 }}>
                           Status
                         </TableCell>
-                        <TableCell align="center" sx={{ fontWeight: 'bold', py: 2 }}>
+                        <TableCell align="center" sx={{ fontWeight: "bold", py: 2 }}>
                           Time Left
                         </TableCell>
-                        <TableCell align="center" sx={{ fontWeight: 'bold', py: 2 }}>
+                        <TableCell align="center" sx={{ fontWeight: "bold", py: 2 }}>
                           Actions
                         </TableCell>
                       </TableRow>
@@ -341,39 +355,41 @@ const SellerProductsPage = () => {
                             key={product.id}
                             hover
                             sx={{
-                              '&:hover': { bgcolor: 'action.hover' },
-                              bgcolor: hasBids ? 'rgba(76, 175, 80, 0.04)' : 'inherit',
+                              "&:hover": { bgcolor: "action.hover" },
+                              bgcolor: hasBids ? "rgba(76, 175, 80, 0.04)" : "inherit",
                             }}
                           >
                             <TableCell>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                              <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                                 <Box
                                   component="img"
-                                  src={product.image || '/logo.png'}
+                                  src={product.image || "/logo.png"}
                                   alt={product.title}
                                   onError={(e) => {
-                                    e.target.src = '/logo.png';
+                                    e.target.src = "/logo.png";
                                   }}
                                   sx={{
                                     width: 60,
                                     height: 60,
-                                    objectFit: 'cover',
+                                    objectFit: "cover",
                                     borderRadius: 1.5,
-                                    border: '1px solid',
-                                    borderColor: 'divider',
+                                    border: "1px solid",
+                                    borderColor: "divider",
                                   }}
                                 />
                                 <Box>
                                   <Typography variant="body2" fontWeight={600} sx={{ mb: 0.5 }}>
                                     {product.title}
                                   </Typography>
-                                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                                  <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
                                     {product.condition && (
                                       <Chip
                                         label={product.condition}
                                         size="small"
-                                        color={product.condition === 'New' ? 'success' : 'default'}
-                                        sx={{ height: 20, fontSize: '0.7rem' }}
+                                        color={
+                                          product.condition === "New" ? "success" : "default"
+                                        }
+                                        sx={{ height: 20, fontSize: "0.7rem" }}
                                       />
                                     )}
                                   </Box>
@@ -381,7 +397,11 @@ const SellerProductsPage = () => {
                               </Box>
                             </TableCell>
                             <TableCell align="center">
-                              <Typography variant="body2" fontWeight={600} color="text.secondary">
+                              <Typography
+                                variant="body2"
+                                fontWeight={600}
+                                color="text.secondary"
+                              >
                                 {formatPrice(product.startingPrice)}
                               </Typography>
                             </TableCell>
@@ -389,7 +409,7 @@ const SellerProductsPage = () => {
                               <Typography
                                 variant="body2"
                                 fontWeight={600}
-                                color={hasBids ? 'primary' : 'text.secondary'}
+                                color={hasBids ? "primary" : "text.secondary"}
                               >
                                 {formatPrice(product.currentPrice)}
                               </Typography>
@@ -399,34 +419,36 @@ const SellerProductsPage = () => {
                                 icon={<Gavel sx={{ fontSize: 12 }} />}
                                 label={product.bidCount || 0}
                                 size="small"
-                                color={hasBids ? 'primary' : 'default'}
-                                sx={{ height: 20, fontSize: '0.7rem' }}
+                                color={hasBids ? "primary" : "default"}
+                                sx={{ height: 20, fontSize: "0.7rem" }}
                               />
                             </TableCell>
-                            <TableCell align="center">
-                              <Typography variant="body2" color="text.secondary">
-                                {product.views || 0}
-                              </Typography>
-                            </TableCell>
+
                             <TableCell align="center">
                               <Chip
                                 icon={status.icon}
                                 label={status.label}
                                 size="small"
                                 color={status.color}
-                                sx={{ fontWeight: 'bold' }}
+                                sx={{ fontWeight: "bold" }}
                               />
                             </TableCell>
                             <TableCell align="center">
-                              <Typography variant="caption" color="error.main" fontWeight="bold">
+                              <Typography
+                                variant="caption"
+                                color="error.main"
+                                fontWeight="bold"
+                              >
                                 {getTimeLeft(product.endTime)}
                               </Typography>
                             </TableCell>
                             <TableCell align="center">
                               <IconButton
                                 size="small"
-                                onClick={() => navigate(`/product/${product.productId || product.id}`)}
-                                sx={{ color: 'primary.main' }}
+                                onClick={() =>
+                                  navigate(`/product/${product.productId || product.id}`)
+                                }
+                                sx={{ color: "primary.main" }}
                               >
                                 <Visibility fontSize="small" />
                               </IconButton>
@@ -442,23 +464,27 @@ const SellerProductsPage = () => {
                 {filteredProducts.length > 0 && (
                   <Box
                     sx={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
                       p: 3,
-                      borderTop: '1px solid',
-                      borderColor: 'divider',
-                      flexWrap: 'wrap',
+                      borderTop: "1px solid",
+                      borderColor: "divider",
+                      flexWrap: "wrap",
                       gap: 2,
                     }}
                   >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                       <Typography variant="body2" color="text.secondary">
                         Showing {pagination.currentSize} of {pagination.totalItems} products
                       </Typography>
                       <FormControl size="small" sx={{ minWidth: 120 }}>
                         <InputLabel>Page Size</InputLabel>
-                        <Select value={pageSize} label="Page Size" onChange={handlePageSizeChange}>
+                        <Select
+                          value={pageSize}
+                          label="Page Size"
+                          onChange={handlePageSizeChange}
+                        >
                           <MenuItem value={5}>5</MenuItem>
                           <MenuItem value={10}>10</MenuItem>
                           <MenuItem value={20}>20</MenuItem>
@@ -466,7 +492,7 @@ const SellerProductsPage = () => {
                         </Select>
                       </FormControl>
                     </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                       <Typography variant="body2" color="text.secondary">
                         Page {pagination.currentPage} of {pagination.totalPages}
                       </Typography>
@@ -491,4 +517,3 @@ const SellerProductsPage = () => {
 };
 
 export default SellerProductsPage;
-

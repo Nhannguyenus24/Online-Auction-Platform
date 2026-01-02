@@ -152,6 +152,38 @@ export const sellerApi = {
   },
 
   /**
+   * Get seller ratings and reviews
+   * Requires seller authentication
+   * @param {number} page - Page number (default 1)
+   * @param {number} pageSize - Items per page (default 20)
+   * @returns {Promise} - { success, reviews: [...], positiveReviews, negativeReviews, ratingPercent, totalCount }
+   */
+  getRatings: (page = 1, pageSize = 20) => {
+    return axiosInstance
+      .get('/api/seller/ratings', {
+        params: { page, pageSize },
+      })
+      .then((response) => {
+        if (response.data.success) {
+          return {
+            success: true,
+            reviews: response.data.reviews || [],
+            positiveReviews: response.data.positiveReviews || 0,
+            negativeReviews: response.data.negativeReviews || 0,
+            ratingPercent: response.data.ratingPercent || 0,
+            totalCount: response.data.totalCount || 0,
+          };
+        } else {
+          throw new Error(response.data.message || 'Failed to get ratings');
+        }
+      })
+      .catch((error) => {
+        console.error('Get ratings error:', error);
+        throw error;
+      });
+  },
+
+  /**
    * Get ratings received
    * Requires seller authentication
    * @returns {Promise} - { success, message, data: [...] }

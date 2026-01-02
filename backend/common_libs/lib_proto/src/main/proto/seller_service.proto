@@ -267,6 +267,7 @@ message ListingDetail {
   string ends_at = 6;
   bool is_auto_extend = 7;
   int32 auto_extend_seconds = 8;
+  string primary_image_url = 9;
 }
 
 // ============================================================================

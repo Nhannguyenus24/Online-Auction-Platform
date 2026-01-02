@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.auction.entities.database.Product;
+import com.auction.entities.database.Review;
 import com.auction.entities.msg.EventType;
 import com.auction.entities.msg.RabbitMessage;
 import com.auction.rabbitmq.services.ReactiveRabbitProducer;
@@ -23,9 +24,9 @@ import com.auctionplatform.seller.grpc.ProductSummary;
 
 import products.dto.OrderDetailDto;
 import products.dto.OrderRowDto;
-import java.util.HashMap;
 import products.repository.OrderRepository;
 import products.repository.ProductRepository;
+import products.repository.ReviewRepository;
 import products.repository.SellerRepository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -36,17 +37,19 @@ public class SellerService {
     private final SellerRepository sellerRepository;
     private final ProductRepository productRepository;
     private final OrderRepository orderRepository;
+    private final ReviewRepository reviewRepository;
     private final AuctionService auctionService;
     private final ReactiveRabbitProducer rabbitProducer;
     
     private static final String NOTIFICATION_QUEUE = "dev";
 
     public SellerService(SellerRepository sellerRepository, ProductRepository productRepository, 
-                        OrderRepository orderRepository, AuctionService auctionService, 
-                        ReactiveRabbitProducer rabbitProducer) {
+                        OrderRepository orderRepository, ReviewRepository reviewRepository,
+                        AuctionService auctionService, ReactiveRabbitProducer rabbitProducer) {
         this.sellerRepository = sellerRepository;
         this.productRepository = productRepository;
         this.orderRepository = orderRepository;
+        this.reviewRepository = reviewRepository;
         this.auctionService = auctionService;
         this.rabbitProducer = rabbitProducer;
     }
@@ -54,6 +57,62 @@ public class SellerService {
     // ============================================================================
     // DASHBOARD / PROFILE
     // ============================================================================
+
+    /**
+     * Get seller ratings and reviews
+     */
+    public Mono<RatingsResult> getSellerRatings(int sellerId, int page, int pageSize) {
+        int offset = (page - 1) * pageSize;
+        
+        return Mono.zip(
+            // Get total count
+            reviewRepository.countByToUserId(sellerId),
+            // Get positive reviews count
+            reviewRepository.countPositiveReviews(sellerId),
+            // Get negative reviews count
+            reviewRepository.countNegativeReviews(sellerId),
+            // Get average score
+            reviewRepository.getAverageScore(sellerId).defaultIfEmpty(0.0),
+            // Get paginated reviews
+            reviewRepository.findByToUserIdOrderByCreatedAtDesc(sellerId)
+                .skip(offset)
+                .take(pageSize)
+                .flatMap(review -> {
+                    // Get user name for from_user_id
+                    Mono<String> userNameMono = productRepository.getUserFullName(review.getFromUserId())
+                        .defaultIfEmpty("User #" + review.getFromUserId());
+                    
+                    return userNameMono.map(userName -> {
+                        return com.auctionplatform.seller.grpc.Review.newBuilder()
+                            .setId(review.getId())
+                            .setFromUserId(review.getFromUserId())
+                            .setFromUserName(userName)
+                            .setScore(review.getScore())
+                            .setComment(review.getComment() != null ? review.getComment() : "")
+                            .setCreatedAt(TimeUtils.toEpochSecond(review.getCreatedAt()) * 1000 + "")
+                            .build();
+                    });
+                })
+                .collectList()
+        ).map(tuple -> {
+            int totalCount = tuple.getT1();
+            int positiveReviews = tuple.getT2();
+            int negativeReviews = tuple.getT3();
+            double avgScore = tuple.getT4();
+            List<com.auctionplatform.seller.grpc.Review> reviews = tuple.getT5();
+            
+            // Calculate rating percent (average score / 5 * 100)
+            float ratingPercent = (float) (avgScore / 5.0 * 100.0);
+            
+            return new RatingsResult(
+                positiveReviews,
+                negativeReviews,
+                ratingPercent,
+                reviews,
+                totalCount
+            );
+        });
+    }
 
     /**
      * Get active listings for seller
@@ -261,7 +320,13 @@ public class SellerService {
         
         return Mono.zip(
             sellerRepository.findListingsBySellerIdWithFilter(sellerId, filter, pageSize, offset)
-                .map(this::mapToListingDetail)
+                .flatMap(product -> 
+                    productRepository.getProductImages(product.getId())
+                        .next()
+                        .map(img -> img.url())
+                        .defaultIfEmpty("")
+                        .map(primaryImageUrl -> mapToListingDetail(product, primaryImageUrl))
+                )
                 .collectList(),
             sellerRepository.countListingsBySellerIdWithFilter(sellerId, filter)
         ).map(tuple -> new ListingsResult(
@@ -354,7 +419,7 @@ public class SellerService {
             .build();
     }
 
-    private ListingDetail mapToListingDetail(Product product) {
+    private ListingDetail mapToListingDetail(Product product, String primaryImageUrl) {
         return ListingDetail.newBuilder()
             .setId(product.getId())
             .setTitle(product.getTitle())
@@ -364,6 +429,7 @@ public class SellerService {
             .setEndsAt(TimeUtils.toEpochSecond(product.getEndsAt()) * 1000 + "")
             .setIsAutoExtend(product.getIsAutoExtend())
             .setAutoExtendSeconds(product.getAutoExtendSeconds())
+            .setPrimaryImageUrl(primaryImageUrl != null ? primaryImageUrl : "")
             .build();
     }
 
@@ -482,6 +548,14 @@ public class SellerService {
         int totalCount,
         int page,
         int pageSize
+    ) {}
+
+    public record RatingsResult(
+        int positiveReviews,
+        int negativeReviews,
+        float ratingPercent,
+        List<com.auctionplatform.seller.grpc.Review> reviews,
+        int totalCount
     ) {}
 
     public record CreateListingRequest(

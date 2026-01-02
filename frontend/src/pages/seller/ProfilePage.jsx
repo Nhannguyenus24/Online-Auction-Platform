@@ -59,6 +59,7 @@ const SellerProfilePage = () => {
   const [ratingsReceived, setRatingsReceived] = useState([]);
   const [ratingsGiven, setRatingsGiven] = useState([]);
   const [itemsNeedingRating, setItemsNeedingRating] = useState([]);
+  const [ratingPercent, setRatingPercent] = useState(0);
   const [loading, setLoading] = useState({
     profile: false,
     ratings: false,
@@ -175,8 +176,32 @@ const SellerProfilePage = () => {
     const fetchProfile = async () => {
       try {
         setLoading((prev) => ({ ...prev, profile: true }));
-        const response = await authApi.getProfile();
-        const profile = response.data?.profile || {};
+        const [profileResponse, ratingsResponse] = await Promise.all([
+          authApi.getProfile(),
+          sellerApi.getRatings(1, 20).catch(() => null), // Fetch ratings, but don't fail if it errors
+        ]);
+        
+        const profile = profileResponse.data?.profile || {};
+        
+        // Update profile data with ratings if available
+        let ratingData = {
+          rating: profile.rating || 0,
+          totalRatings: profile.totalRatings || 0,
+          positiveRatings: profile.positiveRatings || 0,
+          negativeRatings: profile.negativeRatings || 0,
+        };
+        
+        if (ratingsResponse && ratingsResponse.success) {
+          // Calculate rating from ratingPercent (0-100) to 0-5 scale
+          const ratingFromPercent = (ratingsResponse.ratingPercent || 0) / 20;
+          ratingData = {
+            rating: ratingFromPercent,
+            totalRatings: ratingsResponse.totalCount || 0,
+            positiveRatings: ratingsResponse.positiveReviews || 0,
+            negativeRatings: ratingsResponse.negativeReviews || 0,
+          };
+        }
+        
         setProfileData({
           id: profile.userId || profile.id || null,
           name: profile.fullName || '',
@@ -184,10 +209,7 @@ const SellerProfilePage = () => {
           phone: profile.phoneNumber || '',
           address: profile.address || '',
           avatar: profile.avatar || profile.profilePicture || '',
-          rating: profile.rating || 0,
-          totalRatings: profile.totalRatings || 0,
-          positiveRatings: profile.positiveRatings || 0,
-          negativeRatings: profile.negativeRatings || 0,
+          ...ratingData,
         });
       } catch (err) {
         console.error('Error fetching profile:', err);
@@ -205,14 +227,47 @@ const SellerProfilePage = () => {
       if (tabValue === 2) {
         setLoading((prev) => ({ ...prev, ratings: true }));
         try {
-          const [receivedRes, givenRes, needingRes] = await Promise.all([
-            sellerApi.getRatingsReceived(),
-            sellerApi.getRatingsGiven(),
-            sellerApi.getItemsNeedingRating(),
-          ]);
-          setRatingsReceived(receivedRes.data || []);
-          setRatingsGiven(givenRes.data || []);
-          setItemsNeedingRating(needingRes.data || []);
+          // Fetch ratings from real API
+          const ratingsRes = await sellerApi.getRatings(1, 20);
+          
+          // Map API response to component format
+          const mappedReceived = (ratingsRes.reviews || []).map((review) => ({
+            id: review.id,
+            fromUser: review.fromUserName || `User #${review.fromUserId}`,
+            fromUserId: review.fromUserId,
+            rating: review.score >= 4 ? 1 : -1, // Convert score (1-5) to rating (+1/-1)
+            comment: review.comment || '',
+            date: new Date(parseInt(review.createdAt)), // Convert timestamp string to Date
+            productTitle: '', // API doesn't return product title yet
+            productId: null,
+          }));
+          
+          // Update profile data with latest ratings stats
+          const ratingFromPercent = (ratingsRes.ratingPercent || 0) / 20;
+          setProfileData((prev) => ({
+            ...prev,
+            rating: ratingFromPercent,
+            totalRatings: ratingsRes.totalCount || 0,
+            positiveRatings: ratingsRes.positiveReviews || 0,
+            negativeRatings: ratingsRes.negativeReviews || 0,
+          }));
+          
+          setRatingPercent(ratingsRes.ratingPercent || 0);
+          setRatingsReceived(mappedReceived);
+          
+          // Still fetch given and pending from other endpoints (if they exist)
+          try {
+            const [givenRes, needingRes] = await Promise.all([
+              sellerApi.getRatingsGiven().catch(() => ({ data: [] })),
+              sellerApi.getItemsNeedingRating().catch(() => ({ data: [] })),
+            ]);
+            setRatingsGiven(givenRes.data || []);
+            setItemsNeedingRating(needingRes.data || []);
+          } catch (err) {
+            // If these endpoints don't exist yet, just set empty arrays
+            setRatingsGiven([]);
+            setItemsNeedingRating([]);
+          }
         } catch (err) {
           console.error('Error fetching ratings:', err);
         } finally {
@@ -530,7 +585,7 @@ const SellerProfilePage = () => {
                                 </Box>
                               </Box>
                               <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
-                                Rating: {((profileData.positiveRatings / profileData.totalRatings) * 100).toFixed(1)}% positive
+                                Rating: {ratingPercent > 0 ? ratingPercent.toFixed(1) : (profileData.totalRatings > 0 ? ((profileData.positiveRatings / profileData.totalRatings) * 100).toFixed(1) : 0)}% positive
                               </Typography>
                             </Stack>
                           </Grid>
