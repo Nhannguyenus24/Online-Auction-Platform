@@ -25,6 +25,7 @@ import products.dto.ProductDetailsDto;
 import products.dto.ProductRowDto;
 import products.dto.QuestionRowDto;
 import products.repository.ProductRepository;
+import products.repository.ReviewRepository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -39,19 +40,22 @@ public class BidderService {
     private final products.repository.OrderRepository orderRepository;
     private final ReactiveRabbitProducer rabbitProducer;
     private final products.repository.NotificationRepository notificationRepository;
+    private final ReviewRepository reviewRepository;
     
     public BidderService(ProductRepository productRepository, 
                         com.auction.redis.service.ReactiveRedisService redisService,
                         AuctionService auctionService,
                         products.repository.OrderRepository orderRepository,
                         ReactiveRabbitProducer rabbitProducer,
-                        products.repository.NotificationRepository notificationRepository) {
+                        products.repository.NotificationRepository notificationRepository,
+                        ReviewRepository reviewRepository) {
         this.productRepository = productRepository;
         this.redisService = redisService;
         this.auctionService = auctionService;
         this.orderRepository = orderRepository;
         this.rabbitProducer = rabbitProducer;
         this.notificationRepository = notificationRepository;
+        this.reviewRepository = reviewRepository;
     }
 
     public Mono<Product> getProductDetails(int productId, int userId) {
@@ -808,6 +812,21 @@ public class BidderService {
     public record AutoBidResult(int autoBidId, double maxAmount, double currentBid, long createdAt) {}
     public record MyBidsResult(java.util.List<BidHistoryItem> bids, PageInfo pageInfo) {}
     public record NotificationsResult(java.util.List<com.auction.proto.user.UserNotification> notifications, long unreadCount) {}
+    public record BidderRatingsResult(
+        int positiveReviews,
+        int negativeReviews,
+        float ratingPercent,
+        java.util.List<BidderReview> reviews,
+        int totalCount
+    ) {}
+    public record BidderReview(
+        int id,
+        int fromUserId,
+        String fromUserName,
+        int score,
+        String comment,
+        String createdAt
+    ) {}
 
     /**
      * Get user notifications (all notifications, no pagination)
@@ -870,5 +889,61 @@ public class BidderService {
                         }
                     });
             });
+    }
+
+    /**
+     * Get bidder ratings and reviews
+     */
+    public Mono<BidderRatingsResult> getBidderRatings(int bidderId, int page, int pageSize) {
+        int offset = (page - 1) * pageSize;
+        
+        return Mono.zip(
+            // Get total count
+            reviewRepository.countByToUserId(bidderId),
+            // Get positive reviews count
+            reviewRepository.countPositiveReviews(bidderId),
+            // Get negative reviews count
+            reviewRepository.countNegativeReviews(bidderId),
+            // Get average score
+            reviewRepository.getAverageScore(bidderId).defaultIfEmpty(0.0),
+            // Get paginated reviews
+            reviewRepository.findByToUserIdOrderByCreatedAtDesc(bidderId)
+                .skip(offset)
+                .take(pageSize)
+                .flatMap(review -> {
+                    // Get user name for from_user_id
+                    Mono<String> userNameMono = productRepository.getUserFullName(review.getFromUserId())
+                        .defaultIfEmpty("User #" + review.getFromUserId());
+                    
+                    return userNameMono.map(userName -> {
+                        return new BidderReview(
+                            review.getId(),
+                            review.getFromUserId(),
+                            userName,
+                            review.getScore(),
+                            review.getComment() != null ? review.getComment() : "",
+                            String.valueOf(TimeUtils.toEpochSecond(review.getCreatedAt()) * 1000)
+                        );
+                    });
+                })
+                .collectList()
+        ).map(tuple -> {
+            int totalCount = tuple.getT1();
+            int positiveReviews = tuple.getT2();
+            int negativeReviews = tuple.getT3();
+            double avgScore = tuple.getT4();
+            List<BidderReview> reviews = tuple.getT5();
+            
+            // Calculate rating percent (average score / 5 * 100)
+            float ratingPercent = (float) (avgScore / 5.0 * 100.0);
+            
+            return new BidderRatingsResult(
+                positiveReviews,
+                negativeReviews,
+                ratingPercent,
+                reviews,
+                totalCount
+            );
+        });
     }
 }

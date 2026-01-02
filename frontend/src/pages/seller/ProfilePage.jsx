@@ -654,9 +654,6 @@ const SellerProfilePage = () => {
                                   <Typography variant="body2" sx={{ mb: 1 }}>
                                     {rating.comment}
                                   </Typography>
-                                  <Typography variant="caption" color="text.secondary">
-                                    For: {rating.productTitle}
-                                  </Typography>
                                 </CardContent>
                               </Card>
                             ))}
@@ -700,9 +697,6 @@ const SellerProfilePage = () => {
                                   </Box>
                                   <Typography variant="body2" sx={{ mb: 1 }}>
                                     {rating.comment}
-                                  </Typography>
-                                  <Typography variant="caption" color="text.secondary">
-                                    For: {rating.productTitle}
                                   </Typography>
                                 </CardContent>
                               </Card>

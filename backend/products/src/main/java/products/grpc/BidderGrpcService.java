@@ -18,12 +18,15 @@ import com.auction.proto.user.GetProductQuestionsRequest;
 import com.auction.proto.user.GetProductQuestionsResponse;
 import com.auction.proto.user.GetRelatedProductsRequest;
 import com.auction.proto.user.GetRelatedProductsResponse;
+import com.auction.proto.user.GetBidderRatingsRequest;
+import com.auction.proto.user.GetBidderRatingsResponse;
 import com.auction.proto.user.GetUserNotificationsRequest;
 import com.auction.proto.user.GetUserNotificationsResponse;
 import com.auction.proto.user.GetWatchlistRequest;
 import com.auction.proto.user.GetWatchlistResponse;
 import com.auction.proto.user.MarkNotificationAsReadRequest;
 import com.auction.proto.user.MarkNotificationAsReadResponse;
+import com.auction.proto.user.BidderReview;
 import com.auction.proto.user.PlaceBidRequest;
 import com.auction.proto.user.PlaceBidResponse;
 import com.auction.proto.user.ReactorUserServiceGrpc;
@@ -341,5 +344,40 @@ public class BidderGrpcService extends ReactorUserServiceGrpc.UserServiceImplBas
                                 .build());
                         })
                 );
+    }
+
+    @Override
+    public Mono<GetBidderRatingsResponse> getBidderRatings(Mono<GetBidderRatingsRequest> request) {
+        return request.doOnNext(req -> log.info("Get bidder ratings request: {}", JsonUtils.toJson(req)))
+            .flatMap(req ->
+                bidderService.getBidderRatings(req.getBidderId(), req.getPage(), req.getPageSize())
+                    .map(result -> {
+                        GetBidderRatingsResponse.Builder responseBuilder = GetBidderRatingsResponse.newBuilder()
+                            .setPositiveReviews(result.positiveReviews())
+                            .setNegativeReviews(result.negativeReviews())
+                            .setRatingPercent(result.ratingPercent())
+                            .setTotalCount(result.totalCount());
+                        
+                        // Map reviews
+                        result.reviews().forEach(review -> {
+                            BidderReview grpcReview = BidderReview.newBuilder()
+                                .setId(review.id())
+                                .setFromUserId(review.fromUserId())
+                                .setFromUserName(review.fromUserName())
+                                .setScore(review.score())
+                                .setComment(review.comment())
+                                .setCreatedAt(review.createdAt())
+                                .build();
+                            responseBuilder.addReviews(grpcReview);
+                        });
+                        
+                        return responseBuilder.build();
+                    })
+            )
+            .doOnNext(resp -> log.info("Get bidder ratings response: {}", JsonUtils.toJson(resp)))
+            .onErrorResume(e -> {
+                log.error("Get bidder ratings error: {}", e.getMessage(), e);
+                return Mono.just(GetBidderRatingsResponse.newBuilder().build());
+            });
     }
 }

@@ -36,6 +36,7 @@ import com.auction.proto.user.PlaceBidRequest;
 import com.auction.proto.user.RemoveFromWatchlistRequest;
 import com.auction.proto.user.SetAutoBidRequest;
 
+import com.auction.proto.user.GetBidderRatingsRequest;
 import gateway.grpc.BidderGrpcClient;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -703,5 +704,62 @@ public class BidderController {
             errorResponse.put("error", "Failed to mark notification as read: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
+    }
+
+    @GetMapping("/ratings")
+    @Operation(summary = "Get bidder ratings", description = "Get bidder's ratings and reviews. Requires authentication.")
+    public ResponseEntity<Map<String, Object>> getBidderRatings(
+            @Parameter(description = "Page number (1-based)")
+            @RequestParam(defaultValue = "1") int page,
+            @Parameter(description = "Number of items per page")
+            @RequestParam(defaultValue = "20") int pageSize) {
+
+        int bidderId = getUserId();
+        log.info("Get bidder ratings request - bidderId: {}, page: {}, pageSize: {}", bidderId, page, pageSize);
+
+        GetBidderRatingsRequest grpcRequest = GetBidderRatingsRequest.newBuilder()
+                .setBidderId(bidderId)
+                .setPage(page)
+                .setPageSize(pageSize)
+                .build();
+
+        try {
+            var response = bidderGrpcClient.getBidderRatings(grpcRequest).block();
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", true);
+            result.put("positiveReviews", response.getPositiveReviews());
+            result.put("negativeReviews", response.getNegativeReviews());
+            result.put("ratingPercent", response.getRatingPercent());
+            result.put("reviews", mapBidderReviewList(response.getReviewsList()));
+            result.put("totalCount", response.getTotalCount());
+
+            log.info("Get bidder ratings successful, count: {}", response.getReviewsCount());
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Get bidder ratings error: {}", e.getMessage(), e);
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Failed to get bidder ratings: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    // ============================================================================
+    // HELPER MAPPING METHODS
+    // ============================================================================
+
+    private List<Map<String, Object>> mapBidderReviewList(List<com.auction.proto.user.BidderReview> reviews) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        reviews.forEach(review -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", review.getId());
+            map.put("fromUserId", review.getFromUserId());
+            map.put("fromUserName", review.getFromUserName());
+            map.put("score", review.getScore());
+            map.put("comment", review.getComment());
+            map.put("createdAt", review.getCreatedAt());
+            result.add(map);
+        });
+        return result;
     }
 }

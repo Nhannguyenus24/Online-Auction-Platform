@@ -69,6 +69,7 @@ const BidderProfilePage = () => {
   const [ratingsReceived, setRatingsReceived] = useState([]);
   const [ratingsGiven, setRatingsGiven] = useState([]);
   const [itemsNeedingRating, setItemsNeedingRating] = useState([]);
+  const [ratingPercent, setRatingPercent] = useState(0);
   const [loading, setLoading] = useState({
     profile: false,
     ratings: false,
@@ -114,30 +115,48 @@ const BidderProfilePage = () => {
       if (tabValue === 0) {
         setLoading((prev) => ({ ...prev, profile: true }));
         try {
-          const response = await authApi.getProfile();
-          const apiProfile = response.data?.profile;
+          const [profileResponse, ratingsResponse] = await Promise.all([
+            authApi.getProfile(),
+            bidderApi.getRatings(1, 20).catch(() => null), // Fetch ratings, but don't fail if it errors
+          ]);
           
-          if (apiProfile) {
-            // Map API response to UI format
-            const mappedProfile = {
-              id: apiProfile.userId || apiProfile.id,
-              name: apiProfile.fullName || '',
-              email: apiProfile.email || '',
-              phone: apiProfile.phoneNumber || '',
-              address: typeof apiProfile.address === 'string' 
-                ? apiProfile.address 
-                : apiProfile.address 
-                  ? `${apiProfile.address.street || ''}, ${apiProfile.address.city || ''}, ${apiProfile.address.country || ''}`.replace(/^,\s*|,\s*$/g, '')
-                  : '',
-              avatar: apiProfile.avatar || defaultProfileData.avatar,
-              rating: apiProfile.rating || 0,
-              totalRatings: apiProfile.totalRatings || 0,
-              positiveRatings: apiProfile.positiveRatings || 0,
-              negativeRatings: apiProfile.negativeRatings || 0,
+          const apiProfile = profileResponse.data?.profile || {};
+          
+          // Update profile data with ratings if available
+          let ratingData = {
+            rating: apiProfile.rating || 0,
+            totalRatings: apiProfile.totalRatings || 0,
+            positiveRatings: apiProfile.positiveRatings || 0,
+            negativeRatings: apiProfile.negativeRatings || 0,
+          };
+          
+          if (ratingsResponse && ratingsResponse.success) {
+            // Calculate rating from ratingPercent (0-100) to 0-5 scale
+            const ratingFromPercent = (ratingsResponse.ratingPercent || 0) / 20;
+            ratingData = {
+              rating: ratingFromPercent,
+              totalRatings: ratingsResponse.totalCount || 0,
+              positiveRatings: ratingsResponse.positiveReviews || 0,
+              negativeRatings: ratingsResponse.negativeReviews || 0,
             };
-            setProfileData(mappedProfile);
-            setOriginalProfileData(mappedProfile);
           }
+          
+          // Map API response to UI format
+          const mappedProfile = {
+            id: apiProfile.userId || apiProfile.id,
+            name: apiProfile.fullName || '',
+            email: apiProfile.email || '',
+            phone: apiProfile.phoneNumber || '',
+            address: typeof apiProfile.address === 'string' 
+              ? apiProfile.address 
+              : apiProfile.address 
+                ? `${apiProfile.address.street || ''}, ${apiProfile.address.city || ''}, ${apiProfile.address.country || ''}`.replace(/^,\s*|,\s*$/g, '')
+                : '',
+            avatar: apiProfile.avatar || defaultProfileData.avatar,
+            ...ratingData,
+          };
+          setProfileData(mappedProfile);
+          setOriginalProfileData(mappedProfile);
         } catch (err) {
           console.error('Error fetching profile:', err);
           setErrorMessage('Failed to load profile. Please try again.');
@@ -272,14 +291,47 @@ const BidderProfilePage = () => {
       if (tabValue === 2) {
         setLoading((prev) => ({ ...prev, ratings: true }));
         try {
-          const [receivedRes, givenRes, needingRes] = await Promise.all([
-            bidderApi.getRatingsReceived(),
-            bidderApi.getRatingsGiven(),
-            bidderApi.getItemsNeedingRating(),
-          ]);
-          setRatingsReceived(receivedRes.data || []);
-          setRatingsGiven(givenRes.data || []);
-          setItemsNeedingRating(needingRes.data || []);
+          // Fetch ratings from real API
+          const ratingsRes = await bidderApi.getRatings(1, 20);
+          
+          // Map API response to component format
+          const mappedReceived = (ratingsRes.reviews || []).map((review) => ({
+            id: review.id,
+            fromUser: review.fromUserName || `User #${review.fromUserId}`,
+            fromUserId: review.fromUserId,
+            rating: review.score >= 4 ? 1 : -1, // Convert score (1-5) to rating (+1/-1)
+            comment: review.comment || '',
+            date: new Date(parseInt(review.createdAt)), // Convert timestamp string to Date
+            productTitle: '', // API doesn't return product title yet
+            productId: null,
+          }));
+          
+          // Update profile data with latest ratings stats
+          const ratingFromPercent = (ratingsRes.ratingPercent || 0) / 20;
+          setProfileData((prev) => ({
+            ...prev,
+            rating: ratingFromPercent,
+            totalRatings: ratingsRes.totalCount || 0,
+            positiveRatings: ratingsRes.positiveReviews || 0,
+            negativeRatings: ratingsRes.negativeReviews || 0,
+          }));
+          
+          setRatingPercent(ratingsRes.ratingPercent || 0);
+          setRatingsReceived(mappedReceived);
+          
+          // Still fetch given and pending from other endpoints (if they exist)
+          try {
+            const [givenRes, needingRes] = await Promise.all([
+              bidderApi.getRatingsGiven().catch(() => ({ data: [] })),
+              bidderApi.getItemsNeedingRating().catch(() => ({ data: [] })),
+            ]);
+            setRatingsGiven(givenRes.data || []);
+            setItemsNeedingRating(needingRes.data || []);
+          } catch (err) {
+            // If these endpoints don't exist yet, just set empty arrays
+            setRatingsGiven([]);
+            setItemsNeedingRating([]);
+          }
         } catch (err) {
           console.error('Error fetching ratings:', err);
         } finally {
@@ -822,7 +874,7 @@ const BidderProfilePage = () => {
                                 </Box>
                               </Box>
                               <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
-                                Rating: {((profileData.positiveRatings / profileData.totalRatings) * 100).toFixed(1)}% positive
+                                Rating: {ratingPercent > 0 ? ratingPercent.toFixed(1) : (profileData.totalRatings > 0 ? ((profileData.positiveRatings / profileData.totalRatings) * 100).toFixed(1) : 0)}% positive
                               </Typography>
                             </Stack>
                           </Grid>
@@ -891,9 +943,7 @@ const BidderProfilePage = () => {
                                   <Typography variant="body2" sx={{ mb: 1 }}>
                                     {rating.comment}
                                   </Typography>
-                                  <Typography variant="caption" color="text.secondary">
-                                    For: {rating.productTitle}
-                                  </Typography>
+                               
                                 </CardContent>
                               </Card>
                             ))}
@@ -937,9 +987,6 @@ const BidderProfilePage = () => {
                                   </Box>
                                   <Typography variant="body2" sx={{ mb: 1 }}>
                                     {rating.comment}
-                                  </Typography>
-                                  <Typography variant="caption" color="text.secondary">
-                                    For: {rating.productTitle}
                                   </Typography>
                                 </CardContent>
                               </Card>

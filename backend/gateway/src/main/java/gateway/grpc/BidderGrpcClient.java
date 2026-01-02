@@ -21,6 +21,8 @@ import com.auction.proto.user.GetProductQuestionsRequest;
 import com.auction.proto.user.GetProductQuestionsResponse;
 import com.auction.proto.user.GetRelatedProductsRequest;
 import com.auction.proto.user.GetRelatedProductsResponse;
+import com.auction.proto.user.GetBidderRatingsRequest;
+import com.auction.proto.user.GetBidderRatingsResponse;
 import com.auction.proto.user.GetUserNotificationsRequest;
 import com.auction.proto.user.GetUserNotificationsResponse;
 import com.auction.proto.user.GetWatchlistRequest;
@@ -153,5 +155,11 @@ public class BidderGrpcClient {
     public Mono<MarkNotificationAsReadResponse> markNotificationAsRead(MarkNotificationAsReadRequest request) {
         log.info("gRPC markNotificationAsRead request: {}", JsonUtils.toJson(request));
         return userServiceStub.markNotificationAsRead(Mono.just(request));
+    }
+
+    // Get Bidder Ratings
+    public Mono<GetBidderRatingsResponse> getBidderRatings(GetBidderRatingsRequest request) {
+        log.info("gRPC getBidderRatings request: {}", JsonUtils.toJson(request));
+        return userServiceStub.getBidderRatings(Mono.just(request));
     }
 }
