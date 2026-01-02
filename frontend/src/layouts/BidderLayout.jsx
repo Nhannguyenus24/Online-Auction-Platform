@@ -20,6 +20,7 @@ import {
   ShoppingCart as ShoppingCartIcon,
   Chat as ChatIcon,
   Menu as MenuIcon,
+  ArrowBack as ArrowBackIcon,
 } from '@mui/icons-material';
 
 const DRAWER_WIDTH = 260;
@@ -73,21 +74,46 @@ const BidderLayout = () => {
             px: collapsed ? 0 : 3,
             borderBottom: '1px solid',
             borderColor: 'divider',
+            gap: 1,
           }}
         >
           {!collapsed && (
-            <Typography
-              variant="h6"
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
+              <IconButton
+                onClick={() => navigate('/')}
+                size="small"
+                sx={{
+                  color: 'text.secondary',
+                  '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.08) },
+                }}
+              >
+                <ArrowBackIcon />
+              </IconButton>
+              <Typography
+                variant="h6"
+                sx={{
+                  fontWeight: 700,
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  letterSpacing: '-0.5px',
+                }}
+              >
+                Bidder
+              </Typography>
+            </Box>
+          )}
+          {collapsed && (
+            <IconButton
+              onClick={() => navigate('/')}
+              size="small"
               sx={{
-                fontWeight: 700,
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                letterSpacing: '-0.5px',
+                color: 'text.secondary',
+                '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.08) },
               }}
             >
-              Bidder
-            </Typography>
+              <ArrowBackIcon />
+            </IconButton>
           )}
           <IconButton
             onClick={() => setCollapsed(!collapsed)}

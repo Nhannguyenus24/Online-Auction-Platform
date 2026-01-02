@@ -73,7 +73,6 @@ const SellerProfilePage = () => {
     email: '',
     phone: '',
     address: '',
-    dateOfBirth: '',
     avatar: '',
     rating: 0,
     totalRatings: 0,
@@ -126,7 +125,6 @@ const SellerProfilePage = () => {
         email: profile.email || '',
         phone: profile.phoneNumber || '',
         address: profile.address || '',
-        dateOfBirth: profile.dateOfBirth || '',
         avatar: profile.avatar || profile.profilePicture || '',
         rating: profile.rating || 0,
         totalRatings: profile.totalRatings || 0,
@@ -185,7 +183,6 @@ const SellerProfilePage = () => {
           email: profile.email || '',
           phone: profile.phoneNumber || '',
           address: profile.address || '',
-          dateOfBirth: profile.dateOfBirth || '',
           avatar: profile.avatar || profile.profilePicture || '',
           rating: profile.rating || 0,
           totalRatings: profile.totalRatings || 0,
@@ -345,15 +342,6 @@ const SellerProfilePage = () => {
                       value={profileData.phone}
                       onChange={handleProfileChange('phone')}
                       disabled={!isEditing}
-                    />
-                    <TextField
-                      fullWidth
-                      label="Date of Birth"
-                      type="date"
-                      value={profileData.dateOfBirth}
-                      onChange={handleProfileChange('dateOfBirth')}
-                      disabled={!isEditing}
-                      InputLabelProps={{ shrink: true }}
                     />
                     <TextField
                       fullWidth

@@ -418,4 +418,7 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
         """)
     Mono<Map<String, Object>> getUserAutoBid(@Param("productId") Integer productId, @Param("userId") Integer userId);
     
+    // Get user full name by user ID
+    @Query("SELECT full_name FROM users WHERE id = :userId")
+    Mono<String> getUserFullName(@Param("userId") Integer userId);
 }

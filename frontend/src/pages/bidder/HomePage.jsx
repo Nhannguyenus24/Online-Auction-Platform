@@ -7,15 +7,19 @@ import {
   Card,
   CardContent,
   Grid,
-  Chip,
   CircularProgress,
-  Stack,
-  Avatar,
+  Tabs,
+  Tab,
+  TextField,
+  InputAdornment,
+  IconButton,
 } from '@mui/material';
 import {
   Gavel,
   EmojiEvents,
   TrendingUp,
+  Search,
+  Clear,
 } from '@mui/icons-material';
 import Page from '../../components/Page';
 import StatCard from '../../components/StatCard';
@@ -25,6 +29,8 @@ import { bidderApi } from '../../services/bidderApi';
 
 const BidderHomePage = () => {
   const navigate = useNavigate();
+  const [tabValue, setTabValue] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState({ active: false, won: false });
   const [activeBids, setActiveBids] = useState([]);
   const [wonItems, setWonItems] = useState([]);
@@ -109,6 +115,20 @@ const BidderHomePage = () => {
     fetchData();
   }, []);
 
+  const handleTabChange = (event, newValue) => {
+    setTabValue(newValue);
+    setSearchQuery(''); // Reset search when switching tabs
+  };
+
+  // Filter products based on search query
+  const filteredActiveBids = activeBids.filter((bid) =>
+    bid.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredWonItems = wonItems.filter((item) =>
+    item.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   const handleCompleteOrder = (product) => {
     // Generate orderId from productId (in real app, this would come from API)
     const orderId = `order_${String(product.productId || product.id).padStart(3, '0')}`;
@@ -119,18 +139,19 @@ const BidderHomePage = () => {
   return (
     <Page title="Bidder Dashboard - Online Auction Platform">
       <Container maxWidth="lg" sx={{ py: 4 }}>
+        {/* Header */}
         <Box sx={{ mb: 4 }}>
-          <Typography variant="h4" component="h1" gutterBottom fontWeight={700}>
+          <Typography variant="h4" component="h1" fontWeight="bold">
             Bidder Dashboard
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Overview of your bidding activity, won items, and watch list
+          <Typography variant="body1" color="text.secondary">
+            Overview of your bidding activity and won items
           </Typography>
         </Box>
 
         {/* Statistics Cards */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={12} sm={6} md={4}>
             <StatCard
               title="Active Bids"
               value={stats.activeBids}
@@ -139,7 +160,7 @@ const BidderHomePage = () => {
               simple
             />
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={12} sm={6} md={4}>
             <StatCard
               title="Won Items"
               value={stats.wonItems}
@@ -159,114 +180,127 @@ const BidderHomePage = () => {
           </Grid>
         </Grid>
 
-        {/* Active Bids Section */}
-        <Card elevation={0} sx={{ mb: 4, border: '1px solid', borderColor: 'divider', borderRadius: 3 }}>
-          <Box
+        {/* Tabs */}
+        <Card elevation={0} sx={{ mb: 3, border: '1px solid', borderColor: 'divider' }}>
+          <Tabs
+            value={tabValue}
+            onChange={handleTabChange}
+            variant="fullWidth"
             sx={{
-              p: 3,
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              color: 'white',
-              borderRadius: '12px 12px 0 0',
+              borderBottom: 1,
+              borderColor: 'divider',
+              '& .MuiTab-root': {
+                textTransform: 'none',
+                fontWeight: 600,
+                fontSize: '1rem',
+              },
             }}
           >
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Box>
-                <Typography variant="h5" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Gavel /> Active Bids
-                </Typography>
-                <Typography variant="body2" sx={{ mt: 0.5, opacity: 0.9 }}>
-                  Products you are currently bidding on
-                </Typography>
-              </Box>
-              <Chip
-                label={`${activeBids.length} items`}
-                sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white', fontWeight: 'bold' }}
+            <Tab
+              icon={<Gavel />}
+              iconPosition="start"
+              label={`Active Bids (${activeBids.length})`}
+            />
+            <Tab
+              icon={<EmojiEvents />}
+              iconPosition="start"
+              label={`Won Items (${wonItems.length})`}
+            />
+          </Tabs>
+
+          <CardContent sx={{ p: 3 }}>
+            {/* Search Bar */}
+            <Box sx={{ mb: 3 }}>
+              <TextField
+                fullWidth
+                placeholder={`Search ${tabValue === 0 ? 'active bids' : 'won items'}...`}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Search />
+                    </InputAdornment>
+                  ),
+                  endAdornment: searchQuery && (
+                    <InputAdornment position="end">
+                      <IconButton size="small" onClick={() => setSearchQuery('')}>
+                        <Clear />
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{ maxWidth: 400 }}
               />
             </Box>
-          </Box>
-          <CardContent sx={{ p: 3 }}>
-            {loading.active ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-                <CircularProgress />
-              </Box>
-            ) : activeBids.length === 0 ? (
-              <Box sx={{ textAlign: 'center', py: 8 }}>
-                <Gavel sx={{ fontSize: 64, color: 'grey.300', mb: 2 }} />
-                <Typography variant="h6" color="text.secondary" gutterBottom>
-                  No Active Bids
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Start bidding on products to see them here
-                </Typography>
-              </Box>
-            ) : (
-              <Grid container spacing={3}>
-                {activeBids.map((bid) => (
-                  <Grid item xs={12} sm={6} md={4} lg={3} key={bid.id}>
-                    <ProductCard product={bid} />
+
+            {/* Active Bids Tab */}
+            {tabValue === 0 && (
+              <Box>
+                {loading.active ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+                    <CircularProgress />
+                  </Box>
+                ) : filteredActiveBids.length === 0 ? (
+                  <Box sx={{ textAlign: 'center', py: 8 }}>
+                    <Gavel sx={{ fontSize: 64, color: 'grey.300', mb: 2 }} />
+                    <Typography variant="h6" color="text.secondary" gutterBottom>
+                      {searchQuery ? 'No bids found' : 'No Active Bids'}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {searchQuery
+                        ? 'Try adjusting your search query'
+                        : 'Start bidding on products to see them here'}
+                    </Typography>
+                  </Box>
+                ) : (
+                  <Grid container spacing={3}>
+                    {filteredActiveBids.map((bid) => (
+                      <Grid item xs={12} sm={6} md={4} lg={3} key={bid.id}>
+                        <ProductCard product={bid} />
+                      </Grid>
+                    ))}
                   </Grid>
-                ))}
-              </Grid>
+                )}
+              </Box>
+            )}
+
+            {/* Won Items Tab */}
+            {tabValue === 1 && (
+              <Box>
+                {loading.won ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+                    <CircularProgress />
+                  </Box>
+                ) : filteredWonItems.length === 0 ? (
+                  <Box sx={{ textAlign: 'center', py: 8 }}>
+                    <EmojiEvents sx={{ fontSize: 64, color: 'grey.300', mb: 2 }} />
+                    <Typography variant="h6" color="text.secondary" gutterBottom>
+                      {searchQuery ? 'No items found' : 'No Won Items Yet'}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {searchQuery
+                        ? 'Try adjusting your search query'
+                        : 'Keep bidding to win your first item!'}
+                    </Typography>
+                  </Box>
+                ) : (
+                  <Grid container spacing={3}>
+                    {filteredWonItems.map((item) => (
+                      <Grid item xs={12} sm={6} md={4} lg={3} key={item.id}>
+                        <ProductCard 
+                          product={item} 
+                          isWonItem 
+                          onCompleteOrder={handleCompleteOrder}
+                        />
+                      </Grid>
+                    ))}
+                  </Grid>
+                )}
+              </Box>
             )}
           </CardContent>
         </Card>
-
-        {/* Won Items Section */}
-        <Card elevation={0} sx={{ mb: 4, border: '1px solid', borderColor: 'divider', borderRadius: 3 }}>
-          <Box
-            sx={{
-              p: 3,
-              background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
-              color: 'white',
-              borderRadius: '12px 12px 0 0',
-            }}
-          >
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Box>
-                <Typography variant="h5" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <EmojiEvents /> Won Items
-                </Typography>
-                <Typography variant="body2" sx={{ mt: 0.5, opacity: 0.9 }}>
-                  Products you have successfully won
-                </Typography>
-              </Box>
-              <Chip
-                label={`${wonItems.length} items`}
-                sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white', fontWeight: 'bold' }}
-              />
-            </Box>
-          </Box>
-          <CardContent sx={{ p: 3 }}>
-            {loading.won ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-                <CircularProgress />
-              </Box>
-            ) : wonItems.length === 0 ? (
-              <Box sx={{ textAlign: 'center', py: 8 }}>
-                <EmojiEvents sx={{ fontSize: 64, color: 'grey.300', mb: 2 }} />
-                <Typography variant="h6" color="text.secondary" gutterBottom>
-                  No Won Items Yet
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Keep bidding to win your first item!
-                </Typography>
-              </Box>
-            ) : (
-              <Grid container spacing={3}>
-                {wonItems.slice(0, 4).map((item) => (
-                  <Grid item xs={12} sm={6} md={4} lg={3} key={item.id}>
-                    <ProductCard 
-                      product={item} 
-                      isWonItem 
-                      onCompleteOrder={handleCompleteOrder}
-                    />
-                  </Grid>
-                ))}
-              </Grid>
-            )}
-          </CardContent>
-        </Card>
-
       </Container>
     </Page>
   );

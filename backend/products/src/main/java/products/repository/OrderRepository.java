@@ -1,5 +1,7 @@
 package products.repository;
 
+import java.util.Map;
+
 import org.springframework.data.r2dbc.repository.Query;
 import org.springframework.data.r2dbc.repository.R2dbcRepository;
 import org.springframework.data.repository.query.Param;
@@ -7,6 +9,7 @@ import org.springframework.stereotype.Repository;
 
 import com.auction.entities.database.Order;
 
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Repository
@@ -44,15 +47,45 @@ public interface OrderRepository extends R2dbcRepository<Order, Integer> {
      * @return list of orders
      */
     @Query("SELECT * FROM orders WHERE buyer_id = :buyerId ORDER BY created_at DESC")
-    Mono<Order> findByBuyerId(@Param("buyerId") Integer buyerId);
+    Flux<Order> findByBuyerId(@Param("buyerId") Integer buyerId);
     
     /**
-     * Find orders by seller ID
+     * Find orders by seller ID with pagination and status filter
      * @param sellerId the seller ID
+     * @param statusFilter the status filter (pending, completed, cancelled, all)
+     * @param limit the page size
+     * @param offset the offset
      * @return list of orders
      */
-    @Query("SELECT * FROM orders WHERE seller_id = :sellerId ORDER BY created_at DESC")
-    Mono<Order> findBySellerId(@Param("sellerId") Integer sellerId);
+    @Query("""
+        SELECT * FROM orders
+        WHERE seller_id = :sellerId
+          AND (:statusFilter = 'all' OR status = :statusFilter)
+        ORDER BY created_at DESC
+        LIMIT :limit OFFSET :offset
+        """)
+    Flux<Order> findOrdersBySellerId(
+        @Param("sellerId") Integer sellerId,
+        @Param("statusFilter") String statusFilter,
+        @Param("limit") int limit,
+        @Param("offset") int offset
+    );
+    
+    /**
+     * Count orders by seller ID with status filter
+     * @param sellerId the seller ID
+     * @param statusFilter the status filter (pending, completed, cancelled, all)
+     * @return the count
+     */
+    @Query("""
+        SELECT COUNT(*) FROM orders
+        WHERE seller_id = :sellerId
+          AND (:statusFilter = 'all' OR status = :statusFilter)
+        """)
+    Mono<Integer> countOrdersBySellerId(
+        @Param("sellerId") Integer sellerId,
+        @Param("statusFilter") String statusFilter
+    );
     
     /**
      * Update order status

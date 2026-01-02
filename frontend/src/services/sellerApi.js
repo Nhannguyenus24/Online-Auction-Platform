@@ -22,28 +22,59 @@ import axiosInstance from '../utils/axios';
 
 export const sellerApi = {
   /**
-   * Get active listings
+   * Get listings
    * Requires seller authentication
+   * @param {string} filter - Status filter (active, expired, all) (default 'all')
    * @param {number} page - Page number (default 1)
-   * @param {number} limit - Items per page (default 20)
-   * @param {string} status - Status filter (default 'active')
-   * @returns {Promise} - { success, message, data: [...], page, limit, total, totalPages }
+   * @param {number} pageSize - Items per page (default 20)
+   * @returns {Promise} - { success, listings: [...], page, pageSize, totalCount }
    */
-  getActiveListings: (page = 1, limit = 20, status = 'active') => {
+  getListings: (filter = 'all', page = 1, pageSize = 20) => {
     return axiosInstance
-      .get('/api/seller/profile/products', {
-        params: { page, limit, status },
+      .get('/api/seller/listings', {
+        params: { filter, page, pageSize },
       })
       .then((response) => {
         if (response.data.success) {
           return {
             success: true,
-            message: response.data.message || 'Active listings retrieved successfully',
-            data: response.data.data || response.data.products || [],
+            message: 'Listings retrieved successfully',
+            listings: response.data.listings || [],
             page: response.data.page || page,
-            limit: response.data.limit || limit,
-            total: response.data.total || 0,
-            totalPages: response.data.totalPages || 1,
+            pageSize: response.data.pageSize || pageSize,
+            totalCount: response.data.totalCount || 0,
+          };
+        } else {
+          throw new Error(response.data.message || 'Failed to get listings');
+        }
+      })
+      .catch((error) => {
+        console.error('Get listings error:', error);
+        throw error;
+      });
+  },
+
+  /**
+   * Get active listings
+   * Requires seller authentication
+   * @param {number} page - Page number (default 1)
+   * @param {number} pageSize - Items per page (default 20)
+   * @returns {Promise} - { success, products: [...], page, pageSize, totalCount }
+   */
+  getActiveListings: (page = 1, pageSize = 20) => {
+    return axiosInstance
+      .get('/api/seller/active-listings', {
+        params: { page, pageSize },
+      })
+      .then((response) => {
+        if (response.data.success) {
+          return {
+            success: true,
+            message: 'Active listings retrieved successfully',
+            products: response.data.products || [],
+            page: response.data.page || page,
+            pageSize: response.data.pageSize || pageSize,
+            totalCount: response.data.totalCount || 0,
           };
         } else {
           throw new Error(response.data.message || 'Failed to get active listings');
@@ -59,24 +90,23 @@ export const sellerApi = {
    * Get winner items
    * Requires seller authentication
    * @param {number} page - Page number (default 1)
-   * @param {number} limit - Items per page (default 20)
-   * @returns {Promise} - { success, message, data: [...], page, limit, total, totalPages }
+   * @param {number} pageSize - Items per page (default 20)
+   * @returns {Promise} - { success, products: [...], page, pageSize, totalCount }
    */
-  getWinnerItems: (page = 1, limit = 20) => {
+  getWinnerItems: (page = 1, pageSize = 20) => {
     return axiosInstance
-      .get('/api/seller/profile/products/wins', {
-        params: { page, limit },
+      .get('/api/seller/winner-items', {
+        params: { page, pageSize },
       })
       .then((response) => {
         if (response.data.success) {
           return {
             success: true,
-            message: response.data.message || 'Winner items retrieved successfully',
-            data: response.data.data || response.data.products || [],
+            message: 'Winner items retrieved successfully',
+            products: response.data.products || [],
             page: response.data.page || page,
-            limit: response.data.limit || limit,
-            total: response.data.total || 0,
-            totalPages: response.data.totalPages || 1,
+            pageSize: response.data.pageSize || pageSize,
+            totalCount: response.data.totalCount || 0,
           };
         } else {
           throw new Error(response.data.message || 'Failed to get winner items');
@@ -92,29 +122,24 @@ export const sellerApi = {
    * Get orders
    * Requires seller authentication
    * @param {number} page - Page number (default 1)
-   * @param {number} limit - Items per page (default 20)
-   * @param {string} status - Status filter (optional)
-   * @returns {Promise} - { success, message, data: [...], page, limit, total, totalPages }
+   * @param {number} pageSize - Items per page (default 20)
+   * @param {string} statusFilter - Status filter (pending, completed, cancelled, all) (default 'all')
+   * @returns {Promise} - { success, orders: [...], page, pageSize, totalCount }
    */
-  getOrders: (page = 1, limit = 20, status = null) => {
-    const params = { page, limit };
-    if (status) {
-      params.status = status;
-    }
+  getOrders: (page = 1, pageSize = 20, statusFilter = 'all') => {
     return axiosInstance
       .get('/api/seller/orders', {
-        params,
+        params: { page, pageSize, statusFilter },
       })
       .then((response) => {
         if (response.data.success) {
           return {
             success: true,
-            message: response.data.message || 'Orders retrieved successfully',
-            data: response.data.data || response.data.orders || [],
+            message: 'Orders retrieved successfully',
+            orders: response.data.orders || [],
             page: response.data.page || page,
-            limit: response.data.limit || limit,
-            total: response.data.total || 0,
-            totalPages: response.data.totalPages || 1,
+            pageSize: response.data.pageSize || pageSize,
+            totalCount: response.data.totalCount || 0,
           };
         } else {
           throw new Error(response.data.message || 'Failed to get orders');

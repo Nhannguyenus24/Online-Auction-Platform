@@ -57,8 +57,32 @@ const SellerProductsPage = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const response = await sellerApi.getActiveListings(1, 500, 'active');
-        setAllProducts(response.data || []);
+        // Fetch all active listings with a large page size to get all data
+        const response = await sellerApi.getListings('active', 1, 500);
+        // Map the response to match the expected format
+        const mappedProducts = (response.listings || []).map((listing) => {
+          // Parse endsAt timestamp (can be string or number)
+          let endTime = null;
+          if (listing.endsAt) {
+            const timestamp = typeof listing.endsAt === 'string' ? parseInt(listing.endsAt) : listing.endsAt;
+            endTime = new Date(timestamp).toISOString();
+          }
+          
+          return {
+            id: listing.id,
+            productId: listing.id,
+            title: listing.title,
+            status: listing.status,
+            currentPrice: listing.currentPrice || 0,
+            startingPrice: listing.currentPrice || 0, // Use currentPrice as fallback since startingPrice not in response
+            bidCount: listing.bidsCount || 0,
+            views: 0, // Not available in listings endpoint
+            endTime: endTime,
+            image: null, // Not available in listings endpoint - will show placeholder
+            condition: null, // Not available in listings endpoint
+          };
+        });
+        setAllProducts(mappedProducts);
       } catch (err) {
         console.error('Error fetching products:', err);
         setAllProducts([]);
@@ -324,8 +348,11 @@ const SellerProductsPage = () => {
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                                 <Box
                                   component="img"
-                                  src={product.image}
+                                  src={product.image || '/logo.png'}
                                   alt={product.title}
+                                  onError={(e) => {
+                                    e.target.src = '/logo.png';
+                                  }}
                                   sx={{
                                     width: 60,
                                     height: 60,

@@ -72,7 +72,7 @@ const ProductCard = ({
       <Box sx={{ position: 'relative', paddingTop: '75%', bgcolor: 'grey.50' }}>
         <CardMedia
           component="img"
-          image={product.image || '/placeholder-image.jpg'}
+          image={product.image || product.primaryImageUrl || '/placeholder-image.jpg'}
           alt={product.title}
           sx={{
             position: 'absolute',
@@ -101,7 +101,7 @@ const ProductCard = ({
         >
           <LocalOffer sx={{ fontSize: 14, color: 'primary.main' }} />
           <Typography variant="caption" fontWeight="bold" color="primary">
-            {product.bidCount || 0} bids
+            {product.bidCount || product.bidsCount || 0} bids
           </Typography>
         </Box>
         {product.condition && (
@@ -217,11 +217,11 @@ const ProductCard = ({
                     {formatPrice(product.currentPrice || product.winningPrice || 0)}
                   </Typography>
                 </Box>
-                {showViews && product.views !== undefined && (
+                {showViews && (product.views !== undefined || product.viewsCount !== undefined) && (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                     <Visibility sx={{ fontSize: 16, color: 'text.secondary' }} />
                     <Typography variant="caption" color="text.secondary">
-                      {product.views}
+                      {product.views || product.viewsCount || 0}
                     </Typography>
                   </Box>
                 )}
@@ -231,7 +231,7 @@ const ProductCard = ({
                   Your bid: {formatPrice(product.myBid)}
                 </Typography>
               )}
-              {product.endTime && (
+              {(product.endTime || product.endsAt) && (
                 <Box
                   sx={{
                     display: 'flex',
@@ -244,7 +244,7 @@ const ProductCard = ({
                 >
                   <AccessTime sx={{ fontSize: 16, color: 'error.main' }} />
                   <Typography variant="caption" color="error.main" fontWeight="bold">
-                    {getTimeLeft(product.endTime)} left
+                    {getTimeLeft(product.endTime || (typeof product.endsAt === 'string' ? parseInt(product.endsAt) : product.endsAt))} left
                   </Typography>
                 </Box>
               )}

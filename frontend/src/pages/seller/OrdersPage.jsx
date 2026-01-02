@@ -59,8 +59,22 @@ const SellerOrdersPage = () => {
     const fetchOrders = async () => {
       try {
         setLoading(true);
-        const response = await sellerApi.getOrders(1, 500);
-        setOrders(response.data || []);
+        const response = await sellerApi.getOrders(1, 500, 'all');
+        // Map the response to match the expected format
+        const mappedOrders = (response.orders || []).map((order) => ({
+          id: order.id,
+          orderId: order.id,
+          productId: order.productId,
+          productTitle: order.productTitle || 'Unknown Product',
+          buyerId: order.buyerId,
+          buyerName: order.buyerName || 'Unknown Buyer',
+          amount: order.amount || 0,
+          status: order.status || 'pending',
+          paymentMethod: order.paymentMethod || '',
+          orderDate: order.createdAt ? new Date(parseInt(order.createdAt)).toISOString() : new Date().toISOString(),
+          productImage: null, // Not available in orders endpoint
+        }));
+        setOrders(mappedOrders);
       } catch (err) {
         console.error('Error fetching orders:', err);
         setOrders([]);

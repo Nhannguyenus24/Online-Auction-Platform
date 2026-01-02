@@ -46,18 +46,31 @@ const SellerHomePage = () => {
     totalViews: 0,
   });
 
+  // Helper function to map API product to frontend format
+  const mapProduct = (product, isWonItem = false) => ({
+    ...product,
+    views: product.viewsCount || product.views || 0,
+    bidCount: product.bidsCount || product.bidCount || 0,
+    image: product.primaryImageUrl || product.image || '/placeholder-image.jpg',
+    endTime: product.endsAt ? (typeof product.endsAt === 'string' ? parseInt(product.endsAt) : product.endsAt) : null,
+    // For won items, map currentPrice to winningPrice for display
+    winningPrice: isWonItem ? (product.currentPrice || product.winningPrice || 0) : (product.winningPrice || 0),
+    // Keep currentPrice for active listings
+    currentPrice: product.currentPrice || 0,
+  });
+
   // Fetch all data on mount to calculate complete stats
   useEffect(() => {
     const fetchAllData = async () => {
       try {
         // Fetch active listings
-        const activeRes = await sellerApi.getActiveListings(1, 500, 'active');
-        const active = activeRes.data || [];
+        const activeRes = await sellerApi.getActiveListings(1, 500);
+        const active = (activeRes.products || []).map(mapProduct);
         setActiveListings(active);
         
         // Fetch won items
         const wonRes = await sellerApi.getWinnerItems(1, 500);
-        const wonData = wonRes.data || [];
+        const wonData = (wonRes.products || []).map(p => mapProduct(p, true));
         setWonItems(wonData);
         
         // Calculate all stats
@@ -86,8 +99,8 @@ const SellerHomePage = () => {
         // Active Listings
         try {
           setLoading((prev) => ({ ...prev, active: true }));
-          const response = await sellerApi.getActiveListings(1, 500, 'active');
-          const active = response.data || [];
+          const response = await sellerApi.getActiveListings(1, 500);
+          const active = (response.products || []).map(mapProduct);
           setActiveListings(active);
         } catch (err) {
           console.error('Error fetching active listings:', err);
@@ -100,7 +113,7 @@ const SellerHomePage = () => {
         try {
           setLoading((prev) => ({ ...prev, won: true }));
           const response = await sellerApi.getWinnerItems(1, 500);
-          const wonData = response.data || [];
+          const wonData = (response.products || []).map(p => mapProduct(p, true));
           setWonItems(wonData);
         } catch (err) {
           console.error('Error fetching won items:', err);

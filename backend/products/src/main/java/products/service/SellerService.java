@@ -17,9 +17,14 @@ import com.auction.entities.msg.RabbitMessage;
 import com.auction.rabbitmq.services.ReactiveRabbitProducer;
 import com.auction.utils.TimeUtils;
 import com.auctionplatform.seller.grpc.ListingDetail;
+import com.auctionplatform.seller.grpc.OrderDetail;
 import com.auctionplatform.seller.grpc.ProductDetailsResponse;
 import com.auctionplatform.seller.grpc.ProductSummary;
 
+import products.dto.OrderDetailDto;
+import products.dto.OrderRowDto;
+import java.util.HashMap;
+import products.repository.OrderRepository;
 import products.repository.ProductRepository;
 import products.repository.SellerRepository;
 import reactor.core.publisher.Flux;
@@ -30,15 +35,18 @@ public class SellerService {
     private static final Logger log = LoggerFactory.getLogger(SellerService.class);
     private final SellerRepository sellerRepository;
     private final ProductRepository productRepository;
+    private final OrderRepository orderRepository;
     private final AuctionService auctionService;
     private final ReactiveRabbitProducer rabbitProducer;
     
     private static final String NOTIFICATION_QUEUE = "dev";
 
     public SellerService(SellerRepository sellerRepository, ProductRepository productRepository, 
-                        AuctionService auctionService, ReactiveRabbitProducer rabbitProducer) {
+                        OrderRepository orderRepository, AuctionService auctionService, 
+                        ReactiveRabbitProducer rabbitProducer) {
         this.sellerRepository = sellerRepository;
         this.productRepository = productRepository;
+        this.orderRepository = orderRepository;
         this.auctionService = auctionService;
         this.rabbitProducer = rabbitProducer;
     }
@@ -265,6 +273,71 @@ public class SellerService {
     }
 
     // ============================================================================
+    // ORDER MANAGEMENT
+    // ============================================================================
+
+    /**
+     * Get seller's orders with status filter and pagination
+     */
+    public Mono<OrdersResult> getOrders(int sellerId, String statusFilter, int page, int pageSize) {
+        int offset = (page - 1) * pageSize;
+        
+        log.info("Getting orders for sellerId={}, statusFilter={}, page={}, pageSize={}, offset={}", 
+            sellerId, statusFilter, page, pageSize, offset);
+        
+        return Mono.zip(
+            orderRepository.findOrdersBySellerId(sellerId, statusFilter, pageSize, offset)
+                .flatMap(order -> {
+                    log.debug("Found order: id={}, productId={}, buyerId={}, amount={}, status={}", 
+                        order.getId(), order.getProductId(), order.getBuyerId(), order.getAmount(), order.getStatus());
+                    
+                    // Fetch product title
+                    Mono<String> productTitleMono = productRepository.findById(order.getProductId())
+                        .map(Product::getTitle)
+                        .defaultIfEmpty("Unknown Product");
+                    
+                    // Fetch buyer name from users table
+                    Mono<String> buyerNameMono = productRepository.getUserFullName(order.getBuyerId())
+                        .defaultIfEmpty("Buyer #" + order.getBuyerId());
+                    
+                    return Mono.zip(productTitleMono, buyerNameMono)
+                        .map(tuple -> {
+                            String productTitle = tuple.getT1();
+                            String buyerName = tuple.getT2();
+                            return mapOrderToOrderDetail(order, productTitle, buyerName);
+                        });
+                })
+                .collectList()
+                .doOnNext(orders -> log.info("Collected {} orders", orders.size())),
+            orderRepository.countOrdersBySellerId(sellerId, statusFilter)
+                .doOnNext(count -> log.info("Total orders count: {}", count))
+                .defaultIfEmpty(0)
+        ).map(tuple -> {
+            var orders = tuple.getT1();
+            var totalCount = tuple.getT2();
+            log.info("Returning OrdersResult: orders={}, totalCount={}, page={}, pageSize={}", 
+                orders.size(), totalCount, page, pageSize);
+            return new OrdersResult(orders, totalCount, page, pageSize);
+        })
+        .doOnError(e -> log.error("Error getting orders: {}", e.getMessage(), e));
+    }
+    
+    private OrderDetail mapOrderToOrderDetail(com.auction.entities.database.Order order, String productTitle, String buyerName) {
+        return OrderDetail.newBuilder()
+            .setId(order.getId() != null ? order.getId() : 0)
+            .setProductId(order.getProductId() != null ? order.getProductId() : 0)
+            .setProductTitle(productTitle != null ? productTitle : "")
+            .setBuyerId(order.getBuyerId() != null ? order.getBuyerId() : 0)
+            .setBuyerName(buyerName != null ? buyerName : "")
+            .setAmount(order.getAmount() != null ? order.getAmount().floatValue() : 0f)
+            .setStatus(order.getStatus() != null ? order.getStatus() : "")
+            .setPaymentMethod(order.getPaymentMethod() != null ? order.getPaymentMethod() : "")
+            .setCreatedAt(order.getCreatedAt() != null ? TimeUtils.toEpochSecond(order.getCreatedAt()) * 1000 + "" : "")
+            .setUpdatedAt(order.getUpdatedAt() != null ? TimeUtils.toEpochSecond(order.getUpdatedAt()) * 1000 + "" : "")
+            .build();
+    }
+
+    // ============================================================================
     // HELPER METHODS
     // ============================================================================
 
@@ -291,6 +364,21 @@ public class SellerService {
             .setEndsAt(TimeUtils.toEpochSecond(product.getEndsAt()) * 1000 + "")
             .setIsAutoExtend(product.getIsAutoExtend())
             .setAutoExtendSeconds(product.getAutoExtendSeconds())
+            .build();
+    }
+
+    private OrderDetail mapOrderRowToOrderDetail(OrderRowDto dto) {
+        return OrderDetail.newBuilder()
+            .setId(dto.id() != null ? dto.id() : 0)
+            .setProductId(dto.productId() != null ? dto.productId() : 0)
+            .setProductTitle(dto.productTitle() != null ? dto.productTitle() : "")
+            .setBuyerId(dto.buyerId() != null ? dto.buyerId() : 0)
+            .setBuyerName(dto.buyerName() != null ? dto.buyerName() : "")
+            .setAmount(dto.amount() != null ? dto.amount().floatValue() : 0f)
+            .setStatus(dto.status() != null ? dto.status() : "")
+            .setPaymentMethod(dto.paymentMethod() != null ? dto.paymentMethod() : "")
+            .setCreatedAt(dto.createdAt() != null ? TimeUtils.toEpochSecond(dto.createdAt()) * 1000 + "" : "")
+            .setUpdatedAt(dto.updatedAt() != null ? TimeUtils.toEpochSecond(dto.updatedAt()) * 1000 + "" : "")
             .build();
     }
     /**
@@ -384,6 +472,13 @@ public class SellerService {
 
     public record ListingsResult(
         List<ListingDetail> listings,
+        int totalCount,
+        int page,
+        int pageSize
+    ) {}
+
+    public record OrdersResult(
+        List<OrderDetail> orders,
         int totalCount,
         int page,
         int pageSize

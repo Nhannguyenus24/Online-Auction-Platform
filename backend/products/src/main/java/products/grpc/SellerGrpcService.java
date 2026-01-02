@@ -350,17 +350,29 @@ public class SellerGrpcService extends ReactorSellerServiceGrpc.SellerServiceImp
     @Override
     public Mono<OrdersResponse> getOrders(Mono<GetOrdersRequest> request) {
         return request.doOnNext(req -> log.info("Get orders request: {}", JsonUtils.toJson(req)))
-            .map(req -> {
-                // TODO: Implement get orders from orders service
-                return OrdersResponse.newBuilder()
-                    .setTotalCount(0)
-                    .setPage(req.getPage())
-                    .setPageSize(req.getPageSize())
-                    .build();
-            })
-            .doOnNext(resp -> log.info("Get orders response: {}", JsonUtils.toJson(resp)))
+            .flatMap(req ->
+                sellerService.getOrders(
+                    req.getSellerId(),
+                    req.getStatusFilter(),
+                    req.getPage(),
+                    req.getPageSize()
+                )
+                .map(result -> {
+                    log.info("SellerService returned: orders={}, totalCount={}, page={}, pageSize={}", 
+                        result.orders().size(), result.totalCount(), result.page(), result.pageSize());
+                    return OrdersResponse.newBuilder()
+                        .addAllOrders(result.orders())
+                        .setTotalCount(result.totalCount())
+                        .setPage(result.page())
+                        .setPageSize(result.pageSize())
+                        .build();
+                })
+            )
+            .doOnNext(resp -> log.info("Get orders response: ordersCount={}, totalCount={}, page={}, pageSize={}", 
+                resp.getOrdersCount(), resp.getTotalCount(), resp.getPage(), resp.getPageSize()))
             .onErrorResume(e -> {
                 log.error("Get orders error: {}", e.getMessage(), e);
+                e.printStackTrace();
                 return Mono.just(OrdersResponse.newBuilder().build());
             });
     }
