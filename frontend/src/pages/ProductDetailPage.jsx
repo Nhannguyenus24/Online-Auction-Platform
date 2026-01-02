@@ -57,6 +57,7 @@ import RichTextEditor from '../components/RichTextEditor';
 import Page from '../components/Page';
 import { formatPrice } from '../utils/formatNumber';
 import { productApi } from '../services/productApi';
+import { watchlistApi } from '../services/watchlistApi';
 
 
 function ProductDetailPage() {
@@ -155,6 +156,13 @@ function ProductDetailPage() {
           setProduct(mappedProduct);
           setProductDescription(mappedProduct.description);
 
+          // Set watchlist status from API response
+          if (isAuthenticated && apiProduct.isInWatchlist !== undefined) {
+            setIsWatchlisted(apiProduct.isInWatchlist);
+          } else {
+            setIsWatchlisted(false);
+          }
+
           // Set images for selection
           if (mappedProduct.images.length > 0) {
             setSelectedImage(0);
@@ -172,7 +180,7 @@ function ProductDetailPage() {
     };
 
     fetchProduct();
-  }, [productId]);
+  }, [productId, isAuthenticated]);
 
   // Fetch bid history, questions, and related products
   useEffect(() => {
@@ -481,15 +489,20 @@ function ProductDetailPage() {
     if (!productId) return;
     
     try {
-      // TODO: Implement watchlist toggle API call
-      // if (isWatchlisted) {
-      //   await productApi.removeFromWatchlist(parseInt(productId));
-      // } else {
-      //   await productApi.addToWatchlist(parseInt(productId));
-      // }
-      setIsWatchlisted(!isWatchlisted);
+      if (isWatchlisted) {
+        const response = await watchlistApi.removeFromWatchlist(parseInt(productId));
+        if (response.success) {
+          setIsWatchlisted(false);
+        }
+      } else {
+        const response = await watchlistApi.addToWatchlist(parseInt(productId));
+        if (response.success) {
+          setIsWatchlisted(true);
+        }
+      }
     } catch (err) {
       console.error('Error toggling watchlist:', err);
+      alert(err.response?.data?.message || err.message || 'Failed to update watchlist');
     }
   };
 
