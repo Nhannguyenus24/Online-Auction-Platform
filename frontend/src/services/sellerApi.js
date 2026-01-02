@@ -280,6 +280,73 @@ export const sellerApi = {
         throw error;
       });
   },
+
+  /**
+   * Create auction listing
+   * Requires seller authentication
+   * @param {Object} listingData - Listing data
+   * @param {string} listingData.title - Product title
+   * @param {string} listingData.description - Product description (HTML)
+   * @param {number|string} listingData.categoryId - Category ID (child category)
+   * @param {number|string} listingData.startingPrice - Starting price
+   * @param {number|string} listingData.stepPrice - Bid increment (step price)
+   * @param {string} listingData.startsAt - Start date/time (format: yyyy-MM-dd'T'HH:mm:ss)
+   * @param {string} listingData.endsAt - End date/time (format: yyyy-MM-dd'T'HH:mm:ss)
+   * @param {number|string|null} listingData.buyNowPrice - Optional buy now price
+   * @param {boolean|string} listingData.isAutoExtend - Optional auto-extend flag
+   * @param {number|string|null} listingData.autoExtendSeconds - Optional auto-extend duration in seconds
+   * @param {File[]} listingData.images - Array of image files (max 4)
+   * @returns {Promise} - { success, message, productId, imageUrls }
+   */
+  createAuctionListing: (listingData) => {
+    const formData = new FormData();
+    
+    // Add text fields
+    formData.append('title', listingData.title);
+    formData.append('description', listingData.description);
+    formData.append('categoryId', String(listingData.categoryId));
+    formData.append('startingPrice', String(listingData.startingPrice));
+    formData.append('stepPrice', String(listingData.stepPrice));
+    formData.append('startsAt', listingData.startsAt);
+    formData.append('endsAt', listingData.endsAt);
+    
+    // Add optional fields
+    if (listingData.buyNowPrice != null && listingData.buyNowPrice !== '') {
+      formData.append('buyNowPrice', String(listingData.buyNowPrice));
+    }
+    if (listingData.isAutoExtend != null) {
+      formData.append('isAutoExtend', String(listingData.isAutoExtend));
+    }
+    if (listingData.autoExtendSeconds != null && listingData.autoExtendSeconds !== '') {
+      formData.append('autoExtendSeconds', String(listingData.autoExtendSeconds));
+    }
+    
+    // Add image files
+    if (listingData.images && listingData.images.length > 0) {
+      listingData.images.forEach((imageFile) => {
+        formData.append('images', imageFile);
+      });
+    }
+    
+    return axiosInstance
+      .post('/api/seller/listings', formData)
+      .then((response) => {
+        if (response.data.success) {
+          return {
+            success: true,
+            message: response.data.message || 'Auction listing created successfully',
+            productId: response.data.productId,
+            imageUrls: response.data.imageUrls || [],
+          };
+        } else {
+          throw new Error(response.data.message || 'Failed to create auction listing');
+        }
+      })
+      .catch((error) => {
+        console.error('Create auction listing error:', error);
+        throw error;
+      });
+  },
 };
 
 export default sellerApi;

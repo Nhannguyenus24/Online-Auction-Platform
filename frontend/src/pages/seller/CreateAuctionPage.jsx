@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useForm, Controller } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import { useSnackbar } from 'notistack';
 import * as yup from 'yup';
 import {
   Box,
@@ -13,7 +16,6 @@ import {
   Grid,
   FormControlLabel,
   Switch,
-  Alert,
   Divider,
   Paper,
   Chip,
@@ -31,6 +33,7 @@ import Page from '../../components/Page';
 import RichTextEditor from '../../components/RichTextEditor';
 import CategorySelector from '../../components/CategorySelector';
 import { formatPrice } from '../../utils/formatNumber';
+import { sellerApi } from '../../services/sellerApi';
 
 // Validation schema
 const auctionSchema = yup.object({
@@ -73,7 +76,67 @@ const auctionSchema = yup.object({
     .required('At least 3 images are required'),
   parentCategory: yup.string().required('Parent category is required'),
   childCategory: yup.string().required('Subcategory is required'),
+  startsAt: yup
+    .string()
+    .required('Start date and time is required')
+    .test('valid-datetime', 'Invalid date format', function(value) {
+      if (!value) return false;
+      const date = new Date(value);
+      return !isNaN(date.getTime());
+    })
+    .test('future-date', 'Start date must be in the future', function(value) {
+      if (!value) return false;
+      const date = new Date(value);
+      return date > new Date();
+    }),
+  endsAt: yup
+    .string()
+    .required('End date and time is required')
+    .test('valid-datetime', 'Invalid date format', function(value) {
+      if (!value) return false;
+      const date = new Date(value);
+      return !isNaN(date.getTime());
+    })
+    .test('after-start', 'End date must be after start date', function(value) {
+      if (!value || !this.parent.startsAt) return false;
+      const endDate = new Date(value);
+      const startDate = new Date(this.parent.startsAt);
+      return endDate > startDate;
+    }),
 });
+
+// Helper function to format date for input[type="datetime-local"]
+const formatDateTimeLocal = (date) => {
+  if (!date) return '';
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
+// Helper function to convert datetime-local format to API format
+const formatDateTimeForAPI = (dateTimeLocal) => {
+  if (!dateTimeLocal) return '';
+  // datetime-local format: YYYY-MM-DDTHH:mm
+  // API format: yyyy-MM-dd'T'HH:mm:ss
+  return dateTimeLocal + ':00';
+};
+
+// Set default dates: start = now + 1 hour, end = now + 7 days
+const getDefaultStartDate = () => {
+  const date = new Date();
+  date.setHours(date.getHours() + 1);
+  return formatDateTimeLocal(date);
+};
+
+const getDefaultEndDate = () => {
+  const date = new Date();
+  date.setDate(date.getDate() + 7);
+  return formatDateTimeLocal(date);
+};
 
 const defaultValues = {
   title: '',
@@ -84,45 +147,34 @@ const defaultValues = {
   autoExtend: false,
   parentCategory: '',
   childCategory: '',
+  startsAt: getDefaultStartDate(),
+  endsAt: getDefaultEndDate(),
 };
 
 const SellerCreateAuctionPage = () => {
   const navigate = useNavigate();
-  const [formValues, setFormValues] = useState(defaultValues);
-  const [formErrors, setFormErrors] = useState({});
-  const [submitting, setSubmitting] = useState(false);
-  const [status, setStatus] = useState(null);
+  const { enqueueSnackbar } = useSnackbar();
   const [images, setImages] = useState([]); // Array of { file: File, preview: string }
 
-  const validateField = async (field, valueOverride) => {
-    if (!auctionSchema.fields[field]) return;
-    try {
-      await auctionSchema.validateAt(field, {
-        ...formValues,
-        [field]: valueOverride ?? formValues[field],
-      });
-      setFormErrors((prev) => ({ ...prev, [field]: '' }));
-    } catch (error) {
-      setFormErrors((prev) => ({ ...prev, [field]: error.message }));
-    }
-  };
+  const {
+    control,
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors, isSubmitting },
+    trigger,
+  } = useForm({
+    resolver: yupResolver(auctionSchema),
+    defaultValues,
+    mode: 'onBlur',
+    reValidateMode: 'onBlur',
+  });
 
-  const validateForm = async () => {
-    try {
-      await auctionSchema.validate({ ...formValues, images }, { abortEarly: false });
-      setFormErrors({});
-      return true;
-    } catch (error) {
-      const formattedErrors = error.inner.reduce((acc, current) => {
-        if (current.path && !acc[current.path]) {
-          acc[current.path] = current.message;
-        }
-        return acc;
-      }, {});
-      setFormErrors((prev) => ({ ...prev, ...formattedErrors }));
-      return false;
-    }
-  };
+  // Only watch specific fields that need to display formatted values
+  const startingPrice = watch('startingPrice');
+  const bidIncrement = watch('bidIncrement');
+  const buyNowPrice = watch('buyNowPrice');
 
   const handleImageUpload = (event) => {
     const files = Array.from(event.target.files);
@@ -132,86 +184,79 @@ const SellerCreateAuctionPage = () => {
       id: Date.now() + Math.random(),
     }));
 
-    setImages((prev) => [...prev, ...newImages]);
+    const updatedImages = [...images, ...newImages];
+    setImages(updatedImages);
     
-    // Validate images count
-    if (images.length + newImages.length < 3) {
-      setFormErrors((prev) => ({
-        ...prev,
-        images: `Please upload at least ${3 - (images.length + newImages.length)} more image(s)`,
-      }));
-    } else {
-      setFormErrors((prev) => ({ ...prev, images: '' }));
-    }
+    // Update form value for validation
+    setValue('images', updatedImages, { shouldValidate: true });
   };
 
   const handleRemoveImage = (imageId) => {
-    setImages((prev) => {
-      const updated = prev.filter((img) => img.id !== imageId);
-      // Clean up object URLs to prevent memory leaks
-      const removed = prev.find((img) => img.id === imageId);
-      if (removed) {
-        URL.revokeObjectURL(removed.preview);
-      }
-      
-      // Validate images count
-      if (updated.length < 3) {
-        setFormErrors((prev) => ({
-          ...prev,
-          images: `Please upload at least ${3 - updated.length} more image(s)`,
-        }));
-      } else {
-        setFormErrors((prev) => ({ ...prev, images: '' }));
-      }
-      
-      return updated;
-    });
+    const removed = images.find((img) => img.id === imageId);
+    if (removed) {
+      URL.revokeObjectURL(removed.preview);
+    }
+    
+    const updated = images.filter((img) => img.id !== imageId);
+    setImages(updated);
+    
+    // Update form value for validation
+    setValue('images', updated, { shouldValidate: true });
   };
 
-  const handleChange = async (event) => {
-    const { name, value, checked, type } = event.target;
-    const nextValue = type === 'checkbox' ? checked : value === '' ? '' : type === 'number' ? Number(value) : value;
-
-    setFormValues((prev) => ({
-      ...prev,
-      [name]: nextValue,
-    }));
-
-    await validateField(name, nextValue);
-  };
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    const isValid = await validateForm();
-    if (!isValid) {
-      // Scroll to first error
-      const firstErrorField = Object.keys(formErrors)[0];
-      if (firstErrorField) {
-        const element = document.querySelector(`[name="${firstErrorField}"]`);
-        if (element) {
-          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
+  const onSubmit = async (data) => {
+    // Scroll to first error if any
+    const firstErrorField = Object.keys(errors)[0];
+    if (firstErrorField) {
+      const element = document.querySelector(`[name="${firstErrorField}"]`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
+      enqueueSnackbar('Vui lòng kiểm tra lại các trường bắt buộc', { variant: 'warning' });
       return;
     }
 
-    setSubmitting(true);
-    setStatus(null);
-
-    // Will be implemented with API call later
-    // Images will be sent as FormData
-    setTimeout(() => {
-      setSubmitting(false);
-      setStatus('success');
-      console.log('Form submitted:', {
-        ...formValues,
+    try {
+      // Prepare data for API
+      const listingData = {
+        title: data.title,
+        description: data.description,
+        categoryId: data.childCategory, // Use child category ID
+        startingPrice: Number(data.startingPrice),
+        stepPrice: Number(data.bidIncrement),
+        startsAt: formatDateTimeForAPI(data.startsAt),
+        endsAt: formatDateTimeForAPI(data.endsAt),
+        buyNowPrice: data.buyNowPrice ? Number(data.buyNowPrice) : null,
+        isAutoExtend: data.autoExtend,
+        autoExtendSeconds: data.autoExtend ? 600 : null, // Default 10 minutes (600 seconds)
         images: images.map((img) => img.file),
+      };
+
+      const response = await sellerApi.createAuctionListing(listingData);
+      
+      console.log('Create auction response:', response);
+      
+      if (response.success) {
+        enqueueSnackbar('Create auction listing successfully!', { 
+          variant: 'success',
+          autoHideDuration: 3000,
+        });
+        // Navigate to seller home after success
+        setTimeout(() => {
+          navigate('/seller/home');
+        }, 3000);
+      } else {
+        enqueueSnackbar(response.message || 'Create auction listing failed', { 
+          variant: 'error',
+        });
+      }
+    } catch (error) {
+      console.error('Error creating auction listing:', error);
+      const errorMsg = error.response?.data?.message || error.message || 'Create auction listing failed. Please try again.';
+      enqueueSnackbar(errorMsg, { 
+        variant: 'error',
       });
-      // Navigate to product detail or seller home after success
-      setTimeout(() => {
-        navigate('/seller/home');
-      }, 2000);
-    }, 1500);
+    }
   };
 
   const handleCancel = () => {
@@ -246,22 +291,14 @@ const SellerCreateAuctionPage = () => {
 
         <Card>
           <CardContent sx={{ p: 4 }}>
-            <Stack component="form" spacing={3} onSubmit={handleSubmit}>
-              {status === 'success' && (
-                <Alert severity="success">
-                  Auction created successfully! Redirecting...
-                </Alert>
-              )}
-
+            <Stack component="form" spacing={3} onSubmit={handleSubmit(onSubmit)}>
               {/* Product Title */}
               <TextField
                 fullWidth
                 label="Product Title"
-                name="title"
-                value={formValues.title}
-                onChange={handleChange}
-                error={!!formErrors.title}
-                helperText={formErrors.title}
+                {...register('title')}
+                error={!!errors.title}
+                helperText={errors.title?.message}
                 required
                 placeholder="e.g., Luxury Swiss Automatic Watch - Rose Gold"
               />
@@ -273,12 +310,37 @@ const SellerCreateAuctionPage = () => {
                 <Typography variant="h6" gutterBottom fontWeight={600}>
                   Product Category
                 </Typography>
-                <CategorySelector
-                  parentCategory={formValues.parentCategory}
-                  childCategory={formValues.childCategory}
-                  onChange={handleChange}
-                  error={formErrors.parentCategory || formErrors.childCategory}
-                  helperText="Select the most appropriate category for your product"
+                <Controller
+                  name="parentCategory"
+                  control={control}
+                  render={({ field: parentField }) => (
+                    <Controller
+                      name="childCategory"
+                      control={control}
+                      render={({ field: childField }) => (
+                        <CategorySelector
+                          parentCategory={parentField.value}
+                          childCategory={childField.value}
+                          onChange={(event) => {
+                            const { name, value } = event.target;
+                            if (name === 'parentCategory') {
+                              parentField.onChange(value);
+                              // Reset child category when parent changes
+                              if (childField.value) {
+                                childField.onChange('');
+                              }
+                              trigger('parentCategory');
+                            } else {
+                              childField.onChange(value);
+                              trigger('childCategory');
+                            }
+                          }}
+                          error={errors.parentCategory?.message || errors.childCategory?.message}
+                          helperText="Select the most appropriate category for your product"
+                        />
+                      )}
+                    />
+                  )}
                 />
               </Box>
 
@@ -297,16 +359,16 @@ const SellerCreateAuctionPage = () => {
                 <Box
                   sx={{
                     border: '2px dashed',
-                    borderColor: formErrors.images ? 'error.main' : 'grey.300',
+                    borderColor: errors.images ? 'error.main' : images.length >= 3 ? 'success.main' : 'grey.300',
                     borderRadius: 2,
                     p: 3,
                     textAlign: 'center',
-                    bgcolor: 'grey.50',
+                    bgcolor: images.length >= 3 ? 'success.50' : 'grey.50',
                     mb: 2,
                     transition: 'all 0.3s',
                     '&:hover': {
                       borderColor: 'primary.main',
-                      bgcolor: 'primary.50',
+                      bgcolor: images.length >= 3 ? 'success.100' : 'primary.50',
                     },
                   }}
                 >
@@ -320,12 +382,12 @@ const SellerCreateAuctionPage = () => {
                   />
                   <label htmlFor="image-upload">
                     <Button
-                      variant="outlined"
+                      variant={images.length >= 3 ? 'contained' : 'outlined'}
                       component="span"
                       startIcon={<CloudUpload />}
                       sx={{ mb: 1 }}
                     >
-                      Upload Images
+                      {images.length > 0 ? 'Add More Images' : 'Upload Images'}
                     </Button>
                   </label>
                   <Typography variant="body2" color="text.secondary">
@@ -337,99 +399,144 @@ const SellerCreateAuctionPage = () => {
                 </Box>
 
                 {/* Error Message */}
-                {formErrors.images && (
-                  <Alert severity="error" sx={{ mb: 2 }}>
-                    {formErrors.images}
-                  </Alert>
+                {errors.images && (
+                  <Typography variant="body2" color="error" sx={{ mb: 2, fontWeight: 500 }}>
+                    {errors.images.message}
+                  </Typography>
                 )}
 
                 {/* Images Preview Grid */}
                 {images.length > 0 && (
-                  <Grid container spacing={2} sx={{ mt: 1 }}>
-                    {images.map((image, index) => (
-                      <Grid item xs={6} sm={4} md={3} key={image.id}>
-                        <Box
-                          sx={{
-                            position: 'relative',
-                            paddingTop: '75%',
-                            borderRadius: 2,
-                            overflow: 'hidden',
-                            border: '1px solid',
-                            borderColor: 'divider',
-                            bgcolor: 'grey.100',
-                          }}
-                        >
+                  <Box sx={{ mt: 3 }}>
+                    <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2, fontWeight: 600 }}>
+                      Uploaded Images ({images.length})
+                    </Typography>
+                    <Grid container spacing={2}>
+                      {images.map((image, index) => (
+                        <Grid item xs={6} sm={4} md={3} key={image.id}>
                           <Box
-                            component="img"
-                            src={image.preview}
-                            alt={`Preview ${index + 1}`}
                             sx={{
-                              position: 'absolute',
-                              top: 0,
-                              left: 0,
-                              width: '100%',
-                              height: '100%',
-                              objectFit: 'cover',
+                              position: 'relative',
+                              border: '2px solid',
+                              borderColor: index === 0 ? 'primary.main' : 'divider',
+                              borderRadius: 2,
+                              overflow: 'hidden',
+                              bgcolor: 'grey.100',
                             }}
-                          />
-                          {index === 0 && (
-                            <Chip
-                              label="Main"
-                              size="small"
-                              color="primary"
+                          >
+                            <img
+                              src={image.preview}
+                              alt={`Preview ${index + 1}`}
+                              style={{
+                                width: '100%',
+                                height: '200px',
+                                objectFit: 'cover',
+                                display: 'block',
+                              }}
+                            />
+                            {index === 0 && (
+                              <Chip
+                                label="Main"
+                                size="small"
+                                color="primary"
+                                sx={{
+                                  position: 'absolute',
+                                  top: 8,
+                                  left: 8,
+                                  fontWeight: 'bold',
+                                }}
+                              />
+                            )}
+                            <IconButton
+                              onClick={() => handleRemoveImage(image.id)}
                               sx={{
                                 position: 'absolute',
                                 top: 8,
-                                left: 8,
-                                fontWeight: 'bold',
+                                right: 8,
+                                bgcolor: 'rgba(255,255,255,0.9)',
+                                '&:hover': {
+                                  bgcolor: 'error.main',
+                                  color: 'white',
+                                },
                               }}
-                            />
-                          )}
-                          <IconButton
-                            onClick={() => handleRemoveImage(image.id)}
-                            sx={{
-                              position: 'absolute',
-                              top: 8,
-                              right: 8,
-                              bgcolor: 'rgba(255,255,255,0.9)',
-                              '&:hover': {
-                                bgcolor: 'error.main',
+                              size="small"
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                            <Box
+                              sx={{
+                                p: 1,
+                                bgcolor: 'rgba(0,0,0,0.7)',
                                 color: 'white',
-                              },
-                            }}
-                            size="small"
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                          <Box
-                            sx={{
-                              position: 'absolute',
-                              bottom: 0,
-                              left: 0,
-                              right: 0,
-                              bgcolor: 'rgba(0,0,0,0.6)',
-                              color: 'white',
-                              p: 0.5,
-                            }}
-                          >
-                            <Typography variant="caption" noWrap>
-                              {image.file.name}
-                            </Typography>
+                              }}
+                            >
+                              <Typography variant="caption" noWrap sx={{ display: 'block' }}>
+                                {image.file.name}
+                              </Typography>
+                            </Box>
                           </Box>
-                        </Box>
-                      </Grid>
-                    ))}
-                  </Grid>
+                        </Grid>
+                      ))}
+                    </Grid>
+                  </Box>
                 )}
 
                 {/* Images Count Info */}
-                <Typography
-                  variant="caption"
-                  color={images.length >= 3 ? 'success.main' : 'text.secondary'}
-                  sx={{ mt: 1, display: 'block' }}
-                >
-                  {images.length} / 3 images uploaded {images.length >= 3 && '✓'}
+                <Box sx={{ mt: 2 }}>
+                  <Typography
+                    variant="body2"
+                    color={images.length >= 3 ? 'success.main' : 'text.secondary'}
+                    sx={{
+                      fontWeight: images.length >= 3 ? 600 : 400,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                    }}
+                  >
+                    {images.length >= 3 && '✓ '}
+                    {images.length} / 3 images uploaded
+                    {images.length >= 3 && ' (Minimum requirement met)'}
+                  </Typography>
+                </Box>
+              </Box>
+
+              <Divider />
+
+              {/* Auction Dates Section */}
+              <Box>
+                <Typography variant="h6" gutterBottom fontWeight={600}>
+                  Auction Schedule
                 </Typography>
+                <Grid container spacing={3}>
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      label="Start Date & Time"
+                      type="datetime-local"
+                      {...register('startsAt')}
+                      error={!!errors.startsAt}
+                      helperText={errors.startsAt?.message || 'When the auction will start accepting bids'}
+                      required
+                      InputLabelProps={{
+                        shrink: true,
+                      }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      label="End Date & Time"
+                      type="datetime-local"
+                      {...register('endsAt')}
+                      error={!!errors.endsAt}
+                      helperText={errors.endsAt?.message || 'When the auction will end'}
+                      required
+                      InputLabelProps={{
+                        shrink: true,
+                      }}
+                    />
+                  </Grid>
+                </Grid>
               </Box>
 
               <Divider />
@@ -444,20 +551,18 @@ const SellerCreateAuctionPage = () => {
                     <TextField
                       fullWidth
                       label="Starting Price (VND)"
-                      name="startingPrice"
                       type="number"
-                      value={formValues.startingPrice}
-                      onChange={handleChange}
-                      error={!!formErrors.startingPrice}
-                      helperText={formErrors.startingPrice || 'Minimum bid amount'}
+                      {...register('startingPrice', { valueAsNumber: true })}
+                      error={!!errors.startingPrice}
+                      helperText={errors.startingPrice?.message || 'Minimum bid amount'}
                       required
                       InputProps={{
                         inputProps: { min: 1000, step: 1000 },
                       }}
                     />
-                    {formValues.startingPrice && (
+                    {startingPrice && (
                       <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                        {formatPrice(Number(formValues.startingPrice))}
+                        {formatPrice(Number(startingPrice))}
                       </Typography>
                     )}
                   </Grid>
@@ -465,20 +570,18 @@ const SellerCreateAuctionPage = () => {
                     <TextField
                       fullWidth
                       label="Bid Increment (VND)"
-                      name="bidIncrement"
                       type="number"
-                      value={formValues.bidIncrement}
-                      onChange={handleChange}
-                      error={!!formErrors.bidIncrement}
-                      helperText={formErrors.bidIncrement || 'Minimum increase per bid'}
+                      {...register('bidIncrement', { valueAsNumber: true })}
+                      error={!!errors.bidIncrement}
+                      helperText={errors.bidIncrement?.message || 'Minimum increase per bid'}
                       required
                       InputProps={{
                         inputProps: { min: 1000, step: 1000 },
                       }}
                     />
-                    {formValues.bidIncrement && (
+                    {bidIncrement && (
                       <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                        {formatPrice(Number(formValues.bidIncrement))}
+                        {formatPrice(Number(bidIncrement))}
                       </Typography>
                     )}
                   </Grid>
@@ -486,19 +589,17 @@ const SellerCreateAuctionPage = () => {
                     <TextField
                       fullWidth
                       label="Buy Now Price (VND)"
-                      name="buyNowPrice"
                       type="number"
-                      value={formValues.buyNowPrice}
-                      onChange={handleChange}
-                      error={!!formErrors.buyNowPrice}
-                      helperText={formErrors.buyNowPrice || 'Optional - allows instant purchase'}
+                      {...register('buyNowPrice', { valueAsNumber: true })}
+                      error={!!errors.buyNowPrice}
+                      helperText={errors.buyNowPrice?.message || 'Optional - allows instant purchase'}
                       InputProps={{
                         inputProps: { min: 0, step: 1000 },
                       }}
                     />
-                    {formValues.buyNowPrice && (
+                    {buyNowPrice && (
                       <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                        {formatPrice(Number(formValues.buyNowPrice))}
+                        {formatPrice(Number(buyNowPrice))}
                       </Typography>
                     )}
                   </Grid>
@@ -515,13 +616,23 @@ const SellerCreateAuctionPage = () => {
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                   Use the rich text editor to format your product description. Minimum 20 characters of text content.
                 </Typography>
-                <RichTextEditor
-                  value={formValues.description}
-                  onChange={handleChange}
-                  error={!!formErrors.description}
-                  helperText={formErrors.description || 'Minimum 20 characters of text content'}
-                  placeholder="Describe your product in detail..."
-                  minHeight={300}
+                <Controller
+                  name="description"
+                  control={control}
+                  render={({ field }) => (
+                    <RichTextEditor
+                      value={field.value}
+                      onChange={(event) => {
+                        const value = event.target?.value || event.target?.innerHTML || '';
+                        field.onChange(value);
+                      }}
+                      onBlur={field.onBlur}
+                      error={!!errors.description}
+                      helperText={errors.description?.message || 'Minimum 20 characters of text content'}
+                      placeholder="Describe your product in detail..."
+                      minHeight={300}
+                    />
+                  )}
                 />
               </Box>
 
@@ -541,26 +652,31 @@ const SellerCreateAuctionPage = () => {
                     borderColor: 'divider',
                   }}
                 >
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        name="autoExtend"
-                        checked={formValues.autoExtend}
-                        onChange={handleChange}
-                        color="primary"
+                  <Controller
+                    name="autoExtend"
+                    control={control}
+                    render={({ field }) => (
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={field.value}
+                            onChange={field.onChange}
+                            color="primary"
+                          />
+                        }
+                        label={
+                          <Box>
+                            <Typography variant="body1" fontWeight={500}>
+                              Auto-Extend Auction
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              If enabled, the auction will automatically extend by 10 minutes when a new bid is placed within the last 5 minutes before the end time.
+                              This helps prevent last-second bidding wars.
+                            </Typography>
+                          </Box>
+                        }
                       />
-                    }
-                    label={
-                      <Box>
-                        <Typography variant="body1" fontWeight={500}>
-                          Auto-Extend Auction
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          If enabled, the auction will automatically extend by 10 minutes when a new bid is placed within the last 5 minutes before the end time.
-                          This helps prevent last-second bidding wars.
-                        </Typography>
-                      </Box>
-                    }
+                    )}
                   />
                 </Paper>
               </Box>
@@ -572,17 +688,17 @@ const SellerCreateAuctionPage = () => {
                   variant="contained"
                   size="large"
                   startIcon={<Save />}
-                  disabled={submitting}
+                  disabled={isSubmitting}
                   sx={{ minWidth: 150 }}
                 >
-                  {submitting ? 'Creating...' : 'Create Auction'}
+                  {isSubmitting ? 'Creating...' : 'Create Auction'}
                 </Button>
                 <Button
                   variant="outlined"
                   size="large"
                   startIcon={<Cancel />}
                   onClick={handleCancel}
-                  disabled={submitting}
+                  disabled={isSubmitting}
                 >
                   Cancel
                 </Button>

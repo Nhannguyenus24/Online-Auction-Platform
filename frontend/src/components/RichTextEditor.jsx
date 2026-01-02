@@ -18,7 +18,7 @@ import {
   Image as ImageIcon,
 } from '@mui/icons-material';
 
-const RichTextEditor = ({ value, onChange, error, helperText, placeholder, minHeight = 200, disabled = false }) => {
+const RichTextEditor = ({ value, onChange, onBlur, error, helperText, placeholder, minHeight = 200, disabled = false }) => {
   const editorRef = useRef(null);
   const [isFocused, setIsFocused] = useState(false);
   const lastValueRef = useRef(value || '');
@@ -182,7 +182,12 @@ const RichTextEditor = ({ value, onChange, error, helperText, placeholder, minHe
           onInput={handleInput}
           onPaste={disabled ? undefined : handlePaste}
           onFocus={() => !disabled && setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
+          onBlur={(e) => {
+            setIsFocused(false);
+            if (onBlur) {
+              onBlur(e);
+            }
+          }}
           sx={{
             minHeight,
             p: 2,

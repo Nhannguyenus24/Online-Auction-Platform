@@ -9,9 +9,16 @@ const axiosInstance = axios.create({
 
 axiosInstance.interceptors.request.use(
   (config) => {
-    config.headers = {
-      "Content-Type": "application/json",
-    };
+    // For FormData, let browser set Content-Type with boundary
+    // Otherwise, set to application/json
+    if (!(config.data instanceof FormData)) {
+      config.headers = {
+        "Content-Type": "application/json",
+      };
+    } else {
+      // For FormData, don't set Content-Type - browser will set it with boundary
+      config.headers = config.headers || {};
+    }
 
     const accessToken = localStorage.getItem("accessToken");
     if (accessToken) {
