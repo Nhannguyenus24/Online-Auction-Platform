@@ -58,6 +58,13 @@
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+
+		<!-- Loki Logback Appender for centralized logging -->
+		<dependency>
+			<groupId>com.github.loki4j</groupId>
+			<artifactId>loki-logback-appender</artifactId>
+			<version>2.0.2</version>
+		</dependency>
 	</dependencies>
 
 	<build>

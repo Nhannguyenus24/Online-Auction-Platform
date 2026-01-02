@@ -107,6 +107,14 @@
 			<artifactId>grpc-services</artifactId>
 			<version>${grpc.version}</version>
 		</dependency>
+
+		<!-- Loki Logback Appender for centralized logging -->
+		<dependency>
+			<groupId>com.github.loki4j</groupId>
+			<artifactId>loki-logback-appender</artifactId>
+			<version>2.0.2</version>
+		</dependency>
+
 		<!-- Testing -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

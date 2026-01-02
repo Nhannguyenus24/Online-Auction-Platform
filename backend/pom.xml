@@ -17,6 +17,7 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<spring-boot.version>3.5.7</spring-boot.version>
 		<spring-cloud.version>2025.0.0</spring-cloud.version>
+		<loki-logback.version>2.0.2</loki-logback.version>
 	</properties>
 
 	<modules>
@@ -46,6 +47,11 @@
 				<version>${spring-cloud.version}</version>
 				<type>pom</type>
 				<scope>import</scope>
+			</dependency>
+			<dependency>
+				<groupId>com.github.loki4j</groupId>
+				<artifactId>loki-logback-appender</artifactId>
+				<version>${loki-logback.version}</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
