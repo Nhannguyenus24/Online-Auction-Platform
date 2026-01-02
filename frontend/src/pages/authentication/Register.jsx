@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -24,6 +24,7 @@ import {
 import { VerifiedUser, Google } from "@mui/icons-material";
 import AuthLayout from "../../layouts/AuthLayout";
 import { authApi } from "../../utils/api";
+import ReCaptcha from "../../components/ReCaptcha";
 
 const registerSchema = yup.object({
   firstName: yup.string().required("First name is required."),
@@ -41,6 +42,7 @@ const registerSchema = yup.object({
     .oneOf([yup.ref("password"), null], "Passwords must match.")
     .required("Confirm your password."),
   acceptTerms: yup.boolean().oneOf([true], "You must accept the Terms of Service."),
+  recaptcha: yup.string().required("Please complete the reCAPTCHA verification."),
 });
 
 const defaultValues = {
@@ -50,6 +52,7 @@ const defaultValues = {
   password: "",
   confirmPassword: "",
   acceptTerms: false,
+  recaptcha: "",
 };
 
 const Register = () => {
@@ -59,6 +62,7 @@ const Register = () => {
     control,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: yupResolver(registerSchema),
@@ -68,6 +72,8 @@ const Register = () => {
 
   const [status, setStatus] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
+  const [recaptchaValue, setRecaptchaValue] = useState(null);
+  const recaptchaRef = useRef(null);
 
   // OTP verification states
   const [showOTPDialog, setShowOTPDialog] = useState(false);
@@ -94,9 +100,25 @@ const Register = () => {
     setTimeLeft(300); // Reset timer to 5 minutes
   };
 
+  const handleRecaptchaChange = (value) => {
+    setRecaptchaValue(value);
+    setValue("recaptcha", value || "", { shouldValidate: true });
+  };
+
+  const handleRecaptchaExpired = () => {
+    setRecaptchaValue(null);
+    setValue("recaptcha", "", { shouldValidate: true });
+  };
+
   const onSubmit = async (data) => {
     setStatus(null);
     setErrorMessage("");
+
+    if (!recaptchaValue) {
+      setErrorMessage("Please complete the reCAPTCHA verification.");
+      setStatus("error");
+      return;
+    }
 
     try {
       const response = await authApi.register({
@@ -105,10 +127,15 @@ const Register = () => {
         fullName: `${data.firstName} ${data.lastName}`,
         phoneNumber: "",
         address: "",
+        recaptchaToken: recaptchaValue,
       });
 
       setRegisterData(response.data || response);
       simulateAuth();
+      // Reset reCAPTCHA on success
+      if (recaptchaRef.current?.reset) {
+        recaptchaRef.current.reset();
+      }
     } catch (error) {
       setErrorMessage(
         error.response?.data?.message ||
@@ -116,6 +143,12 @@ const Register = () => {
           "Registration failed. Please try again."
       );
       setStatus("error");
+      // Reset reCAPTCHA on error
+      if (recaptchaRef.current?.reset) {
+        recaptchaRef.current.reset();
+      }
+      setRecaptchaValue(null);
+      setValue("recaptcha", "", { shouldValidate: true });
     }
   };
 
@@ -365,6 +398,17 @@ const Register = () => {
             </>
           )}
         />
+
+        <ReCaptcha
+          onChange={handleRecaptchaChange}
+          onExpired={handleRecaptchaExpired}
+          resetRef={recaptchaRef}
+        />
+        {errors.recaptcha && (
+          <Alert severity="error" sx={{ py: 0.5, mt: -1 }}>
+            {errors.recaptcha.message}
+          </Alert>
+        )}
 
         <Button type="submit" variant="contained" size="medium" disabled={isSubmitting}>
           {isSubmitting ? "Creating account..." : "Create account"}

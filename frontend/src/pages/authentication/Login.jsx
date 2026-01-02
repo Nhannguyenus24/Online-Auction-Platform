@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -18,14 +18,16 @@ import { Gavel, Google, Visibility, VisibilityOff } from "@mui/icons-material";
 import AuthLayout from "../../layouts/AuthLayout";
 import { authApi } from "../../utils/api";
 import { useAuth } from "../../hooks/useAuth";
+import ReCaptcha from "../../components/ReCaptcha";
 
 const loginSchema = yup.object({
   email: yup.string().email("Enter a valid email address.").required("Email is required."),
   password: yup.string().required("Password is required."),
   remember: yup.boolean(),
+  recaptcha: yup.string().required("Please complete the reCAPTCHA verification."),
 });
 
-const defaultValues = { email: "", password: "", remember: true };
+const defaultValues = { email: "", password: "", remember: true, recaptcha: "" };
 
 const Login = () => {
   const navigate = useNavigate();
@@ -33,10 +35,13 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [status, setStatus] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
+  const [recaptchaValue, setRecaptchaValue] = useState(null);
+  const recaptchaRef = useRef(null);
 
   const {
     control,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: yupResolver(loginSchema),
@@ -44,14 +49,31 @@ const Login = () => {
     mode: "onBlur",
   });
 
+  const handleRecaptchaChange = (value) => {
+    setRecaptchaValue(value);
+    setValue("recaptcha", value || "", { shouldValidate: true });
+  };
+
+  const handleRecaptchaExpired = () => {
+    setRecaptchaValue(null);
+    setValue("recaptcha", "", { shouldValidate: true });
+  };
+
   const onSubmit = async (data) => {
     setStatus(null);
     setErrorMessage("");
+
+    if (!recaptchaValue) {
+      setErrorMessage("Please complete the reCAPTCHA verification.");
+      setStatus("error");
+      return;
+    }
 
     try {
       const response = await authApi.login({
         email: data.email,
         password: data.password,
+        recaptchaToken: recaptchaValue,
       });
 
       console.log('Login response:', response);
@@ -66,6 +88,11 @@ const Login = () => {
 
       setStatus("success");
 
+      // Reset reCAPTCHA
+      if (recaptchaRef.current?.reset) {
+        recaptchaRef.current.reset();
+      }
+
       // Redirect to dashboard after 1 second
       setTimeout(() => {
         navigate("/");
@@ -75,6 +102,12 @@ const Login = () => {
         error.response?.data?.message || error.message || "Login failed. Please try again."
       );
       setStatus("error");
+      // Reset reCAPTCHA on error
+      if (recaptchaRef.current?.reset) {
+        recaptchaRef.current.reset();
+      }
+      setRecaptchaValue(null);
+      setValue("recaptcha", "", { shouldValidate: true });
     }
   };
 
@@ -155,6 +188,17 @@ const Login = () => {
             />
           )}
         />
+
+        <ReCaptcha
+          onChange={handleRecaptchaChange}
+          onExpired={handleRecaptchaExpired}
+          resetRef={recaptchaRef}
+        />
+        {errors.recaptcha && (
+          <Alert severity="error" sx={{ py: 0.5, mt: -1 }}>
+            {errors.recaptcha.message}
+          </Alert>
+        )}
 
         <Button type="submit" variant="contained" size="large" disabled={isSubmitting}>
           {isSubmitting ? "Signing in..." : "Sign in"}

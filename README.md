@@ -119,7 +119,14 @@ Create `.env` file in the `frontend/` directory:
 VITE_API_GATEWAY_URL=http://localhost:8080
 VITE_WS_URL=ws://localhost:8080/ws
 VITE_APP_NAME=Online Auction Platform
+VITE_RECAPTCHA_SITE_KEY=your-recaptcha-site-key-here
 ```
+
+**Note:** To get a reCAPTCHA v2 site key:
+1. Go to https://www.google.com/recaptcha/admin/create
+2. Register a new site with reCAPTCHA v2 "I'm not a robot" Checkbox
+3. Add your domain (localhost for development)
+4. Copy the Site Key and add it to your `.env` file
 
 ## 🚀 Running the Application
 
