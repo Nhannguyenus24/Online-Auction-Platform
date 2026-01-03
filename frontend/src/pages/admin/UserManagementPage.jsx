@@ -46,15 +46,10 @@ import {
   Search,
   FilterList,
   MoreVert,
-  Edit,
-  Delete,
   Block,
   CheckCircle,
-  Visibility,
   FileDownload,
   Refresh,
-  TrendingUp,
-  TrendingDown,
   ThumbUp,
   ThumbDown,
   Tabs,
@@ -77,7 +72,6 @@ const UserManagementPage = () => {
   const [statusFilter, setStatusFilter] = useState('All');
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedRequest, setSelectedRequest] = useState(null);
-  const [selectedUser, setSelectedUser] = useState(null);
   
   // Data states
   const [users, setUsers] = useState([]);

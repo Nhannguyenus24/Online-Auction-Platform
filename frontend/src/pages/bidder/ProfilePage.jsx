@@ -425,7 +425,6 @@ const BidderProfilePage = () => {
           <IconButton
             onClick={(e) => {
               e.stopPropagation();
-              console.log('Remove from watch list:', product.id);
             }}
             sx={{
               position: 'absolute',
@@ -1110,10 +1109,6 @@ const BidderProfilePage = () => {
                                           size="small"
                                           disabled={!ratingForm[item.productId]?.rating}
                                           onClick={() => {
-                                            console.log('Submit rating:', {
-                                              productId: item.productId,
-                                              ...ratingForm[item.productId],
-                                            });
                                             // Will be implemented with API call later
                                             setSuccessMessage('Rating submitted successfully!');
                                             setTimeout(() => setSuccessMessage(''), 3000);

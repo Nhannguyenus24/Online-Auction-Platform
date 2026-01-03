@@ -33,7 +33,18 @@ public interface OrderRepository extends R2dbcRepository<Order, Integer> {
         @Param("sellerId") Integer sellerId,
         @Param("amount") Double amount
     );
-    
+
+    @Query("""
+        INSERT INTO orders (product_id, buyer_id, seller_id, amount, status, created_at, updated_at)
+        VALUES (:productId, :buyerId, :sellerId, :amount, 'pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        RETURNING id
+        """)
+    Mono<Integer> createOrderReturnId(
+            @Param("productId") Integer productId,
+            @Param("buyerId") Integer buyerId,
+            @Param("sellerId") Integer sellerId,
+            @Param("amount") Double amount
+    );
     /**
      * Find order by product ID
      * @param productId the product ID

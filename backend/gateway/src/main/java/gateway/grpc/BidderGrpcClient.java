@@ -162,4 +162,16 @@ public class BidderGrpcClient {
         log.info("gRPC getBidderRatings request: {}", JsonUtils.toJson(request));
         return userServiceStub.getBidderRatings(Mono.just(request));
     }
+    
+    // Buy Now Product
+    public Mono<com.auction.proto.user.BuyNowProductResponse> buyNowProduct(com.auction.proto.user.BuyNowProductRequest request) {
+        log.info("gRPC buyNowProduct request: {}", JsonUtils.toJson(request));
+        return userServiceStub.buyNowProduct(Mono.just(request));
+    }
+    
+    // Get Top Bidders
+    public Mono<com.auction.proto.user.GetTopBiddersResponse> getTopBidders(com.auction.proto.user.GetTopBiddersRequest request) {
+        log.info("gRPC getTopBidders request: {}", JsonUtils.toJson(request));
+        return userServiceStub.getTopBidders(Mono.just(request));
+    }
 }

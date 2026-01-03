@@ -34,9 +34,7 @@ import {
   Cancel,
   AccessTime,
   EmojiEvents,
-  Gavel,
-  ChevronLeft,
-  ChevronRight,
+  Gavel
 } from '@mui/icons-material';
 import Page from '../../components/Page';
 import { formatPrice } from '../../utils/formatNumber';

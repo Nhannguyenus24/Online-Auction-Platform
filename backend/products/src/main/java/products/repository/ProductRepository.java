@@ -41,6 +41,10 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
     @Query("SELECT status FROM products WHERE id = :productId")
     Mono<String> getStatusById(@Param("productId") Integer productId);
     
+    // Increment product view count
+    @Query("UPDATE products SET views_count = views_count + 1 WHERE id = :productId")
+    Mono<Void> incrementViewCount(@Param("productId") Integer productId);
+    
     // Get product info with seller name and category name for admin
     @Query("""
         SELECT p.id, p.title, p.seller_id, u.full_name as seller_name, 
@@ -470,4 +474,28 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
     // Get user full name by user ID
     @Query("SELECT full_name FROM users WHERE id = :userId")
     Mono<String> getUserFullName(@Param("userId") Integer userId);
+    
+    // Get user review counts (positive and negative)
+    @Query("""
+        SELECT 
+            COALESCE(SUM(CASE WHEN score >= 4 THEN 1 ELSE 0 END), 0) as positive_reviews,
+            COALESCE(SUM(CASE WHEN score < 4 THEN 1 ELSE 0 END), 0) as negative_reviews
+        FROM reviews 
+        WHERE to_user_id = :userId
+        """)
+    Mono<products.dto.UserReviewCountsDto> getUserReviewCounts(@Param("userId") Integer userId);
+    
+    // Find user by ID
+    @Query("SELECT * FROM users WHERE id = :userId")
+    Mono<com.auction.entities.database.User> findUserById(@Param("userId") Integer userId);
+    
+    // Get last bid time for a user on a specific product
+    @Query("""
+        SELECT created_at 
+        FROM bids 
+        WHERE product_id = :productId AND bidder_id = :userId 
+        ORDER BY created_at DESC 
+        LIMIT 1
+        """)
+    Mono<java.time.LocalDateTime> getLastBidTimeForUser(@Param("productId") Integer productId, @Param("userId") Integer userId);
 }

@@ -84,7 +84,6 @@ export const notificationApi = {
    */
   getUserNotifications: () => {
     return axiosInstance.get('/api/bidder/notifications').then((response) => {
-      console.log('Notifications API Response:', response.data);
       
       // Backend returns { notifications: [...], unreadCount: number } or { success, notifications, unreadCount }
       const hasSuccess = 'success' in response.data;
@@ -131,7 +130,6 @@ export const notificationApi = {
    */
   markAsRead: (notificationId) => {
     return axiosInstance.put(`/api/bidder/notifications/${notificationId}/read`).then((response) => {
-      console.log('Mark as read API Response:', response.data);
       if (response.data.success) {
         return {
           success: true,

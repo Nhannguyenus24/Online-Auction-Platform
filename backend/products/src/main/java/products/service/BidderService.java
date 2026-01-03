@@ -62,6 +62,12 @@ public class BidderService {
         log.info("Getting product details for productId={}, userId={}", productId, userId);
         return productRepository.getProductDetailsForBidder(productId)
             .doOnNext(dto -> log.debug("Found product dto: id={}, title={}", dto.id(), dto.title()))
+            .doOnSuccess(dto -> {
+                if (dto != null) {
+                    productRepository.incrementViewCount(productId).subscribe();
+                    log.debug("Incremented view count for product {}", productId);
+                }
+            })
             .switchIfEmpty(Mono.defer(() -> {
                 log.warn("Product not found with id: {}", productId);
                 return Mono.error(new IllegalArgumentException("Product not found with id: " + productId));
@@ -347,6 +353,82 @@ public class BidderService {
             .doOnSuccess(result -> log.info("Auto-bid set successfully: product={}, user={}, maxAmount={}", 
                 productId, userId, maxAmount))
             .doOnError(e -> log.error("Error setting auto-bid: {}", e.getMessage()));
+    }
+
+    public Mono<BuyNowResult> buyNowProduct(int productId, int userId) {
+        log.info("User {} attempting to buy now product {}", userId, productId);
+//
+//        return Mono.zip(
+//            productRepository.findById(productId),
+//            productRepository.getUserReviewCounts(userId)
+//        )
+        return productRepository.findById(productId)
+        .switchIfEmpty(Mono.error(new IllegalArgumentException("Product not found")))
+        .flatMap(product -> {
+
+            // Check product status
+            if (!"active".equals(product.getStatus())) {
+                return Mono.error(new IllegalStateException("Product is not active"));
+            }
+
+            // Check if buy now price is set
+            if (product.getBuyNowPrice() == null || product.getBuyNowPrice().doubleValue() <= 0) {
+                return Mono.error(new IllegalStateException("Buy now is not available for this product"));
+            }
+
+            // Check auction time
+            java.time.LocalDateTime now = TimeUtils.now();
+            if (now.isBefore(product.getStartsAt())) {
+                return Mono.error(new IllegalStateException("Auction has not started yet"));
+            }
+            if (now.isAfter(product.getEndsAt())) {
+                return Mono.error(new IllegalStateException("Auction has ended"));
+            }
+
+            // Check user eligibility: positive_reviews > 4 * negative_reviews
+//            int positiveReviews = reviewCounts.positiveReviews();
+//            int negativeReviews = reviewCounts.negativeReviews();
+//
+//            log.info("User {} review counts - positive: {}, negative: {}", userId, positiveReviews, negativeReviews);
+
+//            if (positiveReviews <= 4 * negativeReviews) {
+//                return Mono.error(new IllegalStateException(
+//                    String.format("User not eligible for buy now. Positive reviews (%d) must be > 4 × negative reviews (%d)",
+//                        positiveReviews, negativeReviews)));
+//            }
+
+            double buyNowPrice = product.getBuyNowPrice().doubleValue();
+
+            // Update product status to ended
+            return productRepository.updateStatus(productId, "ended")
+                .then(productRepository.updateProductPrice(productId, buyNowPrice))
+                .then(orderRepository.createOrder(
+                    productId,
+                    userId,
+                    product.getSellerId(),
+                    buyNowPrice
+                ))
+                .then(Mono.defer(() -> {
+                    log.info("Buy now successful - Order created: productId={}, buyerId={}, sellerId={}, price={}",
+                        productId, userId, product.getSellerId(), buyNowPrice);
+
+                    long timestamp = System.currentTimeMillis() / 1000;
+                    // Note: orderId is 0 because createOrder returns Mono<Void>
+                    BuyNowResult result = new BuyNowResult(0, buyNowPrice, timestamp);
+
+                    // Send notifications to buyer and seller (fire and forget)
+                    Mono.when(
+                        sendBuyNowBuyerNotification(product, userId, buyNowPrice),
+                        sendBuyNowSellerNotification(product, userId, buyNowPrice)
+                    ).subscribe();
+
+                    return Mono.just(result);
+                }));
+        })
+        .doOnSuccess(result -> log.info("Buy now completed successfully: product={}, user={}, orderId={}",
+            productId, userId, result.orderId()))
+        .doOnError(e -> log.error("Error in buy now: product={}, user={}, error={}",
+            productId, userId, e.getMessage()));
     }
     
     /**
@@ -649,6 +731,63 @@ public class BidderService {
                 product.getSellerId(), product.getId(), e.getMessage(), e))
             .onErrorResume(e -> Mono.empty());
     }
+    
+    /**
+     * Send notification to buyer when they buy now
+     */
+    private Mono<Void> sendBuyNowBuyerNotification(com.auction.entities.database.Product product, int buyerId, double buyNowPrice) {
+        java.util.Map<String, String> payload = new java.util.HashMap<>();
+        payload.put("recipientType", "buyer");
+        payload.put("userId", String.valueOf(buyerId));
+        payload.put("productId", String.valueOf(product.getId()));
+        payload.put("productName", product.getTitle());
+        payload.put("purchaseType", "buy_now");
+        payload.put("price", String.format("%.2f", buyNowPrice));
+        payload.put("purchaseTime", java.time.LocalDateTime.now().toString());
+        
+        RabbitMessage message = RabbitMessage.builder()
+            .eventType(EventType.TASK_SEND_MAIL_SUCCESS_BID)
+            .userId(String.valueOf(buyerId))
+            .payload(payload)
+            .build();
+        
+        log.info("Sending buy now notification to buyer: userId={}, productId={}, price={}",
+            buyerId, product.getId(), buyNowPrice);
+        
+        return rabbitProducer.sendToQueue(NOTIFICATION_QUEUE, message)
+            .doOnSuccess(v -> log.info("Buy now notification sent to buyer successfully"))
+            .doOnError(e -> log.error("Failed to send buy now notification to buyer: {}", e.getMessage()))
+            .onErrorResume(e -> Mono.empty());
+    }
+    
+    /**
+     * Send notification to seller when product is bought via buy now
+     */
+    private Mono<Void> sendBuyNowSellerNotification(com.auction.entities.database.Product product, int buyerId, double buyNowPrice) {
+        java.util.Map<String, String> payload = new java.util.HashMap<>();
+        payload.put("recipientType", "seller");
+        payload.put("sellerId", String.valueOf(product.getSellerId()));
+        payload.put("productId", String.valueOf(product.getId()));
+        payload.put("productName", product.getTitle());
+        payload.put("purchaseType", "buy_now");
+        payload.put("price", String.format("%.2f", buyNowPrice));
+        payload.put("buyerName", "User #" + buyerId);
+        payload.put("purchaseTime", java.time.LocalDateTime.now().toString());
+        
+        RabbitMessage message = RabbitMessage.builder()
+            .eventType(EventType.TASK_SEND_MAIL_SUCCESS_BID)
+            .userId(String.valueOf(product.getSellerId()))
+            .payload(payload)
+            .build();
+        
+        log.info("Sending buy now notification to seller: sellerId={}, productId={}, price={}",
+            product.getSellerId(), product.getId(), buyNowPrice);
+        
+        return rabbitProducer.sendToQueue(NOTIFICATION_QUEUE, message)
+            .doOnSuccess(v -> log.info("Buy now notification sent to seller successfully"))
+            .doOnError(e -> log.error("Failed to send buy now notification to seller: {}", e.getMessage()))
+            .onErrorResume(e -> Mono.empty());
+    }
 
     public Mono<MyBidsResult> getMyBids(int userId, int page, int limit, String filter) {
         int offset = (page - 1) * limit;
@@ -804,22 +943,23 @@ public class BidderService {
     }
 
     // Helper records for return types
-    public record WatchlistResult(List<Product> products, PageInfo pageInfo) {}
-    public record QuestionResult(int questionId, long createdAt) {}
-    public record QuestionsResult(java.util.List<Question> questions, PageInfo pageInfo) {}
-    public record BidsResult(java.util.List<Bid> bids, PageInfo pageInfo) {}
-    public record PlaceBidResult(int bidId, double currentPrice, double nextMinBid, long createdAt, boolean isHighestBidder) {}
-    public record AutoBidResult(int autoBidId, double maxAmount, double currentBid, long createdAt) {}
-    public record MyBidsResult(java.util.List<BidHistoryItem> bids, PageInfo pageInfo) {}
-    public record NotificationsResult(java.util.List<com.auction.proto.user.UserNotification> notifications, long unreadCount) {}
-    public record BidderRatingsResult(
+    public static record WatchlistResult(List<Product> products, PageInfo pageInfo) {}
+    public static record QuestionResult(int questionId, long createdAt) {}
+    public static record QuestionsResult(java.util.List<Question> questions, PageInfo pageInfo) {}
+    public static record BidsResult(java.util.List<Bid> bids, PageInfo pageInfo) {}
+    public static record PlaceBidResult(int bidId, double currentPrice, double nextMinBid, long createdAt, boolean isHighestBidder) {}
+    public static record AutoBidResult(int autoBidId, double maxAmount, double currentBid, long createdAt) {}
+    public static record MyBidsResult(java.util.List<BidHistoryItem> bids, PageInfo pageInfo) {}
+    public static record NotificationsResult(java.util.List<com.auction.proto.user.UserNotification> notifications, long unreadCount) {}
+    public static record BuyNowResult(int orderId, double price, long createdAt) {}
+    public static record BidderRatingsResult(
         int positiveReviews,
         int negativeReviews,
         float ratingPercent,
         java.util.List<BidderReview> reviews,
         int totalCount
     ) {}
-    public record BidderReview(
+    public static record BidderReview(
         int id,
         int fromUserId,
         String fromUserName,
@@ -911,7 +1051,7 @@ public class BidderService {
                 .skip(offset)
                 .take(pageSize)
                 .flatMap(review -> {
-                    // Get user name for from_user_id
+                    // Get username for from_user_id
                     Mono<String> userNameMono = productRepository.getUserFullName(review.getFromUserId())
                         .defaultIfEmpty("User #" + review.getFromUserId());
                     
@@ -946,4 +1086,94 @@ public class BidderService {
             );
         });
     }
+
+    /**
+     * Get top bidders for a product from Redis sorted set
+     * Returns top bidders sorted by bid amount (highest first)
+     * 
+     * Cách lưu trong placeBid:
+     * - Key: "auction:" + productId + ":bids"
+     * - Member (key): String.valueOf(userId)
+     * - Score (value): bidAmount
+     */
+    public Mono<TopBiddersResult> getTopBidders(int productId, int limit) {
+        log.info("Getting top {} bidders for product {}", limit, productId);
+        
+        // Limit to max 10
+        int actualLimit = Math.min(limit > 0 ? limit : 5, 10);
+        
+        // Sử dụng key giống như trong placeBid
+        String redisKey = "auction:" + productId + ":bids";
+        
+        // Get top bidders from Redis sorted set (highest score first)
+        return redisService.zRevRange(redisKey, 0, actualLimit - 1)
+            .collectList()
+            .doOnNext(bidders -> log.debug("Found {} bidders in Redis for product {}", bidders.size(), productId))
+            .flatMapMany(bidders -> {
+                if (bidders.isEmpty()) {
+                    log.info("No bidders found in Redis for product {}", productId);
+                    return Flux.empty();
+                }
+                return Flux.fromIterable(bidders);
+            })
+            .flatMap(bidderObj -> {
+                // Parse userId từ Redis key (được lưu bằng String.valueOf(userId))
+                String bidderStr = bidderObj.toString();
+                int bidderId = Integer.parseInt(bidderStr);
+                
+                log.debug("Processing bidder {} for product {}", bidderId, productId);
+                
+                // Get score (bid amount) for this bidder from Redis
+                return redisService.zScore(redisKey, bidderStr)
+                    .flatMap(bidAmount -> {
+                        log.debug("Bidder {} has amount {} for product {}", bidderId, bidAmount, productId);
+                        
+                        // Get bidder info and last bid time from database
+                        return productRepository.findUserById(bidderId)
+                            .flatMap(user -> {
+                                // Get last bid time for this bidder on this product
+                                return productRepository.getLastBidTimeForUser(productId, bidderId)
+                                    .map(bidTime -> new TopBidderItem(
+                                        bidderId,
+                                        maskEmail(user.getEmail()),
+                                        bidAmount,
+                                        bidTime.getSecond()
+                                    ))
+                                    .doOnNext(item -> log.debug("Created TopBidderItem: bidderId={}, amount={}, time={}", 
+                                        item.bidderId(), item.bidAmount(), item.bidTime()));
+                            })
+                            .onErrorResume(e -> {
+                                log.warn("Could not get info for bidder {} on product {}: {}", 
+                                    bidderId, productId, e.getMessage());
+                                return Mono.empty();
+                            });
+                    });
+            })
+            .collectList()
+            .map(topBidders -> {
+                log.info("Successfully retrieved {} top bidders for product {}", topBidders.size(), productId);
+                return new TopBiddersResult(topBidders);
+            })
+            .defaultIfEmpty(new TopBiddersResult(java.util.Collections.emptyList()))
+            .doOnError(e -> log.error("Error getting top bidders for product {}: {}", productId, e.getMessage(), e));
+    }
+    
+    private String maskEmail(String email) {
+        if (email == null || !email.contains("@")) {
+            return "***";
+        }
+        int atIndex = email.indexOf('@');
+        if (atIndex <= 2) {
+            return "***" + email.substring(atIndex);
+        }
+        return email.substring(0, 2) + "***" + email.substring(atIndex);
+    }
+    
+    public static record TopBiddersResult(java.util.List<TopBidderItem> topBidders) {}
+    public static record TopBidderItem(
+        int bidderId,
+        String bidderNameMasked,
+        double bidAmount,
+        long bidTime
+    ) {}
 }

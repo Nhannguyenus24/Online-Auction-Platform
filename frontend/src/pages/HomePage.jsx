@@ -4,13 +4,9 @@ import {
   Box,
   Container,
   Typography,
-  Card,
   CardContent,
-  CardMedia,
-  Grid,
   Button,
   Chip,
-  IconButton,
   Stack,
   CircularProgress,
   Alert,
@@ -18,11 +14,8 @@ import {
 import {
   AccessTime,
   LocalOffer,
-  TrendingUp,
   Gavel,
   ArrowForward,
-  ChevronLeft,
-  ChevronRight,
 } from "@mui/icons-material";
 import Page from "../components/Page";
 import { formatPrice } from "../utils/formatNumber";
@@ -168,6 +161,7 @@ const HomePage = () => {
           productApi.getTopBidCountProducts(5).catch(err => ({ success: false, products: [], error: err })),
           productApi.getTopPriceProducts(5).catch(err => ({ success: false, products: [], error: err })),
         ]);
+        console.log('Fetched top products:', { endingSoonRes, mostBidsRes, highestPriceRes });
 
         // Process ending soon products
         if (endingSoonRes.success) {
@@ -239,135 +233,6 @@ const HomePage = () => {
     if (hours > 0) return `${pad(hours)}h ${pad(minutes)}m ${pad(seconds)}s`;
     return `${pad(minutes)}m ${pad(seconds)}s`;
   };
-
-  const handleNextBanner = () => {
-    setCurrentBanner((prev) => (prev + 1) % banners.length);
-  };
-
-  const handlePrevBanner = () => {
-    setCurrentBanner((prev) => (prev - 1 + banners.length) % banners.length);
-  };
-
-  const ProductCard = ({ product }) => (
-    <Card
-      elevation={0}
-      sx={{
-        cursor: "pointer",
-        height: "100%",
-        display: "flex",
-        flexDirection: "column",
-        border: "1px solid",
-        borderColor: "grey.200",
-        borderRadius: 2,
-        overflow: "hidden",
-        transition: "all 0.3s",
-        "&:hover": {
-          boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-          transform: "translateY(-4px)",
-          borderColor: "primary.main",
-        },
-      }}
-      onClick={() => navigate(`/product/${product.id}`)}
-    >
-      <Box sx={{ position: "relative", paddingTop: "75%", bgcolor: "grey.50" }}>
-        <CardMedia
-          component="img"
-          image={product.image}
-          alt={product.title}
-          sx={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-          }}
-        />
-        <Box
-          sx={{
-            position: "absolute",
-            top: 12,
-            right: 12,
-            bgcolor: "rgba(255,255,255,0.95)",
-            backdropFilter: "blur(10px)",
-            px: 1.5,
-            py: 0.5,
-            borderRadius: 1.5,
-            boxShadow: 1,
-            display: "flex",
-            alignItems: "center",
-            gap: 0.5,
-          }}
-        >
-          <LocalOffer sx={{ fontSize: 14, color: "primary.main" }} />
-          <Typography variant="caption" fontWeight="bold" color="primary">
-            {product.bidCount} bids
-          </Typography>
-        </Box>
-        <Chip
-          label={product.condition}
-          size="small"
-          color={product.condition === "New" ? "success" : "default"}
-          sx={{
-            position: "absolute",
-            top: 12,
-            left: 12,
-            fontWeight: "bold",
-            fontSize: "0.7rem",
-          }}
-        />
-      </Box>
-      <CardContent
-        sx={{ flexGrow: 1, display: "flex", flexDirection: "column", p: 2 }}
-      >
-        <Typography
-          variant="body1"
-          gutterBottom
-          sx={{
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
-            minHeight: 48,
-            fontWeight: 600,
-            lineHeight: 1.4,
-            mb: 2,
-          }}
-        >
-          {product.title}
-        </Typography>
-        <Box sx={{ mt: "auto" }}>
-          <Typography variant="body2" color="text.secondary" gutterBottom>
-            Current Bid
-          </Typography>
-          <Typography
-            variant="h6"
-            color="primary"
-            fontWeight="bold"
-            sx={{ mb: 1.5 }}
-          >
-            {formatPrice(product.currentPrice)}
-          </Typography>
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 0.5,
-              pt: 1.5,
-              borderTop: 1,
-              borderColor: "divider",
-            }}
-          >
-            <AccessTime sx={{ fontSize: 16, color: "error.main" }} />
-            <Typography variant="caption" color="error.main" fontWeight="bold">
-              {getTimeLeft(product.endTime)} left
-            </Typography>
-          </Box>
-        </Box>
-      </CardContent>
-    </Card>
-  );
 
   return (
     <Page title="Home - Online Auction Platform">

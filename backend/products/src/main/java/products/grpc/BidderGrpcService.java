@@ -380,4 +380,62 @@ public class BidderGrpcService extends ReactorUserServiceGrpc.UserServiceImplBas
                 return Mono.just(GetBidderRatingsResponse.newBuilder().build());
             });
     }
+    
+    @Override
+    public Mono<com.auction.proto.user.BuyNowProductResponse> buyNowProduct(Mono<com.auction.proto.user.BuyNowProductRequest> request) {
+        return request.doOnNext(req -> log.info("Buy now product request: {}", JsonUtils.toJson(req)))
+            .flatMap(req ->
+                bidderService.buyNowProduct(req.getProductId(), req.getUserId())
+                    .map(result -> com.auction.proto.user.BuyNowProductResponse.newBuilder()
+                        .setSuccess(true)
+                        .setMessage("Product purchased successfully via Buy Now")
+                        .setOrderId(result.orderId())
+                        .setPrice(result.price())
+                        .setCreatedAt(result.createdAt())
+                        .build())
+                    .doOnNext(resp -> log.info("Buy now product response: {}", JsonUtils.toJson(resp)))
+                    .onErrorResume(e -> {
+                        log.error("Buy now product error: {}", e.getMessage(), e);
+                        return Mono.just(com.auction.proto.user.BuyNowProductResponse.newBuilder()
+                            .setSuccess(false)
+                            .setMessage("Failed to buy now: " + e.getMessage())
+                            .build());
+                    })
+            );
+    }
+    
+    @Override
+    public Mono<com.auction.proto.user.GetTopBiddersResponse> getTopBidders(Mono<com.auction.proto.user.GetTopBiddersRequest> request) {
+        return request.doOnNext(req -> log.info("Raw get top bidders request: {}", JsonUtils.toJson(req)))
+                .flatMap(req ->
+                    bidderService.getTopBidders(req.getProductId(), req.getLimit())
+                        .map(result -> {
+                            var responseBuilder = com.auction.proto.user.GetTopBiddersResponse.newBuilder()
+                                .setSuccess(true)
+                                .setMessage("Top bidders retrieved successfully");
+                            
+                            for (var bidder : result.topBidders()) {
+                                responseBuilder.addTopBidders(
+                                    com.auction.proto.user.TopBidder.newBuilder()
+                                        .setBidderId(bidder.bidderId())
+                                        .setBidderNameMasked(bidder.bidderNameMasked())
+                                        .setBidAmount(bidder.bidAmount())
+                                        .setBidTime(bidder.bidTime())
+                                        .build()
+                                );
+                            }
+                            
+                            return responseBuilder.build();
+                        })
+                        .doOnNext(resp -> log.info("Raw get top bidders response: {}", JsonUtils.toJson(resp)))
+                        .onErrorResume(e -> {
+                            log.error("Error getting top bidders: {}", e.getMessage(), e);
+                            return Mono.just(com.auction.proto.user.GetTopBiddersResponse.newBuilder()
+                                .setSuccess(false)
+                                .setMessage("Error: " + e.getMessage())
+                                .build());
+                        })
+                );
+    }
 }
+

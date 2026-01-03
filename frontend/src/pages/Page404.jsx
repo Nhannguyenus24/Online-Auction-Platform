@@ -1,7 +1,6 @@
 import { Box, Button, Container, Typography } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import Page from "../components/Page";
-import { motion } from "framer-motion";
 import SearchOffIcon from "@mui/icons-material/SearchOff";
 
 export default function Page404() {

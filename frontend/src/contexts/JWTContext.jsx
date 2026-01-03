@@ -30,7 +30,6 @@ export function AuthProvider({ children }) {
       
       try {
         const accessToken = window.localStorage.getItem('accessToken');
-        console.log('Auth init - accessToken exists:', !!accessToken);
         
         if (accessToken) {
           // Set session first to ensure axios has the token
@@ -39,8 +38,6 @@ export function AuthProvider({ children }) {
           // Try to get profile from API first (most reliable)
           try {
             const response = await authApi.getProfile();
-            console.log('Auth init - getProfile response:', response);
-            console.log('Auth init - response.data:', response.data);
             
             // Check different possible response formats
             const profile = response.data?.profile || response.data?.data?.profile || response.data;
@@ -57,10 +54,8 @@ export function AuthProvider({ children }) {
                 isVerified: profile.isVerified,
               };
               authResult = true;
-              console.log('Auth init - authenticated with profile:', userData);
             } else {
               // If response doesn't have profile, try to use token payload as fallback
-              console.log('Auth init - no profile in response, trying token payload');
               const payload = await getPayload(accessToken);
               if (payload) {
                 userData = {
@@ -71,7 +66,6 @@ export function AuthProvider({ children }) {
                   roleName: payload.roleName || payload.role || payload.roles?.[0],
                 };
                 authResult = true;
-                console.log('Auth init - authenticated with payload:', userData);
               } else {
                 // Token is invalid, clear it
                 console.warn('Auth init - token invalid, clearing');
@@ -93,7 +87,6 @@ export function AuthProvider({ children }) {
                 roleName: payload.roleName || payload.role || payload.roles?.[0],
               };
               authResult = true;
-              console.log('Auth init - authenticated with payload (fallback):', userData);
             } else {
               // Both profile API and token verification failed, clear token
               console.error('Auth init - token invalid or expired, clearing session');
@@ -103,7 +96,6 @@ export function AuthProvider({ children }) {
             }
           }
         } else {
-          console.log('Auth init - no accessToken found');
           authResult = false;
           userData = null;
         }
@@ -117,7 +109,6 @@ export function AuthProvider({ children }) {
         setUser(userData);
         setIsAuthenticated(authResult);
         setIsInitialized(true);
-        console.log('Auth init - completed, isAuthenticated:', authResult, 'user:', userData);
       }
     };
 
@@ -126,7 +117,6 @@ export function AuthProvider({ children }) {
 
   // ----------------------------------------------------------------------
   const login = async (accessToken, userData) => {
-    console.log('Login called with accessToken:', !!accessToken, 'userData:', userData);
     
     if (accessToken) {
       setSession(accessToken);
@@ -145,7 +135,6 @@ export function AuthProvider({ children }) {
         };
         setUser(finalUserData);
         setIsAuthenticated(true);
-        console.log('Login successful with userData:', finalUserData);
         return;
       }
       
@@ -162,12 +151,10 @@ export function AuthProvider({ children }) {
         
         setUser(finalUserData);
         setIsAuthenticated(true);
-        console.log('Login successful with payload:', finalUserData);
       } else {
         // If payload verification fails, try to get profile from API
         try {
           const response = await authApi.getProfile();
-          console.log('Login - getProfile response:', response);
           
           // Check different possible response formats
           const profile = response.data?.profile || response.data?.data?.profile || response.data;
@@ -185,7 +172,6 @@ export function AuthProvider({ children }) {
             };
             setUser(finalUserData);
             setIsAuthenticated(true);
-            console.log('Login successful with profile API:', finalUserData);
           } else {
             console.warn('Login: token exists but cannot get user info, response:', response);
             // Still set authenticated if we have token, user info will be fetched later

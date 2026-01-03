@@ -1,6 +1,5 @@
 import { Box, Button, Container, Typography } from "@mui/material";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import Page from "../components/Page";
 

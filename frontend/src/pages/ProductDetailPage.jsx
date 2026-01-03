@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from 'react';
 import {
   Box,
   Container,
-  Grid,
   Card,
   CardContent,
   CardMedia,
@@ -40,18 +39,15 @@ import {
   ShoppingCart,
   Favorite,
   FavoriteBorder,
-  Share,
-  Person,
-  QuestionAnswer,
   Send,
   ChevronLeft,
   ChevronRight,
-  Cancel,
   Block,
   Home,
   NavigateNext,
 } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useSnackbar } from 'notistack';
 import { useAuth } from '../hooks/useAuth';
 import RichTextEditor from '../components/RichTextEditor';
 import Page from '../components/Page';
@@ -64,6 +60,7 @@ import { watchlistApi } from '../services/watchlistApi';
 function ProductDetailPage() {
   const navigate = useNavigate();
   const { id: productId } = useParams();
+  const { enqueueSnackbar } = useSnackbar();
   const { user, isAuthenticated } = useAuth();
 
   // Product data state
@@ -78,6 +75,8 @@ function ProductDetailPage() {
   const [bidAmount, setBidAmount] = useState("");
   const [question, setQuestion] = useState("");
   const [openBidDialog, setOpenBidDialog] = useState(false);
+  const [openBuyNowDialog, setOpenBuyNowDialog] = useState(false);
+  const [buyingNow, setBuyingNow] = useState(false);
   const [answerTexts, setAnswerTexts] = useState({});
   const [submittingAnswer, setSubmittingAnswer] = useState({});
   const [productDescription, setProductDescription] = useState('');
@@ -183,34 +182,34 @@ function ProductDetailPage() {
     fetchProduct();
   }, [productId, isAuthenticated]);
 
-  // Fetch bid history, questions, and related products
+  // Fetch top bidders, questions, and related products
   useEffect(() => {
     if (!productId) return;
 
     const fetchAdditionalData = async () => {
       try {
-        // Fetch bid history
+        // Fetch top 5 bidders
         setLoading((prev) => ({ ...prev, bidHistory: true }));
         try {
-          const bidResponse = await productApi.getBidHistory(productId, 1, 50);
+          const bidResponse = await productApi.getTopBidders(productId, 5);
           if (bidResponse.success) {
-            const mappedBids = (bidResponse.bids || []).map((bid) => ({
-              id: bid.id,
-              bidder: bid.bidderMasked || bid.bidderName || "Anonymous",
-              bidderId: bid.bidderId,
-              amount: bid.amount || bid.bidAmount,
-              time: bid.createdAt ? normalizeTimestamp(bid.createdAt) : new Date(bid.bidTime || Date.now()),
+            const mappedBids = (bidResponse.topBidders || []).map((bidder) => ({
+              id: bidder.bidderId,
+              bidder: bidder.bidderName || "Anonymous",
+              bidderId: bidder.bidderId,
+              amount: bidder.bidAmount,
+              time: bidder.bidTime ? new Date(bidder.bidTime) : new Date(),
             }));
             setBidHistory(mappedBids);
           }
         } catch (err) {
           // Handle 403 gracefully (endpoint may not be implemented or require auth)
           if (err.response?.status === 403) {
-            console.warn("Bid history endpoint returned 403, treating as empty");
+            console.warn("Top bidders endpoint returned 403, treating as empty");
             setBidHistory([]);
           } else {
-            console.error("Error fetching bid history:", err);
-            setError((prev) => ({ ...prev, bidHistory: err.message || "Failed to load bid history" }));
+            console.error("Error fetching top bidders:", err);
+            setError((prev) => ({ ...prev, bidHistory: err.message || "Failed to load top bidders" }));
           }
         } finally {
           setLoading((prev) => ({ ...prev, bidHistory: false }));
@@ -288,27 +287,27 @@ function ProductDetailPage() {
     fetchAdditionalData();
   }, [productId]);
 
-  // Polling for bid history if product is active
+  // Polling for top bidders if product is active
   useEffect(() => {
     if (!productId || !product || product.status !== "ACTIVE") return;
 
     const interval = setInterval(async () => {
       try {
-        const bidResponse = await productApi.getBidHistory(productId, 1, 50);
-        if (bidResponse.success) {
-          const mappedBids = (bidResponse.bids || []).map((bid) => ({
-            id: bid.id,
-            bidder: bid.bidderMasked || bid.bidderName || "Anonymous",
-            bidderId: bid.bidderId,
-            amount: bid.amount || bid.bidAmount,
-            time: bid.createdAt ? new Date(bid.createdAt) : new Date(bid.bidTime || Date.now()),
-          }));
-          setBidHistory(mappedBids);
+          const bidResponse = await productApi.getTopBidders(productId, 5);
+          if (bidResponse.success) {
+            const mappedBids = (bidResponse.topBidders || []).map((bidder) => ({
+              id: bidder.bidderId,
+              bidder: bidder.bidderName || "Anonymous",
+              bidderId: bidder.bidderId,
+              amount: bidder.bidAmount,
+              time: bidder.bidTime ? new Date(bidder.bidTime) : new Date(),
+            }));
+            setBidHistory(mappedBids);
         }
       } catch (err) {
         // Silently handle 403 in polling (endpoint may not be implemented)
         if (err.response?.status !== 403) {
-          console.error("Error polling bid history:", err);
+          console.error("Error polling top bidders:", err);
         }
       }
     }, 5000); // Poll every 5 seconds
@@ -330,6 +329,11 @@ function ProductDetailPage() {
   const allImages = product?.images?.map((img) => img.url) || [];
 
   const getTimeLeft = (endTime) => {
+    // Check if product has ended
+    if (product?.status?.toLowerCase() === 'ended') {
+      return 'Ended';
+    }
+
     const now = new Date();
     const normalizedEndTime = endTime instanceof Date ? endTime : normalizeTimestamp(endTime);
     const diff = normalizedEndTime - now;
@@ -393,7 +397,7 @@ function ProductDetailPage() {
 
     const amount = Number(bidAmount);
     if (isNaN(amount) || amount <= 0) {
-      alert('Please enter a valid bid amount');
+      enqueueSnackbar('Please enter a valid bid amount', { variant: 'error' });
       return;
     }
 
@@ -412,25 +416,25 @@ function ProductDetailPage() {
         }
 
         // Refresh bid history
-        const bidResponse = await productApi.getBidHistory(productId, 1, 50);
-        if (bidResponse.success) {
-          const mappedBids = (bidResponse.bids || []).map((bid) => ({
-            id: bid.id,
-            bidder: bid.bidderMasked || bid.bidderName || 'Anonymous',
-            bidderId: bid.bidderId,
-            amount: bid.amount || bid.bidAmount,
-            time: bid.createdAt ? new Date(bid.createdAt) : new Date(bid.bidTime || Date.now()),
-          }));
-          setBidHistory(mappedBids);
-        }
+          const bidResponse = await productApi.getTopBidders(productId, 5);
+          if (bidResponse.success) {
+            const mappedBids = (bidResponse.topBidders || []).map((bidder) => ({
+              id: bidder.bidderId,
+              bidder: bidder.bidderName || "Anonymous",
+              bidderId: bidder.bidderId,
+              amount: bidder.bidAmount,
+              time: bidder.bidTime ? new Date(bidder.bidTime) : new Date(),
+            }));
+            setBidHistory(mappedBids);
+          }
 
         setOpenBidDialog(false);
         setBidAmount('');
-        alert(response.message || 'Bid placed successfully!');
+        enqueueSnackbar(response.message || 'Bid placed successfully!', { variant: 'success' });
       }
     } catch (err) {
       console.error('Error placing bid:', err);
-      alert(err.response?.data?.message || err.message || 'Failed to place bid');
+      enqueueSnackbar(err.response?.data?.message || err.message || 'Failed to place bid', { variant: 'error' });
     }
   };
 
@@ -440,12 +444,41 @@ function ProductDetailPage() {
       return;
     }
     if (!product || !product.buyNowPrice) {
-      alert('Buy now option is not available for this product');
+      enqueueSnackbar('Buy now option is not available for this product', { variant: 'warning' });
       return;
     }
-    // TODO: Implement buy now functionality
-    // Navigate to checkout or show confirmation dialog
-    console.log('Buy now:', product.buyNowPrice);
+    setOpenBuyNowDialog(true);
+  };
+
+  const handleConfirmBuyNow = async () => {
+    if (!productId) return;
+
+    setBuyingNow(true);
+    try {
+      const response = await productApi.buyNowProduct(productId);
+      if (response.success) {
+        setOpenBuyNowDialog(false);
+        enqueueSnackbar(`${response.message} - Order ID: ${response.orderId}`, { variant: 'success' });
+        
+        // Refresh product to show updated status
+        const productResponse = await productApi.getProductById(productId);
+        if (productResponse.success && productResponse.product) {
+          const apiProduct = productResponse.product;
+          setProduct((prev) => ({
+            ...prev,
+            status: apiProduct.status || prev.status,
+          }));
+        }
+        
+        // Navigate to orders page or stay on product page
+        // navigate('/orders');
+      }
+    } catch (err) {
+      console.error('Error buying now:', err);
+      enqueueSnackbar(err.response?.data?.message || err.message || 'Failed to purchase product', { variant: 'error' });
+    } finally {
+      setBuyingNow(false);
+    }
   };
 
   const handleAskQuestion = async () => {
@@ -475,11 +508,11 @@ function ProductDetailPage() {
           setQuestions(mappedQuestions);
         }
         setQuestion('');
-        alert(response.message || 'Question submitted successfully!');
+        enqueueSnackbar(response.message || 'Question submitted successfully!', { variant: 'success' });
       }
     } catch (err) {
       console.error('Error asking question:', err);
-      alert(err.response?.data?.message || err.message || 'Failed to submit question');
+      enqueueSnackbar(err.response?.data?.message || err.message || 'Failed to submit question', { variant: 'error' });
     }
   };
 
@@ -505,7 +538,7 @@ function ProductDetailPage() {
       }
     } catch (err) {
       console.error('Error toggling watchlist:', err);
-      alert(err.response?.data?.message || err.message || 'Failed to update watchlist');
+      enqueueSnackbar(err.response?.data?.message || err.message || 'Failed to update watchlist', { variant: 'error' });
     }
   };
 
@@ -551,7 +584,7 @@ function ProductDetailPage() {
       }
     } catch (err) {
       console.error('Error submitting answer:', err);
-      alert(err.response?.data?.message || err.message || 'Failed to submit answer');
+      enqueueSnackbar(err.response?.data?.message || err.message || 'Failed to submit answer', { variant: 'error' });
     } finally {
       setSubmittingAnswer((prev) => {
         const updated = { ...prev };
@@ -587,11 +620,11 @@ function ProductDetailPage() {
 
         // Clear new description
         setNewDescription('');
-        alert(response.message || 'Description appended successfully!');
+        enqueueSnackbar(response.message || 'Description appended successfully!', { variant: 'success' });
       }
     } catch (err) {
       console.error('Error submitting new description:', err);
-      alert(err.response?.data?.message || err.message || 'Failed to append description');
+      enqueueSnackbar(err.response?.data?.message || err.message || 'Failed to append description', { variant: 'error' });
     } finally {
       setSubmittingDescription(false);
     }
@@ -618,11 +651,11 @@ function ProductDetailPage() {
         setRejectedBids((prev) => new Set([...prev, bidToReject.id]));
 
         handleCloseRejectDialog();
-        alert(response.message || 'Bid rejected successfully');
+        enqueueSnackbar(response.message || 'Bid rejected successfully', { variant: 'success' });
       }
     } catch (err) {
       console.error('Error rejecting bid:', err);
-      alert(err.response?.data?.message || err.message || 'Failed to reject bid');
+      enqueueSnackbar(err.response?.data?.message || err.message || 'Failed to reject bid', { variant: 'error' });
     } finally {
       setRejectingBid(null);
     }
@@ -917,6 +950,7 @@ function ProductDetailPage() {
                           onClick={handlePlaceBid}
                           fullWidth
                           sx={{ py: 1.5 }}
+                          disabled={product.status?.toLowerCase() === 'ended'}
                         >
                           Place Bid
                         </Button>
@@ -928,6 +962,7 @@ function ProductDetailPage() {
                             onClick={handleBuyNow}
                             fullWidth
                             sx={{ py: 1.5 }}
+                            disabled={product.status?.toLowerCase() === 'ended'}
                           >
                             Buy Now
                           </Button>
@@ -1020,7 +1055,7 @@ function ProductDetailPage() {
             </CardContent>
           </Card>
 
-          {/* Bid History and Q&A Section */}
+          {/* Top Bidders and Q&A Section */}
           <Card
             elevation={0}
             sx={{ mt: 3, borderRadius: 2, boxShadow: "0 2px 12px rgba(0,0,0,0.08)" }}
@@ -1031,11 +1066,11 @@ function ProductDetailPage() {
                 onChange={(e, newValue) => setActiveTab(newValue)}
                 sx={{ mb: 3 }}
               >
-                <Tab label={`Bid History (${bidHistory.length})`} />
+                <Tab label={`Top ${bidHistory.length} Bidders`} />
                 <Tab label={`Q&A (${questions.length})`} />
               </Tabs>
 
-              {/* Bid History Tab */}
+              {/* Top Bidders Tab */}
               {activeTab === 0 && (
                 <Box>
                   {loading.bidHistory ? (
@@ -1051,6 +1086,7 @@ function ProductDetailPage() {
                       <Table>
                         <TableHead>
                           <TableRow>
+                            <TableCell>Rank</TableCell>
                             <TableCell>Bidder</TableCell>
                             <TableCell align="right">Amount</TableCell>
                             <TableCell align="right">Time</TableCell>
@@ -1058,16 +1094,26 @@ function ProductDetailPage() {
                           </TableRow>
                         </TableHead>
                         <TableBody>
-                          {bidHistory.map((bid) => (
+                          {bidHistory.map((bid, index) => (
                             <TableRow
                               key={bid.id}
                               sx={{
-                                bgcolor: rejectedBids.has(bid.id)
+                                bgcolor: index === 0 ? "success.light" : rejectedBids.has(bid.id)
                                   ? "error.light"
                                   : "transparent",
                                 opacity: rejectedBids.has(bid.id) ? 0.6 : 1,
                               }}
                             >
+                              <TableCell>
+                                <Stack direction="row" spacing={1} alignItems="center">
+                                  <Typography variant="body1" fontWeight="bold">
+                                    #{index + 1}
+                                  </Typography>
+                                  {index === 0 && (
+                                    <Chip label="Leading" color="success" size="small" />
+                                  )}
+                                </Stack>
+                              </TableCell>
                               <TableCell>
                                 <Stack direction="row" spacing={1} alignItems="center">
                                   <Typography variant="body2">{bid.bidder}</Typography>
@@ -1403,6 +1449,12 @@ function ProductDetailPage() {
                   <strong>
                     {formatPrice(product.currentPrice + product.bidIncrement)}
                   </strong>
+                  {product.buyNowPrice && (
+                    <>
+                      <br />
+                      Buy Now price: <strong>{formatPrice(product.buyNowPrice)}</strong>
+                    </>
+                  )}
                 </Alert>
                 <TextField
                   label="Your Bid Amount"
@@ -1410,26 +1462,47 @@ function ProductDetailPage() {
                   fullWidth
                   value={bidAmount}
                   onChange={(e) => setBidAmount(e.target.value)}
-                  helperText={`Bid increment: ${formatPrice(product.bidIncrement)}`}
+                  helperText={
+                    product.buyNowPrice
+                      ? `Bid increment: ${formatPrice(product.bidIncrement)} | Maximum: ${formatPrice(product.buyNowPrice)}`
+                      : `Bid increment: ${formatPrice(product.bidIncrement)}`
+                  }
+                  error={
+                    bidAmount &&
+                    (Number(bidAmount) < product.currentPrice + product.bidIncrement ||
+                      (product.buyNowPrice && Number(bidAmount) > product.buyNowPrice))
+                  }
                   InputProps={{
                     startAdornment: <Typography sx={{ mr: 1 }}>₫</Typography>,
                   }}
                 />
+                {bidAmount && Number(bidAmount) > product.buyNowPrice && product.buyNowPrice && (
+                  <Alert severity="error">
+                    Bid amount cannot exceed Buy Now price ({formatPrice(product.buyNowPrice)}). Please use Buy Now button instead.
+                  </Alert>
+                )}
+                {bidAmount && Number(bidAmount) < product.currentPrice + product.bidIncrement && (
+                  <Alert severity="error">
+                    Bid amount must be at least {formatPrice(product.currentPrice + product.bidIncrement)}
+                  </Alert>
+                )}
                 <Box>
                   <Typography variant="body2" color="text.secondary" gutterBottom>
                     Suggested Bids:
                   </Typography>
                   <Stack direction="row" spacing={1} flexWrap="wrap">
-                    {suggestedBids.map((amount, idx) => (
-                      <Chip
-                        key={idx}
-                        label={formatPrice(amount)}
-                        onClick={() => setBidAmount(amount.toString())}
-                        variant={bidAmount === amount.toString() ? "filled" : "outlined"}
-                        color="primary"
-                        sx={{ mb: 1 }}
-                      />
-                    ))}
+                    {suggestedBids
+                      .filter((amount) => !product.buyNowPrice || amount <= product.buyNowPrice)
+                      .map((amount, idx) => (
+                        <Chip
+                          key={idx}
+                          label={formatPrice(amount)}
+                          onClick={() => setBidAmount(amount.toString())}
+                          variant={bidAmount === amount.toString() ? "filled" : "outlined"}
+                          color="primary"
+                          sx={{ mb: 1 }}
+                        />
+                      ))}
                   </Stack>
                 </Box>
               </Stack>
@@ -1441,7 +1514,8 @@ function ProductDetailPage() {
                 onClick={handleConfirmBid}
                 disabled={
                   !bidAmount ||
-                  Number(bidAmount) < product.currentPrice + product.bidIncrement
+                  Number(bidAmount) < product.currentPrice + product.bidIncrement ||
+                  (product.buyNowPrice && Number(bidAmount) > product.buyNowPrice)
                 }
               >
                 Confirm Bid
@@ -1487,6 +1561,55 @@ function ProductDetailPage() {
                 startIcon={rejectingBid ? <CircularProgress size={16} /> : <Block />}
               >
                 {rejectingBid ? "Rejecting..." : "Reject Bid"}
+              </Button>
+            </DialogActions>
+          </Dialog>
+
+          {/* Buy Now Confirmation Dialog */}
+          <Dialog
+            open={openBuyNowDialog}
+            onClose={() => !buyingNow && setOpenBuyNowDialog(false)}
+            maxWidth="sm"
+            fullWidth
+          >
+            <DialogTitle>Buy Now Confirmation</DialogTitle>
+            <DialogContent>
+              <Stack spacing={2} sx={{ mt: 1 }}>
+                <Alert severity="info">
+                  You are about to purchase this product immediately at the Buy Now price.
+                </Alert>
+                <Box sx={{ p: 2, bgcolor: "grey.50", borderRadius: 1 }}>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Product:
+                  </Typography>
+                  <Typography variant="h6" fontWeight="medium" gutterBottom>
+                    {product?.title}
+                  </Typography>
+                  <Divider sx={{ my: 1.5 }} />
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Buy Now Price:
+                  </Typography>
+                  <Typography variant="h4" color="primary.main" fontWeight="bold">
+                    {formatPrice(product?.buyNowPrice)}
+                  </Typography>
+                </Box>
+                <Alert severity="warning">
+                  <strong>Note:</strong> This action will end the auction immediately and create an order. You must have positive reviews &gt; 4 × negative reviews to use this feature.
+                </Alert>
+              </Stack>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setOpenBuyNowDialog(false)} disabled={buyingNow}>
+                Cancel
+              </Button>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handleConfirmBuyNow}
+                disabled={buyingNow}
+                startIcon={buyingNow ? <CircularProgress size={16} /> : <ShoppingCart />}
+              >
+                {buyingNow ? "Processing..." : "Confirm Purchase"}
               </Button>
             </DialogActions>
           </Dialog>

@@ -195,7 +195,7 @@ export const productApi = {
    */
   getBidHistory: (productId, page = 1, limit = 20) => {
     return axiosInstance
-      .get(`/api/guest/products/${productId}/bids`, {
+      .get(`/api/bidder/products/${productId}/bids`, {
         params: { page, limit },
       })
       .then((response) => {
@@ -214,6 +214,35 @@ export const productApi = {
       })
       .catch((error) => {
         console.error('Get bid history error:', error);
+        throw error;
+      });
+  },
+
+  /**
+   * Get top bidders for a product from Redis
+   * No authentication required
+   * @param {number|string} productId - Product ID
+   * @param {number} limit - Number of top bidders to return (default 5, max 10)
+   * @returns {Promise} - { success, message, topBidders: [...] }
+   */
+  getTopBidders: (productId, limit = 5) => {
+    return axiosInstance
+      .get(`/api/bidder/products/${productId}/top-bidders`, {
+        params: { limit },
+      })
+      .then((response) => {
+        if (response.data.success) {
+          return {
+            success: true,
+            message: response.data.message || 'Top bidders retrieved successfully',
+            topBidders: response.data.topBidders || [],
+          };
+        } else {
+          throw new Error(response.data.message || 'Failed to get top bidders');
+        }
+      })
+      .catch((error) => {
+        console.error('Get top bidders error:', error);
         throw error;
       });
   },
@@ -257,7 +286,7 @@ export const productApi = {
    */
   getQuestions: (productId) => {
     return axiosInstance
-      .get(`/api/guest/products/${productId}/questions`)
+      .get(`/api/bidder/products/${productId}/questions`)
       .then((response) => {
         if (response.data.success) {
           return {
@@ -340,17 +369,21 @@ export const productApi = {
    * Requires bidder authentication
    * @param {number|string} productId - Product ID
    * @param {number} amount - Bid amount
-   * @returns {Promise} - { success, message, bid: {...} }
+   * @returns {Promise} - { success, message, bidId, currentPrice, nextMinBid, isHighestBidder, createdAt }
    */
   placeBid: (productId, amount) => {
     return axiosInstance
-      .post(`/api/bidder/products/${productId}/bid`, { amount })
+      .post(`/api/bidder/products/${productId}/bids`, { bidAmount: amount })
       .then((response) => {
         if (response.data.success) {
           return {
             success: true,
             message: response.data.message || 'Bid placed successfully',
-            bid: response.data.bid || response.data,
+            bidId: response.data.bidId,
+            currentPrice: response.data.currentPrice,
+            nextMinBid: response.data.nextMinBid,
+            isHighestBidder: response.data.isHighestBidder,
+            createdAt: response.data.createdAt,
           };
         } else {
           throw new Error(response.data.message || 'Failed to place bid');
@@ -520,6 +553,87 @@ export const productApi = {
       })
       .catch((error) => {
         console.error('Get products by category error:', error);
+        throw error;
+      });
+  },
+
+  /**
+   * Search products by name
+   * No authentication required
+   * @param {string} searchKeyword - Search keyword
+   * @param {number} page - Page number (default: 1)
+   * @param {number} limit - Items per page (default: 20)
+   * @param {string} sortOrder - Sort order (default: 'ENDING_SOON_DESC')
+   * @param {string} status - Product status filter (default: 'active')
+   * @param {number} minPrice - Minimum price
+   * @param {number} maxPrice - Maximum price
+   * @returns {Promise} - { success, message, products: [...], total, page, limit }
+   */
+  searchProducts: (searchKeyword = '', page = 1, limit = 20, sortOrder = 'ENDING_SOON_DESC', status = 'active', minPrice = null, maxPrice = null) => {
+    const params = {
+      searchKeyword,
+      page,
+      limit,
+      sortOrder,
+      status,
+    };
+
+    // Add optional price filters if provided
+    if (minPrice !== null && minPrice !== undefined) {
+      params.minPrice = minPrice;
+    }
+    if (maxPrice !== null && maxPrice !== undefined) {
+      params.maxPrice = maxPrice;
+    }
+
+    return axiosInstance
+      .get('/api/guest/products/search', { params })
+      .then((response) => {
+        if (response.data.success) {
+          const pageInfo = response.data.pageInfo || {};
+          return {
+            success: true,
+            message: response.data.message || 'Products retrieved successfully',
+            products: response.data.products || [],
+            total: pageInfo.totalItems || 0,
+            page: pageInfo.currentPage || page,
+            limit: pageInfo.pageSize || limit,
+            pageInfo: pageInfo,
+          };
+        } else {
+          throw new Error(response.data.message || 'Failed to search products');
+        }
+      })
+      .catch((error) => {
+        console.error('Search products error:', error);
+        throw error;
+      });
+  },
+
+  /**
+   * Buy now product
+   * Requires authentication
+   * @param {number} productId - Product ID
+   * @returns {Promise} - { success, message, orderId, price, createdAt }
+   */
+  buyNowProduct: (productId) => {
+    return axiosInstance
+      .post(`/api/bidder/products/${productId}/buy-now`)
+      .then((response) => {
+        if (response.data.success) {
+          return {
+            success: true,
+            message: response.data.message || 'Product purchased successfully',
+            orderId: response.data.orderId,
+            price: response.data.price,
+            createdAt: response.data.createdAt,
+          };
+        } else {
+          throw new Error(response.data.message || 'Failed to purchase product');
+        }
+      })
+      .catch((error) => {
+        console.error('Buy now product error:', error);
         throw error;
       });
   },

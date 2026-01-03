@@ -21,6 +21,7 @@ export default function Router() {
       element: <MainLayout />,
       children: [
         { index: true, element: <HomePage /> },
+        { path: "search", element: <SearchResultsPage /> },
         { path: "category", element: <CategoryPage /> },
         { path: "category/:parentCategory", element: <CategoryPage /> },
         {
@@ -231,3 +232,6 @@ const TermOfServicePage = Loadable(
   lazy(() => import("../pages/TermOfServicePage.jsx"))
 );
 const HomePage = Loadable(lazy(() => import("../pages/HomePage.jsx")));
+const SearchResultsPage = Loadable(
+  lazy(() => import("../pages/SearchResultsPage.jsx"))
+);

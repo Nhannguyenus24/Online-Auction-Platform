@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.auction.proto.user.AddToWatchlistRequest;
 import com.auction.proto.user.AskQuestionRequest;
+import com.auction.proto.user.GetBidderRatingsRequest;
 import com.auction.proto.user.GetMyBidsRequest;
 import com.auction.proto.user.GetProductBidsRequest;
 import com.auction.proto.user.GetProductDetailsRequest;
@@ -35,8 +36,8 @@ import com.auction.proto.user.MarkNotificationAsReadRequest;
 import com.auction.proto.user.PlaceBidRequest;
 import com.auction.proto.user.RemoveFromWatchlistRequest;
 import com.auction.proto.user.SetAutoBidRequest;
+import com.auction.proto.user.GetTopBiddersRequest;
 
-import com.auction.proto.user.GetBidderRatingsRequest;
 import gateway.grpc.BidderGrpcClient;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -743,10 +744,103 @@ public class BidderController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }
+    
+    @PostMapping("/products/{productId}/buy-now")
+    @Operation(summary = "Buy now product", description = "Purchase a product immediately using buy now feature. Requires positive reviews > 4 × negative reviews. Requires authentication.")
+    public ResponseEntity<Map<String, Object>> buyNowProduct(
+            @Parameter(description = "Product ID", required = true)
+            @PathVariable int productId) {
+
+        int userId = getUserId();
+        log.info("Buy now product request - productId: {}, userId: {}", productId, userId);
+
+        com.auction.proto.user.BuyNowProductRequest grpcRequest = com.auction.proto.user.BuyNowProductRequest.newBuilder()
+                .setProductId(productId)
+                .setUserId(userId)
+                .build();
+
+        try {
+            var response = bidderGrpcClient.buyNowProduct(grpcRequest).block();
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", response.getSuccess());
+            result.put("message", response.getMessage());
+            
+            if (response.getSuccess()) {
+                result.put("orderId", response.getOrderId());
+                result.put("price", response.getPrice());
+                result.put("createdAt", response.getCreatedAt());
+                log.info("Buy now successful - orderId: {}, price: {}", response.getOrderId(), response.getPrice());
+                return ResponseEntity.ok(result);
+            } else {
+                return ResponseEntity.badRequest().body(result);
+            }
+        } catch (Exception e) {
+            log.error("Buy now product error: {}", e.getMessage(), e);
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Failed to buy now: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
 
     // ============================================================================
     // HELPER MAPPING METHODS
     // ============================================================================
+    
+    @GetMapping("/products/{productId}/top-bidders")
+    @Operation(summary = "Get top bidders", description = "Get top bidders for a product from Redis. Does not require authentication.")
+    public ResponseEntity<Map<String, Object>> getTopBidders(
+            @Parameter(description = "Product ID", required = true)
+            @PathVariable int productId,
+            @Parameter(description = "Number of top bidders to return (default 5, max 10)")
+            @RequestParam(defaultValue = "5") int limit) {
+        
+        log.info("Get top bidders request - productId: {}, limit: {}", productId, limit);
+        
+        com.auction.proto.user.GetTopBiddersRequest grpcRequest = com.auction.proto.user.GetTopBiddersRequest.newBuilder()
+                .setProductId(productId)
+                .setLimit(limit)
+                .build();
+        
+        try {
+            var response = bidderGrpcClient.getTopBidders(grpcRequest)
+                    .timeout(Duration.ofSeconds(5))
+                    .block();
+            
+            Map<String, Object> result = new HashMap<>();
+            
+            if (response == null || !response.getSuccess()) {
+                result.put("success", false);
+                result.put("message", response != null ? response.getMessage() : "Failed to get top bidders");
+                log.warn("Failed to get top bidders: {}", response != null ? response.getMessage() : "null response");
+                return ResponseEntity.badRequest().body(result);
+            }
+            
+            List<Map<String, Object>> topBidders = new ArrayList<>();
+            for (var bidder : response.getTopBiddersList()) {
+                Map<String, Object> bidderMap = new HashMap<>();
+                bidderMap.put("bidderId", bidder.getBidderId());
+                bidderMap.put("bidderName", bidder.getBidderNameMasked());
+                bidderMap.put("bidAmount", bidder.getBidAmount());
+                bidderMap.put("bidTime", bidder.getBidTime());
+                topBidders.add(bidderMap);
+            }
+            
+            result.put("success", true);
+            result.put("message", response.getMessage());
+            result.put("topBidders", topBidders);
+            
+            log.info("Successfully retrieved {} top bidders for product {}", topBidders.size(), productId);
+            return ResponseEntity.ok(result);
+            
+        } catch (Exception e) {
+            log.error("Error getting top bidders for product {}: {}", productId, e.getMessage(), e);
+            Map<String, Object> errorResult = new HashMap<>();
+            errorResult.put("success", false);
+            errorResult.put("message", "Failed to get top bidders: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResult);
+        }
+    }
 
     private List<Map<String, Object>> mapBidderReviewList(List<com.auction.proto.user.BidderReview> reviews) {
         List<Map<String, Object>> result = new ArrayList<>();

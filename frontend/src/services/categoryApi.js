@@ -37,12 +37,10 @@ export const categoryApi = {
    */
   getCategories: () => {
     return axiosInstance.get('/api/guest/categories').then((response) => {
-      console.log('Categories API Response:', response.data);
       // Backend returns { success, message, categories }
       // We'll return the data in a consistent format
       if (response.data.success) {
         const categories = response.data.categories || [];
-        console.log('Categories parsed:', categories);
         return {
           success: true,
           data: categories,

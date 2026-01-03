@@ -20,7 +20,6 @@ export const watchlistApi = {
     return axiosInstance.get('/api/bidder/watchlist', {
       params: { page, limit, status }
     }).then((response) => {
-      console.log('Watchlist API Response:', response.data);
       
       const hasSuccess = 'success' in response.data;
       const isSuccess = hasSuccess ? response.data.success : (response.data.products !== undefined);
@@ -50,7 +49,6 @@ export const watchlistApi = {
    */
   addToWatchlist: (productId) => {
     return axiosInstance.post('/api/bidder/watchlist', { productId }).then((response) => {
-      console.log('Add to watchlist API Response:', response.data);
       
       if (response.data.success) {
         return {
@@ -76,8 +74,6 @@ export const watchlistApi = {
    */
   removeFromWatchlist: (productId) => {
     return axiosInstance.delete(`/api/bidder/watchlist/${productId}`).then((response) => {
-      console.log('Remove from watchlist API Response:', response.data);
-      
       if (response.data.success) {
         return {
           success: true,

@@ -46,9 +46,6 @@ const Header = () => {
   const navigate = useNavigate();
   const { isAuthenticated, user, logout: authLogout } = useAuth();
   
-  // Debug logs
-  console.log('Header render - isAuthenticated:', isAuthenticated, 'user:', user);
-  
   // Get user info from auth context
   const userName = user?.fullName || user?.name || '';
   

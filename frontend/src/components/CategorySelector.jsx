@@ -23,11 +23,8 @@ const CategorySelector = ({ parentCategory, childCategory, onChange, error, help
       try {
         setLoading(true);
         setErrorMessage(null);
-        console.log('Fetching categories...');
         const response = await categoryApi.getCategories();
-        console.log('Categories response:', response);
         const categoriesData = response.data || [];
-        console.log('Setting categories:', categoriesData);
         setCategories(categoriesData);
       } catch (err) {
         console.error('Error fetching categories:', err);

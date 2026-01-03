@@ -76,8 +76,6 @@ const Login = () => {
         recaptchaToken: recaptchaValue,
       });
 
-      console.log('Login response:', response);
-
       // Update auth context with user data
       if (response.accessToken) {
         // If user data is provided, use it; otherwise login function will try to get from token

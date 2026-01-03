@@ -47,7 +47,12 @@ service UserService {
   rpc MarkNotificationAsRead(MarkNotificationAsReadRequest) returns (MarkNotificationAsReadResponse);
   // 14 get bidder ratings
   rpc GetBidderRatings(GetBidderRatingsRequest) returns (GetBidderRatingsResponse);
+  
+  // 15. Buy now product
+  rpc BuyNowProduct(BuyNowProductRequest) returns (BuyNowProductResponse);
 
+  //16. Get top 5 bidders for a product
+  rpc GetTopBidders(GetTopBiddersRequest) returns (GetTopBiddersResponse);
 }
 
 // ==================== Product Messages ====================
@@ -364,4 +369,39 @@ message BidderReview {
   int32 score = 4; // 1-5
   string comment = 5;
   string created_at = 6;
+}
+
+// ==================== 15. Buy Now Product ====================
+
+message BuyNowProductRequest {
+  int32 product_id = 1;
+  int32 user_id = 2; // Authenticated user ID (from JWT)
+}
+
+message BuyNowProductResponse {
+  bool success = 1;
+  string message = 2;
+  int32 order_id = 3;
+  double price = 4;
+  int64 created_at = 5;
+}
+
+// ==================== 16. Get Top Bidders ====================
+
+message TopBidder {
+  int32 bidder_id = 1;
+  string bidder_name_masked = 2; // Masked for privacy
+  double bid_amount = 3;
+  int64 bid_time = 4;
+}
+
+message GetTopBiddersRequest {
+  int32 product_id = 1;
+  int32 limit = 2; // Default: 5, Max: 10
+}
+
+message GetTopBiddersResponse {
+  repeated TopBidder top_bidders = 1;
+  bool success = 2;
+  string message = 3;
 }
