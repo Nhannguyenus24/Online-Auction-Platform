@@ -92,7 +92,6 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
         LEFT JOIN users u ON p.seller_id = u.id
-        LEFT JOIN product_images i ON p.id = i.product_id
         WHERE p.status = 'active'
         ORDER BY p.bids_count DESC
         LIMIT :limit

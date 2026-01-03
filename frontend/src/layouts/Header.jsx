@@ -29,7 +29,6 @@ import {
   Settings,
   Logout,
   Dashboard,
-  Favorite,
   AttachMoney,
   Category,
   KeyboardArrowDown,
@@ -66,6 +65,8 @@ const Header = () => {
   };
   
   const userRole = getNormalizedRole();
+  
+  // Get user avatar from multiple possible fields
   const userAvatar = user?.avatar || user?.profilePicture || '';
   
   // Menu states
@@ -85,7 +86,6 @@ const Header = () => {
   const [watchlistLoading, setWatchlistLoading] = useState(false);
   const [watchlistCount, setWatchlistCount] = useState(0);
   
-  // Mock data
   const [searchQuery, setSearchQuery] = useState('');
   
   // Categories state
@@ -477,56 +477,23 @@ const Header = () => {
             </Typography>
           </Box>
         <Divider />
-        
-        {userRole === 'admin' && (
-          <MenuItem onClick={() => { navigate('/admin/dashboard'); handleCloseUserMenu(); }}>
-            <ListItemIcon>
-              <Dashboard fontSize="small" />
-            </ListItemIcon>
-            <ListItemText>Dashboard</ListItemText>
-          </MenuItem>
-        )}
-        
-        {userRole === 'seller' && (
-          <MenuItem onClick={() => { navigate('/seller/dashboard'); handleCloseUserMenu(); }}>
-            <ListItemIcon>
-              <AttachMoney fontSize="small" />
-            </ListItemIcon>
-            <ListItemText>My Auctions</ListItemText>
-          </MenuItem>
-        )}
-        
-        {userRole === 'bidder' && (
-          <div>
-            <MenuItem onClick={() => { navigate('/bidder/my-bids'); handleCloseUserMenu(); }}>
-              <ListItemIcon>
-                <Gavel fontSize="small" />
-              </ListItemIcon>
-              <ListItemText>My Bids</ListItemText>
-            </MenuItem>
-            <MenuItem onClick={() => { navigate('/bidder/watchlist'); handleCloseUserMenu(); }}>
-              <ListItemIcon>
-                <Favorite fontSize="small" />
-              </ListItemIcon>
-              <ListItemText>Watchlist</ListItemText>
-            </MenuItem>
-          </div>
-        )}
-        
+
         <MenuItem onClick={() => { 
           if (userRole === 'bidder') {
             navigate('/bidder/profile');
           } else if (userRole === 'seller') {
-            navigate('/seller/profile');
+            navigate('/seller/home');
           } else {
-            navigate('/bidder/profile'); // Default fallback
+            navigate('/admin/dashboard'); // Default fallback
           }
           handleCloseUserMenu(); 
         }}>
           <ListItemIcon>
-            <Person fontSize="small" />
+            {userRole === 'admin' ? <Dashboard fontSize="small" /> : userRole === 'seller' ? <AttachMoney fontSize="small" /> : <Person fontSize="small" />}
           </ListItemIcon>
-          <ListItemText>Profile</ListItemText>
+          <ListItemText>
+            {userRole === 'bidder' ? 'Profile' : userRole === 'seller' ? 'Seller Dashboard' : 'Admin Dashboard'}
+          </ListItemText>
         </MenuItem>
         
         <MenuItem onClick={() => { navigate('/settings'); handleCloseUserMenu(); }}>

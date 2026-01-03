@@ -91,10 +91,7 @@ const Login = () => {
         recaptchaRef.current.reset();
       }
 
-      // Redirect to dashboard after 1 second
-      setTimeout(() => {
         navigate("/");
-      }, 1000);
     } catch (error) {
       setErrorMessage(
         error.response?.data?.message || error.message || "Login failed. Please try again."

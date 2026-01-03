@@ -103,7 +103,6 @@ const HomePage = () => {
   // Product states
   const [endingSoonProducts, setEndingSoonProducts] = useState([]);
   const [mostBidsProducts, setMostBidsProducts] = useState([]);
-  const [highestPriceProducts, setHighestPriceProducts] = useState([]);
   
   // Category states
   const [categories, setCategories] = useState([]);
@@ -156,12 +155,10 @@ const HomePage = () => {
     const fetchTopProducts = async () => {
       try {
         // Fetch all 3 APIs in parallel
-        const [endingSoonRes, mostBidsRes, highestPriceRes] = await Promise.all([
+        const [endingSoonRes, mostBidsRes] = await Promise.all([
           productApi.getTopEndingProducts(5).catch(err => ({ success: false, products: [], error: err })),
           productApi.getTopBidCountProducts(5).catch(err => ({ success: false, products: [], error: err })),
-          productApi.getTopPriceProducts(5).catch(err => ({ success: false, products: [], error: err })),
         ]);
-        console.log('Fetched top products:', { endingSoonRes, mostBidsRes, highestPriceRes });
 
         // Process ending soon products
         if (endingSoonRes.success) {
@@ -185,18 +182,6 @@ const HomePage = () => {
           setMostBidsProducts([]);
           setLoading(prev => ({ ...prev, mostBids: false }));
           setErrors(prev => ({ ...prev, mostBids: mostBidsRes.error?.message || 'Failed to load most popular products' }));
-        }
-
-        // Process highest price products
-        if (highestPriceRes.success) {
-          const mappedProducts = (highestPriceRes.products || []).map(mapProductFromAPI);
-          setHighestPriceProducts(mappedProducts);
-          setLoading(prev => ({ ...prev, highestPrice: false }));
-          setErrors(prev => ({ ...prev, highestPrice: null }));
-        } else {
-          setHighestPriceProducts([]);
-          setLoading(prev => ({ ...prev, highestPrice: false }));
-          setErrors(prev => ({ ...prev, highestPrice: highestPriceRes.error?.message || 'Failed to load highest price products' }));
         }
       } catch (error) {
         console.error('Error fetching top products:', error);
@@ -451,14 +436,6 @@ const HomePage = () => {
                 </Typography>
               </Box>
             </Box>
-            <Button
-              variant="outlined"
-              endIcon={<ArrowForward />}
-              onClick={() => navigate("/category/electronics/watches")}
-              sx={{ fontWeight: "bold" }}
-            >
-              View All
-            </Button>
           </Box>
           <Box
             sx={{
@@ -716,14 +693,6 @@ const HomePage = () => {
                 </Typography>
               </Box>
             </Box>
-            <Button
-              variant="outlined"
-              endIcon={<ArrowForward />}
-              onClick={() => navigate("/category/electronics/smartphones")}
-              sx={{ fontWeight: "bold" }}
-            >
-              View All
-            </Button>
           </Box>
           <Box
             sx={{

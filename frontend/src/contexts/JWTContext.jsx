@@ -67,32 +67,96 @@ export function AuthProvider({ children }) {
                 };
                 authResult = true;
               } else {
-                // Token is invalid, clear it
-                console.warn('Auth init - token invalid, clearing');
+                // Token is invalid, try to refresh
+                console.warn('Auth init - token invalid, trying to refresh...');
+                try {
+                  const refreshResponse = await authApi.refreshToken();
+                  if (refreshResponse.accessToken) {
+                    setSession(refreshResponse.accessToken);
+                    // Try to get profile again with new token
+                    const profileRetry = await authApi.getProfile();
+                    const retryProfile = profileRetry.data?.profile || profileRetry.data?.data?.profile || profileRetry.data;
+                    if (retryProfile && (retryProfile.id || retryProfile.userId)) {
+                      userData = {
+                        id: retryProfile.id || retryProfile.userId,
+                        email: retryProfile.email,
+                        fullName: retryProfile.fullName || retryProfile.name,
+                        roles: retryProfile.roles || [retryProfile.role],
+                        roleName: retryProfile.roleName || retryProfile.role || retryProfile.roles?.[0],
+                        phoneNumber: retryProfile.phoneNumber,
+                        address: retryProfile.address,
+                        isVerified: retryProfile.isVerified,
+                      };
+                      authResult = true;
+                    }
+                  } else {
+                    console.warn('Auth init - refresh failed, clearing');
+                    setSession(null);
+                  }
+                } catch (refreshError) {
+                  console.warn('Auth init - refresh token failed, clearing session:', refreshError);
+                  setSession(null);
+                  authResult = false;
+                  userData = null;
+                }
+              }
+            }
+          } catch (profileError) {
+            // If profile API fails (401/403), try to refresh token
+            console.warn('Auth init - profile API failed, trying refresh:', profileError);
+            
+            // Check if it's an auth error (401/403)
+            const isAuthError = profileError.response?.status === 401 || profileError.response?.status === 403;
+            
+            if (isAuthError) {
+              try {
+                const refreshResponse = await authApi.refreshToken();
+                if (refreshResponse.accessToken) {
+                  setSession(refreshResponse.accessToken);
+                  // Try to get profile again with new token
+                  const profileRetry = await authApi.getProfile();
+                  const retryProfile = profileRetry.data?.profile || profileRetry.data?.data?.profile || profileRetry.data;
+                  if (retryProfile && (retryProfile.id || retryProfile.userId)) {
+                    userData = {
+                      id: retryProfile.id || retryProfile.userId,
+                      email: retryProfile.email,
+                      fullName: retryProfile.fullName || retryProfile.name,
+                      roles: retryProfile.roles || [retryProfile.role],
+                      roleName: retryProfile.roleName || retryProfile.role || retryProfile.roles?.[0],
+                      phoneNumber: retryProfile.phoneNumber,
+                      address: retryProfile.address,
+                      isVerified: retryProfile.isVerified,
+                    };
+                    authResult = true;
+                  }
+                } else {
+                  console.error('Auth init - refresh failed, clearing session');
+                  setSession(null);
+                }
+              } catch (refreshError) {
+                console.error('Auth init - refresh token failed, clearing session:', refreshError);
                 setSession(null);
                 authResult = false;
                 userData = null;
               }
-            }
-          } catch (profileError) {
-            // If profile API fails, try to use token payload as fallback
-            console.warn('Auth init - profile API failed, trying token payload:', profileError);
-            const payload = await getPayload(accessToken);
-            if (payload) {
-              userData = {
-                id: payload.userId || payload.sub,
-                email: payload.email,
-                fullName: payload.fullName || payload.name,
-                roles: payload.roles || [payload.role],
-                roleName: payload.roleName || payload.role || payload.roles?.[0],
-              };
-              authResult = true;
             } else {
-              // Both profile API and token verification failed, clear token
-              console.error('Auth init - token invalid or expired, clearing session');
-              setSession(null);
-              authResult = false;
-              userData = null;
+              // Not an auth error, try token payload as fallback
+              const payload = await getPayload(accessToken);
+              if (payload) {
+                userData = {
+                  id: payload.userId || payload.sub,
+                  email: payload.email,
+                  fullName: payload.fullName || payload.name,
+                  roles: payload.roles || [payload.role],
+                  roleName: payload.roleName || payload.role || payload.roles?.[0],
+                };
+                authResult = true;
+              } else {
+                console.error('Auth init - token invalid, clearing session');
+                setSession(null);
+                authResult = false;
+                userData = null;
+              }
             }
           }
         } else {

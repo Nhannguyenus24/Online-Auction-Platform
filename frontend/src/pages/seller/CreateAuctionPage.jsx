@@ -234,8 +234,6 @@ const SellerCreateAuctionPage = () => {
 
       const response = await sellerApi.createAuctionListing(listingData);
       
-      console.log('Create auction response:', response);
-      
       if (response.success) {
         enqueueSnackbar('Create auction listing successfully!', { 
           variant: 'success',
