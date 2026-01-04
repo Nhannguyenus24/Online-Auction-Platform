@@ -96,10 +96,10 @@ public class BidderService {
                     var autoBidMap = tuple.getT4();
                     var questions = tuple.getT5();
                     
-                    boolean isInWatchlist = isInWatchlistCount != null && isInWatchlistCount > 0;
-                    boolean isHighestBidder = isHighestBidderCount != null && isHighestBidderCount > 0;
+                    boolean isInWatchlist = isInWatchlistCount > 0;
+                    boolean isHighestBidder = isHighestBidderCount > 0;
                     double userMaxAutoBid = 0.0;
-                    if (autoBidMap != null && !autoBidMap.isEmpty()) {
+                    if (!autoBidMap.isEmpty()) {
                         Object maxAmount = autoBidMap.get("max_amount");
                         if (maxAmount != null) {
                             userMaxAutoBid = ((Number) maxAmount).doubleValue();
@@ -113,7 +113,7 @@ public class BidderService {
             .doOnError(e -> log.error("Error getting product details for productId={}: {}", productId, e.getMessage(), e));
     }
 
-    public Flux<Product> getRelatedProducts(int productId, int userId, int limit) {
+    public Flux<Product> getRelatedProducts(int productId, int limit) {
         return productRepository.findById(productId)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("Product not found with id: " + productId)))
                 .flatMapMany(product ->
@@ -133,27 +133,11 @@ public class BidderService {
 
 
     public Mono<Integer> addToWatchlist(int productId, int userId) {
-//        return productRepository.isInWatchlist(userId, productId)
-//            .flatMap(isInWatchlist -> {
-//                if (isInWatchlist) {
-//                    return Mono.error(new IllegalStateException("Product already in watchlist"));
-//                }
-//                return productRepository.addToWatchlist(userId, productId)
-//                    .thenReturn(1);
-//            });
         return productRepository.addToWatchlist(userId, productId)
                 .thenReturn(1);
     }
 
     public Mono<String> removeFromWatchlist(int productId, int userId) {
-//        return productRepository.isInWatchlist(userId, productId)
-//            .flatMap(isInWatchlist -> {
-//                if (!isInWatchlist) {
-//                    return Mono.error(new IllegalStateException("Product not in watchlist"));
-//                }
-//                return productRepository.removeFromWatchlist(userId, productId)
-//                    .thenReturn("Removed from watchlist");
-//            });
         return productRepository.removeFromWatchlist(userId, productId)
                 .thenReturn("Removed from watchlist");
     }
@@ -213,7 +197,7 @@ public class BidderService {
             productRepository.countProductQuestions(productId)
         ).map(tuple -> {
             var questionDtos = tuple.getT1();
-            var totalCount = tuple.getT2();
+            int totalCount = tuple.getT2();
             
             var questions = questionDtos.stream()
                 .map(this::mapDtoToQuestion)
@@ -241,7 +225,7 @@ public class BidderService {
             productRepository.countProductBids(productId)
         ).map(tuple -> {
             var bidDtos = tuple.getT1();
-            var totalCount = tuple.getT2();
+            int totalCount = tuple.getT2();
             
             var bids = bidDtos.stream()
                 .map(dto -> mapDtoToBid(dto, userId))
@@ -563,7 +547,7 @@ public class BidderService {
                         
                         // Calculate time remaining
                         java.time.Duration timeLeft = java.time.Duration.between(
-                            java.time.LocalDateTime.now(), auctionEndTime);
+                            TimeUtils.now(), auctionEndTime);
                         String timeRemaining = formatDuration(timeLeft);
                         
                         // Send outbid notification via RabbitMQ
@@ -601,7 +585,7 @@ public class BidderService {
         payload.put("yourBidAmount", yourBidAmount);
         payload.put("newHighestBid", String.format("%.2f", newHighestBid));
         payload.put("bidDifference", String.format("%.2f", bidDifference));
-        payload.put("outbidTime", java.time.LocalDateTime.now().toString());
+        payload.put("outbidTime", TimeUtils.now().toString());
         payload.put("auctionEndTime", auctionEndTime.toString());
         payload.put("timeRemaining", timeRemaining);
         payload.put("auctionLink", "http://localhost:3000/products/" + productId); // TODO: use actual frontend URL
@@ -658,7 +642,7 @@ public class BidderService {
             redisService.hSet(profileKey, "productId", String.valueOf(productId)),
             redisService.hSet(profileKey, "bidAmount", String.format("%.2f", bidAmount)),
             redisService.hSet(profileKey, "bidTime", String.valueOf(System.currentTimeMillis())),
-            redisService.hSet(profileKey, "lastUpdated", java.time.LocalDateTime.now().toString())
+            redisService.hSet(profileKey, "lastUpdated", TimeUtils.now().toString())
         )
         .then(redisService.expire(profileKey, java.time.Duration.ofSeconds(86400 * 15))) // Expire after 15 days
         .doOnSuccess(v -> log.debug("Bidder profile saved to Redis: userId={}, productId={}", userId, productId))
@@ -743,7 +727,7 @@ public class BidderService {
         payload.put("productName", product.getTitle());
         payload.put("purchaseType", "buy_now");
         payload.put("price", String.format("%.2f", buyNowPrice));
-        payload.put("purchaseTime", java.time.LocalDateTime.now().toString());
+        payload.put("purchaseTime", TimeUtils.now().toString());
         
         RabbitMessage message = RabbitMessage.builder()
             .eventType(EventType.TASK_SEND_MAIL_SUCCESS_BID)
@@ -772,7 +756,7 @@ public class BidderService {
         payload.put("purchaseType", "buy_now");
         payload.put("price", String.format("%.2f", buyNowPrice));
         payload.put("buyerName", "User #" + buyerId);
-        payload.put("purchaseTime", java.time.LocalDateTime.now().toString());
+        payload.put("purchaseTime", TimeUtils.now().toString());
         
         RabbitMessage message = RabbitMessage.builder()
             .eventType(EventType.TASK_SEND_MAIL_SUCCESS_BID)
@@ -1055,16 +1039,14 @@ public class BidderService {
                     Mono<String> userNameMono = productRepository.getUserFullName(review.getFromUserId())
                         .defaultIfEmpty("User #" + review.getFromUserId());
                     
-                    return userNameMono.map(userName -> {
-                        return new BidderReview(
-                            review.getId(),
-                            review.getFromUserId(),
-                            userName,
-                            review.getScore(),
-                            review.getComment() != null ? review.getComment() : "",
-                            String.valueOf(TimeUtils.toEpochSecond(review.getCreatedAt()) * 1000)
-                        );
-                    });
+                    return userNameMono.map(userName -> new BidderReview(
+                        review.getId(),
+                        review.getFromUserId(),
+                        userName,
+                        review.getScore(),
+                        review.getComment() != null ? review.getComment() : "",
+                        String.valueOf(TimeUtils.toEpochSecond(review.getCreatedAt()) * 1000)
+                    ));
                 })
                 .collectList()
         ).map(tuple -> {
@@ -1090,7 +1072,6 @@ public class BidderService {
     /**
      * Get top bidders for a product from Redis sorted set
      * Returns top bidders sorted by bid amount (highest first)
-     * 
      * Cách lưu trong placeBid:
      * - Key: "auction:" + productId + ":bids"
      * - Member (key): String.valueOf(userId)

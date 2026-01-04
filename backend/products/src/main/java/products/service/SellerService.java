@@ -12,7 +12,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.auction.entities.database.Product;
-import com.auction.entities.database.Review;
 import com.auction.entities.msg.EventType;
 import com.auction.entities.msg.RabbitMessage;
 import com.auction.rabbitmq.services.ReactiveRabbitProducer;
@@ -22,8 +21,7 @@ import com.auctionplatform.seller.grpc.OrderDetail;
 import com.auctionplatform.seller.grpc.ProductDetailsResponse;
 import com.auctionplatform.seller.grpc.ProductSummary;
 
-import products.dto.OrderDetailDto;
-import products.dto.OrderRowDto;
+import products.dto.ImageRowDto;
 import products.repository.OrderRepository;
 import products.repository.ProductRepository;
 import products.repository.ReviewRepository;
@@ -78,20 +76,18 @@ public class SellerService {
                 .skip(offset)
                 .take(pageSize)
                 .flatMap(review -> {
-                    // Get user name for from_user_id
+                    // Get username for from_user_id
                     Mono<String> userNameMono = productRepository.getUserFullName(review.getFromUserId())
                         .defaultIfEmpty("User #" + review.getFromUserId());
                     
-                    return userNameMono.map(userName -> {
-                        return com.auctionplatform.seller.grpc.Review.newBuilder()
-                            .setId(review.getId())
-                            .setFromUserId(review.getFromUserId())
-                            .setFromUserName(userName)
-                            .setScore(review.getScore())
-                            .setComment(review.getComment() != null ? review.getComment() : "")
-                            .setCreatedAt(TimeUtils.toEpochSecond(review.getCreatedAt()) * 1000 + "")
-                            .build();
-                    });
+                    return userNameMono.map(userName -> com.auctionplatform.seller.grpc.Review.newBuilder()
+                        .setId(review.getId())
+                        .setFromUserId(review.getFromUserId())
+                        .setFromUserName(userName)
+                        .setScore(review.getScore())
+                        .setComment(review.getComment() != null ? review.getComment() : "")
+                        .setCreatedAt(TimeUtils.toEpochSecond(review.getCreatedAt()) * 1000 + "")
+                        .build());
                 })
                 .collectList()
         ).map(tuple -> {
@@ -125,7 +121,7 @@ public class SellerService {
                 .flatMap(product -> 
                     productRepository.getProductImages(product.getId())
                         .next()
-                        .map(img -> img.url())
+                        .map(ImageRowDto::url)
                         .defaultIfEmpty("")
                         .map(primaryImageUrl -> mapToProductSummary(product, primaryImageUrl))
                 )
@@ -150,7 +146,7 @@ public class SellerService {
                 .flatMap(product -> 
                     productRepository.getProductImages(product.getId())
                         .next()
-                        .map(img -> img.url())
+                        .map(ImageRowDto::url)
                         .defaultIfEmpty("")
                         .map(primaryImageUrl -> mapToProductSummary(product, primaryImageUrl))
                 )
@@ -335,7 +331,7 @@ public class SellerService {
                 .flatMap(product -> 
                     productRepository.getProductImages(product.getId())
                         .next()
-                        .map(img -> img.url())
+                        .map(ImageRowDto::url)
                         .defaultIfEmpty("")
                         .map(primaryImageUrl -> mapToListingDetail(product, primaryImageUrl))
                 )
@@ -445,20 +441,6 @@ public class SellerService {
             .build();
     }
 
-    private OrderDetail mapOrderRowToOrderDetail(OrderRowDto dto) {
-        return OrderDetail.newBuilder()
-            .setId(dto.id() != null ? dto.id() : 0)
-            .setProductId(dto.productId() != null ? dto.productId() : 0)
-            .setProductTitle(dto.productTitle() != null ? dto.productTitle() : "")
-            .setBuyerId(dto.buyerId() != null ? dto.buyerId() : 0)
-            .setBuyerName(dto.buyerName() != null ? dto.buyerName() : "")
-            .setAmount(dto.amount() != null ? dto.amount().floatValue() : 0f)
-            .setStatus(dto.status() != null ? dto.status() : "")
-            .setPaymentMethod(dto.paymentMethod() != null ? dto.paymentMethod() : "")
-            .setCreatedAt(dto.createdAt() != null ? TimeUtils.toEpochSecond(dto.createdAt()) * 1000 + "" : "")
-            .setUpdatedAt(dto.updatedAt() != null ? TimeUtils.toEpochSecond(dto.updatedAt()) * 1000 + "" : "")
-            .build();
-    }
     /**
      * Answer a question on a product
      */
@@ -515,7 +497,7 @@ public class SellerService {
         payload.put("productName", product.getTitle());
         payload.put("sellerId", String.valueOf(product.getSellerId()));
         payload.put("reason", reason);
-        payload.put("banTime", LocalDateTime.now().toString());
+        payload.put("banTime", TimeUtils.now().toString());
         
         RabbitMessage message = RabbitMessage.builder()
             .eventType(EventType.TASK_SEND_MAIL_PRODUCT_BANNED_USER)

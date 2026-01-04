@@ -1,6 +1,7 @@
 package user.service;
 
 import java.math.BigDecimal;
+import java.sql.Time;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -8,6 +9,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 
+import com.auction.utils.TimeUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -73,7 +75,7 @@ public class AuthService {
                     user.setPositiveReviews(0);
                     user.setNegativeReviews(0);
                     user.setRatingPercent(BigDecimal.ZERO);
-                    user.setCreatedAt(LocalDateTime.now());
+                    user.setCreatedAt(TimeUtils.now());
 
                     return userRepository.save(user)
                             .flatMap(savedUser -> {
@@ -220,7 +222,7 @@ public class AuthService {
                             .switchIfEmpty(Mono.error(new RuntimeException("User not found")))
                             .flatMap(user -> {
                                 user.setIsEmailVerified(true);
-                                user.setUpdatedAt(LocalDateTime.now());
+                                user.setUpdatedAt(TimeUtils.now());
                                 return userRepository.save(user);
                             })
                             .then(redisClient.delete(redisKey))
@@ -279,7 +281,7 @@ public class AuthService {
 
                     // Update password
                     user.setPasswordHash(passwordEncoder.encode(newPassword));
-                    user.setUpdatedAt(LocalDateTime.now());
+                    user.setUpdatedAt(TimeUtils.now());
 
                     return userRepository.save(user)
                             .then(Mono.just("Password changed successfully"));
@@ -321,7 +323,7 @@ public class AuthService {
                     if (address != null && !address.isEmpty()) {
                         user.setAddress(address);
                     }
-                    user.setUpdatedAt(LocalDateTime.now());
+                    user.setUpdatedAt(TimeUtils.now());
 
                     return userRepository.save(user)
                             .map(savedUser -> new ProfileResult(
@@ -351,7 +353,7 @@ public class AuthService {
                     }
                     
                     if (needsUpdate) {
-                        existingUser.setUpdatedAt(LocalDateTime.now());
+                        existingUser.setUpdatedAt(TimeUtils.now());
                         return userRepository.save(existingUser);
                     }
                     return Mono.just(existingUser);
@@ -368,7 +370,7 @@ public class AuthService {
                         newUser.setPositiveReviews(0);
                         newUser.setNegativeReviews(0);
                         newUser.setRatingPercent(BigDecimal.ZERO);
-                        newUser.setCreatedAt(LocalDateTime.now());
+                        newUser.setCreatedAt(TimeUtils.now());
                         
                         return userRepository.save(newUser);
                     })

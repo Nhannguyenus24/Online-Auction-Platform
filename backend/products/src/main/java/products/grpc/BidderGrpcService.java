@@ -86,7 +86,7 @@ public class BidderGrpcService extends ReactorUserServiceGrpc.UserServiceImplBas
     public Mono<GetRelatedProductsResponse> getRelatedProducts(Mono<GetRelatedProductsRequest> request) {
         return request.doOnNext(req -> log.info("Raw get related products request: {}", JsonUtils.toJson(req)))
                 .flatMap(req ->
-                    bidderService.getRelatedProducts(req.getProductId(), req.getUserId(), req.getLimit())
+                    bidderService.getRelatedProducts(req.getProductId(), req.getLimit())
                         .collectList()
                         .map(products -> GetRelatedProductsResponse.newBuilder()
                             .addAllProducts(products)

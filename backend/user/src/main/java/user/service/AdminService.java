@@ -1,5 +1,6 @@
 package user.service;
 
+import com.auction.utils.TimeUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
@@ -252,7 +253,7 @@ public class AdminService {
                 .flatMap(upgradeReq -> {
                     upgradeReq.setStatus(status);
                     upgradeReq.setAdminId(request.getAdminId());
-                    upgradeReq.setReviewedAt(java.time.LocalDateTime.now());
+                    upgradeReq.setReviewedAt(TimeUtils.now());
 
                     return template.update(upgradeReq)
                             .then(Mono.just(ApproveUpgradeRequestResponse.newBuilder()
