@@ -17,7 +17,19 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import com.auction.proto.auth.*;
+
+import com.auction.proto.auth.ChangePasswordRequest;
+import com.auction.proto.auth.GetProfileRequest;
+import com.auction.proto.auth.GetProfileResponse;
+import com.auction.proto.auth.LoginRequest;
+import com.auction.proto.auth.LoginWithGoogleRequest;
+import com.auction.proto.auth.RefreshTokenRequest;
+import com.auction.proto.auth.RegisterRequest;
+import com.auction.proto.auth.ReproduceOTPRequest;
+import com.auction.proto.auth.UpdateProfileRequest;
+import com.auction.proto.auth.ValidateTokenRequest;
+import com.auction.proto.auth.VerifyOTPRequest;
+
 import gateway.grpc.UserGrpcClient;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -180,50 +192,21 @@ public class AuthController {
             HttpServletRequest request,
             HttpServletResponse response) {
         
-        String refreshToken = getRefreshTokenFromCookie(request);
-        
         log.info("Logout request");
         
-        // Get user ID from authentication if available
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String userId = authentication != null && authentication.getName() != null ? authentication.getName() : "";
+        // Clear refresh token cookie
+        Cookie clearCookie = new Cookie("refreshToken", null);
+        clearCookie.setHttpOnly(true);
+        clearCookie.setPath("/");
+        clearCookie.setMaxAge(0);
+        response.addCookie(clearCookie);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("success", true);
+        result.put("message", "Logged out successfully");
         
-        LogoutRequest grpcRequest = LogoutRequest.newBuilder()
-                .setRefreshToken(refreshToken != null ? refreshToken : "")
-                .setUserId(userId)
-                .build();
-
-        return userGrpcClient.logout(grpcRequest)
-                .map(logoutResponse -> {
-                    // Clear refresh token cookie
-                    Cookie clearCookie = new Cookie("refreshToken", null);
-                    clearCookie.setHttpOnly(true);
-                    clearCookie.setPath("/");
-                    clearCookie.setMaxAge(0);
-                    response.addCookie(clearCookie);
-
-                    Map<String, Object> result = new HashMap<>();
-                    result.put("success", true);
-                    result.put("message", "Logged out successfully");
-                    
-                    log.info("Logout successful");
-                    return ResponseEntity.ok(result);
-                })
-                .onErrorResume(e -> {
-                    log.error("Logout error: {}", e.getMessage());
-                    
-                    // Clear cookie anyway
-                    Cookie clearCookie = new Cookie("refreshToken", null);
-                    clearCookie.setHttpOnly(true);
-                    clearCookie.setPath("/");
-                    clearCookie.setMaxAge(0);
-                    response.addCookie(clearCookie);
-                    
-                    Map<String, Object> result = new HashMap<>();
-                    result.put("success", true);
-                    result.put("message", "Logged out");
-                    return Mono.just(ResponseEntity.ok(result));
-                });
+        log.info("Logout successful");
+        return Mono.just(ResponseEntity.ok(result));
     }
 
     @PostMapping("/reproduce-otp")

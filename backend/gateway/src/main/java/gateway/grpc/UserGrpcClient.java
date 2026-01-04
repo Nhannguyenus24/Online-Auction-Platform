@@ -14,8 +14,6 @@ import com.auction.proto.auth.GetProfileResponse;
 import com.auction.proto.auth.LoginRequest;
 import com.auction.proto.auth.LoginResponse;
 import com.auction.proto.auth.LoginWithGoogleRequest;
-import com.auction.proto.auth.LogoutRequest;
-import com.auction.proto.auth.LogoutResponse;
 import com.auction.proto.auth.ReactorAuthServiceGrpc;
 import com.auction.proto.auth.RefreshTokenRequest;
 import com.auction.proto.auth.RefreshTokenResponse;
@@ -87,12 +85,6 @@ public class UserGrpcClient {
     public Mono<RefreshTokenResponse> refreshToken(RefreshTokenRequest request) {
         log.info("gRPC refreshToken request: {}", JsonUtils.toJson(request));
         return authServiceStub.refreshToken(Mono.just(request));
-    }
-
-    // Logout
-    public Mono<LogoutResponse> logout(LogoutRequest request) {
-        log.info("gRPC logout request: {}", JsonUtils.toJson(request));
-        return authServiceStub.logout(Mono.just(request));
     }
 
     // Validate Token
