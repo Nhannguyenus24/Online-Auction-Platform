@@ -7,6 +7,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.auction.entities.msg.EventType;
 import com.auction.entities.msg.RabbitMessage;
@@ -241,10 +242,13 @@ public class BidderService {
         });
     }
 
+    @Transactional(rollbackFor = Exception.class, timeout = 10)
     public Mono<PlaceBidResult> placeBid(int productId, int userId, double bidAmount) {
         log.info("User {} placing bid {} on product {}", userId, bidAmount, productId);
         
-        return productRepository.findById(productId)
+        // Use pessimistic lock to prevent race conditions
+        // Lock is automatically released when transaction commits or rolls back
+        return productRepository.findByIdForUpdate(productId)
             .switchIfEmpty(Mono.error(new IllegalArgumentException("Product not found")))
             .flatMap(product -> {
                 // Validate product status
@@ -319,10 +323,13 @@ public class BidderService {
                 productId, userId, bidAmount, e.getMessage()));
     }
 
+    @Transactional(rollbackFor = Exception.class, timeout = 10)
     public Mono<AutoBidResult> setAutoBid(int productId, int userId, double maxAmount) {
         log.info("User {} setting auto-bid {} on product {}", userId, maxAmount, productId);
         
-        return productRepository.findById(productId)
+        // Use pessimistic lock to prevent race conditions
+        // Lock is automatically released when transaction commits or rolls back
+        return productRepository.findByIdForUpdate(productId)
             .switchIfEmpty(Mono.error(new IllegalArgumentException("Product not found")))
             .flatMap(product -> {
                 if (!"active".equals(product.getStatus())) {
@@ -345,14 +352,13 @@ public class BidderService {
             .doOnError(e -> log.error("Error setting auto-bid: {}", e.getMessage()));
     }
 
+    @Transactional(rollbackFor = Exception.class, timeout = 15)
     public Mono<BuyNowResult> buyNowProduct(int productId, int userId) {
         log.info("User {} attempting to buy now product {}", userId, productId);
-//
-//        return Mono.zip(
-//            productRepository.findById(productId),
-//            productRepository.getUserReviewCounts(userId)
-//        )
-        return productRepository.findById(productId)
+        
+        // Use pessimistic lock to prevent race conditions
+        // Lock is automatically released when transaction commits or rolls back
+        return productRepository.findByIdForUpdate(productId)
         .switchIfEmpty(Mono.error(new IllegalArgumentException("Product not found")))
         .flatMap(product -> {
 

@@ -25,6 +25,10 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
     // Find product by id
     Mono<Product> findById(Integer id);
     
+    // Find product by id with pessimistic lock (SELECT ... FOR UPDATE)
+    @Query("SELECT * FROM products WHERE id = :productId FOR UPDATE")
+    Mono<Product> findByIdForUpdate(@Param("productId") Integer productId);
+    
     // Update product status by id
     @Query("UPDATE products SET status = :status, updated_at = CURRENT_TIMESTAMP WHERE id = :productId")
     Mono<Void> updateStatus(@Param("productId") Integer productId, @Param("status") String status);
