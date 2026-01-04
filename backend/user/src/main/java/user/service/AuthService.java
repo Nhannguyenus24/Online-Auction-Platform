@@ -1,9 +1,7 @@
 package user.service;
 
 import java.math.BigDecimal;
-import java.sql.Time;
 import java.time.Duration;
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -193,15 +191,6 @@ public class AuthService {
         } catch (Exception e) {
             return Mono.error(new RuntimeException("Invalid or expired refresh token"));
         }
-    }
-
-    /**
-     * Logout user (Gateway will clear cookies, no need to invalidate token here)
-     */
-    public Mono<Void> logout(String refreshToken) {
-        // Since we don't store tokens in DB, just return success
-        // Gateway will clear the cookies
-        return Mono.empty();
     }
 
     /**

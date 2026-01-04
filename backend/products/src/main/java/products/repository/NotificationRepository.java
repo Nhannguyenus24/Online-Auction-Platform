@@ -81,16 +81,6 @@ public interface NotificationRepository extends R2dbcRepository<Notification, In
     );
     
     /**
-     * Mark all notifications as read for a user
-     * Flow: Called when user clicks "mark all as read" button
-     * @param userId - User ID to mark all notifications as read
-     * @return Mono<Integer> number of rows updated
-     */
-    @Modifying
-    @Query("UPDATE notifications SET is_read = true WHERE user_id = :userId AND is_read = false")
-    Mono<Integer> markAllAsRead(@Param("userId") Integer userId);
-    
-    /**
      * Find a notification by ID and user ID
      * Flow: Called to verify notification belongs to user before marking as read
      * @param id - Notification ID

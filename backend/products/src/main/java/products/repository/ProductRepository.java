@@ -1,7 +1,9 @@
 package products.repository;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 
+import com.auction.entities.database.User;
 import org.springframework.data.r2dbc.repository.Query;
 import org.springframework.data.r2dbc.repository.R2dbcRepository;
 import org.springframework.data.repository.query.Param;
@@ -24,44 +26,14 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
     // Find product by id
     Mono<Product> findById(Integer id);
     
-    // Find products by seller_id
-    Flux<Product> findBySellerId(Integer sellerId);
-    
-    // Find products by category_id
-    Flux<Product> findByCategoryId(Integer categoryId);
-    
-    // Find products by status
-    Flux<Product> findByStatus(String status);
-    
     // Update product status by id
     @Query("UPDATE products SET status = :status, updated_at = CURRENT_TIMESTAMP WHERE id = :productId")
     Mono<Void> updateStatus(@Param("productId") Integer productId, @Param("status") String status);
-    
-    // Get product status by id
-    @Query("SELECT status FROM products WHERE id = :productId")
-    Mono<String> getStatusById(@Param("productId") Integer productId);
-    
+
     // Increment product view count
     @Query("UPDATE products SET views_count = views_count + 1 WHERE id = :productId")
     Mono<Void> incrementViewCount(@Param("productId") Integer productId);
-    
-    // Get product info with seller name and category name for admin
-    @Query("""
-        SELECT p.id, p.title, p.seller_id, u.full_name as seller_name, 
-               p.category_id, c.name as category_name, p.starting_price, 
-               p.current_price, p.status, p.starts_at, p.ends_at, 
-               p.views_count, p.bids_count, p.created_at
-        FROM products p
-        LEFT JOIN users u ON p.seller_id = u.id
-        LEFT JOIN categories c ON p.category_id = c.id
-        WHERE p.id = :productId
-        """)
-    Mono<Map<String, Object>> getProductInfo(@Param("productId") Integer productId);
 
-    // Find products by multiple statuses
-    @Query("SELECT * FROM products WHERE status IN (:statuses)")
-    Flux<Product> findByStatusIn(@Param("statuses") String... statuses);
-    
     // ==================== Guest Service Methods ====================
     
     // Get top products ending soon (ordered by end time ascending)
@@ -83,10 +55,10 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
     
     // Get top products with most bids
     @Query("""
-        SELECT p.id, p.seller_id, p.category_id, c.name as category_name, 
-               p.title, p.description, p.starting_price, p.current_price, 
-               p.step_price, p.buy_now_price, p.starts_at, p.ends_at, 
-               p.is_auto_extend, p.auto_extend_seconds, p.status, p.views_count, 
+        SELECT p.id, p.seller_id, p.category_id, c.name as category_name,
+               p.title, p.description, p.starting_price, p.current_price,
+               p.step_price, p.buy_now_price, p.starts_at, p.ends_at,
+               p.is_auto_extend, p.auto_extend_seconds, p.status, p.views_count,
                p.bids_count, p.created_at, p.updated_at, u.full_name as seller_name,
                u.rating_percent as seller_rating_percent, u.positive_reviews as seller_positive_reviews
         FROM products p
@@ -98,12 +70,12 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
         """)
     Flux<ProductRowDto> getTopBidCountProducts(@Param("limit") int limit);
     
-    // Get top products with highest price
+    // Get top products with the highest price
     @Query("""
-        SELECT p.id, p.seller_id, p.category_id, c.name as category_name, 
-               p.title, p.description, p.starting_price, p.current_price, 
-               p.step_price, p.buy_now_price, p.starts_at, p.ends_at, 
-               p.is_auto_extend, p.auto_extend_seconds, p.status, p.views_count, 
+        SELECT p.id, p.seller_id, p.category_id, c.name as category_name,
+               p.title, p.description, p.starting_price, p.current_price,
+               p.step_price, p.buy_now_price, p.starts_at, p.ends_at,
+               p.is_auto_extend, p.auto_extend_seconds, p.status, p.views_count,
                p.bids_count, p.created_at, p.updated_at, u.full_name as seller_name,
                u.rating_percent as seller_rating_percent, u.positive_reviews as seller_positive_reviews
         FROM products p
@@ -115,34 +87,10 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
         """)
     Flux<ProductRowDto> getTopPriceProducts(@Param("limit") int limit);
     
-    // List products by category with filters
-    @Query("""
-        SELECT p.id, p.seller_id, p.category_id, c.name as category_name, 
-               p.title, p.description, p.starting_price, p.current_price, 
-               p.step_price, p.buy_now_price, p.starts_at, p.ends_at, 
-               p.is_auto_extend, p.auto_extend_seconds, p.status, p.views_count, 
-               p.bids_count, p.created_at, p.updated_at, u.full_name as seller_name,
-               u.rating_percent as seller_rating_percent, u.positive_reviews as seller_positive_reviews
-        FROM products p
-        LEFT JOIN categories c ON p.category_id = c.id
-        LEFT JOIN users u ON p.seller_id = u.id
-        WHERE p.category_id = :categoryId 
-              AND p.status = COALESCE(:status, 'active')
-              AND p.current_price >= COALESCE(:minPrice, 0)
-              AND p.current_price <= COALESCE(:maxPrice, 9999999)
-              AND (COALESCE(:searchKeyword, '') = '' OR MATCH(p.title) AGAINST(:searchKeyword IN BOOLEAN MODE))
-        """)
-    Flux<Map<String, Object>> listProductsByCategory(
-        @Param("categoryId") Integer categoryId,
-        @Param("status") String status,
-        @Param("minPrice") Double minPrice,
-        @Param("maxPrice") Double maxPrice,
-        @Param("searchKeyword") String searchKeyword);
-    
     // Count products by category with filters
     @Query("""
         SELECT COUNT(*) FROM products p
-        WHERE p.category_id = :categoryId 
+        WHERE p.category_id = :categoryId
               AND p.status = COALESCE(:status, 'active')
               AND p.current_price >= COALESCE(:minPrice, 0)
               AND p.current_price <= COALESCE(:maxPrice, 9999999)
@@ -161,10 +109,10 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
     
     // List products by name with full text search, filters, sorting, and pagination
     @Query("""
-        SELECT p.id, p.seller_id, p.category_id, c.name as category_name, 
-               p.title, p.description, p.starting_price, p.current_price, 
-               p.step_price, p.buy_now_price, p.starts_at, p.ends_at, 
-               p.is_auto_extend, p.auto_extend_seconds, p.status, p.views_count, 
+        SELECT p.id, p.seller_id, p.category_id, c.name as category_name,
+               p.title, p.description, p.starting_price, p.current_price,
+               p.step_price, p.buy_now_price, p.starts_at, p.ends_at,
+               p.is_auto_extend, p.auto_extend_seconds, p.status, p.views_count,
                p.bids_count, p.created_at, p.updated_at, u.full_name as seller_name,
                u.rating_percent as seller_rating_percent, u.positive_reviews as seller_positive_reviews
         FROM products p
@@ -174,7 +122,7 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
               AND p.current_price >= COALESCE(:minPrice, 0)
               AND p.current_price <= COALESCE(:maxPrice, 999999999)
               AND (COALESCE(:searchKeyword, '') = '' OR MATCH(p.title) AGAINST(:searchKeyword IN BOOLEAN MODE))
-        ORDER BY 
+        ORDER BY
             CASE WHEN :sortOrder = 'ENDING_SOON_DESC' THEN p.ends_at END ASC,
             CASE WHEN :sortOrder = 'ENDING_SOON_ASC' THEN p.ends_at END DESC,
             CASE WHEN :sortOrder = 'PRICE_ASC' THEN p.current_price END ASC,
@@ -207,76 +155,26 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
         @Param("minPrice") Double minPrice,
         @Param("maxPrice") Double maxPrice,
         @Param("status") String status);
-    
-    // Get highest bidder info (masked) for a product
-    @Query("""
-        SELECT SUBSTRING(bidder_email, 1, LOCATE('@', bidder_email) - 1) as masked_email,
-               MAX(amount) as highest_bid
-        FROM (SELECT u.email as bidder_email, b.amount FROM bids b
-              LEFT JOIN users u ON b.bidder_id = u.id
-              WHERE b.product_id = :productId
-              ORDER BY b.amount DESC LIMIT 1) as highest
-        GROUP BY bidder_email
-        """)
-    Mono<Map<String, Object>> getHighestBidderMasked(@Param("productId") Integer productId);
-    
-    // Append text to product description
-    @Query("UPDATE products SET description = CONCAT(COALESCE(description, ''), :appendText), updated_at = CURRENT_TIMESTAMP WHERE id = :productId")
-    Mono<Void> appendProductDescription(@Param("productId") Integer productId, @Param("appendText") String appendText);
-    
-    // ==================== Pagination Methods ====================
-    
-    // Find all products with pagination
-    @Query("SELECT * FROM products ORDER BY created_at DESC LIMIT :limit OFFSET :offset")
-    Flux<Product> findAllWithPagination(@Param("limit") int limit, @Param("offset") int offset);
-    
-    // Find products by seller with pagination
-    @Query("SELECT * FROM products WHERE seller_id = :sellerId ORDER BY created_at DESC LIMIT :limit OFFSET :offset")
-    Flux<Product> findBySellerIdWithPagination(@Param("sellerId") Integer sellerId, @Param("limit") int limit, @Param("offset") int offset);
-    
-    // Find products by category with pagination
-    @Query("SELECT * FROM products WHERE category_id = :categoryId ORDER BY created_at DESC LIMIT :limit OFFSET :offset")
-    Flux<Product> findByCategoryIdWithPagination(@Param("categoryId") Integer categoryId, @Param("limit") int limit, @Param("offset") int offset);
-    
-    // Find products by status with pagination
-    @Query("SELECT * FROM products WHERE status = :status ORDER BY created_at DESC LIMIT :limit OFFSET :offset")
-    Flux<Product> findByStatusWithPagination(@Param("status") String status, @Param("limit") int limit, @Param("offset") int offset);
-    
-    // Count all products
-    @Query("SELECT COUNT(*) FROM products")
-    Mono<Integer> countAll();
-    
-    // Count products by seller
-    @Query("SELECT COUNT(*) FROM products WHERE seller_id = :sellerId")
-    Mono<Integer> countBySellerId(@Param("sellerId") Integer sellerId);
-    
-    // Count products by category
-    @Query("SELECT COUNT(*) FROM products WHERE category_id = :categoryId")
-    Mono<Integer> countByCategoryId(@Param("categoryId") Integer categoryId);
-    
-    // Count products by status
-    @Query("SELECT COUNT(*) FROM products WHERE status = :status")
-    Mono<Integer> countByStatus(@Param("status") String status);
-    
+
     // ==================== List Products by Category (with filters and sorting) ====================
     
     // List products by category with full text search, filters, sorting, and pagination
     @Query("""
-        SELECT p.id, p.seller_id, p.category_id, c.name as category_name, 
-               p.title, p.description, p.starting_price, p.current_price, 
-               p.step_price, p.buy_now_price, p.starts_at, p.ends_at, 
-               p.is_auto_extend, p.auto_extend_seconds, p.status, p.views_count, 
+        SELECT p.id, p.seller_id, p.category_id, c.name as category_name,
+               p.title, p.description, p.starting_price, p.current_price,
+               p.step_price, p.buy_now_price, p.starts_at, p.ends_at,
+               p.is_auto_extend, p.auto_extend_seconds, p.status, p.views_count,
                p.bids_count, p.created_at, p.updated_at, u.full_name as seller_name,
                u.rating_percent as seller_rating_percent, u.positive_reviews as seller_positive_reviews
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
         LEFT JOIN users u ON p.seller_id = u.id
-        WHERE p.category_id = :categoryId 
+        WHERE p.category_id = :categoryId
               AND (COALESCE(:status, '') = '' OR p.status = :status)
               AND p.current_price >= COALESCE(:minPrice, 0)
               AND p.current_price <= COALESCE(:maxPrice, 999999999)
               AND (COALESCE(:searchKeyword, '') = '' OR MATCH(p.title) AGAINST(:searchKeyword IN BOOLEAN MODE))
-        ORDER BY 
+        ORDER BY
             CASE WHEN :sortOrder = 'ENDING_SOON_DESC' THEN p.ends_at END ASC,
             CASE WHEN :sortOrder = 'ENDING_SOON_ASC' THEN p.ends_at END DESC,
             CASE WHEN :sortOrder = 'PRICE_ASC' THEN p.current_price END ASC,
@@ -301,11 +199,11 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
     
     // Get product details with seller info, images, and user-specific data
     @Query("""
-        SELECT p.id, p.seller_id, p.category_id, c.name as category_name, 
-               p.title, p.description, p.starting_price, p.current_price, 
-               p.step_price, p.buy_now_price, p.starts_at, p.ends_at, 
-               p.is_auto_extend, p.auto_extend_seconds, p.status, p.views_count, 
-               p.bids_count, p.created_at, p.updated_at, 
+        SELECT p.id, p.seller_id, p.category_id, c.name as category_name,
+               p.title, p.description, p.starting_price, p.current_price,
+               p.step_price, p.buy_now_price, p.starts_at, p.ends_at,
+               p.is_auto_extend, p.auto_extend_seconds, p.status, p.views_count,
+               p.bids_count, p.created_at, p.updated_at,
                u.id as seller_id, u.full_name as seller_name, u.email as seller_email,
                u.rating_percent as seller_rating_percent, u.positive_reviews as seller_positive_reviews,
                u.negative_reviews as seller_negative_reviews
@@ -318,10 +216,10 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
     
     // Get related products in same category
     @Query("""
-        SELECT p.id, p.seller_id, p.category_id, c.name as category_name, 
-               p.title, p.description, p.starting_price, p.current_price, 
-               p.step_price, p.buy_now_price, p.starts_at, p.ends_at, 
-               p.is_auto_extend, p.auto_extend_seconds, p.status, p.views_count, 
+        SELECT p.id, p.seller_id, p.category_id, c.name as category_name,
+               p.title, p.description, p.starting_price, p.current_price,
+               p.step_price, p.buy_now_price, p.starts_at, p.ends_at,
+               p.is_auto_extend, p.auto_extend_seconds, p.status, p.views_count,
                p.bids_count, p.created_at, p.updated_at, u.full_name as seller_name,
                u.rating_percent as seller_rating_percent, u.positive_reviews as seller_positive_reviews
         FROM products p
@@ -350,15 +248,7 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
         LIMIT :limit OFFSET :offset
         """)
     Flux<ProductRowDto> getWatchlist(@Param("userId") Integer userId, @Param("status") String status, @Param("limit") int limit, @Param("offset") int offset);
-    
-    // Count watchlist items
-    @Query("""
-        SELECT COUNT(*) FROM watchlists w
-        LEFT JOIN products p ON w.product_id = p.id
-        WHERE w.user_id = :userId AND (COALESCE(:status, '') = '' OR p.status = :status)
-        """)
-    Mono<Integer> countWatchlist(@Param("userId") Integer userId, @Param("status") String status);
-    
+
     // Check if product in watchlist
     @Query("SELECT COUNT(*) FROM watchlists WHERE user_id = :userId AND product_id = :productId")
     Mono<Long> isInWatchlist(@Param("userId") Integer userId, @Param("productId") Integer productId);
@@ -373,7 +263,7 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
     
     // Get product bids with pagination
     @Query("""
-        SELECT b.id, b.product_id, b.bidder_id, 
+        SELECT b.id, b.product_id, b.bidder_id,
                CONCAT(SUBSTRING(u.email, 1, 3), '***@', SUBSTRING(u.email, LOCATE('@', u.email) + 1)) as bidder_name_masked,
                b.amount, b.is_auto, b.created_at
         FROM bids b
@@ -438,7 +328,7 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
     @Query("""
         SELECT b.id as bid_id, b.product_id, p.title as product_title,
                pi.url as product_primary_image, b.amount as bid_amount, p.current_price, p.status as product_status,
-               CAST(b.is_auto AS UNSIGNED) as is_auto, 
+               CAST(b.is_auto AS UNSIGNED) as is_auto,
                IF(b.amount = (SELECT MAX(amount) FROM bids WHERE product_id = p.id), 1, 0) as is_winning,
                p.status, b.created_at as bid_created_at, p.ends_at as product_ends_at
         FROM bids b
@@ -454,47 +344,37 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
     @Query("SELECT COUNT(*) FROM bids WHERE bidder_id = :userId")
     Mono<Integer> countMyBids(@Param("userId") Integer userId);
     
-    // Check if user is highest bidder
+    // Check if user is the highest bidder
     @Query("""
-        SELECT COUNT(*) FROM bids 
-        WHERE product_id = :productId AND bidder_id = :userId 
+        SELECT COUNT(*) FROM bids
+        WHERE product_id = :productId AND bidder_id = :userId
         AND amount = (SELECT MAX(amount) FROM bids WHERE product_id = :productId)
         """)
     Mono<Long> isHighestBidder(@Param("productId") Integer productId, @Param("userId") Integer userId);
     
-    // Get user's auto bid for a product
+    // Get user's auto-bid for a product
     @Query("""
-        SELECT id, product_id, bidder_id, max_amount, created_at 
-        FROM auto_bids 
+        SELECT id, product_id, bidder_id, max_amount, created_at
+        FROM auto_bids
         WHERE product_id = :productId AND bidder_id = :userId
         """)
-    Mono<Map<String, Object>> getUserAutoBid(@Param("productId") Integer productId, @Param("userId") Integer userId);
+    Mono<products.dto.AutoBidRowDto> getUserAutoBid(@Param("productId") Integer productId, @Param("userId") Integer userId);
     
     // Get user full name by user ID
     @Query("SELECT full_name FROM users WHERE id = :userId")
     Mono<String> getUserFullName(@Param("userId") Integer userId);
-    
-    // Get user review counts (positive and negative)
-    @Query("""
-        SELECT 
-            COALESCE(SUM(CASE WHEN score >= 4 THEN 1 ELSE 0 END), 0) as positive_reviews,
-            COALESCE(SUM(CASE WHEN score < 4 THEN 1 ELSE 0 END), 0) as negative_reviews
-        FROM reviews 
-        WHERE to_user_id = :userId
-        """)
-    Mono<products.dto.UserReviewCountsDto> getUserReviewCounts(@Param("userId") Integer userId);
-    
+
     // Find user by ID
     @Query("SELECT * FROM users WHERE id = :userId")
-    Mono<com.auction.entities.database.User> findUserById(@Param("userId") Integer userId);
+    Mono<User> findUserById(@Param("userId") Integer userId);
     
     // Get last bid time for a user on a specific product
     @Query("""
-        SELECT created_at 
-        FROM bids 
-        WHERE product_id = :productId AND bidder_id = :userId 
-        ORDER BY created_at DESC 
+        SELECT created_at
+        FROM bids
+        WHERE product_id = :productId AND bidder_id = :userId
+        ORDER BY created_at DESC
         LIMIT 1
         """)
-    Mono<java.time.LocalDateTime> getLastBidTimeForUser(@Param("productId") Integer productId, @Param("userId") Integer userId);
+    Mono<LocalDateTime> getLastBidTimeForUser(@Param("productId") Integer productId, @Param("userId") Integer userId);
 }

@@ -374,8 +374,9 @@ public class AuthController {
         return userGrpcClient.getProfile(grpcRequest)
                 .map(profileResponse -> {
                     Map<String, Object> result = new HashMap<>();
-                    
-                    if (profileResponse.getUserId() != null && !profileResponse.getUserId().isEmpty()) {
+
+                    profileResponse.getUserId();
+                    if (!profileResponse.getUserId().isEmpty()) {
                         Map<String, Object> profile = new HashMap<>();
                         profile.put("userId", profileResponse.getUserId());
                         profile.put("email", profileResponse.getEmail());

@@ -6,7 +6,6 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
@@ -145,26 +144,6 @@ public class EmailService {
     }
 
     /**
-     * Gửi email text đơn giản (Reactive)
-     */
-    public Mono<Void> sendSimpleEmail(String to, String subject, String text) {
-        return Mono.fromRunnable(() -> {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(fromAddress);
-            message.setTo(to);
-            message.setSubject(subject);
-            message.setText(text);
-
-            mailSender.send(message);
-        })
-        .subscribeOn(Schedulers.boundedElastic())
-        .doOnSuccess(v -> log.info("Simple email sent successfully to: {} with subject: {}", to, subject))
-        .doOnError(e -> log.error("Failed to send simple email to: {}. Error: {}", to, e.getMessage(), e))
-        .onErrorMap(e -> new RuntimeException("Failed to send email", e))
-        .then();
-    }
-
-    /**
      * Lưu notification vào database (Helper method)
      */
     private Mono<Void> saveNotificationToDatabase(Integer userId, String notificationType, Map<String, Object> payloadMap) {
@@ -263,23 +242,6 @@ public class EmailService {
     }
 
     /**
-     * Gửi email thông báo user bị ban khỏi sản phẩm (Reactive)
-     */
-    public Mono<Void> sendProductBannedUserEmail(String to, String userName, String productName,
-                                                 String productId, String reason, String banTime) {
-        Map<String, Object> variables = Map.of(
-                "userName", userName,
-                "productName", productName,
-                "productId", productId,
-                "reason", reason,
-                "banTime", banTime
-        );
-
-        return sendHtmlEmail(to, "You Have Been Banned from Bidding on a Product", 
-                            "ban-user-from-product", variables);
-    }
-
-    /**
      * Gửi product banned user email và lưu notification vào DB
      * Note: Cần fetch thông tin user (email, userName) từ user service
      * Tạm thời sử dụng userId để gửi thông báo
@@ -313,27 +275,6 @@ public class EmailService {
             ))
             .then(saveNotificationToDatabase(userId, "PRODUCT_BANNED_USER", notificationPayload));
         */
-    }
-
-    /**
-     * Gửi email thông báo đấu giá kết thúc (Reactive)
-     */
-    public Mono<Void> sendAuctionEndedEmail(String to, String userName, String productName,
-                                           String productId, boolean isWinner, String winningAmount,
-                                           String yourBidAmount, String auctionEndTime, String totalBids) {
-        Map<String, Object> variables = Map.of(
-                "userName", userName,
-                "productName", productName,
-                "productId", productId,
-                "isWinner", isWinner,
-                "winningAmount", winningAmount,
-                "yourBidAmount", yourBidAmount != null ? yourBidAmount : "0",
-                "auctionEndTime", auctionEndTime,
-                "totalBids", totalBids
-        );
-
-        String subject = isWinner ? "Congratulations! You Won the Auction" : "Auction Has Ended";
-        return sendHtmlEmail(to, subject, "auction-ended", variables);
     }
 
     /**
@@ -379,27 +320,6 @@ public class EmailService {
             ))
             .then(saveNotificationToDatabase(userId, notificationType, notificationPayload));
         */
-    }
-
-    /**
-     * Gửi email thông báo đấu giá kết thúc cho seller (Reactive)
-     */
-    public Mono<Void> sendAuctionEndedSellerEmail(String to, String userName, String productName,
-                                                  String productId, boolean isSold, String finalPrice,
-                                                  String winnerName, String totalBids, String auctionEndTime) {
-        Map<String, Object> variables = Map.of(
-                "userName", userName,
-                "productName", productName,
-                "productId", productId,
-                "isSold", isSold,
-                "finalPrice", finalPrice,
-                "winnerName", winnerName != null ? winnerName : "N/A",
-                "totalBids", totalBids,
-                "auctionEndTime", auctionEndTime
-        );
-
-        String subject = isSold ? "Your Auction Ended - Item Sold!" : "Your Auction Has Ended";
-        return sendHtmlEmail(to, subject, "auction-ended-seller", variables);
     }
 
     /**

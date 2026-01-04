@@ -14,12 +14,6 @@ public interface SellerRepository extends R2dbcRepository<Product, Integer> {
     // Find product by id
     Mono<Product> findById(Integer id);
 
-    // Find products by seller_id
-    Flux<Product> findBySellerId(Integer sellerId);
-
-    // Find products by status
-    Flux<Product> findByStatusAndSellerId(String status, Integer sellerId);
-
     // Create product
     Mono<Product> save(Product product);
 
@@ -107,41 +101,6 @@ public interface SellerRepository extends R2dbcRepository<Product, Integer> {
            "     (:filter = 'active' AND status = 'active') OR " +
            "     (:filter = 'expired' AND status = 'ended'))")
     Mono<Long> countListingsBySellerIdWithFilter(Integer sellerId, String filter);
-
-    /**
-     * Get product by id for seller (verify ownership)
-     */
-    @Query("SELECT * FROM products WHERE id = :productId AND seller_id = :sellerId")
-    Mono<Product> getProductForSeller(Integer productId, Integer sellerId);
-
-    // ============================================================================
-    // STATISTICS QUERIES
-    // ============================================================================
-
-    /**
-     * Count total products by seller
-     */
-    @Query("SELECT COUNT(*) FROM products WHERE seller_id = :sellerId")
-    Mono<Long> countTotalProductsBySellerId(Integer sellerId);
-
-    /**
-     * Count products by status and seller
-     */
-    @Query("SELECT COUNT(*) FROM products WHERE seller_id = :sellerId AND status = :status")
-    Mono<Long> countProductsBySellerIdAndStatus(Integer sellerId, String status);
-
-    /**
-     * Get total views for seller's products
-     */
-    @Query("SELECT COALESCE(SUM(views_count), 0) FROM products WHERE seller_id = :sellerId")
-    Mono<Long> getTotalViewsBySellerId(Integer sellerId);
-
-    /**
-     * Get total bids for seller's products
-     */
-    @Query("SELECT COALESCE(SUM(bids_count), 0) FROM products WHERE seller_id = :sellerId")
-    Mono<Long> getTotalBidsBySellerId(Integer sellerId);
-
     // ============================================================================
     // PRODUCT IMAGES QUERIES
     // ============================================================================

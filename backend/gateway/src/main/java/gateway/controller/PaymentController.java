@@ -45,7 +45,7 @@ public class PaymentController {
             @RequestBody Map<String, Object> requestBody) {
         
         int userId = getUserId();
-        Double amount = Double.parseDouble(requestBody.get("amount").toString());
+        double amount = Double.parseDouble(requestBody.get("amount").toString());
         String currency = requestBody.getOrDefault("currency", "usd").toString();
         
         log.info("Create payment intent request - userId: {}, amount: {}, currency: {}", userId, amount, currency);

@@ -1,6 +1,8 @@
 package products.service;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,6 +30,7 @@ import products.repository.ProductRepository;
 import products.repository.ReviewRepository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 @Service
 public class BidderService {
@@ -62,6 +65,7 @@ public class BidderService {
         log.info("Getting product details for productId={}, userId={}", productId, userId);
         return productRepository.getProductDetailsForBidder(productId)
             .doOnNext(dto -> log.debug("Found product dto: id={}, title={}", dto.id(), dto.title()))
+                .publishOn(Schedulers.boundedElastic())
             .doOnSuccess(dto -> {
                 if (dto != null) {
                     productRepository.incrementViewCount(productId).subscribe();
@@ -83,8 +87,7 @@ public class BidderService {
                     productRepository.isHighestBidder(productId, userId)
                         .doOnNext(count -> log.debug("Highest bidder check for user {}: {}", userId, count)),
                     productRepository.getUserAutoBid(productId, userId)
-                        .defaultIfEmpty(java.util.Map.of())
-                        .doOnNext(map -> log.debug("Auto bid for user {}: {}", userId, map)),
+                        .doOnNext(autoBid -> log.debug("Auto bid for user {}: maxAmount={}", userId, autoBid.maxAmount())),
                     productRepository.getProductQuestions(productId, 10, 0)
                         .map(this::mapDtoToQuestion)
                         .collectList()
@@ -93,18 +96,12 @@ public class BidderService {
                     var images = tuple.getT1();
                     var isInWatchlistCount = tuple.getT2();
                     var isHighestBidderCount = tuple.getT3();
-                    var autoBidMap = tuple.getT4();
+                    var autoBidDto = tuple.getT4();
                     var questions = tuple.getT5();
                     
                     boolean isInWatchlist = isInWatchlistCount > 0;
                     boolean isHighestBidder = isHighestBidderCount > 0;
-                    double userMaxAutoBid = 0.0;
-                    if (!autoBidMap.isEmpty()) {
-                        Object maxAmount = autoBidMap.get("max_amount");
-                        if (maxAmount != null) {
-                            userMaxAutoBid = ((Number) maxAmount).doubleValue();
-                        }
-                    }
+                    double userMaxAutoBid = autoBidDto.maxAmount();
                     log.info("Successfully built product details for productId={}: images={}, inWatchlist={}, isHighestBidder={}, questions={}", 
                         productId, images.size(), isInWatchlist, isHighestBidder, questions.size());
                     return mapDtoToProductWithUserData(productDto, images, questions, isInWatchlist, isHighestBidder, userMaxAutoBid);
@@ -478,16 +475,16 @@ public class BidderService {
                                         product.getSellerId(),
                                         winningBid
                                     )
-                                    .flatMap(orderId -> {
-                                        log.info("Order created successfully: productId={}, buyerId={}, sellerId={}, amount={}",
-                                            productId, winnerId, product.getSellerId(), winningBid);
-                                        
-                                        // Send notifications to winner and seller
-                                        return Mono.when(
-                                            sendAuctionEndedWinnerNotification(product, winnerId, winningBid),
-                                            sendAuctionEndedSellerNotification(product, winnerId, winningBid)
-                                        );
-                                    });
+                                            .then(Mono.defer(() -> {
+                                                log.info("Order created successfully: productId={}, buyerId={}, sellerId={}, amount={}",
+                                                    productId, winnerId, product.getSellerId(), winningBid);
+
+                                                // Send notifications to winner and seller
+                                                return Mono.when(
+                                                    sendAuctionEndedWinnerNotification(product, winnerId, winningBid),
+                                                    sendAuctionEndedSellerNotification(product, winnerId, winningBid)
+                                                );
+                                            }));
                                 })
                         )
                         .switchIfEmpty(Mono.defer(() -> {
@@ -611,7 +608,7 @@ public class BidderService {
     }
     
     /**
-     * Format duration to human readable string
+     * Format duration to human-readable string
      */
     private String formatDuration(java.time.Duration duration) {
         long hours = duration.toHours();
@@ -656,7 +653,7 @@ public class BidderService {
      * Send notification to winner when auction ends
      */
     private Mono<Void> sendAuctionEndedWinnerNotification(com.auction.entities.database.Product product, int winnerId, double winningAmount) {
-        java.util.Map<String, String> payload = new java.util.HashMap<>();
+        Map<String, String> payload = new HashMap<>();
         payload.put("recipientType", "bidder");
         payload.put("userId", String.valueOf(winnerId));
         payload.put("productId", String.valueOf(product.getId()));
@@ -782,7 +779,7 @@ public class BidderService {
             productRepository.countMyBids(userId)
         ).map(tuple -> {
             var bidHistoryDtos = tuple.getT1();
-            var totalCount = tuple.getT2();
+            int totalCount = tuple.getT2();
             
             var bids = bidHistoryDtos.stream()
                 .map(this::mapDtoToBidHistoryItem)

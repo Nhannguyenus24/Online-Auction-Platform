@@ -78,10 +78,6 @@ public class RabbitMQConsumerService {
             case TASK_SEND_MAIL_PRODUCT_BANNED_USER -> handleProductBannedUserEvent(message);
             case TASK_SEND_MAIL_ENDED_AUCTION -> handleAuctionEndedEvent(message);
             case TASK_SEND_NOTIFICATION, TASK_DELETE_NOTIFICATION, TASK_READ_NOTIFICATION -> Mono.empty().then();
-            default -> {
-                log.error("Unknown event type: {}", message.getEventType());
-                yield Mono.empty().then();
-            }
         })
         .doOnError(e -> log.error("Error processing RabbitMessage: eventId={}, error={}", 
             message.getEventId(), e.getMessage(), e))
@@ -106,7 +102,7 @@ public class RabbitMQConsumerService {
             }
 
             Integer userId = Integer.parseInt(message.getUserId());
-            Integer expiryMinutes = Integer.parseInt(expiryMinutesStr);
+            int expiryMinutes = Integer.parseInt(expiryMinutesStr);
 
             log.debug("Sending OTP email: email={}, userName={}, userId={}", email, userName, userId);
             

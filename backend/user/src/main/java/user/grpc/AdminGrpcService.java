@@ -39,7 +39,7 @@ public class AdminGrpcService extends ReactorAdminUserServiceGrpc.AdminUserServi
     public Mono<UserStatisticsResponse> getUserStatistics(Mono<UserStatisticsRequest> request) {
         return request.doOnNext(req -> log.info("Raw get user statistics request: {}", JsonUtils.toJson(req)))
                 .flatMap(req ->
-            adminService.getUserStatistics(req)
+            adminService.getUserStatistics()
                 .map(result -> result)
                 .onErrorResume(e -> {
                     log.error("Get user statistics error: {}", e.getMessage());

@@ -36,7 +36,6 @@ import com.auction.proto.user.MarkNotificationAsReadRequest;
 import com.auction.proto.user.PlaceBidRequest;
 import com.auction.proto.user.RemoveFromWatchlistRequest;
 import com.auction.proto.user.SetAutoBidRequest;
-import com.auction.proto.user.GetTopBiddersRequest;
 
 import gateway.grpc.BidderGrpcClient;
 import io.swagger.v3.oas.annotations.Operation;
@@ -121,9 +120,7 @@ public class BidderController {
             result.put("message", response.getMessage());
 
             List<Map<String, Object>> products = new ArrayList<>();
-            response.getProductsList().forEach(product -> {
-                products.add(mapUserProduct(product));
-            });
+            response.getProductsList().forEach(product -> products.add(mapUserProduct(product)));
             result.put("products", products);
 
             log.info("Get related products successful, count: {}", products.size());
@@ -240,9 +237,7 @@ public class BidderController {
             result.put("message", response.getMessage());
 
             List<Map<String, Object>> products = new ArrayList<>();
-            response.getProductsList().forEach(product -> {
-                products.add(mapUserProduct(product));
-            });
+            response.getProductsList().forEach(product -> products.add(mapUserProduct(product)));
             result.put("products", products);
             result.put("pageInfo", mapPageInfo(response.getPageInfo()));
 

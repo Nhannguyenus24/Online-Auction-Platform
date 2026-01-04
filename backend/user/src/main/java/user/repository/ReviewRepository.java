@@ -44,10 +44,4 @@ public interface ReviewRepository extends R2dbcRepository<Review, Integer> {
      */
     @Query("SELECT COUNT(*) FROM reviews WHERE to_user_id = :toUserId AND score = :score")
     Mono<Integer> countRatingsByScore(Integer toUserId, Integer score);
-
-    /**
-     * Check if user has already rated another user for same product
-     */
-    @Query("SELECT COUNT(*) FROM reviews WHERE from_user_id = :fromUserId AND to_user_id = :toUserId AND product_id = :productId")
-    Mono<Integer> hasUserRatedProduct(Integer fromUserId, Integer toUserId, Integer productId);
 }

@@ -1,9 +1,6 @@
 package gateway.controller;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -220,16 +217,8 @@ public class GuestController {
         if (searchKeyword != null && !searchKeyword.isEmpty()) {
             requestBuilder.setSearchKeyword(searchKeyword);
         }
-        if (minPrice != null) {
-            requestBuilder.setMinPrice(minPrice);
-        } else {
-            requestBuilder.setMinPrice(0.0);
-        }
-        if (maxPrice != null) {
-            requestBuilder.setMaxPrice(maxPrice);
-        } else {
-            requestBuilder.setMaxPrice(99999999.0);
-        }
+        requestBuilder.setMinPrice(Objects.requireNonNullElse(minPrice, 0.0));
+        requestBuilder.setMaxPrice(Objects.requireNonNullElse(maxPrice, 99999999.0));
 
         return guestGrpcClient.listProductsByCategory(requestBuilder.build())
                 .map(response -> {
@@ -239,9 +228,7 @@ public class GuestController {
                     
                     // Map products
                     List<Map<String, Object>> products = new ArrayList<>();
-                    response.getProductsList().forEach(product -> {
-                        products.add(mapProduct(product));
-                    });
+                    response.getProductsList().forEach(product -> products.add(mapProduct(product)));
                     result.put("products", products);
                     
                     // Map page info
@@ -303,16 +290,8 @@ public class GuestController {
                 .setPage(page)
                 .setLimit(limit);
 
-        if (minPrice != null) {
-            requestBuilder.setMinPrice(minPrice);
-        } else {
-            requestBuilder.setMinPrice(0);
-        }
-        if (maxPrice != null) {
-            requestBuilder.setMaxPrice(maxPrice);
-        } else {
-            requestBuilder.setMaxPrice(999999999);
-        }
+        requestBuilder.setMinPrice(Objects.requireNonNullElse(minPrice, 0.0));
+        requestBuilder.setMaxPrice(Objects.requireNonNullElse(maxPrice, 999999999.0));
 
         return guestGrpcClient.listProductsByName(requestBuilder.build())
                 .map(response -> {
@@ -322,9 +301,7 @@ public class GuestController {
                     
                     if (response.getSuccess()) {
                         List<Map<String, Object>> products = new ArrayList<>();
-                        response.getProductsList().forEach(product -> {
-                            products.add(mapProduct(product));
-                        });
+                        response.getProductsList().forEach(product -> products.add(mapProduct(product)));
                         
                         Map<String, Object> pageInfo = new HashMap<>();
                         pageInfo.put("currentPage", response.getPageInfo().getCurrentPage());
@@ -352,9 +329,7 @@ public class GuestController {
     // Helper methods
     private List<Map<String, Object>> mapProductsList(com.auction.proto.guest.GetTopProductsResponse response) {
         List<Map<String, Object>> products = new ArrayList<>();
-        response.getProductsList().forEach(product -> {
-            products.add(mapProduct(product));
-        });
+        response.getProductsList().forEach(product -> products.add(mapProduct(product)));
         return products;
     }
 

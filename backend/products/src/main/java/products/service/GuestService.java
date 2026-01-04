@@ -89,7 +89,7 @@ public class GuestService {
         ).flatMap(tuple -> {
             var categoryEntity = tuple.getT1();
             var productRows = tuple.getT2();
-            var totalCount = tuple.getT3();
+            int totalCount = tuple.getT3();
             
             // Fetch images for all products and collect into List<Product>
             var productsMono = Flux.fromIterable(productRows)
@@ -140,7 +140,7 @@ public class GuestService {
             )
         ).flatMap(tuple -> {
             var productRows = tuple.getT1();
-            var totalCount = tuple.getT2();
+            int totalCount = tuple.getT2();
             
             // Fetch images for all products and collect into List<Product>
             var productsMono = Flux.fromIterable(productRows)

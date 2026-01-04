@@ -62,16 +62,6 @@ public class AuctionService {
     }
     
     /**
-     * Check if product has a scheduled task
-     * @param productId the product ID
-     * @return true if scheduled
-     */
-    public boolean isScheduled(Long productId) {
-        ScheduledFuture<?> future = jobs.get(productId);
-        return future != null && !future.isDone() && !future.isCancelled();
-    }
-    
-    /**
      * Reschedule auction end to a new time
      * Useful for auto-extend functionality
      * @param productId the product ID
@@ -96,17 +86,5 @@ public class AuctionService {
         } catch (Exception e) {
             log.error("Failed to reschedule auction end for product {}: {}", productId, e.getMessage(), e);
         }
-    }
-    
-    /**
-     * Extend auction end time by specified seconds
-     * @param productId the product ID
-     * @param extendSeconds seconds to extend
-     * @param task the task to execute when auction ends
-     */
-    public void extendAuction(Long productId, int extendSeconds, Runnable task) {
-        Instant newEndTime = Instant.now().plusSeconds(extendSeconds);
-        log.info("Extending auction for product {} by {} seconds to {}", productId, extendSeconds, newEndTime);
-        rescheduleEndAuction(productId, newEndTime, task);
     }
 }

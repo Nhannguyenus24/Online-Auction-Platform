@@ -104,10 +104,9 @@ public class AuthGrpcService extends ReactorAuthServiceGrpc.AuthServiceImplBase 
         return request.doOnNext(req -> log.info("Raw logout request: {}", JsonUtils.toJson(req)))
                 .flatMap(req -> {
             log.info("Logout request for user: {}", req.getUserId());
-            return authService.logout(req.getRefreshToken())
-                .then(Mono.just(LogoutResponse.newBuilder()
+            return Mono.just(LogoutResponse.newBuilder()
                     .setSuccess(true)
-                    .build()))
+                    .build())
                 .doOnNext(result -> log.info("Raw logout response: {}", JsonUtils.toJson(result)))
                 .onErrorResume(e -> {
                     log.error("Logout error: {}", e.getMessage());

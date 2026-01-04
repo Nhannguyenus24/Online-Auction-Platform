@@ -187,29 +187,32 @@ public class GuestGrpcService extends ReactorGuestServiceGrpc.GuestServiceImplBa
     public Mono<ListProductsByCategoryResponse> listProductsByName(Mono<ListProductsByNameRequest> request) {
         return request.doOnNext(req -> log.info("Raw list products by name request: {}", JsonUtils.toJson(req)))
                 .flatMap(req ->
-                    guestService.listProductsByName(
-                            req.getSearchKeyword() != null ? req.getSearchKeyword() : "",
-                            req.getMinPrice(),
-                            req.getMaxPrice(),
-                            req.getStatus(),
-                            req.getSortOrder().name(),
-                            req.getPage(),
-                            req.getLimit()
-                        )
-                        .map(result -> ListProductsByCategoryResponse.newBuilder()
-                            .addAllProducts(result.products())
-                            .setPageInfo(result.pageInfo())
-                            .setSuccess(true)
-                            .setMessage("Products retrieved successfully")
-                            .build())
-                        .doOnNext(resp -> log.info("Raw list products by name response: {}", JsonUtils.toJson(resp)))
-                        .onErrorResume(e -> {
-                            log.error("List products by name error: {}", e.getMessage());
-                            return Mono.just(ListProductsByCategoryResponse.newBuilder()
-                                .setSuccess(false)
-                                .setMessage("Failed to list products: " + e.getMessage())
-                                .build());
-                        })
+                        {
+                            req.getSearchKeyword();
+                            return guestService.listProductsByName(
+                                    req.getSearchKeyword(),
+                                    req.getMinPrice(),
+                                    req.getMaxPrice(),
+                                    req.getStatus(),
+                                    req.getSortOrder().name(),
+                                    req.getPage(),
+                                    req.getLimit()
+                                )
+                                .map(result -> ListProductsByCategoryResponse.newBuilder()
+                                    .addAllProducts(result.products())
+                                    .setPageInfo(result.pageInfo())
+                                    .setSuccess(true)
+                                    .setMessage("Products retrieved successfully")
+                                    .build())
+                                .doOnNext(resp -> log.info("Raw list products by name response: {}", JsonUtils.toJson(resp)))
+                                .onErrorResume(e -> {
+                                    log.error("List products by name error: {}", e.getMessage());
+                                    return Mono.just(ListProductsByCategoryResponse.newBuilder()
+                                        .setSuccess(false)
+                                        .setMessage("Failed to list products: " + e.getMessage())
+                                        .build());
+                                });
+                        }
                 );
     }
 }

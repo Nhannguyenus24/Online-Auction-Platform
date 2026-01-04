@@ -8,22 +8,7 @@ import org.springframework.data.relational.core.query.Criteria;
 import org.springframework.data.relational.core.query.Query;
 import org.springframework.stereotype.Service;
 
-import com.auction.proto.admin.user.ApproveUpgradeRequestRequest;
-import com.auction.proto.admin.user.ApproveUpgradeRequestResponse;
-import com.auction.proto.admin.user.DailyRegistration;
-import com.auction.proto.admin.user.GetAllUsersRequest;
-import com.auction.proto.admin.user.GetAllUsersResponse;
-import com.auction.proto.admin.user.GetUpgradeRequestsRequest;
-import com.auction.proto.admin.user.GetUpgradeRequestsResponse;
-import com.auction.proto.admin.user.MonthlyRegistration;
-import com.auction.proto.admin.user.ProfitStatisticsRequest;
-import com.auction.proto.admin.user.RegistrationStatisticsRequest;
-import com.auction.proto.admin.user.RegistrationStatisticsResponse;
-import com.auction.proto.admin.user.UpgradeRequest;
-import com.auction.proto.admin.user.UserInfo;
-import com.auction.proto.admin.user.UserStatisticsRequest;
-import com.auction.proto.admin.user.UserStatisticsResponse;
-import com.auction.proto.admin.user.YearlyRegistration;
+import com.auction.proto.admin.user.*;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -47,7 +32,7 @@ public class AdminService {
     /**
      * Get overall user statistics
      */
-    public Mono<UserStatisticsResponse> getUserStatistics(UserStatisticsRequest request) {
+    public Mono<UserStatisticsResponse> getUserStatistics() {
         log.info("Fetching user statistics");
 
         return Mono.zip(
@@ -167,56 +152,54 @@ public class AdminService {
                                 
                                 // Fetch user information for all requests
                                 return Flux.fromIterable(requests)
-                                        .flatMap(req -> {
-                                            return userRepository.findByUserId(req.getUserId())
-                                                    .map(user -> {
-                                                        long createdAtMillis = req.getCreatedAt() != null ? 
-                                                                req.getCreatedAt().atZone(java.time.ZoneOffset.UTC).toInstant().toEpochMilli() : 0;
-                                                        long reviewedAtMillis = req.getReviewedAt() != null ? 
-                                                                req.getReviewedAt().atZone(java.time.ZoneOffset.UTC).toInstant().toEpochMilli() : 0;
-                                                        long userCreatedAtMillis = user.getCreatedAt() != null ?
-                                                                user.getCreatedAt().atZone(java.time.ZoneOffset.UTC).toInstant().toEpochMilli() : 0;
-                                                        
-                                                        return UpgradeRequest.newBuilder()
-                                                                .setId(req.getId())
-                                                                .setUserId(req.getUserId())
-                                                                .setUserEmail(user.getEmail() != null ? user.getEmail() : "")
-                                                                .setUserFullName(user.getFullName() != null ? user.getFullName() : "")
-                                                                .setRequestedRole(req.getRequestedRole())
-                                                                .setStatus(req.getStatus())
-                                                                .setCreatedAt(createdAtMillis)
-                                                                .setReviewedAt(reviewedAtMillis)
-                                                                .setAdminId(req.getAdminId() != null ? req.getAdminId() : 0)
-                                                                .setReason("")
-                                                                // Additional user information
-                                                                .setUserPhone(user.getPhone() != null ? user.getPhone() : "")
-                                                                .setUserAddress(user.getAddress() != null ? user.getAddress() : "")
-                                                                .setIsEmailVerified(user.getIsEmailVerified() != null ? user.getIsEmailVerified() : false)
-                                                                .setPositiveReviews(user.getPositiveReviews() != null ? user.getPositiveReviews() : 0)
-                                                                .setNegativeReviews(user.getNegativeReviews() != null ? user.getNegativeReviews() : 0)
-                                                                .setRatingPercent(user.getRatingPercent() != null ? user.getRatingPercent().doubleValue() : 0.0)
-                                                                .setUserCreatedAt(userCreatedAtMillis)
-                                                                .setCurrentRole(user.getRole() != null ? user.getRole() : "")
-                                                                .build();
-                                                    })
-                                                    .defaultIfEmpty(
-                                                        // If user not found, return basic info
-                                                        UpgradeRequest.newBuilder()
-                                                                .setId(req.getId())
-                                                                .setUserId(req.getUserId())
-                                                                .setUserEmail("User not found")
-                                                                .setUserFullName("User not found")
-                                                                .setRequestedRole(req.getRequestedRole())
-                                                                .setStatus(req.getStatus())
-                                                                .setCreatedAt(req.getCreatedAt() != null ? 
-                                                                        req.getCreatedAt().atZone(java.time.ZoneOffset.UTC).toInstant().toEpochMilli() : 0)
-                                                                .setReviewedAt(req.getReviewedAt() != null ? 
-                                                                        req.getReviewedAt().atZone(java.time.ZoneOffset.UTC).toInstant().toEpochMilli() : 0)
-                                                                .setAdminId(req.getAdminId() != null ? req.getAdminId() : 0)
-                                                                .setReason("")
-                                                                .build()
-                                                    );
-                                        })
+                                        .flatMap(req -> userRepository.findByUserId(req.getUserId())
+                                                .map(user -> {
+                                                    long createdAtMillis = req.getCreatedAt() != null ?
+                                                            req.getCreatedAt().atZone(java.time.ZoneOffset.UTC).toInstant().toEpochMilli() : 0;
+                                                    long reviewedAtMillis = req.getReviewedAt() != null ?
+                                                            req.getReviewedAt().atZone(java.time.ZoneOffset.UTC).toInstant().toEpochMilli() : 0;
+                                                    long userCreatedAtMillis = user.getCreatedAt() != null ?
+                                                            user.getCreatedAt().atZone(java.time.ZoneOffset.UTC).toInstant().toEpochMilli() : 0;
+
+                                                    return UpgradeRequest.newBuilder()
+                                                            .setId(req.getId())
+                                                            .setUserId(req.getUserId())
+                                                            .setUserEmail(user.getEmail() != null ? user.getEmail() : "")
+                                                            .setUserFullName(user.getFullName() != null ? user.getFullName() : "")
+                                                            .setRequestedRole(req.getRequestedRole())
+                                                            .setStatus(req.getStatus())
+                                                            .setCreatedAt(createdAtMillis)
+                                                            .setReviewedAt(reviewedAtMillis)
+                                                            .setAdminId(req.getAdminId() != null ? req.getAdminId() : 0)
+                                                            .setReason("")
+                                                            // Additional user information
+                                                            .setUserPhone(user.getPhone() != null ? user.getPhone() : "")
+                                                            .setUserAddress(user.getAddress() != null ? user.getAddress() : "")
+                                                            .setIsEmailVerified(user.getIsEmailVerified() != null ? user.getIsEmailVerified() : false)
+                                                            .setPositiveReviews(user.getPositiveReviews() != null ? user.getPositiveReviews() : 0)
+                                                            .setNegativeReviews(user.getNegativeReviews() != null ? user.getNegativeReviews() : 0)
+                                                            .setRatingPercent(user.getRatingPercent() != null ? user.getRatingPercent().doubleValue() : 0.0)
+                                                            .setUserCreatedAt(userCreatedAtMillis)
+                                                            .setCurrentRole(user.getRole() != null ? user.getRole() : "")
+                                                            .build();
+                                                })
+                                                .defaultIfEmpty(
+                                                    // If user not found, return basic info
+                                                    UpgradeRequest.newBuilder()
+                                                            .setId(req.getId())
+                                                            .setUserId(req.getUserId())
+                                                            .setUserEmail("User not found")
+                                                            .setUserFullName("User not found")
+                                                            .setRequestedRole(req.getRequestedRole())
+                                                            .setStatus(req.getStatus())
+                                                            .setCreatedAt(req.getCreatedAt() != null ?
+                                                                    req.getCreatedAt().atZone(java.time.ZoneOffset.UTC).toInstant().toEpochMilli() : 0)
+                                                            .setReviewedAt(req.getReviewedAt() != null ?
+                                                                    req.getReviewedAt().atZone(java.time.ZoneOffset.UTC).toInstant().toEpochMilli() : 0)
+                                                            .setAdminId(req.getAdminId() != null ? req.getAdminId() : 0)
+                                                            .setReason("")
+                                                            .build()
+                                                ))
                                         .collectList()
                                         .map(upgradeRequests -> {
                                             GetUpgradeRequestsResponse.Builder builder = GetUpgradeRequestsResponse.newBuilder()
