@@ -1,15 +1,14 @@
 package products.repository;
 
 import java.time.LocalDateTime;
-import java.util.Map;
 
-import com.auction.entities.database.User;
 import org.springframework.data.r2dbc.repository.Query;
 import org.springframework.data.r2dbc.repository.R2dbcRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.auction.entities.database.Product;
+import com.auction.entities.database.User;
 
 import products.dto.BidHistoryRowDto;
 import products.dto.BidRowDto;
