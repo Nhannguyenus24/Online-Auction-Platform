@@ -128,4 +128,16 @@ public class UserGrpcClient {
         log.info("gRPC loginWithGoogle request: {}", JsonUtils.toJson(request));
         return authServiceStub.loginWithGoogle(Mono.just(request));
     }
+
+    // Forgot Password
+    public Mono<com.auction.proto.auth.ForgotPasswordResponse> forgotPassword(com.auction.proto.auth.ForgotPasswordRequest request) {
+        log.info("gRPC forgotPassword request: {}", JsonUtils.toJson(request));
+        return authServiceStub.forgotPassword(Mono.just(request));
+    }
+
+    // Reset Password
+    public Mono<com.auction.proto.auth.ResetPasswordResponse> resetPassword(com.auction.proto.auth.ResetPasswordRequest request) {
+        log.info("gRPC resetPassword request: {}", JsonUtils.toJson(request));
+        return authServiceStub.resetPassword(Mono.just(request));
+    }
 }

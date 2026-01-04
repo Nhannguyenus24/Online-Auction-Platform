@@ -291,4 +291,48 @@ public class AuthGrpcService extends ReactorAuthServiceGrpc.AuthServiceImplBase 
                     })
                 );
     }
+
+    @Override
+    public Mono<ForgotPasswordResponse> forgotPassword(Mono<ForgotPasswordRequest> request) {
+        return request.doOnNext(req -> log.info("Raw forgot password request: {}", JsonUtils.toJson(req)))
+                .flatMap(req ->
+                    authService.forgotPassword(req.getEmail())
+                        .map(message -> ForgotPasswordResponse.newBuilder()
+                            .setSuccess(true)
+                            .setMessage(message)
+                            .build())
+                        .doOnNext(result -> log.info("Raw forgot password response: {}", JsonUtils.toJson(result)))
+                        .onErrorResume(e -> {
+                            log.error("Forgot password error: {}", e.getMessage());
+                            return Mono.just(ForgotPasswordResponse.newBuilder()
+                                .setSuccess(false)
+                                .setMessage(e.getMessage())
+                                .build());
+                        })
+                );
+    }
+
+    @Override
+    public Mono<ResetPasswordResponse> resetPassword(Mono<ResetPasswordRequest> request) {
+        return request.doOnNext(req -> log.info("Raw reset password request: {}", JsonUtils.toJson(req)))
+                .flatMap(req ->
+                    authService.resetPassword(
+                        req.getEmail(),
+                        req.getOtp(),
+                        req.getNewPassword()
+                    )
+                    .map(message -> ResetPasswordResponse.newBuilder()
+                        .setSuccess(true)
+                        .setMessage(message)
+                        .build())
+                    .doOnNext(result -> log.info("Raw reset password response: {}", JsonUtils.toJson(result)))
+                    .onErrorResume(e -> {
+                        log.error("Reset password error: {}", e.getMessage());
+                        return Mono.just(ResetPasswordResponse.newBuilder()
+                            .setSuccess(false)
+                            .setMessage(e.getMessage())
+                            .build());
+                    })
+                );
+    }
 }

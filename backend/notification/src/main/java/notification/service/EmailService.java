@@ -80,6 +80,20 @@ public class EmailService {
     }
 
     /**
+     * Gửi email OTP reset password (Reactive)
+     */
+    public Mono<Void> sendResetPasswordOtpEmail(String to, String userName, String otp, int expiryMinutes) {
+        Map<String, Object> variables = Map.of(
+                "userName", userName,
+                "otp", otp,
+                "expiryMinutes", expiryMinutes
+        );
+
+        return sendHtmlEmail(to, "Reset Your Password - OTP Code", "reset-password-otp", variables)
+                .doOnSuccess(v -> log.info("Reset password OTP email and notification sent to: {}", to));
+    }
+
+    /**
      * Gửi email thông báo bid thành công (Reactive)
      */
     public Mono<Void> sendBidSuccessEmail(String to, String userName, String productName, 
@@ -163,29 +177,6 @@ public class EmailService {
                 "winnerName", winnerName != null ? winnerName : "N/A",
                 "totalBids", totalBids,
                 "auctionEndTime", auctionEndTime
-        );
-
-        return sendHtmlEmail(to, subject, templateName, variables);
-    }
-
-    /**
-     * Gửi email thông báo mua ngay thành công (Reactive)
-     */
-    public Mono<Void> sendBuyNowEmail(String to, String userName, String productName,
-                                      String productId, String price, String purchaseTime,
-                                      String recipientType) {
-        String subject = "buyer".equals(recipientType) 
-            ? "Purchase Confirmed - Buy Now Successful" 
-            : "Your Product Has Been Sold";
-        String templateName = "buyer".equals(recipientType) ? "buy-now-buyer" : "buy-now-seller";
-        
-        Map<String, Object> variables = Map.of(
-                "userName", userName,
-                "productName", productName,
-                "productId", productId,
-                "price", price,
-                "purchaseTime", purchaseTime,
-                "recipientType", recipientType
         );
 
         return sendHtmlEmail(to, subject, templateName, variables);
@@ -337,15 +328,6 @@ public class EmailService {
         // Only save notification for now, email will be added when user service integration is ready
         return saveNotificationToDatabase(userId, "PRODUCT_BANNED_USER", notificationPayload)
                 .doOnSuccess(v -> log.info("Product ban notification saved: userId={}, productId={}", userId, productId));
-        
-        // Uncomment below when user service is integrated:
-        /*
-        return userServiceClient.getUserById(userId)
-            .flatMap(user -> sendProductBannedUserEmail(
-                user.getEmail(), user.getFullName(), productName, productId, reason, banTime
-            ))
-            .then(saveNotificationToDatabase(userId, "PRODUCT_BANNED_USER", notificationPayload));
-        */
     }
 
     /**

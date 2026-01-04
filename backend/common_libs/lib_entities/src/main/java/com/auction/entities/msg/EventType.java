@@ -2,6 +2,7 @@ package com.auction.entities.msg;
 
 public enum EventType {
     TASK_SEND_MAIL_OTP,
+    TASK_SEND_MAIL_RESET_PASSWORD,
     TASK_SEND_MAIL_SUCCESS_BID,
     TASK_SEND_MAIL_OUTBID,
     TASK_SEND_MAIL_ACCOUNT_VIOLATION,

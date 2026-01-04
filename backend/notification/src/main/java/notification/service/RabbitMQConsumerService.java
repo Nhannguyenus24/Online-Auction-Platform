@@ -72,6 +72,7 @@ public class RabbitMQConsumerService {
 
         return (switch (message.getEventType()) {
             case TASK_SEND_MAIL_OTP -> handleOtpEvent(message);
+            case TASK_SEND_MAIL_RESET_PASSWORD -> handleResetPasswordEvent(message);
             case TASK_SEND_MAIL_SUCCESS_BID -> handleBidSuccessEvent(message);
             case TASK_SEND_MAIL_OUTBID -> handleBidOutbidEvent(message);
             case TASK_SEND_MAIL_ACCOUNT_VIOLATION -> handleAccountViolationEvent(message);
@@ -117,6 +118,44 @@ public class RabbitMQConsumerService {
             return Mono.error(new IllegalArgumentException("Invalid userId or expiryMinutes format", e));
         } catch (Exception e) {
             log.error("Unexpected error in OTP event handler: eventId={}, error={}", 
+                message.getEventId(), e.getMessage(), e);
+            return Mono.error(e);
+        }
+    }
+
+    /**
+     * Xử lý event Reset Password OTP
+     */
+    private Mono<Void> handleResetPasswordEvent(RabbitMessage message) {
+        try {
+            Map<String, String> payload = message.getPayload();
+            
+            String email = payload.get("email");
+            String userName = payload.get("userName");
+            String otp = payload.get("otp");
+            String expiryMinutesStr = payload.get("expiryMinutes");
+
+            if (email == null || userName == null || otp == null || expiryMinutesStr == null) {
+                log.error("Missing required fields in Reset Password event: eventId={}", message.getEventId());
+                return Mono.error(new IllegalArgumentException("Missing required fields: email, userName, otp, expiryMinutes"));
+            }
+
+            Integer userId = Integer.parseInt(message.getUserId());
+            int expiryMinutes = Integer.parseInt(expiryMinutesStr);
+
+            log.debug("Sending Reset Password OTP email: email={}, userName={}, userId={}", email, userName, userId);
+            
+            return emailService.sendResetPasswordOtpEmail(
+                    email, userName, otp, expiryMinutes
+            )
+            .doOnSuccess(v -> log.info("Reset Password OTP email sent successfully: eventId={}, userId={}", 
+                message.getEventId(), userId));
+        } catch (NumberFormatException e) {
+            log.error("Invalid number format in Reset Password event: eventId={}, error={}", 
+                message.getEventId(), e.getMessage());
+            return Mono.error(new IllegalArgumentException("Invalid userId or expiryMinutes format", e));
+        } catch (Exception e) {
+            log.error("Unexpected error in Reset Password event handler: eventId={}, error={}", 
                 message.getEventId(), e.getMessage(), e);
             return Mono.error(e);
         }

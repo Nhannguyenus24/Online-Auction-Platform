@@ -164,6 +164,20 @@ export const authApi = {
   changePassword: (data) => axiosInstance.post('/api/auth/change-password', data),
 
   /**
+   * Forgot password - Send OTP to email
+   * @param {Object} data - { email }
+   * @returns {Promise} - { success, message }
+   */
+  forgotPassword: (data) => axiosInstance.post('/api/auth/forgot-password', data),
+
+  /**
+   * Reset password with OTP
+   * @param {Object} data - { email, otp, newPassword }
+   * @returns {Promise} - { success, message }
+   */
+  resetPassword: (data) => axiosInstance.post('/api/auth/reset-password', data),
+
+  /**
    * Get authorization header
    * @returns {Object} - { Authorization: "Bearer <token>" }
    */

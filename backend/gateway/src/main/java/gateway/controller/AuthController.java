@@ -486,6 +486,74 @@ public class AuthController {
                 });
     }
 
+    @PostMapping("/forgot-password")
+    @Operation(summary = "Forgot password", description = "Send OTP to email for password reset.")
+    public Mono<ResponseEntity<Map<String, Object>>> forgotPassword(
+            @RequestBody com.auction.entities.dto.ForgotPasswordRequest request) {
+        
+        log.info("Forgot password request for email: {}", request.getEmail());
+        
+        com.auction.proto.auth.ForgotPasswordRequest grpcRequest = com.auction.proto.auth.ForgotPasswordRequest.newBuilder()
+                .setEmail(request.getEmail())
+                .build();
+
+        return userGrpcClient.forgotPassword(grpcRequest)
+                .map(response -> {
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("success", response.getSuccess());
+                    result.put("message", response.getMessage());
+                    
+                    if (response.getSuccess()) {
+                        log.info("Forgot password OTP sent successfully for: {}", request.getEmail());
+                        return ResponseEntity.ok(result);
+                    } else {
+                        return ResponseEntity.badRequest().body(result);
+                    }
+                })
+                .onErrorResume(e -> {
+                    log.error("Forgot password error: {}", e.getMessage());
+                    Map<String, Object> error = new HashMap<>();
+                    error.put("success", false);
+                    error.put("message", "Forgot password failed: " + e.getMessage());
+                    return Mono.just(ResponseEntity.badRequest().body(error));
+                });
+    }
+
+    @PostMapping("/reset-password")
+    @Operation(summary = "Reset password", description = "Reset password with OTP verification.")
+    public Mono<ResponseEntity<Map<String, Object>>> resetPassword(
+            @RequestBody com.auction.entities.dto.ResetPasswordRequest request) {
+        
+        log.info("Reset password request for email: {}", request.getEmail());
+        
+        com.auction.proto.auth.ResetPasswordRequest grpcRequest = com.auction.proto.auth.ResetPasswordRequest.newBuilder()
+                .setEmail(request.getEmail())
+                .setOtp(request.getOtp())
+                .setNewPassword(request.getNewPassword())
+                .build();
+
+        return userGrpcClient.resetPassword(grpcRequest)
+                .map(response -> {
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("success", response.getSuccess());
+                    result.put("message", response.getMessage());
+                    
+                    if (response.getSuccess()) {
+                        log.info("Password reset successfully for: {}", request.getEmail());
+                        return ResponseEntity.ok(result);
+                    } else {
+                        return ResponseEntity.badRequest().body(result);
+                    }
+                })
+                .onErrorResume(e -> {
+                    log.error("Reset password error: {}", e.getMessage());
+                    Map<String, Object> error = new HashMap<>();
+                    error.put("success", false);
+                    error.put("message", "Reset password failed: " + e.getMessage());
+                    return Mono.just(ResponseEntity.badRequest().body(error));
+                });
+    }
+
     private String getRefreshTokenFromCookie(HttpServletRequest request) {
         if (request.getCookies() != null) {
             Optional<Cookie> refreshTokenCookie = Arrays.stream(request.getCookies())

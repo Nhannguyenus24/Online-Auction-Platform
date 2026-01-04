@@ -31,6 +31,14 @@ const requirements = [
 ];
 
 const resetSchema = yup.object({
+  email: yup
+    .string()
+    .email("Enter a valid email address.")
+    .required("Email is required."),
+  otp: yup
+    .string()
+    .matches(/^\d{6}$/, "OTP must be 6 digits.")
+    .required("OTP is required."),
   password: yup
     .string()
     .matches(
@@ -45,6 +53,8 @@ const resetSchema = yup.object({
 });
 
 const defaultValues = {
+  email: "",
+  otp: "",
   password: "",
   confirmPassword: "",
 };
@@ -117,8 +127,9 @@ const ResetPassword = () => {
     setErrorMessage("");
 
     try {
-      const response = await authApi.changePassword({
-        oldPassword: "", // For password reset flow, we might not need old password
+      const response = await authApi.resetPassword({
+        email: formValues.email,
+        otp: formValues.otp,
         newPassword: formValues.password,
       });
 
@@ -130,7 +141,7 @@ const ResetPassword = () => {
         navigate("/auth/login");
       }, 2000);
     } catch (error) {
-      setErrorMessage(error.response?.data?.message || error.message || "Failed to update password. Please try again.");
+      setErrorMessage(error.response?.data?.message || error.message || "Failed to reset password. Please check your OTP and try again.");
       setStatus("error");
       setSubmitting(false);
     }
@@ -154,6 +165,31 @@ const ResetPassword = () => {
             {errorMessage}
           </Alert>
         )}
+
+        <TextField
+          label="Email address"
+          name="email"
+          type="email"
+          value={formValues.email}
+          onChange={handleChange}
+          required
+          fullWidth
+          error={Boolean(formErrors.email)}
+          helperText={formErrors.email}
+        />
+
+        <TextField
+          label="OTP Code (6 digits)"
+          name="otp"
+          type="text"
+          value={formValues.otp}
+          onChange={handleChange}
+          required
+          fullWidth
+          error={Boolean(formErrors.otp)}
+          helperText={formErrors.otp}
+          inputProps={{ maxLength: 6, pattern: "[0-9]*" }}
+        />
 
         <TextField
           label="New password"

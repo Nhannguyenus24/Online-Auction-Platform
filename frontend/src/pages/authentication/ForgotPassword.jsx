@@ -77,17 +77,14 @@ const ForgotPassword = () => {
     setErrorMessage("");
 
     try {
-      // Note: The API doesn't have a direct forgot-password endpoint
-      // We'll need to create one in the backend or use a different approach
-      // For now, we'll call reproduceOTP endpoint which sends a reset code
-      const response = await authApi.reproduceOTP({
+      const response = await authApi.forgotPassword({
         email: formValues.email,
       });
 
       setSubmitting(false);
       setStatus("sent");
     } catch (error) {
-      setErrorMessage(error.response?.data?.message || error.message || "Failed to send reset link. Please try again.");
+      setErrorMessage(error.response?.data?.message || error.message || "Failed to send reset code. Please try again.");
       setStatus("error");
       setSubmitting(false);
     }
@@ -106,7 +103,7 @@ const ForgotPassword = () => {
       <Stack component="form" spacing={2.5} onSubmit={handleSubmit}>
         {status === "sent" && (
           <Alert severity="success" sx={{ py: 1 }}>
-            We emailed a reset link to {formValues.email}. It expires in 15 minutes.
+            We emailed a reset code to {formValues.email}. It expires in 10 minutes. Please check your email and use the code to reset your password.
           </Alert>
         )}
         {status === "error" && (

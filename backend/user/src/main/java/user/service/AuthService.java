@@ -7,7 +7,6 @@ import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 
-import com.auction.utils.TimeUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -19,6 +18,7 @@ import com.auction.entities.msg.RabbitMessage;
 import com.auction.rabbitmq.services.ReactiveRabbitProducer;
 import com.auction.redis.service.ReactiveRedisService;
 import com.auction.utils.JwtUtils;
+import com.auction.utils.TimeUtils;
 
 import reactor.core.publisher.Mono;
 import user.repository.UserRepository;
@@ -238,6 +238,69 @@ public class AuthService {
                             .then(Mono.just("OTP resent to email. Expires in 10 minutes."))
                             .doOnSuccess(v -> log.info("OTP regenerated and cached for: {}", email));
 
+                });
+    }
+
+    /**
+     * Forgot password - Send OTP to email
+     */
+    public Mono<String> forgotPassword(String email) {
+        return userRepository.findByEmail(email)
+                .switchIfEmpty(Mono.error(new RuntimeException("Email not found")))
+                .flatMap(user -> {
+                    // Generate 6-digit OTP
+                    String otp = generateOTP();
+
+                    // Cache OTP to Redis with 10 minutes expiry
+                    String redisKey = "forgot_password:" + email;
+                    
+                    Map<String, String> emailPayload = new HashMap<>();
+                    emailPayload.put("email", email);
+                    emailPayload.put("userName", user.getFullName() != null ? user.getFullName() : email);
+                    emailPayload.put("otp", otp);
+                    emailPayload.put("expiryMinutes", String.valueOf(OTP_EXPIRY_MINUTES));
+
+                    RabbitMessage message = RabbitMessage.builder()
+                            .eventId(UUID.randomUUID().toString())
+                            .eventType(EventType.TASK_SEND_MAIL_RESET_PASSWORD)
+                            .timestamp(System.currentTimeMillis())
+                            .userId(String.valueOf(user.getId()))
+                            .payload(emailPayload)
+                            .build();
+
+                    return redisClient.set(redisKey, otp, Duration.ofMinutes(OTP_EXPIRY_MINUTES))
+                            .then(rabbitProducer.sendToQueue(NOTIFICATION_QUEUE, message)
+                                    .doOnSuccess(v -> log.info("Reset password OTP email message sent to queue: {} for: {}", NOTIFICATION_QUEUE, email))
+                                    .doOnError(e -> log.error("Failed to send reset password OTP email message to queue: {} for: {}", NOTIFICATION_QUEUE, email, e))
+                                    .onErrorResume(e -> Mono.empty()))
+                            .then(Mono.just("OTP sent to email successfully. Expires in 10 minutes."))
+                            .doOnSuccess(v -> log.info("Forgot password OTP sent to: {}", email));
+                });
+    }
+
+    /**
+     * Reset password with OTP
+     */
+    public Mono<String> resetPassword(String email, String otp, String newPassword) {
+        String redisKey = "forgot_password:" + email;
+        
+        return redisClient.get(redisKey)
+                .switchIfEmpty(Mono.error(new RuntimeException("OTP expired or not found")))
+                .flatMap(cachedOtp -> {
+                    if (!cachedOtp.equals(otp)) {
+                        return Mono.error(new RuntimeException("Invalid OTP"));
+                    }
+
+                    // Update user password
+                    return userRepository.findByEmail(email)
+                            .switchIfEmpty(Mono.error(new RuntimeException("User not found")))
+                            .flatMap(user -> {
+                                user.setPasswordHash(passwordEncoder.encode(newPassword));
+                                return userRepository.save(user);
+                            })
+                            .then(redisClient.delete(redisKey))
+                            .then(Mono.just("Password reset successfully"))
+                            .doOnSuccess(v -> log.info("Password reset successfully for user: {}", email));
                 });
     }
 
