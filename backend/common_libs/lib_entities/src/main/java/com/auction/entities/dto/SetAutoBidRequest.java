@@ -1,4 +1,4 @@
-package gateway.controller.dto;
+package com.auction.entities.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 

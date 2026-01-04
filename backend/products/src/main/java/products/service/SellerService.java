@@ -21,7 +21,7 @@ import com.auctionplatform.seller.grpc.OrderDetail;
 import com.auctionplatform.seller.grpc.ProductDetailsResponse;
 import com.auctionplatform.seller.grpc.ProductSummary;
 
-import products.dto.ImageRowDto;
+import com.auction.entities.record.ImageRowRecord;
 import products.repository.OrderRepository;
 import products.repository.ProductRepository;
 import products.repository.ReviewRepository;
@@ -121,7 +121,7 @@ public class SellerService {
                 .flatMap(product -> 
                     productRepository.getProductImages(product.getId())
                         .next()
-                        .map(ImageRowDto::url)
+                        .map(ImageRowRecord::url)
                         .defaultIfEmpty("")
                         .map(primaryImageUrl -> mapToProductSummary(product, primaryImageUrl))
                 )
@@ -146,7 +146,7 @@ public class SellerService {
                 .flatMap(product -> 
                     productRepository.getProductImages(product.getId())
                         .next()
-                        .map(ImageRowDto::url)
+                        .map(ImageRowRecord::url)
                         .defaultIfEmpty("")
                         .map(primaryImageUrl -> mapToProductSummary(product, primaryImageUrl))
                 )
@@ -331,7 +331,7 @@ public class SellerService {
                 .flatMap(product -> 
                     productRepository.getProductImages(product.getId())
                         .next()
-                        .map(ImageRowDto::url)
+                        .map(ImageRowRecord::url)
                         .defaultIfEmpty("")
                         .map(primaryImageUrl -> mapToListingDetail(product, primaryImageUrl))
                 )

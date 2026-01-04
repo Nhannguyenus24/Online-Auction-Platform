@@ -64,7 +64,13 @@
 		<groupId>org.springframework.data</groupId>
 		<artifactId>spring-data-relational</artifactId>
 	</dependency>
-</dependencies>
+        <dependency>
+            <groupId>com.auction</groupId>
+            <artifactId>lib-proto</artifactId>
+            <version>1.0.0</version>
+            <scope>compile</scope>
+        </dependency>
+    </dependencies>
 		<build>
 		<plugins>
 			<!-- Maven Compiler Plugin -->

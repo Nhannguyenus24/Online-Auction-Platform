@@ -1,9 +1,9 @@
-package products.dto;
+package com.auction.entities.record;
 
 import java.util.Map;
 import java.time.ZonedDateTime;
 
-public record ProductRowDto(
+public record ProductRowRecord(
     int id,
     int sellerId,
     int categoryId,
@@ -28,8 +28,8 @@ public record ProductRowDto(
     int sellerPositiveReviews
 ) {
     
-    public static ProductRowDto fromMap(Map<String, Object> map) {
-        return new ProductRowDto(
+    public static ProductRowRecord fromMap(Map<String, Object> map) {
+        return new ProductRowRecord(
             toInt(map.get("id")),
             toInt(map.get("seller_id")),
             toInt(map.get("category_id")),

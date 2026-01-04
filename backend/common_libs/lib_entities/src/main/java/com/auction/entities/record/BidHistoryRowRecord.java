@@ -1,8 +1,8 @@
-package products.dto;
+package com.auction.entities.record;
 
 import java.time.ZonedDateTime;
 
-public record BidHistoryRowDto(
+public record BidHistoryRowRecord(
     int bidId,
     int productId,
     String productTitle,

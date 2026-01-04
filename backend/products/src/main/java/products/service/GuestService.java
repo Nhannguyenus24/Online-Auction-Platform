@@ -2,6 +2,7 @@ package products.service;
 
 import java.util.List;
 
+import com.auction.entities.record.ProductListByNameRecord;
 import org.springframework.stereotype.Service;
 
 import com.auction.proto.guest.Category;
@@ -9,9 +10,10 @@ import com.auction.proto.guest.PageInfo;
 import com.auction.proto.guest.Product;
 import com.auction.proto.guest.ProductImage;
 import com.auction.utils.TimeUtils;
+import com.auction.entities.record.ProductListRecord;
 
-import products.dto.ImageRowDto;
-import products.dto.ProductRowDto;
+import com.auction.entities.record.ImageRowRecord;
+import com.auction.entities.record.ProductRowRecord;
 import products.repository.CategoryRepository;
 import products.repository.ProductRepository;
 import reactor.core.publisher.Flux;
@@ -61,7 +63,7 @@ public class GuestService {
             );
     }
 
-    public Mono<ProductListResult> listProductsByCategory(int categoryId, String searchKeyword, 
+    public Mono<ProductListRecord> listProductsByCategory(int categoryId, String searchKeyword,
                                                            double minPrice, double maxPrice, 
                                                            String status, String sortOrder, 
                                                            int page, int limit) {
@@ -111,12 +113,12 @@ public class GuestService {
                         .setHasPrevious(page > 1)
                         .build();
                 var category = mapEntityToCategory(categoryEntity);
-                return new ProductListResult(products, pageInfo, category);
+                return new ProductListRecord(products, pageInfo, category);
             });
         });
     }
 
-    public Mono<ProductListByNameResult> listProductsByName(String searchKeyword, 
+    public Mono<ProductListByNameRecord> listProductsByName(String searchKeyword,
                                                               double minPrice, double maxPrice, 
                                                               String status, String sortOrder, 
                                                               int page, int limit) {
@@ -161,7 +163,7 @@ public class GuestService {
                         .setHasNext(page * limit < totalCount)
                         .setHasPrevious(page > 1)
                         .build();
-                return new ProductListByNameResult(products, pageInfo);
+                return new ProductListByNameRecord(products, pageInfo);
             });
         });
     }
@@ -176,7 +178,7 @@ public class GuestService {
             .build();
     }
 
-    private Product mapRowToProductWithImages(ProductRowDto dto, List<ProductImage> images) {
+    private Product mapRowToProductWithImages(ProductRowRecord dto, List<ProductImage> images) {
         return Product.newBuilder()
             .setId(dto.id())
             .setSellerId(dto.sellerId())
@@ -204,7 +206,7 @@ public class GuestService {
             .build();
     }
 
-    private ProductImage mapToProductImage(ImageRowDto dto) {
+    private ProductImage mapToProductImage(ImageRowRecord dto) {
         return ProductImage.newBuilder()
             .setId(dto.id())
             .setProductId(dto.product_id())
@@ -213,7 +215,4 @@ public class GuestService {
             .setCreatedAt(dto.created_at().toEpochSecond())
             .build();
     }
-    // Helper records for return types
-    public record ProductListResult(List<Product> products, PageInfo pageInfo, Category category) {}
-    public record ProductListByNameResult(List<Product> products, PageInfo pageInfo) {}
 }

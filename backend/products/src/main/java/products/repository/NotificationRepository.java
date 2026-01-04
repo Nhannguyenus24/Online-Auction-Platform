@@ -71,8 +71,8 @@ public interface NotificationRepository extends R2dbcRepository<Notification, In
      */
     @Modifying
     @Query("""
-        UPDATE notifications 
-        SET is_read = true 
+        UPDATE notifications
+        SET is_read = true
         WHERE id = :id AND user_id = :userId AND is_read = false
     """)
     Mono<Integer> markAsRead(

@@ -1,12 +1,12 @@
-package products.dto;
+package com.auction.entities.record;
 
 import java.time.LocalDateTime;
 
 /**
- * DTO for product details with seller information
+ * Record for product details with seller information
  * Used by getProductDetailsForBidder query
  */
-public record ProductDetailsDto(
+public record ProductDetailsRecord(
     int id,
     int sellerId,
     int categoryId,

@@ -20,12 +20,12 @@ import com.auction.proto.user.SellerInfo;
 import com.auction.rabbitmq.services.ReactiveRabbitProducer;
 import com.auction.utils.TimeUtils;
 
-import products.dto.BidHistoryRowDto;
-import products.dto.BidRowDto;
-import products.dto.ImageRowDto;
-import products.dto.ProductDetailsDto;
-import products.dto.ProductRowDto;
-import products.dto.QuestionRowDto;
+import com.auction.entities.record.BidHistoryRowRecord;
+import com.auction.entities.record.BidRowRecord;
+import com.auction.entities.record.ImageRowRecord;
+import com.auction.entities.record.ProductDetailsRecord;
+import com.auction.entities.record.ProductRowRecord;
+import com.auction.entities.record.QuestionRowRecord;
 import products.repository.ProductRepository;
 import products.repository.ReviewRepository;
 import reactor.core.publisher.Flux;
@@ -876,7 +876,7 @@ public class BidderService {
     }
     
     // Helper mapping methods
-    private Product mapRowToProductWithImages(ProductRowDto dto, List<ProductImage> images) {
+    private Product mapRowToProductWithImages(ProductRowRecord dto, List<ProductImage> images) {
         return Product.newBuilder()
                 .setId(dto.id())
                 .setSellerId(dto.sellerId())
@@ -901,7 +901,7 @@ public class BidderService {
                 .build();
     }
     
-    private Product mapDtoToProductWithUserData(ProductDetailsDto dto, List<ProductImage> images,
+    private Product mapDtoToProductWithUserData(ProductDetailsRecord dto, List<ProductImage> images,
                                                  List<Question> questions, boolean isInWatchlist, 
                                                  boolean isHighestBidder, double userMaxAutoBid) {
         Product.Builder productBuilder = Product.newBuilder()
@@ -946,7 +946,7 @@ public class BidderService {
         return productBuilder.build();
     }
     
-    private Question mapDtoToQuestion(QuestionRowDto dto) {
+    private Question mapDtoToQuestion(QuestionRowRecord dto) {
         return Question.newBuilder()
             .setId(dto.id())
             .setProductId(dto.productId())
@@ -961,7 +961,7 @@ public class BidderService {
             .build();
     }
     
-    private Bid mapDtoToBid(BidRowDto dto, int userId) {
+    private Bid mapDtoToBid(BidRowRecord dto, int userId) {
         return Bid.newBuilder()
             .setId(dto.id())
             .setProductId(dto.productId())
@@ -974,7 +974,7 @@ public class BidderService {
             .build();
     }
     
-    private BidHistoryItem mapDtoToBidHistoryItem(BidHistoryRowDto dto) {
+    private BidHistoryItem mapDtoToBidHistoryItem(BidHistoryRowRecord dto) {
         return BidHistoryItem.newBuilder()
             .setBidId(dto.bidId())
             .setProductId(dto.productId())
@@ -990,7 +990,7 @@ public class BidderService {
             .build();
     }
 
-    private ProductImage mapToProductImage(ImageRowDto dto) {
+    private ProductImage mapToProductImage(ImageRowRecord dto) {
         return ProductImage.newBuilder()
                 .setId(dto.id())
                 .setProductId(dto.product_id())

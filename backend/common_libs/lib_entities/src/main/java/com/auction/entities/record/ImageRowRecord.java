@@ -1,9 +1,8 @@
-package products.dto;
+package com.auction.entities.record;
 
 import java.time.ZonedDateTime;
-import java.util.Map;
 
-public record ImageRowDto (
+public record ImageRowRecord (
         int id,
         int product_id,
         String url,

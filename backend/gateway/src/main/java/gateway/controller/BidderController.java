@@ -137,7 +137,7 @@ public class BidderController {
     @PostMapping("/watchlist")
     @Operation(summary = "Add to watchlist", description = "Add a product to user's watchlist. Requires authentication.")
     public ResponseEntity<Map<String, Object>> addToWatchlist(
-            @RequestBody gateway.controller.dto.AddToWatchlistRequest requestBody) {
+            @RequestBody com.auction.entities.dto.AddToWatchlistRequest requestBody) {
 
         int userId = getUserId();
         int productId = requestBody.productId();
@@ -257,7 +257,7 @@ public class BidderController {
     public ResponseEntity<Map<String, Object>> askQuestion(
             @Parameter(description = "Product ID", required = true)
             @PathVariable int productId,
-            @RequestBody gateway.controller.dto.AskQuestionRequest requestBody) {
+            @RequestBody com.auction.entities.dto.AskQuestionRequest requestBody) {
 
         int userId = getUserId();
         String question = requestBody.question();
@@ -403,7 +403,7 @@ public class BidderController {
     public ResponseEntity<Map<String, Object>> placeBid(
             @Parameter(description = "Product ID", required = true)
             @PathVariable int productId,
-            @RequestBody gateway.controller.dto.PlaceBidRequest requestBody) {
+            @RequestBody com.auction.entities.dto.PlaceBidRequest requestBody) {
 
         int userId = getUserId();
         double bidAmount = requestBody.bidAmount();
@@ -446,7 +446,7 @@ public class BidderController {
     public ResponseEntity<Map<String, Object>> setAutoBid(
             @Parameter(description = "Product ID", required = true)
             @PathVariable int productId,
-            @RequestBody gateway.controller.dto.SetAutoBidRequest requestBody) {
+            @RequestBody com.auction.entities.dto.SetAutoBidRequest requestBody) {
 
         int userId = getUserId();
         double maxAmount = requestBody.maxAmount();
