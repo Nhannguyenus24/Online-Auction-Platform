@@ -10,6 +10,12 @@ import org.springframework.stereotype.Service;
 
 import com.auction.entities.msg.EventType;
 import com.auction.entities.msg.RabbitMessage;
+import com.auction.entities.record.BidHistoryRowRecord;
+import com.auction.entities.record.BidRowRecord;
+import com.auction.entities.record.ImageRowRecord;
+import com.auction.entities.record.ProductDetailsRecord;
+import com.auction.entities.record.ProductRowRecord;
+import com.auction.entities.record.QuestionRowRecord;
 import com.auction.proto.user.Bid;
 import com.auction.proto.user.BidHistoryItem;
 import com.auction.proto.user.PageInfo;
@@ -20,12 +26,6 @@ import com.auction.proto.user.SellerInfo;
 import com.auction.rabbitmq.services.ReactiveRabbitProducer;
 import com.auction.utils.TimeUtils;
 
-import com.auction.entities.record.BidHistoryRowRecord;
-import com.auction.entities.record.BidRowRecord;
-import com.auction.entities.record.ImageRowRecord;
-import com.auction.entities.record.ProductDetailsRecord;
-import com.auction.entities.record.ProductRowRecord;
-import com.auction.entities.record.QuestionRowRecord;
 import products.repository.ProductRepository;
 import products.repository.ReviewRepository;
 import reactor.core.publisher.Flux;

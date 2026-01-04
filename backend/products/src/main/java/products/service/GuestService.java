@@ -2,18 +2,18 @@ package products.service;
 
 import java.util.List;
 
-import com.auction.entities.record.ProductListByNameRecord;
 import org.springframework.stereotype.Service;
 
+import com.auction.entities.record.ImageRowRecord;
+import com.auction.entities.record.ProductListByNameRecord;
+import com.auction.entities.record.ProductListRecord;
+import com.auction.entities.record.ProductRowRecord;
 import com.auction.proto.guest.Category;
 import com.auction.proto.guest.PageInfo;
 import com.auction.proto.guest.Product;
 import com.auction.proto.guest.ProductImage;
 import com.auction.utils.TimeUtils;
-import com.auction.entities.record.ProductListRecord;
 
-import com.auction.entities.record.ImageRowRecord;
-import com.auction.entities.record.ProductRowRecord;
 import products.repository.CategoryRepository;
 import products.repository.ProductRepository;
 import reactor.core.publisher.Flux;

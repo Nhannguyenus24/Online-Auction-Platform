@@ -1,7 +1,7 @@
 package com.auction.entities.record;
 
-import java.util.Map;
 import java.time.ZonedDateTime;
+import java.util.Map;
 
 public record ProductRowRecord(
     int id,
