@@ -328,6 +328,8 @@ public class RabbitMQConsumerService {
             Map<String, String> payload = message.getPayload();
             
             String userId = payload.get("userId");
+            String email = payload.get("email");
+            String userName = payload.get("userName");
             String productId = payload.get("productId");
             String productName = payload.get("productName");
             String isWinnerStr = payload.get("isWinner");
@@ -336,8 +338,9 @@ public class RabbitMQConsumerService {
             String auctionEndTime = payload.get("auctionEndTime");
             String totalBids = payload.get("totalBids");
 
-            if (userId == null || productId == null || productName == null || 
-                isWinnerStr == null || winningAmount == null || auctionEndTime == null || totalBids == null) {
+            if (userId == null || email == null || userName == null || productId == null || 
+                productName == null || isWinnerStr == null || winningAmount == null || 
+                auctionEndTime == null || totalBids == null) {
                 log.error("Missing required fields in AuctionEnded bidder event: eventId={}", message.getEventId());
                 return Mono.error(new IllegalArgumentException("Missing required fields in AuctionEnded bidder event"));
             }
@@ -345,11 +348,11 @@ public class RabbitMQConsumerService {
             Integer userIdInt = Integer.parseInt(userId);
             boolean isWinner = Boolean.parseBoolean(isWinnerStr);
 
-            log.debug("Sending auction ended email to bidder: userId={}, productId={}, isWinner={}", 
-                userId, productId, isWinner);
+            log.debug("Sending auction ended email to bidder: email={}, userId={}, productId={}, isWinner={}", 
+                email, userId, productId, isWinner);
             
             return emailService.sendAuctionEndedEmailWithNotification(
-                    userIdInt, productName, productId, isWinner, 
+                    email, userName, userIdInt, productName, productId, isWinner, 
                     winningAmount, yourBidAmount, auctionEndTime, totalBids
             )
             .doOnSuccess(v -> log.info("Auction ended email sent to bidder: eventId={}, userId={}, productId={}, isWinner={}", 
@@ -373,6 +376,8 @@ public class RabbitMQConsumerService {
             Map<String, String> payload = message.getPayload();
             
             String sellerId = payload.get("sellerId");
+            String email = payload.get("email");
+            String userName = payload.get("userName");
             String productId = payload.get("productId");
             String productName = payload.get("productName");
             String isSoldStr = payload.get("isSold");
@@ -381,8 +386,9 @@ public class RabbitMQConsumerService {
             String totalBids = payload.get("totalBids");
             String auctionEndTime = payload.get("auctionEndTime");
 
-            if (sellerId == null || productId == null || productName == null || 
-                isSoldStr == null || finalPrice == null || auctionEndTime == null || totalBids == null) {
+            if (sellerId == null || email == null || userName == null || productId == null || 
+                productName == null || isSoldStr == null || finalPrice == null || 
+                auctionEndTime == null || totalBids == null) {
                 log.error("Missing required fields in AuctionEnded seller event: eventId={}", message.getEventId());
                 return Mono.error(new IllegalArgumentException("Missing required fields in AuctionEnded seller event"));
             }
@@ -390,11 +396,11 @@ public class RabbitMQConsumerService {
             Integer sellerIdInt = Integer.parseInt(sellerId);
             boolean isSold = Boolean.parseBoolean(isSoldStr);
 
-            log.debug("Sending auction ended email to seller: sellerId={}, productId={}, isSold={}", 
-                sellerId, productId, isSold);
+            log.debug("Sending auction ended email to seller: email={}, sellerId={}, productId={}, isSold={}", 
+                email, sellerId, productId, isSold);
             
             return emailService.sendAuctionEndedSellerEmailWithNotification(
-                    sellerIdInt, productName, productId, isSold, 
+                    email, userName, sellerIdInt, productName, productId, isSold, 
                     finalPrice, winnerName, totalBids, auctionEndTime
             )
             .doOnSuccess(v -> log.info("Auction ended email sent to seller: eventId={}, sellerId={}, productId={}, isSold={}", 

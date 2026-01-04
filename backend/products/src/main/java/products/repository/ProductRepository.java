@@ -363,6 +363,10 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
     @Query("SELECT full_name FROM users WHERE id = :userId")
     Mono<String> getUserFullName(@Param("userId") Integer userId);
 
+    // Get user email by user ID
+    @Query("SELECT email FROM users WHERE id = :userId")
+    Mono<String> getUserEmail(@Param("userId") Integer userId);
+
     // Find user by ID
     @Query("SELECT * FROM users WHERE id = :userId")
     Mono<User> findUserById(@Param("userId") Integer userId);
