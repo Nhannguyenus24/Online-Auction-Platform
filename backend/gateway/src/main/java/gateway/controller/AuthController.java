@@ -31,6 +31,7 @@ import com.auction.proto.auth.ValidateTokenRequest;
 import com.auction.proto.auth.VerifyOTPRequest;
 
 import gateway.grpc.UserGrpcClient;
+import gateway.service.GoogleOAuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -45,8 +46,11 @@ import reactor.core.publisher.Mono;
 public class AuthController {
     private static final Logger log = LoggerFactory.getLogger(AuthController.class);
     private final UserGrpcClient userGrpcClient;
-    public AuthController(UserGrpcClient userGrpcClient) {
+    private final GoogleOAuthService googleOAuthService;
+    
+    public AuthController(UserGrpcClient userGrpcClient, GoogleOAuthService googleOAuthService) {
         this.userGrpcClient = userGrpcClient;
+        this.googleOAuthService = googleOAuthService;
     }
     private static final int REFRESH_TOKEN_MAX_AGE = 7 * 24 * 60 * 60; // 7 days in seconds
 
@@ -440,48 +444,61 @@ public class AuthController {
     }
 
     @PostMapping("/google")
-    @Operation(summary = "Login with Google", description = "Login or register with Google OAuth. Returns access token and sets refresh token in httpOnly cookie.")
+    @Operation(summary = "Login with Google", description = "Login or register with Google OAuth. Verifies Google ID token and returns access token with refresh token in httpOnly cookie.")
     public Mono<ResponseEntity<Map<String, Object>>> loginWithGoogle(
             @RequestBody com.auction.entities.dto.LoginWithGoogleRequest request,
             HttpServletResponse response) {
         
-        log.info("Google login request for email: {}", request.getEmail());
+        log.info("Google login request received");
         
-        LoginWithGoogleRequest grpcRequest = LoginWithGoogleRequest.newBuilder()
-                .setGoogleIdToken(request.getGoogleIdToken() != null ? request.getGoogleIdToken() : "")
-                .setEmail(request.getEmail())
-                .setFullName(request.getFullName() != null ? request.getFullName() : "")
-                .setProfilePicture(request.getProfilePicture() != null ? request.getProfilePicture() : "")
-                .build();
-
-        return userGrpcClient.loginWithGoogle(grpcRequest)
-                .map(loginResponse -> {
-                    // Set refresh token in httpOnly cookie
-                    Cookie refreshTokenCookie = new Cookie("refreshToken", loginResponse.getRefreshToken());
-                    refreshTokenCookie.setHttpOnly(true);
-                    refreshTokenCookie.setSecure(false); // Set to true in production with HTTPS
-                    refreshTokenCookie.setPath("/");
-                    refreshTokenCookie.setMaxAge(REFRESH_TOKEN_MAX_AGE);
-                    response.addCookie(refreshTokenCookie);
-
-                    // Return access token and user info
-                    Map<String, Object> result = new HashMap<>();
-                    result.put("accessToken", loginResponse.getAccessToken());
+        // Verify Google ID token and get profile information
+        return googleOAuthService.verifyAndGetProfile(request.getGoogleIdToken())
+                .flatMap(googleProfile -> {
+                    log.info("Google profile verified: {}", googleProfile.getEmail());
                     
-                    Map<String, Object> userInfo = new HashMap<>();
-                    userInfo.put("id", loginResponse.getUserInfo().getId());
-                    userInfo.put("email", loginResponse.getUserInfo().getEmail());
-                    userInfo.put("fullName", loginResponse.getUserInfo().getFullName());
-                    userInfo.put("role", loginResponse.getUserInfo().getRole());
-                    result.put("user", userInfo);
-                    
-                    log.info("Google login successful for user: {}", request.getEmail());
-                    return ResponseEntity.ok(result);
+                    // Call gRPC service with verified Google profile data
+                    LoginWithGoogleRequest grpcRequest = LoginWithGoogleRequest.newBuilder()
+                            .setGoogleIdToken(request.getGoogleIdToken())
+                            .setEmail(googleProfile.getEmail())
+                            .setFullName(googleProfile.getName() != null ? googleProfile.getName() : "")
+                            .setProfilePicture(googleProfile.getProfilePicture() != null ? googleProfile.getProfilePicture() : "")
+                            .build();
+
+                    return userGrpcClient.loginWithGoogle(grpcRequest)
+                            .map(loginResponse -> {
+                                // Set refresh token in httpOnly cookie
+                                Cookie refreshTokenCookie = new Cookie("refreshToken", loginResponse.getRefreshToken());
+                                refreshTokenCookie.setHttpOnly(true);
+                                refreshTokenCookie.setSecure(false); // Set to true in production with HTTPS
+                                refreshTokenCookie.setPath("/");
+                                refreshTokenCookie.setMaxAge(REFRESH_TOKEN_MAX_AGE);
+                                response.addCookie(refreshTokenCookie);
+
+                                // Return access token and user info
+                                Map<String, Object> result = new HashMap<>();
+                                result.put("accessToken", loginResponse.getAccessToken());
+                                
+                                Map<String, Object> userInfo = new HashMap<>();
+                                userInfo.put("id", loginResponse.getUserInfo().getId());
+                                userInfo.put("email", loginResponse.getUserInfo().getEmail());
+                                userInfo.put("fullName", loginResponse.getUserInfo().getFullName());
+                                userInfo.put("role", loginResponse.getUserInfo().getRole());
+                                result.put("user", userInfo);
+                                
+                                log.info("Google login successful for user: {}", googleProfile.getEmail());
+                                return ResponseEntity.ok(result);
+                            })
+                            .onErrorResume(e -> {
+                                log.error("gRPC login error: {}", e.getMessage());
+                                Map<String, Object> error = new HashMap<>();
+                                error.put("message", "Login failed: " + e.getMessage());
+                                return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error));
+                            });
                 })
                 .onErrorResume(e -> {
-                    log.error("Google login error: {}", e.getMessage());
+                    log.error("Google OAuth verification failed: {}", e.getMessage());
                     Map<String, Object> error = new HashMap<>();
-                    error.put("message", "Google login failed: " + e.getMessage());
+                    error.put("message", "Google authentication failed: " + e.getMessage());
                     return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error));
                 });
     }
