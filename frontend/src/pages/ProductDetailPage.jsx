@@ -52,7 +52,7 @@ import { useAuth } from '../hooks/useAuth';
 import RichTextEditor from '../components/RichTextEditor';
 import Page from '../components/Page';
 import { formatPrice } from '../utils/formatNumber';
-import { normalizeTimestamp } from '../utils/formatTime';
+import { normalizeTimestamp, fVNDateTime } from '../utils/formatTime';
 import { productApi } from '../services/productApi';
 import { watchlistApi } from '../services/watchlistApi';
 
@@ -193,12 +193,13 @@ function ProductDetailPage() {
         try {
           const bidResponse = await productApi.getTopBidders(productId, 5);
           if (bidResponse.success) {
+            console.log("Top bidders response:", bidResponse);
             const mappedBids = (bidResponse.topBidders || []).map((bidder) => ({
               id: bidder.bidderId,
               bidder: bidder.bidderName || "Anonymous",
               bidderId: bidder.bidderId,
               amount: bidder.bidAmount,
-              time: bidder.bidTime ? new Date(bidder.bidTime) : new Date(),
+              time: normalizeTimestamp(bidder.bidTime),
             }));
             setBidHistory(mappedBids);
           }
@@ -300,7 +301,7 @@ function ProductDetailPage() {
               bidder: bidder.bidderName || "Anonymous",
               bidderId: bidder.bidderId,
               amount: bidder.bidAmount,
-              time: bidder.bidTime ? new Date(bidder.bidTime) : new Date(),
+              time: normalizeTimestamp(bidder.bidTime),
             }));
             setBidHistory(mappedBids);
         }
@@ -344,20 +345,6 @@ function ProductDetailPage() {
     if (days > 0) return `${days} days ${hours} hours`;
     if (hours > 0) return `${hours} hours ${minutes} minutes`;
     return `${minutes} minutes`;
-  };
-
-  const getRelativeTime = (date) => {
-    const now = new Date();
-    const normalizedDate = date instanceof Date ? date : normalizeTimestamp(date);
-    const diff = now - normalizedDate;
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-
-    if (days > 0) return `${days} days ago`;
-    if (hours > 0) return `${hours} hours ago`;
-    if (minutes > 0) return `${minutes} minutes ago`;
-    return "Just now";
   };
 
   const handlePreviousImage = () => {
@@ -423,7 +410,7 @@ function ProductDetailPage() {
               bidder: bidder.bidderName || "Anonymous",
               bidderId: bidder.bidderId,
               amount: bidder.bidAmount,
-              time: bidder.bidTime ? new Date(bidder.bidTime) : new Date(),
+              time: normalizeTimestamp(bidder.bidTime),
             }));
             setBidHistory(mappedBids);
           }
@@ -1129,7 +1116,7 @@ function ProductDetailPage() {
                               </TableCell>
                               <TableCell align="right">
                                 <Typography variant="body2" color="text.secondary">
-                                  {getRelativeTime(bid.time)}
+                                  {fVNDateTime(bid.time)}
                                 </Typography>
                               </TableCell>
                               {isSeller && !rejectedBids.has(bid.id) && (
@@ -1218,7 +1205,7 @@ function ProductDetailPage() {
                                   {q.bidder.name}
                                 </Typography>
                                 <Typography variant="caption" color="text.secondary">
-                                  {getRelativeTime(q.askedAt)}
+                                  {fVNDateTime(q.askedAt)}
                                 </Typography>
                               </Stack>
                               <Typography variant="body1" sx={{ mb: 2 }}>
@@ -1244,7 +1231,7 @@ function ProductDetailPage() {
                                       {product.seller.name} (Seller)
                                     </Typography>
                                     <Typography variant="caption" color="text.secondary">
-                                      {getRelativeTime(q.answeredAt)}
+                                      {fVNDateTime(q.answeredAt)}
                                     </Typography>
                                   </Stack>
                                   <Typography variant="body2" color="text.secondary">
@@ -1544,7 +1531,7 @@ function ProductDetailPage() {
                     Amount: <strong>{formatPrice(bidToReject.amount)}</strong>
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Time: <strong>{getRelativeTime(bidToReject.time)}</strong>
+                    Time: <strong>{fVNDateTime(bidToReject.time)}</strong>
                   </Typography>
                 </Box>
               )}

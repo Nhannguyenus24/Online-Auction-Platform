@@ -96,9 +96,10 @@ export default function Router() {
     },
     {
       path: "bidder",
-      element: <BidderLayout />,
+      element: <AuthGuard><BidderLayout /></AuthGuard>,
       children: [
         { path: "", element: <Navigate to="/bidder/home" replace /> },
+        { path: "form-request", element: <FormRequestPage /> },
         { path: "home", element: <BidderHomePage /> },
         { path: "profile", element: <BidderProfilePage /> },
         { path: "watchlist", element: <BidderWatchListPage /> },
@@ -185,6 +186,9 @@ const SellerChatPage = Loadable(
 );
 
 //BIDDER
+const FormRequestPage = Loadable(
+  lazy(() => import("../pages/FormRequestPage.jsx"))
+);
 const BidderHomePage = Loadable(
   lazy(() => import("../pages/bidder/HomePage.jsx"))
 );

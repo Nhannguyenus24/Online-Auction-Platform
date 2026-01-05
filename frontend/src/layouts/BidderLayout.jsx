@@ -22,6 +22,7 @@ import {
   Menu as MenuIcon,
   ArrowBack as ArrowBackIcon,
 } from '@mui/icons-material';
+import Header from './Header';
 
 const DRAWER_WIDTH = 260;
 const COLLAPSED_WIDTH = 70;
@@ -45,25 +46,29 @@ const BidderLayout = () => {
     { title: 'Checkout', path: '/bidder/checkout', icon: <ShoppingCartIcon /> },
     { title: 'Chat', path: '/bidder/chat', icon: <ChatIcon /> },
     { title: 'Profile', path: '/bidder/profile', icon: <PersonIcon /> },
+    { title: 'Form Request', path: '/bidder/form-request', icon: <ShoppingCartIcon /> },
   ];
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: '#fafafa' }}>
-      {/* Sidebar */}
-      <Box
-        sx={{
-          width: collapsed ? COLLAPSED_WIDTH : DRAWER_WIDTH,
-          flexShrink: 0,
-          transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          position: 'fixed',
-          height: '100vh',
-          bgcolor: 'white',
-          borderRight: '1px solid',
-          borderColor: 'divider',
-          overflow: 'hidden',
-          zIndex: 1000,
-        }}
-      >
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      <Header />
+      <Box sx={{ display: 'flex', flexGrow: 1, bgcolor: '#fafafa' }}>
+        {/* Sidebar */}
+        <Box
+          sx={{
+            width: collapsed ? COLLAPSED_WIDTH : DRAWER_WIDTH,
+            flexShrink: 0,
+            transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            position: 'fixed',
+            height: 'calc(100vh - 64px)',
+            top: 64,
+            bgcolor: 'white',
+            borderRight: '1px solid',
+            borderColor: 'divider',
+            overflow: 'hidden',
+            zIndex: 1000,
+          }}
+        >
         {/* Header */}
         <Box
           sx={{
@@ -79,16 +84,6 @@ const BidderLayout = () => {
         >
           {!collapsed && (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
-              <IconButton
-                onClick={() => navigate('/')}
-                size="small"
-                sx={{
-                  color: 'text.secondary',
-                  '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.08) },
-                }}
-              >
-                <ArrowBackIcon />
-              </IconButton>
               <Typography
                 variant="h6"
                 sx={{
@@ -128,7 +123,7 @@ const BidderLayout = () => {
         </Box>
 
         {/* Menu */}
-        <List sx={{ px: collapsed ? 1 : 2, py: 2, overflow: 'auto', height: 'calc(100vh - 64px)' }}>
+        <List sx={{ px: collapsed ? 1 : 2, py: 2, overflow: 'auto', height: '100%' }}>
           {menuItems.map((item) => {
             const active = isActive(item.path);
             return (
@@ -188,20 +183,20 @@ const BidderLayout = () => {
             );
           })}
         </List>
-      </Box>
+        </Box>
 
-      {/* Main Content */}
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          ml: collapsed ? `${COLLAPSED_WIDTH}px` : `${DRAWER_WIDTH}px`,
-          transition: 'margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          p: 3,
-          minHeight: '100vh',
-        }}
-      >
-        <Outlet />  
+        {/* Main Content */}
+        <Box
+          component="main"
+          sx={{
+            flexGrow: 1,
+            ml: collapsed ? `${COLLAPSED_WIDTH}px` : `${DRAWER_WIDTH}px`,
+            transition: 'margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            p: 3,
+          }}
+        >
+          <Outlet />  
+        </Box>
       </Box>
     </Box>
   );

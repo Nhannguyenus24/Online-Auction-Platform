@@ -9,17 +9,31 @@ import { format, getTime, formatDistanceToNow, isSameDay } from 'date-fns';
  * @returns {Date} - Normalized Date object
  */
 export function normalizeTimestamp(timestamp) {
-  if (!timestamp) return new Date();
-  if (timestamp instanceof Date) return timestamp;
-  
-  const num = typeof timestamp === 'string' ? parseFloat(timestamp) : timestamp;
-  if (isNaN(num)) return new Date();
-  
-  // If timestamp is less than 1e12 (year 2001), it's likely in seconds, convert to milliseconds
-  // If timestamp is >= 1e12, it's already in milliseconds
+  // null / undefined
+  if (timestamp === null || timestamp === undefined) {
+    return new Date();
+  }
+
+  // Date object
+  if (timestamp instanceof Date) {
+    return timestamp;
+  }
+
+  // Convert string / number
+  const num = typeof timestamp === 'string'
+    ? Number(timestamp)
+    : timestamp;
+
+  if (Number.isNaN(num)) {
+    return new Date();
+  }
+
+  // seconds → milliseconds
   const milliseconds = num < 1e12 ? num * 1000 : num;
+
   return new Date(milliseconds);
 }
+
 
 export function fDate(date) {
   return format(normalizeTimestamp(date), 'dd MMMM yyyy');

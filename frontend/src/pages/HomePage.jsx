@@ -276,22 +276,6 @@ const HomePage = () => {
                 >
                   {banners[currentBanner].subtitle}
                 </Typography>
-                <Button
-                  variant="contained"
-                  size="large"
-                  endIcon={<ArrowForward />}
-                  onClick={() => navigate("/category/electronics/watches")}
-                  sx={{
-                    px: 4,
-                    py: 1.5,
-                    fontSize: "1.1rem",
-                    fontWeight: "bold",
-                    borderRadius: 2,
-                    boxShadow: 3,
-                  }}
-                >
-                  Start Bidding
-                </Button>
               </Box>
 
               {/* Banner Indicators */}

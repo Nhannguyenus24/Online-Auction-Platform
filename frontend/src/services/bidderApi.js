@@ -196,6 +196,66 @@ export const bidderApi = {
         throw error;
       });
   },
+
+  /**
+   * Request role upgrade to seller
+   * Requires bidder authentication
+   * @returns {Promise} - { success, message, requestId }
+   */
+  requestRoleUpgrade: () => {
+    return axiosInstance
+      .post('/api/bidder/upgrade-request')
+      .then((response) => {
+        if (response.data.success) {
+          return {
+            success: true,
+            message: response.data.message || 'Upgrade request submitted successfully',
+            requestId: response.data.requestId || 0,
+          };
+        } else {
+          throw new Error(response.data.message || 'Failed to submit upgrade request');
+        }
+      })
+      .catch((error) => {
+        console.error('Request role upgrade error:', error);
+        if (error.response?.data?.message) {
+          throw new Error(error.response.data.message);
+        }
+        throw error;
+      });
+  },
+
+  /**
+   * Get role upgrade request status
+   * Requires bidder authentication
+   * @returns {Promise} - { success, hasRequest, status, createdAt, updatedAt, adminComment, message }
+   */
+  getRoleUpgradeStatus: () => {
+    return axiosInstance
+      .get('/api/bidder/role-upgrade-status')
+      .then((response) => {
+        if (response.data.success) {
+          return {
+            success: true,
+            hasRequest: response.data.hasRequest || false,
+            status: response.data.status || 'not_found',
+            createdAt: response.data.createdAt || 0,
+            updatedAt: response.data.updatedAt || 0,
+            adminComment: response.data.adminComment || '',
+            message: response.data.message || 'Status retrieved successfully',
+          };
+        } else {
+          throw new Error(response.data.message || 'Failed to get upgrade status');
+        }
+      })
+      .catch((error) => {
+        console.error('Get role upgrade status error:', error);
+        if (error.response?.data?.message) {
+          throw new Error(error.response.data.message);
+        }
+        throw error;
+      });
+  },
 };
 
 export default bidderApi;
