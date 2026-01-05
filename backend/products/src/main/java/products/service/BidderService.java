@@ -1,5 +1,6 @@
 package products.service;
 
+import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -88,6 +89,7 @@ public class BidderService {
                     productRepository.isHighestBidder(productId, userId)
                         .doOnNext(count -> log.debug("Highest bidder check for user {}: {}", userId, count)),
                     productRepository.getUserAutoBid(productId, userId)
+                        .defaultIfEmpty(new products.dto.AutoBidRowDto(0, productId, userId, 0.0, TimeUtils.now().toEpochSecond(ZoneOffset.ofHours(7))))
                         .doOnNext(autoBid -> log.debug("Auto bid for user {}: maxAmount={}", userId, autoBid.maxAmount())),
                     productRepository.getProductQuestions(productId, 10, 0)
                         .map(this::mapDtoToQuestion)
@@ -1170,50 +1172,52 @@ public class BidderService {
         return redisService.zRevRange(redisKey, 0, actualLimit - 1)
             .collectList()
             .doOnNext(bidders -> log.debug("Found {} bidders in Redis for product {}", bidders.size(), productId))
-            .flatMapMany(bidders -> {
+            .flatMap(bidders -> {
                 if (bidders.isEmpty()) {
                     log.info("No bidders found in Redis for product {}", productId);
-                    return Flux.empty();
+                    // Return empty result instead of empty Flux
+                    return Mono.just(new TopBiddersResult(java.util.Collections.emptyList()));
                 }
-                return Flux.fromIterable(bidders);
-            })
-            .flatMap(bidderObj -> {
-                // Parse userId từ Redis key (được lưu bằng String.valueOf(userId))
-                String bidderStr = bidderObj.toString();
-                int bidderId = Integer.parseInt(bidderStr);
                 
-                log.debug("Processing bidder {} for product {}", bidderId, productId);
-                
-                // Get score (bid amount) for this bidder from Redis
-                return redisService.zScore(redisKey, bidderStr)
-                    .flatMap(bidAmount -> {
-                        log.debug("Bidder {} has amount {} for product {}", bidderId, bidAmount, productId);
+                return Flux.fromIterable(bidders)
+                    .flatMap(bidderObj -> {
+                        // Parse userId từ Redis key (được lưu bằng String.valueOf(userId))
+                        String bidderStr = bidderObj.toString();
+                        int bidderId = Integer.parseInt(bidderStr);
                         
-                        // Get bidder info and last bid time from database
-                        return productRepository.findUserById(bidderId)
-                            .flatMap(user -> {
-                                // Get last bid time for this bidder on this product
-                                return productRepository.getLastBidTimeForUser(productId, bidderId)
-                                    .map(bidTime -> new TopBidderItem(
-                                        bidderId,
-                                        maskEmail(user.getEmail()),
-                                        bidAmount,
-                                        bidTime.getSecond()
-                                    ))
-                                    .doOnNext(item -> log.debug("Created TopBidderItem: bidderId={}, amount={}, time={}", 
-                                        item.bidderId(), item.bidAmount(), item.bidTime()));
-                            })
-                            .onErrorResume(e -> {
-                                log.warn("Could not get info for bidder {} on product {}: {}", 
-                                    bidderId, productId, e.getMessage());
-                                return Mono.empty();
+                        log.debug("Processing bidder {} for product {}", bidderId, productId);
+                        
+                        // Get score (bid amount) for this bidder from Redis
+                        return redisService.zScore(redisKey, bidderStr)
+                            .flatMap(bidAmount -> {
+                                log.debug("Bidder {} has amount {} for product {}", bidderId, bidAmount, productId);
+                                
+                                // Get bidder info and last bid time from database
+                                return productRepository.findUserById(bidderId)
+                                    .flatMap(user -> {
+                                        // Get last bid time for this bidder on this product
+                                        return productRepository.getLastBidTimeForUser(productId, bidderId)
+                                            .map(bidTime -> new TopBidderItem(
+                                                bidderId,
+                                                maskEmail(user.getEmail()),
+                                                bidAmount,
+                                                bidTime.getSecond()
+                                            ))
+                                            .doOnNext(item -> log.debug("Created TopBidderItem: bidderId={}, amount={}, time={}", 
+                                                item.bidderId(), item.bidAmount(), item.bidTime()));
+                                    })
+                                    .onErrorResume(e -> {
+                                        log.warn("Could not get info for bidder {} on product {}: {}", 
+                                            bidderId, productId, e.getMessage());
+                                        return Mono.empty();
+                                    });
                             });
+                    })
+                    .collectList()
+                    .map(topBidders -> {
+                        log.info("Successfully retrieved {} top bidders for product {}", topBidders.size(), productId);
+                        return new TopBiddersResult(topBidders);
                     });
-            })
-            .collectList()
-            .map(topBidders -> {
-                log.info("Successfully retrieved {} top bidders for product {}", topBidders.size(), productId);
-                return new TopBiddersResult(topBidders);
             })
             .defaultIfEmpty(new TopBiddersResult(java.util.Collections.emptyList()))
             .doOnError(e -> log.error("Error getting top bidders for product {}: {}", productId, e.getMessage(), e));
