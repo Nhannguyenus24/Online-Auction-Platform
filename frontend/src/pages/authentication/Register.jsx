@@ -22,8 +22,10 @@ import {
   Box,
 } from "@mui/material";
 import { VerifiedUser, Google } from "@mui/icons-material";
+import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
 import AuthLayout from "../../layouts/AuthLayout";
 import { authApi } from "../../utils/api";
+import { useAuth } from "../../hooks/useAuth";
 import ReCaptcha from "../../components/ReCaptcha";
 
 const registerSchema = yup.object({
@@ -57,6 +59,7 @@ const defaultValues = {
 
 const Register = () => {
   const navigate = useNavigate();
+  const { login: authLogin } = useAuth();
 
   const {
     control,
@@ -73,6 +76,7 @@ const Register = () => {
   const [status, setStatus] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [recaptchaValue, setRecaptchaValue] = useState(null);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const recaptchaRef = useRef(null);
 
   // OTP verification states
@@ -152,8 +156,39 @@ const Register = () => {
     }
   };
 
-  const handleGoogleSignup = () => {
-    simulateAuth();
+  const handleGoogleSignup = async (credentialResponse) => {
+    setGoogleLoading(true);
+    setErrorMessage("");
+    setStatus(null);
+
+    try {
+      const response = await authApi.loginWithGoogle({
+        googleIdToken: credentialResponse.credential,
+      });
+
+      if (response.accessToken) {
+        await authLogin(response.accessToken, response.user || null);
+        setStatus("success");
+        navigate("/");
+      } else {
+        throw new Error("No access token received from server");
+      }
+    } catch (error) {
+      setErrorMessage(
+        error.response?.data?.message ||
+          error.message ||
+          "Google signup failed. Please try again."
+      );
+      setStatus("error");
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  const handleGoogleError = () => {
+    setErrorMessage("Google signup failed. Please try again.");
+    setStatus("error");
+    setGoogleLoading(false);
   };
 
   // OTP countdown timer
@@ -410,22 +445,25 @@ const Register = () => {
           </Alert>
         )}
 
-        <Button type="submit" variant="contained" size="medium" disabled={isSubmitting}>
+        <Button type="submit" variant="contained" size="medium" disabled={isSubmitting || googleLoading}>
           {isSubmitting ? "Creating account..." : "Create account"}
         </Button>
 
         <Divider sx={{ my: 0.5 }}>or continue with</Divider>
 
-        <Button
-          startIcon={<Google />}
-          variant="outlined"
-          size="medium"
-          fullWidth
-          onClick={handleGoogleSignup}
-          disabled={isSubmitting}
-        >
-          Sign up with Google
-        </Button>
+        <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
+          <div style={{ width: "100%", display: "flex", justifyContent: "center" }}>
+            {googleLoading ? (
+              <CircularProgress />
+            ) : (
+              <GoogleLogin
+                onSuccess={handleGoogleSignup}
+                onError={handleGoogleError}
+                width="330"
+              />
+            )}
+          </div>
+        </GoogleOAuthProvider>
       </Stack>
 
       {/* OTP Verification Dialog */}

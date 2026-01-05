@@ -13,8 +13,10 @@ import {
   InputAdornment,
   Stack,
   TextField,
+  CircularProgress,
 } from "@mui/material";
 import { Gavel, Google, Visibility, VisibilityOff } from "@mui/icons-material";
+import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
 import AuthLayout from "../../layouts/AuthLayout";
 import { authApi } from "../../utils/api";
 import { useAuth } from "../../hooks/useAuth";
@@ -36,6 +38,7 @@ const Login = () => {
   const [status, setStatus] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [recaptchaValue, setRecaptchaValue] = useState(null);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const recaptchaRef = useRef(null);
 
   const {
@@ -57,6 +60,41 @@ const Login = () => {
   const handleRecaptchaExpired = () => {
     setRecaptchaValue(null);
     setValue("recaptcha", "", { shouldValidate: true });
+  };
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    setGoogleLoading(true);
+    setErrorMessage("");
+    setStatus(null);
+
+    try {
+      const response = await authApi.loginWithGoogle({
+        googleIdToken: credentialResponse.credential,
+      });
+
+      if (response.accessToken) {
+        await authLogin(response.accessToken, response.user || null);
+        setStatus("success");
+        navigate("/");
+      } else {
+        throw new Error("No access token received from server");
+      }
+    } catch (error) {
+      setErrorMessage(
+        error.response?.data?.message ||
+          error.message ||
+          "Google login failed. Please try again."
+      );
+      setStatus("error");
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  const handleGoogleError = () => {
+    setErrorMessage("Google login failed. Please try again.");
+    setStatus("error");
+    setGoogleLoading(false);
   };
 
   const onSubmit = async (data) => {
@@ -201,11 +239,19 @@ const Login = () => {
 
         <Divider>or continue with</Divider>
 
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-          <Button startIcon={<Google />} variant="outlined" fullWidth>
-            Google
-          </Button>
-        </Stack>
+        <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
+          <div style={{ width: "100%", display: "flex", justifyContent: "center" }}>
+            {googleLoading ? (
+              <CircularProgress />
+            ) : (
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={handleGoogleError}
+                width="330"
+              />
+            )}
+          </div>
+        </GoogleOAuthProvider>
       </Stack>
     </AuthLayout>
   );
