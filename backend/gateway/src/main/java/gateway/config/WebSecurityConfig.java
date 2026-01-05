@@ -44,10 +44,10 @@ public class WebSecurityConfig {
                     // Public endpoints - no authentication required
                     .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                     .requestMatchers(
-                        "/api/gateway/routes",
                         "/api/auth/**",
-                        "/swagger-ui.html",
-                        "/api/guest/**"
+                        "/swagger-ui/**",
+                        "/api/guest/**",
+                        "/api-docs/**"
                     ).permitAll()
                     
                     // Role-based access control with hierarchy

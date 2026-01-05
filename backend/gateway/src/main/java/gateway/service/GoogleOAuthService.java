@@ -1,19 +1,15 @@
 package gateway.service;
 
-import java.util.Collections;
-import java.util.Map;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
 
 @Service
 public class GoogleOAuthService {
@@ -28,11 +24,11 @@ public class GoogleOAuthService {
     private static final String GOOGLE_TOKEN_INFO_URL = "https://oauth2.googleapis.com/tokeninfo";
     private static final String GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo";
     
-    private final RestTemplate restTemplate;
+    private final WebClient webClient;
     private final ObjectMapper objectMapper;
     
-    public GoogleOAuthService(RestTemplate restTemplate, ObjectMapper objectMapper) {
-        this.restTemplate = restTemplate;
+    public GoogleOAuthService(WebClient.Builder webClientBuilder, ObjectMapper objectMapper) {
+        this.webClient = webClientBuilder.build();
         this.objectMapper = objectMapper;
     }
     
@@ -45,25 +41,30 @@ public class GoogleOAuthService {
     public Mono<GoogleUserProfile> verifyAndGetProfile(String idToken) {
         log.info("Verifying Google ID token");
         
-        return Mono.fromCallable(() -> {
-                    // Call Google tokeninfo endpoint to verify and decode the token
-                    String url = GOOGLE_TOKEN_INFO_URL + "?id_token=" + idToken;
-                    
+        return webClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .scheme("https")
+                        .host("oauth2.googleapis.com")
+                        .path("/tokeninfo")
+                        .queryParam("id_token", idToken)
+                        .build())
+                .retrieve()
+                .bodyToMono(String.class)
+                .flatMap(response -> {
                     try {
-                        String response = restTemplate.getForObject(url, String.class);
                         JsonNode jsonNode = objectMapper.readTree(response);
                         
                         // Verify the token
                         if (jsonNode.has("error")) {
                             log.error("Google token verification failed: {}", jsonNode.get("error").asText());
-                            throw new IllegalArgumentException("Invalid Google ID token: " + jsonNode.get("error").asText());
+                            return Mono.error(new IllegalArgumentException("Invalid Google ID token: " + jsonNode.get("error").asText()));
                         }
                         
                         // Verify client ID
                         String tokenClientId = jsonNode.get("aud").asText();
                         if (!tokenClientId.equals(googleClientId)) {
                             log.error("Client ID mismatch. Expected: {}, Got: {}", googleClientId, tokenClientId);
-                            throw new IllegalArgumentException("Client ID mismatch");
+                            return Mono.error(new IllegalArgumentException("Client ID mismatch"));
                         }
                         
                         // Extract user information from token
@@ -74,15 +75,17 @@ public class GoogleOAuthService {
                         
                         log.info("Google token verified successfully for email: {}", email);
                         
-                        return new GoogleUserProfile(email, name, picture, emailVerified);
+                        return Mono.just(new GoogleUserProfile(email, name, picture, emailVerified));
                         
                     } catch (Exception e) {
                         log.error("Error verifying Google token: {}", e.getMessage());
-                        throw new RuntimeException("Google token verification failed: " + e.getMessage(), e);
+                        return Mono.error(new RuntimeException("Google token verification failed: " + e.getMessage(), e));
                     }
                 })
-                .subscribeOn(Schedulers.boundedElastic())
                 .onErrorMap(e -> {
+                    if (e instanceof IllegalArgumentException || e instanceof RuntimeException) {
+                        return e;
+                    }
                     log.error("Google OAuth verification failed: {}", e.getMessage());
                     return new RuntimeException("Google OAuth verification failed: " + e.getMessage(), e);
                 });
@@ -98,16 +101,22 @@ public class GoogleOAuthService {
     public Mono<GoogleUserProfile> getUserProfileWithAccessToken(String accessToken) {
         log.info("Getting user profile from Google using access token");
         
-        return Mono.fromCallable(() -> {
-                    String url = GOOGLE_USERINFO_URL + "?access_token=" + accessToken;
-                    
+        return webClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .scheme("https")
+                        .host("www.googleapis.com")
+                        .path("/oauth2/v2/userinfo")
+                        .queryParam("access_token", accessToken)
+                        .build())
+                .retrieve()
+                .bodyToMono(String.class)
+                .flatMap(response -> {
                     try {
-                        String response = restTemplate.getForObject(url, String.class);
                         JsonNode jsonNode = objectMapper.readTree(response);
                         
                         if (jsonNode.has("error")) {
                             log.error("Failed to get user profile: {}", jsonNode.get("error").asText());
-                            throw new IllegalArgumentException("Failed to get user profile");
+                            return Mono.error(new IllegalArgumentException("Failed to get user profile"));
                         }
                         
                         String email = jsonNode.get("email").asText();
@@ -116,15 +125,17 @@ public class GoogleOAuthService {
                         
                         log.info("User profile retrieved successfully: {}", email);
                         
-                        return new GoogleUserProfile(email, name, picture, true);
+                        return Mono.just(new GoogleUserProfile(email, name, picture, true));
                         
                     } catch (Exception e) {
                         log.error("Error getting user profile: {}", e.getMessage());
-                        throw new RuntimeException("Failed to get user profile: " + e.getMessage(), e);
+                        return Mono.error(new RuntimeException("Failed to get user profile: " + e.getMessage(), e));
                     }
                 })
-                .subscribeOn(Schedulers.boundedElastic())
                 .onErrorMap(e -> {
+                    if (e instanceof IllegalArgumentException || e instanceof RuntimeException) {
+                        return e;
+                    }
                     log.error("Google profile retrieval failed: {}", e.getMessage());
                     return new RuntimeException("Google profile retrieval failed: " + e.getMessage(), e);
                 });
