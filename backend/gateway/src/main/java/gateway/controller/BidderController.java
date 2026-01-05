@@ -851,4 +851,88 @@ public class BidderController {
         });
         return result;
     }
+    
+    @PostMapping("/upgrade-request")
+    @Operation(summary = "Request role upgrade", description = "Request to upgrade role from bidder to seller. Requires authentication.")
+    public ResponseEntity<Map<String, Object>> requestRoleUpgrade() {
+        try {
+            int userId = getUserId();
+            log.info("User {} requesting role upgrade to seller", userId);
+
+            var grpcRequest = com.auction.proto.user.RequestRoleUpgradeRequest.newBuilder()
+                    .setUserId(userId)
+                    .build();
+
+            com.auction.proto.user.RequestRoleUpgradeResponse response = 
+                    bidderGrpcClient.requestRoleUpgrade(grpcRequest)
+                            .timeout(Duration.ofSeconds(5))
+                            .block();
+
+            if (response != null && response.getSuccess()) {
+                Map<String, Object> result = new HashMap<>();
+                result.put("success", true);
+                result.put("message", response.getMessage());
+                result.put("requestId", response.getRequestId());
+
+                log.info("Role upgrade request successful for user {}", userId);
+                return ResponseEntity.ok(result);
+            } else {
+                Map<String, Object> error = new HashMap<>();
+                error.put("success", false);
+                error.put("message", response != null ? response.getMessage() : "Failed to submit upgrade request");
+
+                log.warn("Role upgrade request failed for user {}: {}", 
+                    userId, response != null ? response.getMessage() : "Unknown error");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
+        } catch (Exception e) {
+            log.error("Error processing role upgrade request: {}", e.getMessage(), e);
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Error: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+    
+    @GetMapping("/role-upgrade-status")
+    @Operation(summary = "Get role upgrade request status", description = "Get the status of user's role upgrade request. Requires authentication.")
+    public ResponseEntity<Map<String, Object>> getRoleUpgradeRequestStatus() {
+        try {
+            int userId = getUserId();
+            log.info("Getting role upgrade request status for user {}", userId);
+            
+            var request = com.auction.proto.user.GetRoleUpgradeRequestStatusRequest.newBuilder()
+                .setUserId(userId)
+                .build();
+            
+            var response = bidderGrpcClient.getRoleUpgradeRequestStatus(request)
+                .block(Duration.ofSeconds(5));
+            
+            if (response != null && response.getSuccess()) {
+                Map<String, Object> result = new HashMap<>();
+                result.put("success", true);
+                result.put("hasRequest", response.getHasRequest());
+                result.put("status", response.getStatus());
+                result.put("createdAt", response.getCreatedAt());
+                result.put("message", response.getMessage());
+                
+                log.info("Role upgrade status retrieved successfully for user {}: {}", userId, response.getStatus());
+                return ResponseEntity.ok(result);
+            } else {
+                Map<String, Object> error = new HashMap<>();
+                error.put("success", false);
+                error.put("message", response != null ? response.getMessage() : "Failed to get upgrade request status");
+
+                log.warn("Failed to get role upgrade status for user {}: {}", 
+                    userId, response != null ? response.getMessage() : "Unknown error");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
+        } catch (Exception e) {
+            log.error("Error getting role upgrade request status: {}", e.getMessage(), e);
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Error: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
 }

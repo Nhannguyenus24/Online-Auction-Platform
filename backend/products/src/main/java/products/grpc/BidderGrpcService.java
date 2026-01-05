@@ -437,5 +437,52 @@ public class BidderGrpcService extends ReactorUserServiceGrpc.UserServiceImplBas
                         })
                 );
     }
+    
+    @Override
+    public Mono<com.auction.proto.user.RequestRoleUpgradeResponse> requestRoleUpgrade(Mono<com.auction.proto.user.RequestRoleUpgradeRequest> request) {
+        return request.doOnNext(req -> log.info("Raw request role upgrade request: {}", JsonUtils.toJson(req)))
+                .flatMap(req ->
+                    bidderService.requestRoleUpgrade(req.getUserId())
+                        .map(result -> com.auction.proto.user.RequestRoleUpgradeResponse.newBuilder()
+                            .setSuccess(result.success())
+                            .setMessage(result.message())
+                            .setRequestId(result.requestId())
+                            .build())
+                        .doOnNext(resp -> log.info("Raw request role upgrade response: {}", JsonUtils.toJson(resp)))
+                        .onErrorResume(e -> {
+                            log.error("Error requesting role upgrade: {}", e.getMessage(), e);
+                            return Mono.just(com.auction.proto.user.RequestRoleUpgradeResponse.newBuilder()
+                                .setSuccess(false)
+                                .setMessage("Error: " + e.getMessage())
+                                .setRequestId(0)
+                                .build());
+                        })
+                );
+    }
+    
+    @Override
+    public Mono<com.auction.proto.user.GetRoleUpgradeRequestStatusResponse> getRoleUpgradeRequestStatus(Mono<com.auction.proto.user.GetRoleUpgradeRequestStatusRequest> request) {
+        return request.doOnNext(req -> log.info("Raw get role upgrade request status request: {}", JsonUtils.toJson(req)))
+                .flatMap(req ->
+                    bidderService.getRoleUpgradeRequestStatus(req.getUserId())
+                        .map(result -> com.auction.proto.user.GetRoleUpgradeRequestStatusResponse.newBuilder()
+                            .setSuccess(result.success())
+                            .setMessage(result.message())
+                            .setHasRequest(result.hasRequest())
+                            .setStatus(result.status())
+                            .setCreatedAt(result.createdAt())
+                            .build())
+                        .doOnNext(resp -> log.info("Raw get role upgrade request status response: {}", JsonUtils.toJson(resp)))
+                        .onErrorResume(e -> {
+                            log.error("Error getting role upgrade request status: {}", e.getMessage(), e);
+                            return Mono.just(com.auction.proto.user.GetRoleUpgradeRequestStatusResponse.newBuilder()
+                                .setSuccess(false)
+                                .setMessage("Error: " + e.getMessage())
+                                .setHasRequest(false)
+                                .setStatus("error")
+                                .build());
+                        })
+                );
+    }
 }
 

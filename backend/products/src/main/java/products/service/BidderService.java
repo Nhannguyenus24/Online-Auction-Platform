@@ -1201,7 +1201,7 @@ public class BidderService {
                                                 bidderId,
                                                 maskEmail(user.getEmail()),
                                                 bidAmount,
-                                                bidTime.getSecond()
+                                                bidTime.toEpochSecond(ZoneOffset.ofHours(7))
                                             ))
                                             .doOnNext(item -> log.debug("Created TopBidderItem: bidderId={}, amount={}, time={}", 
                                                 item.bidderId(), item.bidAmount(), item.bidTime()));
@@ -1240,5 +1240,78 @@ public class BidderService {
         String bidderNameMasked,
         double bidAmount,
         long bidTime
+    ) {}
+    
+    /**
+     * Request role upgrade to seller
+     */
+    public Mono<RequestRoleUpgradeResult> requestRoleUpgrade(int userId) {
+        log.info("User {} requesting role upgrade to seller", userId);
+        
+        // Check if user already has a pending request
+        return productRepository.countPendingUpgradeRequests(userId)
+            .flatMap(count -> {
+                if (count > 0) {
+                    log.warn("User {} already has a pending upgrade request", userId);
+                    return Mono.just(new RequestRoleUpgradeResult(
+                        false,
+                        "You already have a pending upgrade request",
+                        0
+                    ));
+                }
+                
+                // Create new upgrade request
+                return productRepository.insertUpgradeRequest(userId)
+                    .then(Mono.defer(() -> {
+                        log.info("Upgrade request created successfully for user {}", userId);
+                        return Mono.just(new RequestRoleUpgradeResult(
+                            true,
+                            "Upgrade request submitted successfully. Admin will review your request.",
+                            1
+                        ));
+                    }));
+            })
+            .doOnError(e -> log.error("Error creating upgrade request for user {}: {}", 
+                userId, e.getMessage(), e));
+    }
+    
+    /**
+     * Get role upgrade request status for user
+     */
+    public Mono<GetRoleUpgradeRequestStatusResult> getRoleUpgradeRequestStatus(int userId) {
+        log.info("Getting role upgrade request status for user {}", userId);
+        
+        return productRepository.getRoleUpgradeRequest(userId)
+            .map(request -> {
+                log.info("Found upgrade request for user {}: status={}", userId, request.status());
+                return new GetRoleUpgradeRequestStatusResult(
+                    true,
+                    "Request status retrieved successfully",
+                    true,
+                    request.status(),
+                    request.createdAt().toEpochSecond()
+                );
+            })
+            .switchIfEmpty(Mono.defer(() -> {
+                log.info("No upgrade request found for user {}", userId);
+                return Mono.just(new GetRoleUpgradeRequestStatusResult(
+                    true,
+                    "No upgrade request found",
+                    false,
+                    "not_found",
+                    0
+                ));
+            }))
+            .doOnError(e -> log.error("Error getting upgrade request status for user {}: {}", 
+                userId, e.getMessage(), e));
+    }
+    
+    public static record RequestRoleUpgradeResult(boolean success, String message, int requestId) {}
+    public static record GetRoleUpgradeRequestStatusResult(
+        boolean success, 
+        String message, 
+        boolean hasRequest, 
+        String status, 
+        long createdAt
     ) {}
 }

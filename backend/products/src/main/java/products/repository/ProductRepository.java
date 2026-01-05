@@ -384,4 +384,27 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
         LIMIT 1
         """)
     Mono<LocalDateTime> getLastBidTimeForUser(@Param("productId") Integer productId, @Param("userId") Integer userId);
+    
+    // Check if user already has a pending upgrade request
+    @Query("""
+        SELECT COUNT(*) 
+        FROM upgrade_requests 
+        WHERE user_id = :userId AND status = 'pending'
+        """)
+    Mono<Integer> countPendingUpgradeRequests(@Param("userId") Integer userId);
+    
+    // Insert upgrade request
+    @Query("""
+        INSERT INTO upgrade_requests (user_id, requested_role, status, created_at) 
+        VALUES (:userId, 'seller', 'pending', CURRENT_TIMESTAMP)
+        """)
+    Mono<Void> insertUpgradeRequest(@Param("userId") Integer userId);
+    
+    // Get user's role upgrade request
+    @Query("""
+        SELECT id, user_id, requested_role, status, created_at
+        FROM upgrade_requests 
+        WHERE user_id = :userId
+        """)
+    Mono<com.auction.entities.record.UpgradeRequestRecord> getRoleUpgradeRequest(@Param("userId") Integer userId);
 }

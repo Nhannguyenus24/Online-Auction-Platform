@@ -174,4 +174,16 @@ public class BidderGrpcClient {
         log.info("gRPC getTopBidders request: {}", JsonUtils.toJson(request));
         return userServiceStub.getTopBidders(Mono.just(request));
     }
+    
+    // Request Role Upgrade
+    public Mono<com.auction.proto.user.RequestRoleUpgradeResponse> requestRoleUpgrade(com.auction.proto.user.RequestRoleUpgradeRequest request) {
+        log.info("gRPC requestRoleUpgrade request: {}", JsonUtils.toJson(request));
+        return userServiceStub.requestRoleUpgrade(Mono.just(request));
+    }
+    
+    // Get Role Upgrade Request Status
+    public Mono<com.auction.proto.user.GetRoleUpgradeRequestStatusResponse> getRoleUpgradeRequestStatus(com.auction.proto.user.GetRoleUpgradeRequestStatusRequest request) {
+        log.info("gRPC getRoleUpgradeRequestStatus request: {}", JsonUtils.toJson(request));
+        return userServiceStub.getRoleUpgradeRequestStatus(Mono.just(request));
+    }
 }

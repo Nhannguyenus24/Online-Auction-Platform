@@ -53,6 +53,12 @@ service UserService {
 
   //16. Get top 5 bidders for a product
   rpc GetTopBidders(GetTopBiddersRequest) returns (GetTopBiddersResponse);
+  
+  //17. Request role upgrade to seller
+  rpc RequestRoleUpgrade(RequestRoleUpgradeRequest) returns (RequestRoleUpgradeResponse);
+  
+  //18. Get role upgrade request status
+  rpc GetRoleUpgradeRequestStatus(GetRoleUpgradeRequestStatusRequest) returns (GetRoleUpgradeRequestStatusResponse);
 }
 
 // ==================== Product Messages ====================
@@ -404,4 +410,30 @@ message GetTopBiddersResponse {
   repeated TopBidder top_bidders = 1;
   bool success = 2;
   string message = 3;
+}
+
+// ==================== 17. Request Role Upgrade ====================
+
+message RequestRoleUpgradeRequest {
+  int32 user_id = 1; // From JWT
+}
+
+message RequestRoleUpgradeResponse {
+  bool success = 1;
+  string message = 2;
+  int32 request_id = 3;
+}
+
+// ==================== 18. Get Role Upgrade Request Status ====================
+
+message GetRoleUpgradeRequestStatusRequest {
+  int32 user_id = 1; // From JWT
+}
+
+message GetRoleUpgradeRequestStatusResponse {
+  bool success = 1;
+  string message = 2;
+  bool has_request = 3; // true if user has a request
+  string status = 4; // "pending", "approved", "rejected", "not_found"
+  int64 created_at = 5; // timestamp when request was created
 }
