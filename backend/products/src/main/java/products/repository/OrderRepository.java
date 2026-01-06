@@ -61,4 +61,27 @@ public interface OrderRepository extends R2dbcRepository<Order, Integer> {
         @Param("sellerId") Integer sellerId,
         @Param("statusFilter") String statusFilter
     );
+    
+    /**
+     * Update order status by order ID
+     * @param orderId the order ID
+     * @param status the new status
+     * @return void
+     */
+    @Query("""
+        UPDATE orders
+        SET status = :status, updated_at = CURRENT_TIMESTAMP
+        WHERE id = :orderId
+        """)
+    Mono<Void> updateOrderStatus(
+        @Param("orderId") Integer orderId,
+        @Param("status") String status
+    );
+    
+    /**
+     * Find order by ID
+     * @param orderId the order ID
+     * @return the order
+     */
+    Mono<Order> findById(Integer orderId);
 }

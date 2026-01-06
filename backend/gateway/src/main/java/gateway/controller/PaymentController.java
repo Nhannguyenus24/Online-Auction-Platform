@@ -24,6 +24,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
+import gateway.grpc.PaymentGrpcClient;
+
 @RestController
 @RequestMapping("/api/payment")
 @Tag(name = "Payment", description = "Payment endpoints - requires authentication")
@@ -33,6 +35,12 @@ public class PaymentController {
 
     @Value("${stripe.secret.key:sk_test_YOUR_SECRET_KEY}")
     private String stripeSecretKey;
+    
+    private final PaymentGrpcClient paymentGrpcClient;
+    
+    public PaymentController(PaymentGrpcClient paymentGrpcClient) {
+        this.paymentGrpcClient = paymentGrpcClient;
+    }
 
     private int getUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -110,16 +118,40 @@ public class PaymentController {
             Map<String, Object> response = new HashMap<>();
             
             if ("succeeded".equals(paymentIntent.getStatus())) {
-                response.put("success", true);
-                response.put("message", "Payment confirmed successfully");
-                response.put("paymentIntentId", paymentIntentId);
-                response.put("amount", paymentIntent.getAmount() / 100.0);
-                
-                // TODO: Update order status in database here
-                // Example: orderService.updateOrderStatus(orderId, "paid");
-                
-                log.info("Payment confirmed successfully - paymentIntentId: {}", paymentIntentId);
-                return ResponseEntity.ok(response);
+                try {
+                    // Extract orderId from request body
+                    Integer orderId = Integer.parseInt(requestBody.getOrDefault("orderId", "0").toString());
+                    
+                    if (orderId <= 0) {
+                        log.warn("Invalid orderId provided in payment confirmation - orderId: {}", orderId);
+                        response.put("success", false);
+                        response.put("message", "Invalid order ID");
+                        return ResponseEntity.badRequest().body(response);
+                    }
+                    
+                    // Call gRPC service to update order status
+                    paymentGrpcClient.updateOrderStatusToPaid(orderId)
+                        .subscribe(
+                            result -> log.info("Order status updated successfully via gRPC - orderId: {}", orderId),
+                            error -> log.error("Failed to update order status via gRPC - orderId: {}, error: {}", 
+                                orderId, error.getMessage(), error)
+                        );
+                    
+                    response.put("success", true);
+                    response.put("message", "Payment confirmed successfully");
+                    response.put("paymentIntentId", paymentIntentId);
+                    response.put("orderId", orderId);
+                    response.put("amount", paymentIntent.getAmount() / 100.0);
+                    
+                    log.info("Payment confirmed successfully - paymentIntentId: {}, orderId: {}", paymentIntentId, orderId);
+                    return ResponseEntity.ok(response);
+                } catch (Exception e) {
+                    log.error("Error updating order status after payment confirmation - paymentIntentId: {}, error: {}", 
+                        paymentIntentId, e.getMessage(), e);
+                    response.put("success", false);
+                    response.put("message", "Payment confirmed but failed to update order status");
+                    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+                }
             } else {
                 response.put("success", false);
                 response.put("message", "Payment not succeeded. Status: " + paymentIntent.getStatus());
