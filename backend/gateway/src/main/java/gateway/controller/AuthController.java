@@ -167,13 +167,6 @@ public class AuthController {
 
         return userGrpcClient.refreshToken(grpcRequest)
                 .map(refreshResponse -> {
-                    // Set new refresh token in cookie (rotation)
-                    Cookie newRefreshTokenCookie = new Cookie("refreshToken", refreshResponse.getRefreshToken());
-                    newRefreshTokenCookie.setHttpOnly(true);
-                    newRefreshTokenCookie.setSecure(false);
-                    newRefreshTokenCookie.setPath("/");
-                    newRefreshTokenCookie.setMaxAge(REFRESH_TOKEN_MAX_AGE);
-                    response.addCookie(newRefreshTokenCookie);
 
                     Map<String, Object> result = new HashMap<>();
                     result.put("accessToken", refreshResponse.getAccessToken());

@@ -495,14 +495,6 @@ const Header = () => {
             {userRole === 'bidder' ? 'Profile' : userRole === 'seller' ? 'Seller Dashboard' : 'Admin Dashboard'}
           </ListItemText>
         </MenuItem>
-        
-        <MenuItem onClick={() => { navigate('/settings'); handleCloseUserMenu(); }}>
-          <ListItemIcon>
-            <Settings fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Settings</ListItemText>
-        </MenuItem>
-        
         <Divider />
         
           <MenuItem onClick={handleLogout}>
