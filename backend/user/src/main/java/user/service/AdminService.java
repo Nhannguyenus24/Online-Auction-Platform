@@ -229,6 +229,7 @@ public class AdminService {
 
         String action = request.getAction().toLowerCase();
         String status = action.equals("approve") ? "approved" : "rejected";
+        boolean isApproved = action.equals("approve");
 
         Query query = Query.query(Criteria.where("id").is(request.getRequestId()));
 
@@ -238,11 +239,29 @@ public class AdminService {
                     upgradeReq.setAdminId(request.getAdminId());
                     upgradeReq.setReviewedAt(TimeUtils.now());
 
+                    // Update upgrade request status
                     return template.update(upgradeReq)
-                            .then(Mono.just(ApproveUpgradeRequestResponse.newBuilder()
-                                    .setSuccess(true)
-                                    .setMessage("Upgrade request " + status + " successfully")
-                                    .build()));
+                            .then(Mono.defer(() -> {
+                                // If approved, update user role
+                                if (isApproved) {
+                                    return userRepository.findByUserId(upgradeReq.getUserId())
+                                            .flatMap(user -> {
+                                                user.setRole(upgradeReq.getRequestedRole());
+                                                log.info("Updating user {} role to {}", 
+                                                        user.getId(), upgradeReq.getRequestedRole());
+                                                return template.update(user);
+                                            })
+                                            .then(Mono.just(ApproveUpgradeRequestResponse.newBuilder()
+                                                    .setSuccess(true)
+                                                    .setMessage("Upgrade request approved and user role updated successfully")
+                                                    .build()));
+                                } else {
+                                    return Mono.just(ApproveUpgradeRequestResponse.newBuilder()
+                                            .setSuccess(true)
+                                            .setMessage("Upgrade request " + status + " successfully")
+                                            .build());
+                                }
+                            }));
                 })
                 .switchIfEmpty(Mono.just(ApproveUpgradeRequestResponse.newBuilder()
                         .setSuccess(false)

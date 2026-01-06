@@ -1,15 +1,15 @@
 import {
   Box,
   Typography,
-  Button,
   Menu,
   MenuItem,
   Divider,
   CircularProgress,
 } from '@mui/material';
+import { fVNDate } from '../utils/formatTime';
 
 const NotificationMenu = ({ anchorEl, open, onClose, notifications, loading, onMarkAsRead }) => {
-
+  console.log('Notifications:', notifications);
 
   const handleNotificationClick = (notification) => {
     // Mark as read only if not already read
@@ -18,28 +18,19 @@ const NotificationMenu = ({ anchorEl, open, onClose, notifications, loading, onM
     }
 
   };
-
-  // Helper function to format time ago
-  const formatTimeAgo = (timestamp) => {
-    const now = Date.now();
-    
-    // Convert timestamp to milliseconds if it's in seconds (Unix timestamp)
-    // Unix timestamps in seconds are typically 10 digits, milliseconds are 13 digits
-    const timestampMs = timestamp < 10000000000 ? timestamp * 1000 : timestamp;
-    
-    const diff = now - timestampMs;
-    
-    const seconds = Math.floor(diff / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
-    
-    if (days > 0) return `${days} day${days > 1 ? 's' : ''} ago`;
-    if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
-    if (minutes > 0) return `${minutes} min${minutes > 1 ? 's' : ''} ago`;
-    return 'Just now';
+  const TITLE_MAP = {
+    "BID_OUTBID": 'You have been outbid',
+    "BID_SUCCESS": 'You won the item',
+    "ACCOUNT_VIOLATION_WARNING": 'Account Warning',
+    "PRODUCT_BANNED_USER": 'Product Restricted',
+    "AUCTION_WON": 'Auction Won',
+    "AUCTION_SOLD": 'Item Sold',
+    "AUCTION_ENDED": 'Auction Ended',
+    "AUCTION_ENDED_NO_SALE": 'Auction Ended Without Any Bid',
+    "OTP_VERIFICATION": 'OTP Verification',
   };
 
+  const title = (notification) => TITLE_MAP[notification.type] || 'Unknown Notification';
   return (
     <Menu
       anchorEl={anchorEl}
@@ -89,13 +80,13 @@ const NotificationMenu = ({ anchorEl, open, onClose, notifications, loading, onM
             <Box sx={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 1 }}>
               <Box sx={{ flexGrow: 1 }}>
                 <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-                  {notif.title}
+                  {title(notif)}
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
                   {notif.message}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  {formatTimeAgo(notif.createdAt)}
+                  {fVNDate(notif.createdAt)}
                 </Typography>
               </Box>
               {!notif.isRead && (
