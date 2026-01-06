@@ -33,7 +33,7 @@ public class PaymentService {
      */
     @Transactional
     public Mono<Order> updateOrderStatusToPaid(Integer orderId) {
-        return updateOrderStatus(orderId, "paid", EventType.ORDER_PAID, order -> order.getSellerId(), 
+        return updateOrderStatus(orderId, "paid", order -> order.getSellerId(),
             "Order #%d has been paid by buyer");
     }
     
@@ -44,7 +44,7 @@ public class PaymentService {
      */
     @Transactional
     public Mono<Order> updateOrderStatusToCompleted(Integer orderId) {
-        return updateOrderStatus(orderId, "completed", EventType.ORDER_COMPLETED, order -> order.getBuyerId(), 
+        return updateOrderStatus(orderId, "completed", order -> order.getBuyerId(),
             "Your order #%d has been completed");
     }
     
@@ -55,7 +55,7 @@ public class PaymentService {
      */
     @Transactional
     public Mono<Order> updateOrderStatusToCancelled(Integer orderId) {
-        return updateOrderStatus(orderId, "cancelled", EventType.ORDER_CANCELLED, order -> order.getBuyerId(), 
+        return updateOrderStatus(orderId, "cancelled", order -> order.getBuyerId(),
             "Your order #%d has been cancelled");
     }
     
@@ -63,12 +63,11 @@ public class PaymentService {
      * Generic method to update order status and send notification
      * @param orderId the order ID
      * @param status the new status value
-     * @param eventType the event type for notification
      * @param userIdExtractor function to extract user ID from order
      * @param messageTemplate message template with %d placeholder for order ID
      * @return the updated order
      */
-    private Mono<Order> updateOrderStatus(Integer orderId, String status, EventType eventType, 
+    private Mono<Order> updateOrderStatus(Integer orderId, String status,
                                          java.util.function.Function<Order, Integer> userIdExtractor, 
                                          String messageTemplate) {
         log.info("Updating order status - orderId: {}, status: {}", orderId, status);
@@ -82,18 +81,17 @@ public class PaymentService {
                         log.info("Order status updated - orderId: {}, status: {}, userId: {}", 
                             orderId, status, userId);
                         
-                        // Publish event to notify user
-                        RabbitMessage message = RabbitMessage.builder()
-                            .eventType(eventType)
-                            .userId(userId)
-                            .orderId(orderId)
-                            .message(String.format(messageTemplate, orderId))
-                            .build();
-                        
-                        return rabbitProducer.sendMessage(NOTIFICATION_QUEUE, message)
-                            .then(Mono.just(order));
+//                        // Publish event to notify user
+//                        RabbitMessage message = RabbitMessage.builder()
+//                            .eventType(eventType)
+//                            .userId(userId.toString())
+//
+//                            .build();
+//
+//                        return rabbitProducer.sendMessage(NOTIFICATION_QUEUE, message)
+//                            .then(Mono.just(order));
+                        return Mono.just(order);
                     }))
-                )
             )
             .doOnError(e -> log.error("Error updating order status - orderId: {}, status: {}, error: {}", 
                 orderId, status, e.getMessage(), e));

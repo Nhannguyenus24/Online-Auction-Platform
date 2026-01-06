@@ -1,5 +1,6 @@
 package products.grpc;
 
+import com.auction.utils.JsonUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,12 +29,11 @@ public class PaymentGrpcService extends ReactorPaymentServiceGrpc.PaymentService
     @Override
     public Mono<UpdateOrderStatusResponse> updateOrderStatus(Mono<UpdateOrderStatusRequest> request) {
         return request
-            .doOnNext(req -> log.info("Received updateOrderStatus request - orderId: {}, status: {}", 
-                req.getOrderId(), req.getStatus()))
+            .doOnNext(req -> log.info("Raw update order status request: {}", JsonUtils.toJson(req)))
             .flatMap(req -> {
                 Integer orderId = req.getOrderId();
                 String status = req.getStatus();
-                
+
                 return switch (status.toLowerCase()) {
                     case "paid" -> paymentService.updateOrderStatusToPaid(orderId);
                     case "completed" -> paymentService.updateOrderStatusToCompleted(orderId);

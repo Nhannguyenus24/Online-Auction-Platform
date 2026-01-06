@@ -3,6 +3,7 @@ package gateway.controller;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.auctionplatform.payment.grpc.UpdateOrderStatusRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -128,9 +129,9 @@ public class PaymentController {
                         response.put("message", "Invalid order ID");
                         return ResponseEntity.badRequest().body(response);
                     }
-                    
+                    UpdateOrderStatusRequest request = UpdateOrderStatusRequest.newBuilder().setOrderId(orderId).setStatus("completed").build();
                     // Call gRPC service to update order status
-                    paymentGrpcClient.updateOrderStatusToPaid(orderId)
+                    paymentGrpcClient.updateOrderStatus(request)
                         .subscribe(
                             result -> log.info("Order status updated successfully via gRPC - orderId: {}", orderId),
                             error -> log.error("Failed to update order status via gRPC - orderId: {}, error: {}", 
