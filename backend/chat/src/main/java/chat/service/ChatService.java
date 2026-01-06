@@ -1,6 +1,7 @@
 package chat.service;
 
 import chat.dto.ConversationDto;
+import chat.dto.CreateConversationRequest;
 import chat.dto.MessageDto;
 import chat.dto.SendMessageRequest;
 import chat.model.Conversation;
@@ -113,6 +114,40 @@ public class ChatService {
 		}
 
 		conversationRepository.save(conversation);
+	}
+
+	@Transactional
+	public ConversationDto createConversation(CreateConversationRequest request) {
+		// Validate required field
+		if (request.getOrderId() == null || request.getOrderId().trim().isEmpty()) {
+			throw new IllegalArgumentException("orderId is required");
+		}
+
+		// Check if conversation with this orderId already exists
+		if (conversationRepository.findByOrderId(request.getOrderId()).isPresent()) {
+			throw new IllegalArgumentException("Conversation with orderId " + request.getOrderId() + " already exists");
+		}
+
+		// Create new conversation
+		Conversation conversation = new Conversation();
+		conversation.setOrderId(request.getOrderId().trim());
+		conversation.setSellerId(request.getSellerId());
+		conversation.setSellerName(request.getSellerName());
+		conversation.setSellerAvatar(request.getSellerAvatar());
+		conversation.setBidderId(request.getBidderId());
+		conversation.setBidderName(request.getBidderName());
+		conversation.setBidderAvatar(request.getBidderAvatar());
+		conversation.setProductTitle(request.getProductTitle());
+		conversation.setProductImage(request.getProductImage());
+		conversation.setStatus(request.getStatus() != null ? request.getStatus() : "pending_payment");
+		conversation.setAmount(request.getAmount() != null ? request.getAmount() : BigDecimal.ZERO);
+		conversation.setUnreadCountSeller(0);
+		conversation.setUnreadCountBidder(0);
+		conversation.setCreatedAt(null); // Will be set by @PrePersist
+		conversation.setUpdatedAt(null); // Will be set by @PrePersist
+
+		Conversation saved = conversationRepository.save(conversation);
+		return ConversationDto.fromEntity(saved);
 	}
 }
 
