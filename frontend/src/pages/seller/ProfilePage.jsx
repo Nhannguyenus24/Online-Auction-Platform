@@ -109,7 +109,6 @@ const SellerProfilePage = () => {
 
   const handleSaveProfile = () => {
     // Will be implemented with API call later
-    console.log('Saving profile:', profileData);
     setIsEditing(false);
     setSuccessMessage('Profile updated successfully!');
     setTimeout(() => setSuccessMessage(''), 3000);
@@ -160,7 +159,6 @@ const SellerProfilePage = () => {
     }
 
     // Will be implemented with API call later
-    console.log('Changing password:', passwordData);
     setPasswordData({
       oldPassword: '',
       newPassword: '',

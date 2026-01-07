@@ -84,4 +84,63 @@ public interface OrderRepository extends R2dbcRepository<Order, Integer> {
      * @return the order
      */
     Mono<Order> findById(Integer orderId);
+    
+    /**
+     * Find order ID by product ID, buyer ID and seller ID
+     * @param productId the product ID
+     * @param buyerId the buyer ID
+     * @param sellerId the seller ID
+     * @return the order ID
+     */
+    @Query("""
+        SELECT id FROM orders
+        WHERE product_id = :productId
+          AND buyer_id = :buyerId
+          AND seller_id = :sellerId
+        ORDER BY created_at DESC
+        LIMIT 1
+        """)
+    Mono<Integer> findOrderIdByProductAndUsers(
+        @Param("productId") Integer productId,
+        @Param("buyerId") Integer buyerId,
+        @Param("sellerId") Integer sellerId
+    );
+    
+    /**
+     * Create conversation for order
+     * @param orderId the order ID
+     * @param sellerId the seller ID
+     * @param sellerName the seller name
+     * @param bidderId the bidder ID
+     * @param bidderName the bidder name
+     * @param productTitle the product title
+     * @param productImage the product image
+     * @param amount the order amount
+     * @return void
+     */
+    @Query("""
+        INSERT INTO conversations (
+            order_id, seller_id, seller_name,
+            bidder_id, bidder_name,
+            product_title, product_image, status, amount,
+            created_at, updated_at
+        ) VALUES (
+            :orderId, :sellerId, :sellerName,
+            :bidderId, :bidderName,
+            :productTitle, :productImage, 'pending_payment', :amount,
+            CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        )
+        ON DUPLICATE KEY UPDATE
+            updated_at = CURRENT_TIMESTAMP
+        """)
+    Mono<Void> createConversation(
+        @Param("orderId") String orderId,
+        @Param("sellerId") String sellerId,
+        @Param("sellerName") String sellerName,
+        @Param("bidderId") String bidderId,
+        @Param("bidderName") String bidderName,
+        @Param("productTitle") String productTitle,
+        @Param("productImage") String productImage,
+        @Param("amount") Double amount
+    );
 }

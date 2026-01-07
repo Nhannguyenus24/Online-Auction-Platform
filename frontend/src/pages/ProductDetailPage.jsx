@@ -62,13 +62,11 @@ function ProductDetailPage() {
   const { id: productId } = useParams();
   const { enqueueSnackbar } = useSnackbar();
   const { user, isAuthenticated } = useAuth();
-
   // Product data state
   const [product, setProduct] = useState(null);
   const [bidHistory, setBidHistory] = useState([]);
   const [questions, setQuestions] = useState([]);
   const [relatedProducts, setRelatedProducts] = useState([]);
-
   // UI state
   const [selectedImage, setSelectedImage] = useState(0);
   const [isWatchlisted, setIsWatchlisted] = useState(false);
@@ -82,13 +80,14 @@ function ProductDetailPage() {
   const [productDescription, setProductDescription] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [submittingDescription, setSubmittingDescription] = useState(false);
+  const [showAppendDescription, setShowAppendDescription] = useState(false);
   const [rejectedBids, setRejectedBids] = useState(new Set());
   const [openRejectDialog, setOpenRejectDialog] = useState(false);
   const [bidToReject, setBidToReject] = useState(null);
   const [rejectingBid, setRejectingBid] = useState(null);
   const [activeTab, setActiveTab] = useState(0);
   const relatedProductsRef = useRef(null);
-
+  const [isSeller, setIsSeller] = useState(false);
   // Loading and error states
   const [loading, setLoading] = useState({
     product: true,
@@ -115,8 +114,7 @@ function ProductDetailPage() {
         const response = await productApi.getProductById(productId);
         if (response.success && response.product) {
           const apiProduct = response.product;
-          
-          // Map API product to component format
+          setIsSeller(apiProduct.sellerId == user.id);
           const mappedProduct = {
             id: apiProduct.id,
             title: apiProduct.title,
@@ -193,7 +191,6 @@ function ProductDetailPage() {
         try {
           const bidResponse = await productApi.getTopBidders(productId, 5);
           if (bidResponse.success) {
-            console.log("Top bidders response:", bidResponse);
             const mappedBids = (bidResponse.topBidders || []).map((bidder) => ({
               id: bidder.bidderId,
               bidder: bidder.bidderName || "Anonymous",
@@ -317,12 +314,7 @@ function ProductDetailPage() {
   }, [productId, product]);
 
   // Check if current user is the seller/owner of this product
-  const isSeller =
-    user &&
-    user.roleName?.toLowerCase() === 'seller' &&
-    product &&
-    user.id === product.sellerId;
-
+ 
   // Check if auction has started (has bids)
   const hasStartedBidding = product && (product.bidsCount > 0 || bidHistory.length > 0);
 
@@ -595,18 +587,17 @@ function ProductDetailPage() {
     try {
       const response = await productApi.appendDescription(productId, newDescription);
       if (response.success) {
-        // Refresh product to get updated description
-        const productResponse = await productApi.getProductById(productId);
-        if (productResponse.success && productResponse.product) {
-          setProductDescription(productResponse.product.description || '');
-          setProduct((prev) => ({
-            ...prev,
-            description: productResponse.product.description || prev.description,
-          }));
-        }
+        // Update product description with the response
+        const updatedDescription = response.updatedDescription || '';
+        setProductDescription(updatedDescription);
+        setProduct((prev) => ({
+          ...prev,
+          description: updatedDescription,
+        }));
 
-        // Clear new description
+        // Clear new description and hide form
         setNewDescription('');
+        setShowAppendDescription(false);
         enqueueSnackbar(response.message || 'Description appended successfully!', { variant: 'success' });
       }
     } catch (err) {
@@ -1013,30 +1004,52 @@ function ProductDetailPage() {
               {/* Seller can append description */}
               {isSeller && (
                 <Box sx={{ mt: 4, pt: 3, borderTop: 1, borderColor: "divider" }}>
-                  <Typography variant="h6" fontWeight="medium" gutterBottom>
-                    Append Description
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    Add additional information about your product. This will be appended to the
-                    existing description.
-                  </Typography>
-                  <RichTextEditor
-                    value={newDescription}
-                    onChange={handleNewDescriptionChange}
-                    placeholder="Add more details about your product..."
-                    minHeight={150}
-                  />
-                  <Button
-                    variant="contained"
-                    onClick={handleSubmitNewDescription}
-                    disabled={submittingDescription || !newDescription.trim()}
-                    sx={{ mt: 2 }}
-                    startIcon={
-                      submittingDescription ? <CircularProgress size={16} /> : <Send />
-                    }
-                  >
-                    {submittingDescription ? "Submitting..." : "Append Description"}
-                  </Button>
+                  {!showAppendDescription ? (
+                    <Button
+                      variant="outlined"
+                      color="primary"
+                      onClick={() => setShowAppendDescription(true)}
+                      fullWidth
+                      sx={{ py: 1.5 }}
+                    >
+                      Add More Description
+                    </Button>
+                  ) : (
+                    <Box>
+                      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
+                        <Typography variant="h6" fontWeight="medium">
+                          Append Description
+                        </Typography>
+                        <Button
+                          size="small"
+                          onClick={() => {
+                            setShowAppendDescription(false);
+                            setNewDescription('');
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      </Stack>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                        Add additional information about your product. This will be appended to the
+                        existing description.
+                      </Typography>
+                      <RichTextEditor
+                        value={newDescription}
+                        onChange={handleNewDescriptionChange}
+                        placeholder="Add more details about your product..."
+                        minHeight={150}
+                      />
+                      <Button
+                        variant="contained"
+                        onClick={handleSubmitNewDescription}
+                        disabled={submittingDescription || !newDescription.trim()}
+                        sx={{ mt: 2 }}
+                      >
+                        {submittingDescription ? "Submitting..." : "Append Description"}
+                      </Button>
+                    </Box>
+                  )}
                 </Box>
               )}
             </CardContent>

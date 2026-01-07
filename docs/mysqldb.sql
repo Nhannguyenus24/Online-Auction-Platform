@@ -126,21 +126,6 @@ CREATE TABLE `orders` (
   `updated_at` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
-CREATE TABLE `payments` (
-  `id` int PRIMARY KEY AUTO_INCREMENT,
-  `order_id` int NOT NULL,
-  `provider` varchar(50) NOT NULL,
-  `provider_type` varchar(50),
-  `provider_txn_id` varchar(255),
-  `amount` numeric(18,2) NOT NULL,
-  `currency` varchar(3) DEFAULT 'USD',
-  `status` varchar(30) DEFAULT 'processing',
-  `paid_at` timestamp,
-  `refunded_amount` numeric(18,2) DEFAULT 0,
-  `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
-
 CREATE TABLE `notifications` (
   `id` int PRIMARY KEY AUTO_INCREMENT,
   `user_id` int,
@@ -237,8 +222,6 @@ ALTER TABLE `orders` ADD FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
 ALTER TABLE `orders` ADD FOREIGN KEY (`buyer_id`) REFERENCES `users` (`id`);
 
 ALTER TABLE `orders` ADD FOREIGN KEY (`seller_id`) REFERENCES `users` (`id`);
-
-ALTER TABLE `payments` ADD FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`);
 
 ALTER TABLE `notifications` ADD FOREIGN KEY (`user_id`) REFERENCES `users` (`id`);
 

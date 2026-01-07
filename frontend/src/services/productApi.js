@@ -455,17 +455,17 @@ export const productApi = {
    * Requires seller authentication
    * @param {number|string} productId - Product ID
    * @param {string} description - Description text to append
-   * @returns {Promise} - { success, message, product: {...} }
+   * @returns {Promise} - { success, message, updatedDescription }
    */
   appendDescription: (productId, description) => {
     return axiosInstance
-      .put(`/api/seller/products/${productId}`, { description })
+      .put(`/api/seller/products/${productId}/description`, { additionalDescription: description })
       .then((response) => {
         if (response.data.success) {
           return {
             success: true,
             message: response.data.message || 'Description appended successfully',
-            product: response.data.product || response.data,
+            updatedDescription: response.data.updatedDescription,
           };
         } else {
           throw new Error(response.data.message || 'Failed to append description');

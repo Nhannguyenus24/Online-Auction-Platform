@@ -9,7 +9,6 @@ import {
 import { fVNDate } from '../utils/formatTime';
 
 const NotificationMenu = ({ anchorEl, open, onClose, notifications, loading, onMarkAsRead }) => {
-  console.log('Notifications:', notifications);
 
   const handleNotificationClick = (notification) => {
     // Mark as read only if not already read

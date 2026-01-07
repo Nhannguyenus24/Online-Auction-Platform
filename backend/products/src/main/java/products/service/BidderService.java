@@ -411,11 +411,11 @@ public class BidderService {
                         productId, userId, product.getSellerId(), buyNowPrice);
 
                     long timestamp = System.currentTimeMillis() / 1000;
-                    // Note: orderId is 0 because createOrder returns Mono<Void>
                     BuyNowResult result = new BuyNowResult(0, buyNowPrice, timestamp);
 
-                    // Send notifications to buyer and seller (fire and forget)
+                    // Create conversation and send notifications (fire and forget)
                     Mono.when(
+                        createConversationForOrder(product, userId, buyNowPrice),
                         sendBuyNowBuyerNotification(product, userId, buyNowPrice),
                         sendBuyNowSellerNotification(product, userId, buyNowPrice)
                     ).subscribe();
@@ -433,7 +433,7 @@ public class BidderService {
      * Handle auction end - called by scheduler
      */
     @Transactional
-    private void handleAuctionEnd(int productId) {
+    protected void handleAuctionEnd(int productId) {
         log.info("Handling auction end for product {}", productId);
         
         String redisKey = "auction:" + productId + ":bids";
@@ -496,12 +496,12 @@ public class BidderService {
                                             .then(Mono.defer(() -> {
                                                 log.info("Order created successfully: productId={}, buyerId={}, sellerId={}, amount={}",
                                                     productId, winnerId, product.getSellerId(), winningBid);
-
-                                                // Send notifications to winner and seller
-                                                return Mono.when(
-                                                    sendAuctionEndedWinnerNotification(product, winnerId, winningBid),
-                                                    sendAuctionEndedSellerNotification(product, winnerId, winningBid)
-                                                );
+                                                return productRepository.findById(productId)
+                                                    .flatMap(prod -> Mono.when(
+                                                        createConversationForOrder(product, winnerId, winningBid),
+                                                        sendAuctionEndedWinnerNotification(product, winnerId, winningBid),
+                                                        sendAuctionEndedSellerNotification(product, winnerId, winningBid)
+                                                    ));
                                             }));
                                 })
                         )
@@ -1007,6 +1007,52 @@ public class BidderService {
                 .setIsPrimary(dto.is_primary())
                 .setCreatedAt(dto.created_at().toEpochSecond())
                 .build();
+    }
+    
+    /**
+     * Create conversation for order
+     * @param product the product
+     * @param buyerId the buyer/bidder ID
+     * @param amount the order amount
+     * @return Mono<Void>
+     */
+    private Mono<Void> createConversationForOrder(com.auction.entities.database.Product product, int buyerId, double amount) {
+        log.info("Creating conversation for buyer={}, seller={}, product={}", buyerId, product.getSellerId(), product.getId());
+        
+        // Get buyer and seller information
+        return Mono.zip(
+            productRepository.getUserFullName(buyerId).defaultIfEmpty("Buyer"),
+            productRepository.getUserFullName(product.getSellerId()).defaultIfEmpty("Seller"),
+            productRepository.getProductImages(product.getId())
+                .filter(img -> img.is_primary())
+                .map(img -> img.url())
+                .next()
+                .defaultIfEmpty(""),
+            orderRepository.findOrderIdByProductAndUsers(product.getId(), buyerId, product.getSellerId())
+        )
+        .flatMap(userInfo -> {
+            String buyerName = userInfo.getT1();
+            String sellerName = userInfo.getT2();
+            String productImage = userInfo.getT3();
+            Integer orderId = userInfo.getT4();
+            
+            return orderRepository.createConversation(
+                String.valueOf(orderId),
+                String.valueOf(product.getSellerId()),
+                sellerName,
+                String.valueOf(buyerId),
+                buyerName,
+                product.getTitle(),
+                productImage,
+                amount
+            );
+        })
+        .doOnError(e -> log.error("Failed to create conversation for order: {}", e.getMessage(), e))
+        .onErrorResume(e -> {
+            // Log error but don't fail the order creation
+            log.warn("Continuing despite conversation creation failure for order");
+            return Mono.empty();
+        });
     }
 
     // Helper records for return types

@@ -31,8 +31,6 @@ const useConversationsSocket = ({ orderIds, onMessage }) => {
       return () => {};
     }
 
-    console.log('useConversationsSocket: Subscribing to orderIds:', orderIds);
-
     const client = new Client({
       webSocketFactory: () => new SockJS(WS_ENDPOINT),
       reconnectDelay: 4000,
