@@ -88,6 +88,7 @@ function ProductDetailPage() {
   const [activeTab, setActiveTab] = useState(0);
   const relatedProductsRef = useRef(null);
   const [isSeller, setIsSeller] = useState(false);
+  const [timeLeft, setTimeLeft] = useState('');
   // Loading and error states
   const [loading, setLoading] = useState({
     product: true,
@@ -313,6 +314,21 @@ function ProductDetailPage() {
     return () => clearInterval(interval);
   }, [productId, product]);
 
+  // Update countdown timer every second
+  useEffect(() => {
+    if (!product || !product.endTime) return;
+
+    // Update immediately
+    setTimeLeft(getTimeLeft(product.endTime));
+
+    // Then update every second
+    const timer = setInterval(() => {
+      setTimeLeft(getTimeLeft(product.endTime));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [product]);
+
   // Check if current user is the seller/owner of this product
  
   // Check if auction has started (has bids)
@@ -330,13 +346,18 @@ function ProductDetailPage() {
     const now = new Date();
     const normalizedEndTime = endTime instanceof Date ? endTime : normalizeTimestamp(endTime);
     const diff = normalizedEndTime - now;
+    
+    if (diff <= 0) return 'Ended';
+    
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
     if (days > 0) return `${days} days ${hours} hours`;
     if (hours > 0) return `${hours} hours ${minutes} minutes`;
-    return `${minutes} minutes`;
+    if (minutes > 0) return `${minutes} minutes ${seconds} seconds`;
+    return `${seconds} seconds`;
   };
 
   const handlePreviousImage = () => {
@@ -872,7 +893,7 @@ function ProductDetailPage() {
                       <Stack direction="row" spacing={1} alignItems="center">
                         <AccessTime fontSize="small" />
                         <Typography variant="body1" fontWeight="medium">
-                          Time Left: {getTimeLeft(product.endTime)}
+                          Time Left: {timeLeft}
                         </Typography>
                       </Stack>
                     </Box>

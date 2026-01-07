@@ -9,6 +9,8 @@ import chat.model.Message;
 import chat.repository.ConversationRepository;
 import chat.repository.MessageRepository;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,7 +24,7 @@ import java.util.stream.Collectors;
 public class ChatService {
 	private final MessageRepository messageRepository;
 	private final ConversationRepository conversationRepository;
-
+    private static final Logger logger =  LoggerFactory.getLogger(ChatService.class);
 	public List<MessageDto> getMessagesByOrderId(String orderId) {
 		return messageRepository.findByOrderIdOrderByCreatedAtAsc(orderId)
 			.stream()
@@ -31,13 +33,12 @@ public class ChatService {
 	}
 
 	public List<ConversationDto> getConversations(String userRole, String userId) {
+        logger.info(userId);
 		List<Conversation> conversations;
 		if ("SELLER".equalsIgnoreCase(userRole)) {
 			conversations = conversationRepository.findBySellerIdOrderByUpdatedAtDesc(userId);
-		} else if ("BIDDER".equalsIgnoreCase(userRole)) {
-			conversations = conversationRepository.findByBidderIdOrderByUpdatedAtDesc(userId);
 		} else {
-			throw new IllegalArgumentException("Invalid userRole. Must be SELLER or BIDDER");
+			conversations = conversationRepository.findByBidderIdOrderByUpdatedAtDesc(userId);
 		}
 		return conversations.stream()
 			.map(ConversationDto::fromEntity)

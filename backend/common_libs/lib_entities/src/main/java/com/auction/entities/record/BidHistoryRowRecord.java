@@ -13,6 +13,7 @@ public record BidHistoryRowRecord(
     int isWinning,
     String productStatus,
     ZonedDateTime bidCreatedAt,
-    ZonedDateTime productEndsAt
+    ZonedDateTime productEndsAt,
+    int isBanned
 ) {
 }

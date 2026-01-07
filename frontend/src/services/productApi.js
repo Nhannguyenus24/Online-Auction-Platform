@@ -482,11 +482,15 @@ export const productApi = {
    * Requires seller authentication
    * @param {number|string} productId - Product ID
    * @param {number|string} bidderId - Bidder ID
+   * @param {string} reason - Reason for rejection (optional)
    * @returns {Promise} - { success, message }
    */
-  rejectBid: (productId, bidderId) => {
+  rejectBid: (productId, bidderId, reason = '') => {
     return axiosInstance
-      .post(`/api/seller/products/${productId}/reject-bidder/${bidderId}`)
+      .post(`/api/seller/products/${productId}/reject-bidder`, {
+        bidderId,
+        reason
+      })
       .then((response) => {
         if (response.data.success) {
           return {

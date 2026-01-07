@@ -333,10 +333,12 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
                pi.url as product_primary_image, b.amount as bid_amount, p.current_price, p.status as product_status,
                CAST(b.is_auto AS UNSIGNED) as is_auto,
                IF(b.amount = (SELECT MAX(amount) FROM bids WHERE product_id = p.id), 1, 0) as is_winning,
-               p.status, b.created_at as bid_created_at, p.ends_at as product_ends_at
+               p.status, b.created_at as bid_created_at, p.ends_at as product_ends_at,
+               IF(pb.user_id IS NOT NULL, 1, 0) as is_banned
         FROM bids b
         LEFT JOIN products p ON b.product_id = p.id
         LEFT JOIN product_images pi ON p.id = pi.product_id AND pi.is_primary = true
+        LEFT JOIN product_bans pb ON pb.product_id = b.product_id AND pb.user_id = b.bidder_id
         WHERE b.bidder_id = :userId
         ORDER BY b.created_at DESC
         LIMIT :limit OFFSET :offset

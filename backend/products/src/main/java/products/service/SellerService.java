@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -501,6 +502,7 @@ public class SellerService {
         
         RabbitMessage message = RabbitMessage.builder()
             .eventType(EventType.TASK_SEND_MAIL_PRODUCT_BANNED_USER)
+            .eventId(UUID.randomUUID().toString())
             .userId(String.valueOf(bidderId))
             .payload(payload)
             .build();

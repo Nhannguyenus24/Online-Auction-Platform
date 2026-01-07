@@ -4,6 +4,7 @@ import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -609,6 +610,7 @@ public class BidderService {
         payload.put("auctionLink", "http://localhost:3000/products/" + productId);
         
         RabbitMessage message = RabbitMessage.builder()
+            .eventId(UUID.randomUUID().toString())
             .eventType(EventType.TASK_SEND_MAIL_OUTBID)
             .userId(String.valueOf(outbidUserId))
             .payload(payload)
@@ -701,6 +703,7 @@ public class BidderService {
             payload.put("totalBids", String.valueOf(product.getBidsCount()));
             
             RabbitMessage message = RabbitMessage.builder()
+                    .eventId(UUID.randomUUID().toString())
                 .eventType(EventType.TASK_SEND_MAIL_ENDED_AUCTION)
                 .userId(String.valueOf(winnerId))
                 .payload(payload)
@@ -750,6 +753,7 @@ public class BidderService {
             payload.put("auctionEndTime", product.getEndsAt().toString());
             
             RabbitMessage message = RabbitMessage.builder()
+                .eventId(UUID.randomUUID().toString())
                 .eventType(EventType.TASK_SEND_MAIL_ENDED_AUCTION)
                 .userId(String.valueOf(product.getSellerId()))
                 .payload(payload)
@@ -795,6 +799,7 @@ public class BidderService {
             payload.put("purchaseTime", TimeUtils.now().toString());
             
             RabbitMessage message = RabbitMessage.builder()
+                    .eventId(UUID.randomUUID().toString())
                 .eventType(EventType.TASK_SEND_MAIL_SUCCESS_BID)
                 .userId(String.valueOf(buyerId))
                 .payload(payload)
@@ -841,6 +846,7 @@ public class BidderService {
             payload.put("purchaseTime", TimeUtils.now().toString());
             
             RabbitMessage message = RabbitMessage.builder()
+                    .eventId(UUID.randomUUID().toString())
                 .eventType(EventType.TASK_SEND_MAIL_SUCCESS_BID)
                 .userId(String.valueOf(product.getSellerId()))
                 .payload(payload)
@@ -992,7 +998,7 @@ public class BidderService {
             .setBidAmount(dto.bidAmount())
             .setCurrentPrice(dto.currentPrice())
             .setIsAuto(dto.isAuto() != 0)
-            .setIsWinning(dto.isWinning() != 0)
+            .setIsWinning(dto.isWinning() != 0 && dto.isBanned() == 0)
             .setProductStatus(dto.productStatus() != null ? dto.productStatus() : "")
             .setBidCreatedAt(dto.bidCreatedAt().toEpochSecond())
             .setProductEndsAt(dto.productEndsAt().toEpochSecond())
