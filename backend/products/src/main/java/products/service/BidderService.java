@@ -432,6 +432,7 @@ public class BidderService {
     /**
      * Handle auction end - called by scheduler
      */
+    @Transactional
     private void handleAuctionEnd(int productId) {
         log.info("Handling auction end for product {}", productId);
         
