@@ -310,6 +310,8 @@ public class RabbitMQConsumerService {
             String productName = payload.get("productName");
             String reason = payload.get("reason");
             String banTime = payload.get("banTime");
+            String username = payload.get("userName");
+            String email = payload.get("email");
 
             if (userId == null || productId == null || productName == null || 
                 reason == null || banTime == null) {
@@ -322,7 +324,7 @@ public class RabbitMQConsumerService {
             log.debug("Sending product banned user email: userId={}, productId={}", userId, productId);
             
             return emailService.sendProductBannedUserEmailWithNotification(
-                    userIdInt, productName, productId, reason, banTime
+                    userIdInt, productName, productId, reason, banTime, username, email
             )
             .doOnSuccess(v -> log.info("Product banned user email sent: eventId={}, userId={}, productId={}", 
                 message.getEventId(), userId, productId));

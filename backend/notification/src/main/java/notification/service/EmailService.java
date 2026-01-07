@@ -206,6 +206,22 @@ public class EmailService {
     }
 
     /**
+     * Gửi email thông báo sản phẩm bị cấm (Reactive)
+     */
+    public Mono<Void> sendProductBannedUserEmail(String to, String userName, String productName,
+                                                 String productId, String reason, String banTime) {
+        Map<String, Object> variables = Map.of(
+                "userName", userName,
+                "productName", productName,
+                "productId", productId,
+                "reason", reason,
+                "banTime", banTime
+        );
+
+        return sendHtmlEmail(to, "Your Product Has Been Banned", "ban-user-from-product", variables);
+    }
+
+    /**
      * Lưu notification vào database (Helper method)
      */
     private Mono<Void> saveNotificationToDatabase(Integer userId, String notificationType, Map<String, Object> payloadMap) {
@@ -305,17 +321,14 @@ public class EmailService {
 
     /**
      * Gửi product banned user email và lưu notification vào DB
-     * Note: Cần fetch thông tin user (email, userName) từ user service
-     * Tạm thời sử dụng userId để gửi thông báo
+     * Email và userName đã được truyền vào từ payload
      */
     public Mono<Void> sendProductBannedUserEmailWithNotification(Integer userId, String productName,
-                                                                 String productId, String reason, String banTime) {
-        // TODO: Fetch user info from user service to get email and userName
-        // For now, we'll just save notification to database
-        // When user service integration is ready, add email sending
-        
+                                                                 String productId, String reason, String banTime, String username, String email) {
         Map<String, Object> notificationPayload = Map.of(
                 "userId", userId,
+                "email", email,
+                "userName", username,
                 "productName", productName,
                 "productId", productId,
                 "reason", reason,
@@ -323,11 +336,12 @@ public class EmailService {
                 "type", "product_banned_user"
         );
 
-        log.info("Saving product ban notification for userId={}, productId={}", userId, productId);
+        log.info("Sending product ban email to user: email={}, userId={}, productId={}", 
+            email, userId, productId);
         
-        // Only save notification for now, email will be added when user service integration is ready
-        return saveNotificationToDatabase(userId, "PRODUCT_BANNED_USER", notificationPayload)
-                .doOnSuccess(v -> log.info("Product ban notification saved: userId={}, productId={}", userId, productId));
+        return sendProductBannedUserEmail(email, username, productName, productId, reason, banTime)
+                .then(saveNotificationToDatabase(userId, "PRODUCT_BANNED_USER", notificationPayload))
+                .doOnSuccess(v -> log.info("Product ban notification sent and saved: userId={}, productId={}", userId, productId));
     }
 
     /**
