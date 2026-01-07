@@ -133,19 +133,29 @@ const ProductCard = ({
             }}
           />
         )}
-        {showStatus && product.status && (
-          <Chip
-            label={product.status === 'active' ? 'Active' : 'Ended'}
-            size="small"
-            color={product.status === 'active' ? 'success' : 'default'}
-            sx={{
-              position: 'absolute',
-              bottom: 12,
-              left: 12,
-              fontWeight: 'bold',
-            }}
-          />
-        )}
+        {showStatus && product.status && (() => {
+          const status = product.status?.toLowerCase() || 'active';
+          const statusMap = {
+            'active': { label: 'Active', color: 'success' },
+            'ended': { label: 'Ended', color: 'default' },
+            'pending': { label: 'Pending', color: 'warning' },
+            'cancelled': { label: 'Cancelled', color: 'error' },
+          };
+          const statusInfo = statusMap[status] || { label: status, color: 'default' };
+          return (
+            <Chip
+              label={statusInfo.label}
+              size="small"
+              color={statusInfo.color}
+              sx={{
+                position: 'absolute',
+                bottom: 12,
+                left: 12,
+                fontWeight: 'bold',
+              }}
+            />
+          );
+        })()}
       </Box>
       <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', p: 2 }}>
         <Typography

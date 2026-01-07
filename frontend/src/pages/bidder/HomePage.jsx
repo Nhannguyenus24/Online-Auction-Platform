@@ -63,12 +63,12 @@ const BidderHomePage = () => {
           productStatus: bid.productStatus,
         }));
         
-        // Filter active bids (not ended and not won)
+        // Filter active bids (not ended - check endTime actually)
         const activeBidsData = mappedBids.filter((bid) => {
           const endTime = normalizeTimestamp(bid.endTime);
           const now = new Date();
-          const isEnded = bid.productStatus === 'ended' || endTime <= now;
-          return !isEnded;
+          // Only show bids where auction hasn't actually ended yet
+          return endTime > now;
         });
         
         setActiveBids(activeBidsData);
@@ -85,19 +85,32 @@ const BidderHomePage = () => {
         const wonRes = await bidderApi.getWonItems(1, 100);
         
         // Map API response to component format for won items
-        const wonData = (wonRes.data || []).map((item) => ({
-          id: item.bidId,
-          productId: item.productId,
-          title: item.productTitle,
-          image: item.productPrimaryImage,
-          winningPrice: item.currentPrice, // Use currentPrice as winningPrice for won items
-          currentPrice: item.currentPrice,
-          isHighestBidder: item.isWinning,
-          endTime: normalizeTimestamp(item.productEndsAt), // Normalize timestamp from backend
-          bidCount: null, // Not available in API response
-          condition: null, // Not available in API response
-          status: item.productStatus, // For won items status display
-        }));
+        const wonData = (wonRes.data || [])
+          .map((item) => ({
+            id: item.bidId,
+            productId: item.productId,
+            title: item.productTitle,
+            image: item.productPrimaryImage,
+            winningPrice: item.currentPrice, // Use currentPrice as winningPrice for won items
+            currentPrice: item.currentPrice,
+            isHighestBidder: item.isWinning,
+            endTime: normalizeTimestamp(item.productEndsAt), // Normalize timestamp from backend
+            bidCount: null, // Not available in API response
+            condition: null, // Not available in API response
+            status: item.productStatus, // For won items status display
+          }))
+          .filter((item) => {
+            // Only show won items where:
+            // 1. Auction has actually ended (endTime <= now)
+            // 2. AND user is the highest bidder (isHighestBidder = true)
+            // This ensures consistency with AuctionHistory page logic
+            const endTime = normalizeTimestamp(item.endTime);
+            const now = new Date();
+            const isActuallyEnded = endTime <= now;
+            
+            // Only show items that have ended AND user is the highest bidder
+            return isActuallyEnded && item.isHighestBidder;
+          });
         
         setWonItems(wonData);
         setStats((prev) => ({

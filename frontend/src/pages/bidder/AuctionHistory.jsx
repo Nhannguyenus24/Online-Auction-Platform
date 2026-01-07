@@ -119,39 +119,89 @@ const BidderAuctionHistoryPage = () => {
   };
 
   const getStatus = (bid) => {
-    const endTime = new Date(bid.endTime);
+    // Get product status from API response
+    const productStatus = bid.productStatus?.toLowerCase() || 'active';
+    
+    // Check if auction has actually ended by comparing endTime
+    const endTime = normalizeTimestamp(bid.endTime);
     const now = new Date();
-    // Use productStatus if available, otherwise check endTime
-    const isEnded = bid.productStatus === 'ended' || endTime <= now;
-    const isWon = wonItems.some((item) => item.productId === bid.productId);
+    const isActuallyEnded = endTime <= now;
+    
+    // If endTime has passed, override status to 'ended' for consistency
+    // This handles cases where backend hasn't updated status yet
+    if (isActuallyEnded && productStatus === 'active') {
+      return { label: 'Ended', color: 'default', icon: <Cancel /> };
+    }
+    
+    // Map product status to display format
+    switch (productStatus) {
+      case 'active':
+        return { label: 'Active', color: 'success', icon: <CheckCircle /> };
+      case 'ended':
+        return { label: 'Ended', color: 'default', icon: <Cancel /> };
+      case 'pending':
+        return { label: 'Pending', color: 'warning', icon: <AccessTime /> };
+      case 'cancelled':
+        return { label: 'Cancelled', color: 'error', icon: <Cancel /> };
+      default: {
+        // Fallback: check endTime if status is not available
+        return isActuallyEnded 
+          ? { label: 'Ended', color: 'default', icon: <Cancel /> }
+          : { label: 'Active', color: 'success', icon: <CheckCircle /> };
+      }
+    }
+  };
 
-    if (isWon) return { label: 'Won', color: 'success', icon: <EmojiEvents /> };
-    if (isEnded) return { label: 'Ended', color: 'default', icon: <Cancel /> };
-    if (bid.isHighestBidder) return { label: 'Leading', color: 'primary', icon: <CheckCircle /> };
-    return { label: 'Active', color: 'info', icon: <AccessTime /> };
+  // Check if a bid is won (user won the auction for this product)
+  const isWon = (bid) => {
+    // A bid is "won" ONLY if:
+    // 1. Auction has actually ended (endTime <= now)
+    // 2. AND this specific bid is the winning bid (isHighestBidder = true)
+    
+    // Check if auction has actually ended by comparing endTime
+    const endTime = normalizeTimestamp(bid.endTime);
+    const now = new Date();
+    const isActuallyEnded = endTime <= now;
+    
+    // Only consider "won" if auction has actually ended AND user is the highest bidder
+    // Active products cannot be "won" - they are still ongoing
+    if (isActuallyEnded && bid.isHighestBidder) {
+      return true;
+    }
+    
+    // Fallback: check if product is in wonItems list from API
+    // But still require that the auction has actually ended
+    const wonProductIds = new Set(wonItems.map((item) => item.productId));
+    if (wonProductIds.has(bid.productId) && isActuallyEnded && bid.isHighestBidder) {
+      return true;
+    }
+    
+    return false;
+  };
+
+  // Helper function to check if auction has actually ended
+  const isActuallyEnded = (bid) => {
+    const endTime = normalizeTimestamp(bid.endTime);
+    const now = new Date();
+    return endTime <= now;
   };
 
   // Get filtered bids based on tab
   const getFilteredBids = () => {
-    const now = new Date();
-    const wonProductIds = new Set(wonItems.map((item) => item.productId));
-
     switch (tabValue) {
-      case 1: // Active
+      case 1: // Active - Products that are still ongoing (not ended)
         return allBiddingHistory.filter((bid) => {
-          const endTime = normalizeTimestamp(bid.endTime);
-          const isEnded = bid.productStatus === 'ended' || endTime <= now;
-          return !isEnded && !wonProductIds.has(bid.productId);
+          // Check if auction has actually ended by endTime
+          return !isActuallyEnded(bid);
         });
-      case 2: // Ended
+      case 2: // Ended - Products that have ended but user did NOT win
         return allBiddingHistory.filter((bid) => {
-          const endTime = normalizeTimestamp(bid.endTime);
-          const isEnded = bid.productStatus === 'ended' || endTime <= now;
-          return isEnded && !wonProductIds.has(bid.productId);
+          // Check if auction has actually ended
+          return isActuallyEnded(bid) && !isWon(bid);
         });
-      case 3: // Won
-        return allBiddingHistory.filter((bid) => wonProductIds.has(bid.productId));
-      default: // All
+      case 3: // Won - Only the winning bids where user won the auction
+        return allBiddingHistory.filter((bid) => isWon(bid));
+      default: // All - Show all bids
         return allBiddingHistory;
     }
   };
@@ -160,13 +210,53 @@ const BidderAuctionHistoryPage = () => {
 
   // Update pagination when filtered data or page size changes
   useEffect(() => {
-    const totalItems = allFilteredBids.length;
+    // Helper function to check if auction has actually ended
+    const isActuallyEndedBid = (bid) => {
+      const endTime = normalizeTimestamp(bid.endTime);
+      const now = new Date();
+      return endTime <= now;
+    };
+    
+    // Helper function to check if bid is won
+    const isWonBid = (bid) => {
+      // Only consider "won" if auction has actually ended AND user is the highest bidder
+      if (isActuallyEndedBid(bid) && bid.isHighestBidder) {
+        return true;
+      }
+      
+      // Fallback: check if product is in wonItems list from API
+      // But still require that the auction has ended
+      const wonProductIds = new Set(wonItems.map((item) => item.productId));
+      if (wonProductIds.has(bid.productId) && isActuallyEndedBid(bid) && bid.isHighestBidder) {
+        return true;
+      }
+      
+      return false;
+    };
+    
+    let filteredBids;
+    
+    switch (tabValue) {
+      case 1: // Active - Products that are still ongoing (not ended)
+        filteredBids = allBiddingHistory.filter((bid) => !isActuallyEndedBid(bid));
+        break;
+      case 2: // Ended - Products that have ended but user did NOT win
+        filteredBids = allBiddingHistory.filter((bid) => isActuallyEndedBid(bid) && !isWonBid(bid));
+        break;
+      case 3: // Won - Only the winning bids where user won the auction
+        filteredBids = allBiddingHistory.filter((bid) => isWonBid(bid));
+        break;
+      default: // All
+        filteredBids = allBiddingHistory;
+    }
+    
+    const totalItems = filteredBids.length;
     const totalPages = Math.ceil(totalItems / pageSize) || 1;
     // Ensure current page is valid (not greater than total pages)
     const currentPage = Math.min(pagination.currentPage, totalPages) || 1;
     const startIndex = (currentPage - 1) * pageSize;
     const endIndex = startIndex + pageSize;
-    const paginatedData = allFilteredBids.slice(startIndex, endIndex);
+    const paginatedData = filteredBids.slice(startIndex, endIndex);
 
     setPagination({
       currentPage: currentPage,
@@ -176,7 +266,7 @@ const BidderAuctionHistoryPage = () => {
       hasNext: currentPage < totalPages,
       hasPrevious: currentPage > 1,
     });
-  }, [allBiddingHistory.length, wonItems.length, tabValue, pageSize]);
+  }, [allBiddingHistory, wonItems, tabValue, pageSize, pagination.currentPage]);
 
   // Get paginated bids
   const filteredBids = (() => {
@@ -247,39 +337,35 @@ const BidderAuctionHistoryPage = () => {
                   </Box>
                 }
               />
-              <Tab
-                label={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <AccessTime /> Active ({allBiddingHistory.filter((bid) => {
-                      const endTime = normalizeTimestamp(bid.endTime);
-                      const now = new Date();
-                      const isEnded = bid.productStatus === 'ended' || endTime <= now;
-                      const wonProductIds = new Set(wonItems.map((item) => item.productId));
-                      return !isEnded && !wonProductIds.has(bid.productId);
-                    }).length})
-                  </Box>
-                }
-              />
-              <Tab
-                label={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Cancel /> Ended ({allBiddingHistory.filter((bid) => {
-                      const endTime = normalizeTimestamp(bid.endTime);
-                      const now = new Date();
-                      const isEnded = bid.productStatus === 'ended' || endTime <= now;
-                      const wonProductIds = new Set(wonItems.map((item) => item.productId));
-                      return isEnded && !wonProductIds.has(bid.productId);
-                    }).length})
-                  </Box>
-                }
-              />
-              <Tab
-                label={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <EmojiEvents /> Won ({allBiddingHistory.filter((bid) => wonItems.some((item) => item.productId === bid.productId)).length})
-                  </Box>
-                }
-              />
+               <Tab
+                 label={
+                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                     <AccessTime /> Active ({allBiddingHistory.filter((bid) => {
+                       const endTime = normalizeTimestamp(bid.endTime);
+                       const now = new Date();
+                       return endTime > now; // Still ongoing
+                     }).length})
+                   </Box>
+                 }
+               />
+               <Tab
+                 label={
+                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                     <Cancel /> Ended ({allBiddingHistory.filter((bid) => {
+                       const endTime = normalizeTimestamp(bid.endTime);
+                       const now = new Date();
+                       return endTime <= now && !isWon(bid); // Ended but not won
+                     }).length})
+                   </Box>
+                 }
+               />
+               <Tab
+                 label={
+                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                     <EmojiEvents /> Won ({allBiddingHistory.filter((bid) => isWon(bid)).length})
+                   </Box>
+                 }
+               />
             </Tabs>
           </Box>
 

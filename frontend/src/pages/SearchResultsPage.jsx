@@ -442,12 +442,24 @@ const SearchResultsPage = () => {
                         </Stack>
 
                         {/* Status Badge */}
-                        <Chip
-                          label={product.status === 'active' ? 'Active' : 'Ended'}
-                          size="small"
-                          color={product.status === 'active' ? 'success' : 'default'}
-                          sx={{ fontWeight: 'bold' }}
-                        />
+                        {(() => {
+                          const status = product.status?.toLowerCase() || 'active';
+                          const statusMap = {
+                            'active': { label: 'Active', color: 'success' },
+                            'ended': { label: 'Ended', color: 'default' },
+                            'pending': { label: 'Pending', color: 'warning' },
+                            'cancelled': { label: 'Cancelled', color: 'error' },
+                          };
+                          const statusInfo = statusMap[status] || { label: status, color: 'default' };
+                          return (
+                            <Chip
+                              label={statusInfo.label}
+                              size="small"
+                              color={statusInfo.color}
+                              sx={{ fontWeight: 'bold' }}
+                            />
+                          );
+                        })()}
                       </CardContent>
                     </Card>
                   </Grid>

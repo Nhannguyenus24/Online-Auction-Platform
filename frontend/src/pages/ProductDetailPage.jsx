@@ -848,12 +848,24 @@ function ProductDetailPage() {
                         <Typography variant="h4" fontWeight="bold" gutterBottom>
                           {product.title}
                         </Typography>
-                        <Chip
-                          label={product.status}
-                          color={product.status === "ACTIVE" ? "success" : "default"}
-                          size="small"
-                          sx={{ mb: 2 }}
-                        />
+                        {(() => {
+                          const status = product.status?.toLowerCase() || 'active';
+                          const statusMap = {
+                            'active': { label: 'Active', color: 'success' },
+                            'ended': { label: 'Ended', color: 'default' },
+                            'pending': { label: 'Pending', color: 'warning' },
+                            'cancelled': { label: 'Cancelled', color: 'error' },
+                          };
+                          const statusInfo = statusMap[status] || { label: status, color: 'default' };
+                          return (
+                            <Chip
+                              label={statusInfo.label}
+                              color={statusInfo.color}
+                              size="small"
+                              sx={{ mb: 2 }}
+                            />
+                          );
+                        })()}
                       </Box>
                       <IconButton
                         onClick={handleToggleWatchlist}
