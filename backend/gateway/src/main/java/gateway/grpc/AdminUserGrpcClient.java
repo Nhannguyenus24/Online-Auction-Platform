@@ -7,19 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import com.auction.proto.admin.user.ApproveUpgradeRequestRequest;
-import com.auction.proto.admin.user.ApproveUpgradeRequestResponse;
-import com.auction.proto.admin.user.GetAllUsersRequest;
-import com.auction.proto.admin.user.GetAllUsersResponse;
-import com.auction.proto.admin.user.GetUpgradeRequestsRequest;
-import com.auction.proto.admin.user.GetUpgradeRequestsResponse;
-import com.auction.proto.admin.user.ProfitStatisticsRequest;
-import com.auction.proto.admin.user.ProfitStatisticsResponse;
-import com.auction.proto.admin.user.ReactorAdminUserServiceGrpc;
-import com.auction.proto.admin.user.RegistrationStatisticsRequest;
-import com.auction.proto.admin.user.RegistrationStatisticsResponse;
-import com.auction.proto.admin.user.UserStatisticsRequest;
-import com.auction.proto.admin.user.UserStatisticsResponse;
+import com.auction.proto.admin.user.*;
 import com.auction.utils.JsonUtils;
 
 import io.grpc.ManagedChannel;
@@ -63,10 +51,6 @@ public class AdminUserGrpcClient {
         }
     }
 
-    // ============================================================================
-    // USER STATISTICS
-    // ============================================================================
-
     public Mono<UserStatisticsResponse> getUserStatistics(UserStatisticsRequest request) {
         log.info("gRPC getUserStatistics request: {}", JsonUtils.toJson(request));
         return adminUserServiceStub.getUserStatistics(Mono.just(request));
@@ -76,10 +60,6 @@ public class AdminUserGrpcClient {
         log.info("gRPC getRegistrationStatistics request: {}", JsonUtils.toJson(request));
         return adminUserServiceStub.getRegistrationStatistics(Mono.just(request));
     }
-
-    // ============================================================================
-    // UPGRADE REQUESTS
-    // ============================================================================
 
     public Mono<GetUpgradeRequestsResponse> getUpgradeRequests(GetUpgradeRequestsRequest request) {
         log.info("gRPC getUpgradeRequests request: {}", JsonUtils.toJson(request));
@@ -91,18 +71,10 @@ public class AdminUserGrpcClient {
         return adminUserServiceStub.approveUpgradeRequest(Mono.just(request));
     }
 
-    // ============================================================================
-    // PROFIT STATISTICS
-    // ============================================================================
-
     public Mono<ProfitStatisticsResponse> getProfitStatistics(ProfitStatisticsRequest request) {
         log.info("gRPC getProfitStatistics request: {}", JsonUtils.toJson(request));
         return adminUserServiceStub.getProfitStatistics(Mono.just(request));
     }
-
-    // ============================================================================
-    // USER MANAGEMENT
-    // ============================================================================
 
     public Mono<GetAllUsersResponse> getAllUsers(GetAllUsersRequest request) {
         log.info("gRPC getAllUsers request: {}", JsonUtils.toJson(request));

@@ -76,7 +76,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 
             } catch (Exception e) {
                 log.warn("JWT validation failed: {}", e.getMessage());
-                // Don't set authentication, let Spring Security handle the error
             }
         }
         filterChain.doFilter(request, response);

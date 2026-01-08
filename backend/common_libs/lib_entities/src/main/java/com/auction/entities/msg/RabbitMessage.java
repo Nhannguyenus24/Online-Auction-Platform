@@ -13,9 +13,12 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class RabbitMessage {
-    // Unique ID for tracing across services
+    @Builder.Default
     private String eventId = UUID.randomUUID().toString();
+
     private EventType eventType;
+
+    @Builder.Default
     private long timestamp = System.currentTimeMillis();
     private String userId;
     private Map<String, String> payload;

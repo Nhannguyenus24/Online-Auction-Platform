@@ -5,6 +5,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.time.Duration;
+import java.time.LocalDateTime;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,13 +21,7 @@ import com.auction.entities.record.ImageRowRecord;
 import com.auction.entities.record.ProductDetailsRecord;
 import com.auction.entities.record.ProductRowRecord;
 import com.auction.entities.record.QuestionRowRecord;
-import com.auction.proto.user.Bid;
-import com.auction.proto.user.BidHistoryItem;
-import com.auction.proto.user.PageInfo;
-import com.auction.proto.user.Product;
-import com.auction.proto.user.ProductImage;
-import com.auction.proto.user.Question;
-import com.auction.proto.user.SellerInfo;
+import com.auction.proto.user.*;
 import com.auction.rabbitmq.services.ReactiveRabbitProducer;
 import com.auction.utils.TimeUtils;
 
@@ -260,7 +256,7 @@ public class BidderService {
                 }
                 
                 // Validate bid time
-                java.time.LocalDateTime now = TimeUtils.now();
+                LocalDateTime now = TimeUtils.now();
                 if (now.isBefore(product.getStartsAt())) {
                     return Mono.error(new IllegalStateException("Auction has not started yet"));
                 }
@@ -294,9 +290,9 @@ public class BidderService {
                     .then(Mono.defer(() -> {
                         // Handle auto-extend
                         if (product.getIsAutoExtend()) {
-                            java.time.Duration timeLeft = java.time.Duration.between(now, product.getEndsAt());
+                            Duration timeLeft = Duration.between(now, product.getEndsAt());
                             if (timeLeft.getSeconds() < product.getAutoExtendSeconds()) {
-                                java.time.LocalDateTime newEndTime = now.plusSeconds(product.getAutoExtendSeconds());
+                                 LocalDateTime newEndTime = now.plusSeconds(product.getAutoExtendSeconds());
                                 log.info("Auto-extending product {} from {} to {}", 
                                     productId, product.getEndsAt(), newEndTime);
                                 
@@ -376,7 +372,7 @@ public class BidderService {
             }
 
             // Check auction time
-            java.time.LocalDateTime now = TimeUtils.now();
+            LocalDateTime now = TimeUtils.now();
             if (now.isBefore(product.getStartsAt())) {
                 return Mono.error(new IllegalStateException("Auction has not started yet"));
             }
@@ -522,7 +518,7 @@ public class BidderService {
      * Check if previous bidder was outbid and send notification
      */
     private Mono<Void> checkAndNotifyOutbid(int productId, int currentBidderId, double newBidAmount, 
-                                            String productName, java.time.LocalDateTime auctionEndTime) {
+                                            String productName,  auctionEndTime) {
         String redisKey = "auction:" + productId + ":bids";
         
         log.debug("Checking for outbid on product {}", productId);
@@ -564,7 +560,7 @@ public class BidderService {
                         double bidDifference = newBidAmount - Double.parseDouble(previousBidAmount);
                         
                         // Calculate time remaining
-                        java.time.Duration timeLeft = java.time.Duration.between(
+                         timeLeft = .between(
                             TimeUtils.now(), auctionEndTime);
                         String timeRemaining = formatDuration(timeLeft);
                         
@@ -593,7 +589,7 @@ public class BidderService {
      */
     private Mono<Void> sendOutbidNotification(int productId, String productName, int outbidUserId,
                                              String yourBidAmount, double newHighestBid, double bidDifference,
-                                             java.time.LocalDateTime auctionEndTime, String timeRemaining,
+                                             LocalDateTime auctionEndTime, String timeRemaining,
                                              String email, String userName) {
         java.util.Map<String, String> payload = new java.util.HashMap<>();
         payload.put("userId", String.valueOf(outbidUserId));
@@ -630,7 +626,7 @@ public class BidderService {
     /**
      * Format duration to human-readable string
      */
-    private String formatDuration(java.time.Duration duration) {
+    private String formatDuration( duration) {
         long hours = duration.toHours();
         long minutes = duration.toMinutesPart();
         
@@ -664,7 +660,7 @@ public class BidderService {
             redisService.hSet(profileKey, "bidTime", String.valueOf(System.currentTimeMillis())),
             redisService.hSet(profileKey, "lastUpdated", TimeUtils.now().toString())
         )
-        .then(redisService.expire(profileKey, java.time.Duration.ofSeconds(86400 * 15))) // Expire after 15 days
+        .then(redisService.expire(profileKey, .ofSeconds(86400 * 15))) // Expire after 15 days
         .doOnSuccess(v -> log.debug("Bidder profile saved to Redis: userId={}, productId={}, email={}", 
             userId, productId, email))
         .doOnError(e -> log.error("Failed to save bidder profile to Redis: userId={}, productId={}, error={}", 
@@ -1064,18 +1060,18 @@ public class BidderService {
     // Helper records for return types
     public static record WatchlistResult(List<Product> products, PageInfo pageInfo) {}
     public static record QuestionResult(int questionId, long createdAt) {}
-    public static record QuestionsResult(java.util.List<Question> questions, PageInfo pageInfo) {}
-    public static record BidsResult(java.util.List<Bid> bids, PageInfo pageInfo) {}
+    public static record QuestionsResult(List<Question> questions, PageInfo pageInfo) {}
+    public static record BidsResult(List<Bid> bids, PageInfo pageInfo) {}
     public static record PlaceBidResult(int bidId, double currentPrice, double nextMinBid, long createdAt, boolean isHighestBidder) {}
     public static record AutoBidResult(int autoBidId, double maxAmount, double currentBid, long createdAt) {}
-    public static record MyBidsResult(java.util.List<BidHistoryItem> bids, PageInfo pageInfo) {}
-    public static record NotificationsResult(java.util.List<com.auction.proto.user.UserNotification> notifications, long unreadCount) {}
+    public static record MyBidsResult(List<BidHistoryItem> bids, PageInfo pageInfo) {}
+    public static record NotificationsResult(List<UserNotification> notifications, long unreadCount) {}
     public static record BuyNowResult(int orderId, double price, long createdAt) {}
     public static record BidderRatingsResult(
         int positiveReviews,
         int negativeReviews,
         float ratingPercent,
-        java.util.List<BidderReview> reviews,
+        List<BidderReview> reviews,
         int totalCount
     ) {}
     public static record BidderReview(
@@ -1099,9 +1095,9 @@ public class BidderService {
         log.info("Getting notifications for userId={}", userId);
         
         // Get all notifications ordered by created_at DESC (newest first)
-        Mono<List<com.auction.proto.user.UserNotification>> notificationsMono = 
+        Mono<List<UserNotification>> notificationsMono = 
             notificationRepository.findByUserIdPaginated(userId, 100, 0) // Get latest 100
-                .map(notification -> com.auction.proto.user.UserNotification.newBuilder()
+                .map(notification -> UserNotification.newBuilder()
                     .setId(notification.getId())
                     .setUserId(notification.getUserId())
                     .setType(notification.getType() != null ? notification.getType() : "")
@@ -1287,7 +1283,7 @@ public class BidderService {
         return email.substring(0, 2) + "***" + email.substring(atIndex);
     }
     
-    public static record TopBiddersResult(java.util.List<TopBidderItem> topBidders) {}
+    public static record TopBiddersResult(List<TopBidderItem> topBidders) {}
     public static record TopBidderItem(
         int bidderId,
         String bidderNameMasked,
@@ -1391,7 +1387,7 @@ public class BidderService {
                     log.info("No orders found for user {}", userId);
                     return Mono.just(new BidderOrdersResult(
                         java.util.Collections.emptyList(),
-                        new com.auction.proto.user.PageInfo.Builder()
+                        new PageInfo.Builder()
                             .setCurrentPage(validPage)
                             .setPageSize(validLimit)
                             .setTotalItems(0)
@@ -1405,8 +1401,8 @@ public class BidderService {
                 // Get total count for pagination
                 return orderRepository.countOrdersByBuyerId(userId, status)
                     .map(totalCount -> {
-                        List<com.auction.proto.user.OrderItem> orderItems = orders.stream()
-                            .map(order -> com.auction.proto.user.OrderItem.newBuilder()
+                        List<OrderItem> orderItems = orders.stream()
+                            .map(order -> OrderItem.newBuilder()
                                 .setId(order.getId())
                                 .setProductId(order.getProductId())
                                 .setProductTitle(order.getProductTitle() != null ? order.getProductTitle() : "")
@@ -1462,7 +1458,7 @@ public class BidderService {
                     log.info("No banned products found for user {}", userId);
                     return Mono.just(new BannedProductsResult(
                         java.util.Collections.emptyList(),
-                        new com.auction.proto.user.PageInfo.Builder()
+                        new PageInfo.Builder()
                             .setCurrentPage(validPage)
                             .setPageSize(validLimit)
                             .setTotalItems(0)
@@ -1476,8 +1472,8 @@ public class BidderService {
                 // Get total count for pagination
                 return productRepository.countBannedProductsByUserId(userId)
                     .map(totalCount -> {
-                        List<com.auction.proto.user.BannedProduct> bannedProductItems = bannedProducts.stream()
-                            .map(banned -> com.auction.proto.user.BannedProduct.newBuilder()
+                        List<BannedProduct> bannedProductItems = bannedProducts.stream()
+                            .map(banned -> BannedProduct.newBuilder()
                                 .setId(banned.id())
                                 .setProductId(banned.productId())
                                 .setBidderId(banned.bidderId())
@@ -1513,12 +1509,12 @@ public class BidderService {
 
     // Helper records for new endpoints
     public static record BidderOrdersResult(
-        java.util.List<com.auction.proto.user.OrderItem> orders,
+        List<OrderItem> orders,
         PageInfo pageInfo
     ) {}
     
     public static record BannedProductsResult(
-        java.util.List<com.auction.proto.user.BannedProduct> bannedProducts,
+        List<BannedProduct> bannedProducts,
         PageInfo pageInfo
     ) {}
 }

@@ -7,35 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import com.auction.proto.user.AddToWatchlistRequest;
-import com.auction.proto.user.AddToWatchlistResponse;
-import com.auction.proto.user.AskQuestionRequest;
-import com.auction.proto.user.AskQuestionResponse;
-import com.auction.proto.user.GetMyBidsRequest;
-import com.auction.proto.user.GetMyBidsResponse;
-import com.auction.proto.user.GetProductBidsRequest;
-import com.auction.proto.user.GetProductBidsResponse;
-import com.auction.proto.user.GetProductDetailsRequest;
-import com.auction.proto.user.GetProductDetailsResponse;
-import com.auction.proto.user.GetProductQuestionsRequest;
-import com.auction.proto.user.GetProductQuestionsResponse;
-import com.auction.proto.user.GetRelatedProductsRequest;
-import com.auction.proto.user.GetRelatedProductsResponse;
-import com.auction.proto.user.GetBidderRatingsRequest;
-import com.auction.proto.user.GetBidderRatingsResponse;
-import com.auction.proto.user.GetUserNotificationsRequest;
-import com.auction.proto.user.GetUserNotificationsResponse;
-import com.auction.proto.user.GetWatchlistRequest;
-import com.auction.proto.user.GetWatchlistResponse;
-import com.auction.proto.user.MarkNotificationAsReadRequest;
-import com.auction.proto.user.MarkNotificationAsReadResponse;
-import com.auction.proto.user.PlaceBidRequest;
-import com.auction.proto.user.PlaceBidResponse;
-import com.auction.proto.user.ReactorUserServiceGrpc;
-import com.auction.proto.user.RemoveFromWatchlistRequest;
-import com.auction.proto.user.RemoveFromWatchlistResponse;
-import com.auction.proto.user.SetAutoBidRequest;
-import com.auction.proto.user.SetAutoBidResponse;
+import com.auction.proto.user.*;
 import com.auction.utils.JsonUtils;
 
 import io.grpc.ManagedChannel;
@@ -164,37 +136,37 @@ public class BidderGrpcClient {
     }
     
     // Buy Now Product
-    public Mono<com.auction.proto.user.BuyNowProductResponse> buyNowProduct(com.auction.proto.user.BuyNowProductRequest request) {
+    public Mono<BuyNowProductResponse> buyNowProduct(BuyNowProductRequest request) {
         log.info("gRPC buyNowProduct request: {}", JsonUtils.toJson(request));
         return userServiceStub.buyNowProduct(Mono.just(request));
     }
     
     // Get Top Bidders
-    public Mono<com.auction.proto.user.GetTopBiddersResponse> getTopBidders(com.auction.proto.user.GetTopBiddersRequest request) {
+    public Mono<GetTopBiddersResponse> getTopBidders(GetTopBiddersRequest request) {
         log.info("gRPC getTopBidders request: {}", JsonUtils.toJson(request));
         return userServiceStub.getTopBidders(Mono.just(request));
     }
     
     // Request Role Upgrade
-    public Mono<com.auction.proto.user.RequestRoleUpgradeResponse> requestRoleUpgrade(com.auction.proto.user.RequestRoleUpgradeRequest request) {
+    public Mono<RequestRoleUpgradeResponse> requestRoleUpgrade(RequestRoleUpgradeRequest request) {
         log.info("gRPC requestRoleUpgrade request: {}", JsonUtils.toJson(request));
         return userServiceStub.requestRoleUpgrade(Mono.just(request));
     }
     
     // Get Role Upgrade Request Status
-    public Mono<com.auction.proto.user.GetRoleUpgradeRequestStatusResponse> getRoleUpgradeRequestStatus(com.auction.proto.user.GetRoleUpgradeRequestStatusRequest request) {
+    public Mono<GetRoleUpgradeRequestStatusResponse> getRoleUpgradeRequestStatus(GetRoleUpgradeRequestStatusRequest request) {
         log.info("gRPC getRoleUpgradeRequestStatus request: {}", JsonUtils.toJson(request));
         return userServiceStub.getRoleUpgradeRequestStatus(Mono.just(request));
     }
     
     // Get Bidder List Order
-    public Mono<com.auction.proto.user.GetBidderListOrderResponse> getBidderListOrder(com.auction.proto.user.GetBidderListOrderRequest request) {
+    public Mono<GetBidderListOrderResponse> getBidderListOrder(GetBidderListOrderRequest request) {
         log.info("gRPC getBidderListOrder request: {}", JsonUtils.toJson(request));
         return userServiceStub.getBidderListOrder(Mono.just(request));
     }
     
     // Get Banned Products
-    public Mono<com.auction.proto.user.GetBannedProductsResponse> getBannedProducts(com.auction.proto.user.GetBannedProductsRequest request) {
+    public Mono<GetBannedProductsResponse> getBannedProducts(GetBannedProductsRequest request) {
         log.info("gRPC getBannedProducts request: {}", JsonUtils.toJson(request));
         return userServiceStub.getBannedProducts(Mono.just(request));
     }

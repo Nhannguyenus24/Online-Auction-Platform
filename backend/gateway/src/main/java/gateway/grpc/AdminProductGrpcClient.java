@@ -7,15 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import com.auction.proto.admin.product.CreateCategoryRequest;
-import com.auction.proto.admin.product.CreateCategoryResponse;
-import com.auction.proto.admin.product.DeleteCategoryRequest;
-import com.auction.proto.admin.product.DeleteCategoryResponse;
-import com.auction.proto.admin.product.ReactorAdminProductServiceGrpc;
-import com.auction.proto.admin.product.RemoveProductRequest;
-import com.auction.proto.admin.product.RemoveProductResponse;
-import com.auction.proto.admin.product.UpdateCategoryRequest;
-import com.auction.proto.admin.product.UpdateCategoryResponse;
+import com.auction.proto.admin.product.*;
 import com.auction.utils.JsonUtils;
 
 import io.grpc.ManagedChannel;
@@ -59,10 +51,6 @@ public class AdminProductGrpcClient {
         }
     }
 
-    // ============================================================================
-    // CATEGORY MANAGEMENT
-    // ============================================================================
-
     public Mono<CreateCategoryResponse> createCategory(CreateCategoryRequest request) {
         log.info("gRPC createCategory request: {}", JsonUtils.toJson(request));
         return adminProductServiceStub.createCategory(Mono.just(request));
@@ -77,10 +65,6 @@ public class AdminProductGrpcClient {
         log.info("gRPC deleteCategory request: {}", JsonUtils.toJson(request));
         return adminProductServiceStub.deleteCategory(Mono.just(request));
     }
-
-    // ============================================================================
-    // PRODUCT MANAGEMENT
-    // ============================================================================
 
     public Mono<RemoveProductResponse> removeProduct(RemoveProductRequest request) {
         log.info("gRPC removeProduct request: {}", JsonUtils.toJson(request));

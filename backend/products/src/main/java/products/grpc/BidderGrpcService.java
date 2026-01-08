@@ -4,36 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.grpc.server.service.GrpcService;
 
-import com.auction.proto.user.AddToWatchlistRequest;
-import com.auction.proto.user.AddToWatchlistResponse;
-import com.auction.proto.user.AskQuestionRequest;
-import com.auction.proto.user.AskQuestionResponse;
-import com.auction.proto.user.GetMyBidsRequest;
-import com.auction.proto.user.GetMyBidsResponse;
-import com.auction.proto.user.GetProductBidsRequest;
-import com.auction.proto.user.GetProductBidsResponse;
-import com.auction.proto.user.GetProductDetailsRequest;
-import com.auction.proto.user.GetProductDetailsResponse;
-import com.auction.proto.user.GetProductQuestionsRequest;
-import com.auction.proto.user.GetProductQuestionsResponse;
-import com.auction.proto.user.GetRelatedProductsRequest;
-import com.auction.proto.user.GetRelatedProductsResponse;
-import com.auction.proto.user.GetBidderRatingsRequest;
-import com.auction.proto.user.GetBidderRatingsResponse;
-import com.auction.proto.user.GetUserNotificationsRequest;
-import com.auction.proto.user.GetUserNotificationsResponse;
-import com.auction.proto.user.GetWatchlistRequest;
-import com.auction.proto.user.GetWatchlistResponse;
-import com.auction.proto.user.MarkNotificationAsReadRequest;
-import com.auction.proto.user.MarkNotificationAsReadResponse;
-import com.auction.proto.user.BidderReview;
-import com.auction.proto.user.PlaceBidRequest;
-import com.auction.proto.user.PlaceBidResponse;
-import com.auction.proto.user.ReactorUserServiceGrpc;
-import com.auction.proto.user.RemoveFromWatchlistRequest;
-import com.auction.proto.user.RemoveFromWatchlistResponse;
-import com.auction.proto.user.SetAutoBidRequest;
-import com.auction.proto.user.SetAutoBidResponse;
+import com.auction.proto.user.*;
 import com.auction.utils.JsonUtils;
 
 import products.service.BidderService;
@@ -382,11 +353,11 @@ public class BidderGrpcService extends ReactorUserServiceGrpc.UserServiceImplBas
     }
     
     @Override
-    public Mono<com.auction.proto.user.BuyNowProductResponse> buyNowProduct(Mono<com.auction.proto.user.BuyNowProductRequest> request) {
+    public Mono<BuyNowProductResponse> buyNowProduct(Mono<BuyNowProductRequest> request) {
         return request.doOnNext(req -> log.info("Buy now product request: {}", JsonUtils.toJson(req)))
             .flatMap(req ->
                 bidderService.buyNowProduct(req.getProductId(), req.getUserId())
-                    .map(result -> com.auction.proto.user.BuyNowProductResponse.newBuilder()
+                    .map(result -> BuyNowProductResponse.newBuilder()
                         .setSuccess(true)
                         .setMessage("Product purchased successfully via Buy Now")
                         .setOrderId(result.orderId())
@@ -396,7 +367,7 @@ public class BidderGrpcService extends ReactorUserServiceGrpc.UserServiceImplBas
                     .doOnNext(resp -> log.info("Buy now product response: {}", JsonUtils.toJson(resp)))
                     .onErrorResume(e -> {
                         log.error("Buy now product error: {}", e.getMessage(), e);
-                        return Mono.just(com.auction.proto.user.BuyNowProductResponse.newBuilder()
+                        return Mono.just(BuyNowProductResponse.newBuilder()
                             .setSuccess(false)
                             .setMessage("Failed to buy now: " + e.getMessage())
                             .build());
@@ -405,18 +376,18 @@ public class BidderGrpcService extends ReactorUserServiceGrpc.UserServiceImplBas
     }
     
     @Override
-    public Mono<com.auction.proto.user.GetTopBiddersResponse> getTopBidders(Mono<com.auction.proto.user.GetTopBiddersRequest> request) {
+    public Mono<GetTopBiddersResponse> getTopBidders(Mono<GetTopBiddersRequest> request) {
         return request.doOnNext(req -> log.info("Raw get top bidders request: {}", JsonUtils.toJson(req)))
                 .flatMap(req ->
                     bidderService.getTopBidders(req.getProductId(), req.getLimit())
                         .map(result -> {
-                            var responseBuilder = com.auction.proto.user.GetTopBiddersResponse.newBuilder()
+                            var responseBuilder = GetTopBiddersResponse.newBuilder()
                                 .setSuccess(true)
                                 .setMessage("Top bidders retrieved successfully");
                             
                             for (var bidder : result.topBidders()) {
                                 responseBuilder.addTopBidders(
-                                    com.auction.proto.user.TopBidder.newBuilder()
+                                    TopBidder.newBuilder()
                                         .setBidderId(bidder.bidderId())
                                         .setBidderNameMasked(bidder.bidderNameMasked())
                                         .setBidAmount(bidder.bidAmount())
@@ -430,7 +401,7 @@ public class BidderGrpcService extends ReactorUserServiceGrpc.UserServiceImplBas
                         .doOnNext(resp -> log.info("Raw get top bidders response: {}", JsonUtils.toJson(resp)))
                         .onErrorResume(e -> {
                             log.error("Error getting top bidders: {}", e.getMessage(), e);
-                            return Mono.just(com.auction.proto.user.GetTopBiddersResponse.newBuilder()
+                            return Mono.just(GetTopBiddersResponse.newBuilder()
                                 .setSuccess(false)
                                 .setMessage("Error: " + e.getMessage())
                                 .build());
@@ -439,11 +410,11 @@ public class BidderGrpcService extends ReactorUserServiceGrpc.UserServiceImplBas
     }
     
     @Override
-    public Mono<com.auction.proto.user.RequestRoleUpgradeResponse> requestRoleUpgrade(Mono<com.auction.proto.user.RequestRoleUpgradeRequest> request) {
+    public Mono<RequestRoleUpgradeResponse> requestRoleUpgrade(Mono<RequestRoleUpgradeRequest> request) {
         return request.doOnNext(req -> log.info("Raw request role upgrade request: {}", JsonUtils.toJson(req)))
                 .flatMap(req ->
                     bidderService.requestRoleUpgrade(req.getUserId())
-                        .map(result -> com.auction.proto.user.RequestRoleUpgradeResponse.newBuilder()
+                        .map(result -> RequestRoleUpgradeResponse.newBuilder()
                             .setSuccess(result.success())
                             .setMessage(result.message())
                             .setRequestId(result.requestId())
@@ -451,7 +422,7 @@ public class BidderGrpcService extends ReactorUserServiceGrpc.UserServiceImplBas
                         .doOnNext(resp -> log.info("Raw request role upgrade response: {}", JsonUtils.toJson(resp)))
                         .onErrorResume(e -> {
                             log.error("Error requesting role upgrade: {}", e.getMessage(), e);
-                            return Mono.just(com.auction.proto.user.RequestRoleUpgradeResponse.newBuilder()
+                            return Mono.just(RequestRoleUpgradeResponse.newBuilder()
                                 .setSuccess(false)
                                 .setMessage("Error: " + e.getMessage())
                                 .setRequestId(0)
@@ -461,11 +432,11 @@ public class BidderGrpcService extends ReactorUserServiceGrpc.UserServiceImplBas
     }
     
     @Override
-    public Mono<com.auction.proto.user.GetRoleUpgradeRequestStatusResponse> getRoleUpgradeRequestStatus(Mono<com.auction.proto.user.GetRoleUpgradeRequestStatusRequest> request) {
+    public Mono<GetRoleUpgradeRequestStatusResponse> getRoleUpgradeRequestStatus(Mono<GetRoleUpgradeRequestStatusRequest> request) {
         return request.doOnNext(req -> log.info("Raw get role upgrade request status request: {}", JsonUtils.toJson(req)))
                 .flatMap(req ->
                     bidderService.getRoleUpgradeRequestStatus(req.getUserId())
-                        .map(result -> com.auction.proto.user.GetRoleUpgradeRequestStatusResponse.newBuilder()
+                        .map(result -> GetRoleUpgradeRequestStatusResponse.newBuilder()
                             .setSuccess(result.success())
                             .setMessage(result.message())
                             .setHasRequest(result.hasRequest())
@@ -475,7 +446,7 @@ public class BidderGrpcService extends ReactorUserServiceGrpc.UserServiceImplBas
                         .doOnNext(resp -> log.info("Raw get role upgrade request status response: {}", JsonUtils.toJson(resp)))
                         .onErrorResume(e -> {
                             log.error("Error getting role upgrade request status: {}", e.getMessage(), e);
-                            return Mono.just(com.auction.proto.user.GetRoleUpgradeRequestStatusResponse.newBuilder()
+                            return Mono.just(GetRoleUpgradeRequestStatusResponse.newBuilder()
                                 .setSuccess(false)
                                 .setMessage("Error: " + e.getMessage())
                                 .setHasRequest(false)
@@ -486,11 +457,11 @@ public class BidderGrpcService extends ReactorUserServiceGrpc.UserServiceImplBas
     }
     
     @Override
-    public Mono<com.auction.proto.user.GetBidderListOrderResponse> getBidderListOrder(Mono<com.auction.proto.user.GetBidderListOrderRequest> request) {
+    public Mono<GetBidderListOrderResponse> getBidderListOrder(Mono<GetBidderListOrderRequest> request) {
         return request.doOnNext(req -> log.info("Raw get bidder list order request: {}", JsonUtils.toJson(req)))
                 .flatMap(req ->
                     bidderService.getBidderListOrder(req.getUserId(), req.getPage(), req.getLimit(), req.getStatus())
-                        .map(result -> com.auction.proto.user.GetBidderListOrderResponse.newBuilder()
+                        .map(result -> GetBidderListOrderResponse.newBuilder()
                             .addAllOrders(result.orders())
                             .setPageInfo(result.pageInfo())
                             .setSuccess(true)
@@ -499,7 +470,7 @@ public class BidderGrpcService extends ReactorUserServiceGrpc.UserServiceImplBas
                         .doOnNext(resp -> log.info("Raw get bidder list order response: {}", JsonUtils.toJson(resp)))
                         .onErrorResume(e -> {
                             log.error("Error getting bidder list order: {}", e.getMessage(), e);
-                            return Mono.just(com.auction.proto.user.GetBidderListOrderResponse.newBuilder()
+                            return Mono.just(GetBidderListOrderResponse.newBuilder()
                                 .setSuccess(false)
                                 .setMessage("Error: " + e.getMessage())
                                 .build());
@@ -508,11 +479,11 @@ public class BidderGrpcService extends ReactorUserServiceGrpc.UserServiceImplBas
     }
     
     @Override
-    public Mono<com.auction.proto.user.GetBannedProductsResponse> getBannedProducts(Mono<com.auction.proto.user.GetBannedProductsRequest> request) {
+    public Mono<GetBannedProductsResponse> getBannedProducts(Mono<GetBannedProductsRequest> request) {
         return request.doOnNext(req -> log.info("Raw get banned products request: {}", JsonUtils.toJson(req)))
                 .flatMap(req ->
                     bidderService.getBannedProducts(req.getUserId(), req.getPage(), req.getLimit())
-                        .map(result -> com.auction.proto.user.GetBannedProductsResponse.newBuilder()
+                        .map(result -> GetBannedProductsResponse.newBuilder()
                             .addAllBannedProducts(result.bannedProducts())
                             .setPageInfo(result.pageInfo())
                             .setSuccess(true)
@@ -521,7 +492,7 @@ public class BidderGrpcService extends ReactorUserServiceGrpc.UserServiceImplBas
                         .doOnNext(resp -> log.info("Raw get banned products response: {}", JsonUtils.toJson(resp)))
                         .onErrorResume(e -> {
                             log.error("Error getting banned products: {}", e.getMessage(), e);
-                            return Mono.just(com.auction.proto.user.GetBannedProductsResponse.newBuilder()
+                            return Mono.just(GetBannedProductsResponse.newBuilder()
                                 .setSuccess(false)
                                 .setMessage("Error: " + e.getMessage())
                                 .build());

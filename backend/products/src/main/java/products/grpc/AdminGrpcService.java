@@ -4,15 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.grpc.server.service.GrpcService;
 
-import com.auction.proto.admin.product.CreateCategoryRequest;
-import com.auction.proto.admin.product.CreateCategoryResponse;
-import com.auction.proto.admin.product.DeleteCategoryRequest;
-import com.auction.proto.admin.product.DeleteCategoryResponse;
-import com.auction.proto.admin.product.ReactorAdminProductServiceGrpc;
-import com.auction.proto.admin.product.RemoveProductRequest;
-import com.auction.proto.admin.product.RemoveProductResponse;
-import com.auction.proto.admin.product.UpdateCategoryRequest;
-import com.auction.proto.admin.product.UpdateCategoryResponse;
+import com.auction.proto.admin.product.*;
 import com.auction.utils.JsonUtils;
 
 import products.service.AdminService;

@@ -17,10 +17,7 @@ import com.auction.entities.msg.EventType;
 import com.auction.entities.msg.RabbitMessage;
 import com.auction.rabbitmq.services.ReactiveRabbitProducer;
 import com.auction.utils.TimeUtils;
-import com.auctionplatform.seller.grpc.ListingDetail;
-import com.auctionplatform.seller.grpc.OrderDetail;
-import com.auctionplatform.seller.grpc.ProductDetailsResponse;
-import com.auctionplatform.seller.grpc.ProductSummary;
+import com.auctionplatform.seller.grpc.*;
 
 import com.auction.entities.record.ImageRowRecord;
 import products.repository.OrderRepository;
@@ -81,7 +78,7 @@ public class SellerService {
                     Mono<String> userNameMono = productRepository.getUserFullName(review.getFromUserId())
                         .defaultIfEmpty("User #" + review.getFromUserId());
                     
-                    return userNameMono.map(userName -> com.auctionplatform.seller.grpc.Review.newBuilder()
+                    return userNameMono.map(userName -> Review.newBuilder()
                         .setId(review.getId())
                         .setFromUserId(review.getFromUserId())
                         .setFromUserName(userName)
@@ -96,7 +93,7 @@ public class SellerService {
             int positiveReviews = tuple.getT2();
             int negativeReviews = tuple.getT3();
             double avgScore = tuple.getT4();
-            List<com.auctionplatform.seller.grpc.Review> reviews = tuple.getT5();
+            List<Review> reviews = tuple.getT5();
             
             // Calculate rating percent (average score / 5 * 100)
             float ratingPercent = (float) (avgScore / 5.0 * 100.0);
@@ -550,7 +547,7 @@ public class SellerService {
         int positiveReviews,
         int negativeReviews,
         float ratingPercent,
-        List<com.auctionplatform.seller.grpc.Review> reviews,
+        List<Review> reviews,
         int totalCount
     ) {}
 

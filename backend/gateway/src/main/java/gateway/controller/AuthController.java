@@ -18,17 +18,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.auction.proto.auth.ChangePasswordRequest;
-import com.auction.proto.auth.GetProfileRequest;
-import com.auction.proto.auth.GetProfileResponse;
-import com.auction.proto.auth.LoginRequest;
-import com.auction.proto.auth.LoginWithGoogleRequest;
-import com.auction.proto.auth.RefreshTokenRequest;
-import com.auction.proto.auth.RegisterRequest;
-import com.auction.proto.auth.ReproduceOTPRequest;
-import com.auction.proto.auth.UpdateProfileRequest;
-import com.auction.proto.auth.ValidateTokenRequest;
-import com.auction.proto.auth.VerifyOTPRequest;
+import com.auction.proto.auth.*;
 
 import gateway.grpc.UserGrpcClient;
 import gateway.service.GoogleOAuthService;
@@ -503,7 +493,7 @@ public class AuthController {
         
         log.info("Forgot password request for email: {}", request.getEmail());
         
-        com.auction.proto.auth.ForgotPasswordRequest grpcRequest = com.auction.proto.auth.ForgotPasswordRequest.newBuilder()
+        ForgotPasswordRequest grpcRequest = ForgotPasswordRequest.newBuilder()
                 .setEmail(request.getEmail())
                 .build();
 
@@ -536,7 +526,7 @@ public class AuthController {
         
         log.info("Reset password request for email: {}", request.getEmail());
         
-        com.auction.proto.auth.ResetPasswordRequest grpcRequest = com.auction.proto.auth.ResetPasswordRequest.newBuilder()
+        ResetPasswordRequest grpcRequest = ResetPasswordRequest.newBuilder()
                 .setEmail(request.getEmail())
                 .setOtp(request.getOtp())
                 .setNewPassword(request.getNewPassword())

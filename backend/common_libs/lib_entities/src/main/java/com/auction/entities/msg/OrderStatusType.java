@@ -1,6 +1,6 @@
 package com.auction.entities.msg;
 
-public enum StatusType {
+public enum OrderStatusType {
     PENDING, 
     CANCELLED,
     COMPLETED,

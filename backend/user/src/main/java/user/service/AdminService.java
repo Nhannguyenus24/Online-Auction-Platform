@@ -7,21 +7,7 @@ import org.springframework.data.relational.core.query.Criteria;
 import org.springframework.data.relational.core.query.Query;
 import org.springframework.stereotype.Service;
 
-import com.auction.proto.admin.user.ApproveUpgradeRequestRequest;
-import com.auction.proto.admin.user.ApproveUpgradeRequestResponse;
-import com.auction.proto.admin.user.DailyRegistration;
-import com.auction.proto.admin.user.GetAllUsersRequest;
-import com.auction.proto.admin.user.GetAllUsersResponse;
-import com.auction.proto.admin.user.GetUpgradeRequestsRequest;
-import com.auction.proto.admin.user.GetUpgradeRequestsResponse;
-import com.auction.proto.admin.user.MonthlyRegistration;
-import com.auction.proto.admin.user.ProfitStatisticsRequest;
-import com.auction.proto.admin.user.RegistrationStatisticsRequest;
-import com.auction.proto.admin.user.RegistrationStatisticsResponse;
-import com.auction.proto.admin.user.UpgradeRequest;
-import com.auction.proto.admin.user.UserInfo;
-import com.auction.proto.admin.user.UserStatisticsResponse;
-import com.auction.proto.admin.user.YearlyRegistration;
+import com.auction.proto.admin.user.*;
 import com.auction.utils.TimeUtils;
 
 import reactor.core.publisher.Flux;
@@ -294,35 +280,35 @@ public class AdminService {
      * Get profit statistics by month or year
      * Profit = 30% of total successful payment amounts
      */
-    public Mono<com.auction.proto.admin.user.ProfitStatisticsResponse> getProfitStatistics(ProfitStatisticsRequest request) {
+    public Mono<ProfitStatisticsResponse> getProfitStatistics(ProfitStatisticsRequest request) {
         log.info("Fetching profit statistics - month: {}, year: {}", request.getMonth(), request.getYear());
 
-        com.auction.proto.admin.user.ProfitStatisticsResponse.Builder responseBuilder = 
-                com.auction.proto.admin.user.ProfitStatisticsResponse.newBuilder();
+        ProfitStatisticsResponse.Builder responseBuilder = 
+                ProfitStatisticsResponse.newBuilder();
 
         // Build response with both monthly and yearly if requested
-        Mono<com.auction.proto.admin.user.ProfitStatisticsResponse> monthlyMono = Mono.just(responseBuilder.build());
-        Mono<com.auction.proto.admin.user.ProfitStatisticsResponse> yearlyMono = Mono.just(responseBuilder.build());
+        Mono<ProfitStatisticsResponse> monthlyMono = Mono.just(responseBuilder.build());
+        Mono<ProfitStatisticsResponse> yearlyMono = Mono.just(responseBuilder.build());
 
         // Get monthly profit if month is specified
         request.getMonth();
         if (!request.getMonth().isEmpty()) {
             monthlyMono = adminRepository.getMonthlyProfit(request.getMonth())
                     .map(record -> {
-                        com.auction.proto.admin.user.MonthlyProfit monthlyProfit = 
-                                com.auction.proto.admin.user.MonthlyProfit.newBuilder()
+                        MonthlyProfit monthlyProfit = 
+                                MonthlyProfit.newBuilder()
                                 .setMonth(record.getPeriod())
                                 .setTotalSales(record.getTotalSales())
                                 .setProfit(record.getProfit())
                                 .setCompletedOrders(record.getCompletedOrders())
                                 .build();
                         
-                        return com.auction.proto.admin.user.ProfitStatisticsResponse.newBuilder()
+                        return ProfitStatisticsResponse.newBuilder()
                                 .setMonthlyProfit(monthlyProfit)
                                 .build();
                     })
-                    .defaultIfEmpty(com.auction.proto.admin.user.ProfitStatisticsResponse.newBuilder()
-                            .setMonthlyProfit(com.auction.proto.admin.user.MonthlyProfit.newBuilder()
+                    .defaultIfEmpty(ProfitStatisticsResponse.newBuilder()
+                            .setMonthlyProfit(MonthlyProfit.newBuilder()
                                     .setMonth(request.getMonth())
                                     .setTotalSales(0.0)
                                     .setProfit(0.0)
@@ -338,20 +324,20 @@ public class AdminService {
                 int year = Integer.parseInt(request.getYear());
                 yearlyMono = adminRepository.getYearlyProfit(year)
                         .map(record -> {
-                            com.auction.proto.admin.user.YearlyProfit yearlyProfit = 
-                                    com.auction.proto.admin.user.YearlyProfit.newBuilder()
+                            YearlyProfit yearlyProfit = 
+                                    YearlyProfit.newBuilder()
                                     .setYear(record.getPeriod())
                                     .setTotalSales(record.getTotalSales())
                                     .setProfit(record.getProfit())
                                     .setCompletedOrders(record.getCompletedOrders())
                                     .build();
                             
-                            return com.auction.proto.admin.user.ProfitStatisticsResponse.newBuilder()
+                            return ProfitStatisticsResponse.newBuilder()
                                     .setYearlyProfit(yearlyProfit)
                                     .build();
                         })
-                        .defaultIfEmpty(com.auction.proto.admin.user.ProfitStatisticsResponse.newBuilder()
-                                .setYearlyProfit(com.auction.proto.admin.user.YearlyProfit.newBuilder()
+                        .defaultIfEmpty(ProfitStatisticsResponse.newBuilder()
+                                .setYearlyProfit(YearlyProfit.newBuilder()
                                         .setYear(request.getYear())
                                         .setTotalSales(0.0)
                                         .setProfit(0.0)
@@ -366,8 +352,8 @@ public class AdminService {
         // Combine monthly and yearly results
         return Mono.zip(monthlyMono, yearlyMono)
                 .map(tuple -> {
-                    com.auction.proto.admin.user.ProfitStatisticsResponse.Builder builder = 
-                            com.auction.proto.admin.user.ProfitStatisticsResponse.newBuilder();
+                    ProfitStatisticsResponse.Builder builder = 
+                            ProfitStatisticsResponse.newBuilder();
                     
                     if (tuple.getT1().hasMonthlyProfit()) {
                         builder.setMonthlyProfit(tuple.getT1().getMonthlyProfit());
@@ -381,7 +367,7 @@ public class AdminService {
                 })
                 .onErrorResume(error -> {
                     log.error("Error fetching profit statistics", error);
-                    return Mono.just(com.auction.proto.admin.user.ProfitStatisticsResponse.newBuilder().build());
+                    return Mono.just(ProfitStatisticsResponse.newBuilder().build());
                 });
     }
 

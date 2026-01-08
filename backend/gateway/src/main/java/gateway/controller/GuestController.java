@@ -11,13 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.auction.proto.guest.GetCategoriesRequest;
-import com.auction.proto.guest.GetTopBidCountProductsRequest;
-import com.auction.proto.guest.GetTopEndingProductsRequest;
-import com.auction.proto.guest.GetTopPriceProductsRequest;
-import com.auction.proto.guest.ListProductsByCategoryRequest;
-import com.auction.proto.guest.ListProductsByNameRequest;
-import com.auction.proto.guest.SortOrder;
+import com.auction.proto.guest.*;
 import com.auction.utils.JsonUtils;
 
 import gateway.grpc.GuestGrpcClient;
@@ -327,13 +321,13 @@ public class GuestController {
     }
 
     // Helper methods
-    private List<Map<String, Object>> mapProductsList(com.auction.proto.guest.GetTopProductsResponse response) {
+    private List<Map<String, Object>> mapProductsList(GetTopProductsResponse response) {
         List<Map<String, Object>> products = new ArrayList<>();
         response.getProductsList().forEach(product -> products.add(mapProduct(product)));
         return products;
     }
 
-    private Map<String, Object> mapProduct(com.auction.proto.guest.Product product) {
+    private Map<String, Object> mapProduct(Product product) {
         Map<String, Object> productMap = new HashMap<>();
         productMap.put("id", product.getId());
         productMap.put("sellerId", product.getSellerId());

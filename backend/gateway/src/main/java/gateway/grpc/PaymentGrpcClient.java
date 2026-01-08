@@ -1,15 +1,12 @@
 package gateway.grpc;
 
-import com.auction.entities.msg.EventType;
 import com.auction.utils.JsonUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import com.auctionplatform.payment.grpc.UpdateOrderStatusRequest;
-import com.auctionplatform.payment.grpc.UpdateOrderStatusResponse;
-import com.auctionplatform.payment.grpc.ReactorPaymentServiceGrpc;
+import com.auctionplatform.payment.grpc.*;
 
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;

@@ -5,15 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.auction.entities.database.Review;
-import com.auction.proto.rating.AddUserRatingRequest;
-import com.auction.proto.rating.AddUserRatingResponse;
-import com.auction.proto.rating.DeleteUserRatingRequest;
-import com.auction.proto.rating.DeleteUserRatingResponse;
-import com.auction.proto.rating.GetRatingStatsRequest;
-import com.auction.proto.rating.GetRatingStatsResponse;
-import com.auction.proto.rating.GetUserRatingsRequest;
-import com.auction.proto.rating.GetUserRatingsResponse;
-import com.auction.proto.rating.RatingDetail;
+import com.auction.proto.rating.*;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;

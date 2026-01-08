@@ -72,7 +72,7 @@ message Product {
   int64 ends_at = 12;
   bool is_auto_extend = 13;
   int32 auto_extend_seconds = 14;
-  string status = 15; // active, ended, pending, cancelled
+  string status = 15; // active, ended, cancelled
   int32 views_count = 16;
   int32 bids_count = 17;
   int64 created_at = 18;

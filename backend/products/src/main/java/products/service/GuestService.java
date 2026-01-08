@@ -4,14 +4,12 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
+import com.auction.entities.database.Category;
 import com.auction.entities.record.ImageRowRecord;
 import com.auction.entities.record.ProductListByNameRecord;
 import com.auction.entities.record.ProductListRecord;
 import com.auction.entities.record.ProductRowRecord;
-import com.auction.proto.guest.Category;
-import com.auction.proto.guest.PageInfo;
-import com.auction.proto.guest.Product;
-import com.auction.proto.guest.ProductImage;
+import com.auction.proto.guest.*;
 import com.auction.utils.TimeUtils;
 
 import products.repository.CategoryRepository;
@@ -169,7 +167,7 @@ public class GuestService {
     }
 
     // Helper methods for mapping
-    private Category mapEntityToCategory(com.auction.entities.database.Category entity) {
+    private Category mapEntityToCategory(Category entity) {
         return Category.newBuilder()
             .setId(entity.getId())
             .setName(entity.getName())

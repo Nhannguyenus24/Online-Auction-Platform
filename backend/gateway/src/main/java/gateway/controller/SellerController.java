@@ -25,27 +25,7 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.auctionplatform.seller.grpc.AnswerQuestionRequest;
-import com.auctionplatform.seller.grpc.AppendProductDescriptionRequest;
-import com.auctionplatform.seller.grpc.ConfirmPaymentReceiptRequest;
-import com.auctionplatform.seller.grpc.CreateAuctionListingRequest;
-import com.auctionplatform.seller.grpc.GetActiveListingsRequest;
-import com.auctionplatform.seller.grpc.GetListingsRequest;
-import com.auctionplatform.seller.grpc.GetOrdersRequest;
-import com.auctionplatform.seller.grpc.GetProductDetailsRequest;
-import com.auctionplatform.seller.grpc.GetSellerProfileRequest;
-import com.auctionplatform.seller.grpc.GetSellerRatingsRequest;
-import com.auctionplatform.seller.grpc.GetTransactionHistoryRequest;
-import com.auctionplatform.seller.grpc.GetWinnerItemsRequest;
-import com.auctionplatform.seller.grpc.ListingDetail;
-import com.auctionplatform.seller.grpc.OrderDetail;
-import com.auctionplatform.seller.grpc.ProductDetailsResponse;
-import com.auctionplatform.seller.grpc.ProductSummary;
-import com.auctionplatform.seller.grpc.RateBidderRequest;
-import com.auctionplatform.seller.grpc.RejectBidderRequest;
-import com.auctionplatform.seller.grpc.Review;
-import com.auctionplatform.seller.grpc.SellerProfileResponse;
-import com.auctionplatform.seller.grpc.Transaction;
+import com.auctionplatform.seller.grpc.*;
 
 import gateway.grpc.SellerGrpcClient;
 import gateway.service.CloudinaryService;

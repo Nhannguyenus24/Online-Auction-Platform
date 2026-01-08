@@ -22,20 +22,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.auction.proto.user.AddToWatchlistRequest;
-import com.auction.proto.user.AskQuestionRequest;
-import com.auction.proto.user.GetBidderRatingsRequest;
-import com.auction.proto.user.GetMyBidsRequest;
-import com.auction.proto.user.GetProductBidsRequest;
-import com.auction.proto.user.GetProductDetailsRequest;
-import com.auction.proto.user.GetProductQuestionsRequest;
-import com.auction.proto.user.GetRelatedProductsRequest;
-import com.auction.proto.user.GetUserNotificationsRequest;
-import com.auction.proto.user.GetWatchlistRequest;
-import com.auction.proto.user.MarkNotificationAsReadRequest;
-import com.auction.proto.user.PlaceBidRequest;
-import com.auction.proto.user.RemoveFromWatchlistRequest;
-import com.auction.proto.user.SetAutoBidRequest;
+import com.auction.proto.user.*;
 
 import gateway.grpc.BidderGrpcClient;
 import io.swagger.v3.oas.annotations.Operation;
@@ -540,7 +527,7 @@ public class BidderController {
     }
 
     // Helper methods
-    private Map<String, Object> mapUserProduct(com.auction.proto.user.Product product) {
+    private Map<String, Object> mapUserProduct(Product product) {
         Map<String, Object> productMap = new HashMap<>();
         productMap.put("id", product.getId());
         productMap.put("sellerId", product.getSellerId());
@@ -608,7 +595,7 @@ public class BidderController {
         return productMap;
     }
 
-    private Map<String, Object> mapPageInfo(com.auction.proto.user.PageInfo pageInfo) {
+    private Map<String, Object> mapPageInfo(PageInfo pageInfo) {
         Map<String, Object> pageInfoMap = new HashMap<>();
         pageInfoMap.put("currentPage", pageInfo.getCurrentPage());
         pageInfoMap.put("pageSize", pageInfo.getPageSize());
@@ -630,14 +617,14 @@ public class BidderController {
                 .build();
 
         try {
-            com.auction.proto.user.GetUserNotificationsResponse grpcResponse = bidderGrpcClient
+            GetUserNotificationsResponse grpcResponse = bidderGrpcClient
                     .getUserNotifications(grpcRequest)
                     .timeout(Duration.ofSeconds(5))
                     .block();
 
             if (grpcResponse != null && grpcResponse.getSuccess()) {
                 List<Map<String, Object>> notifications = new ArrayList<>();
-                for (com.auction.proto.user.UserNotification notification : grpcResponse.getNotificationsList()) {
+                for (UserNotification notification : grpcResponse.getNotificationsList()) {
                     Map<String, Object> notificationMap = new HashMap<>();
                     notificationMap.put("id", notification.getId());
                     notificationMap.put("userId", notification.getUserId());
@@ -680,7 +667,7 @@ public class BidderController {
                 .build();
 
         try {
-            com.auction.proto.user.MarkNotificationAsReadResponse grpcResponse = bidderGrpcClient
+            MarkNotificationAsReadResponse grpcResponse = bidderGrpcClient
                     .markNotificationAsRead(grpcRequest)
                     .timeout(Duration.ofSeconds(5))
                     .block();
@@ -749,7 +736,7 @@ public class BidderController {
         int userId = getUserId();
         log.info("Buy now product request - productId: {}, userId: {}", productId, userId);
 
-        com.auction.proto.user.BuyNowProductRequest grpcRequest = com.auction.proto.user.BuyNowProductRequest.newBuilder()
+        BuyNowProductRequest grpcRequest = BuyNowProductRequest.newBuilder()
                 .setProductId(productId)
                 .setUserId(userId)
                 .build();
@@ -792,7 +779,7 @@ public class BidderController {
         
         log.info("Get top bidders request - productId: {}, limit: {}", productId, limit);
         
-        com.auction.proto.user.GetTopBiddersRequest grpcRequest = com.auction.proto.user.GetTopBiddersRequest.newBuilder()
+        GetTopBiddersRequest grpcRequest = GetTopBiddersRequest.newBuilder()
                 .setProductId(productId)
                 .setLimit(limit)
                 .build();
@@ -837,7 +824,7 @@ public class BidderController {
         }
     }
 
-    private List<Map<String, Object>> mapBidderReviewList(List<com.auction.proto.user.BidderReview> reviews) {
+    private List<Map<String, Object>> mapBidderReviewList(List<BidderReview> reviews) {
         List<Map<String, Object>> result = new ArrayList<>();
         reviews.forEach(review -> {
             Map<String, Object> map = new HashMap<>();
@@ -859,11 +846,11 @@ public class BidderController {
             int userId = getUserId();
             log.info("User {} requesting role upgrade to seller", userId);
 
-            var grpcRequest = com.auction.proto.user.RequestRoleUpgradeRequest.newBuilder()
+            var grpcRequest = RequestRoleUpgradeRequest.newBuilder()
                     .setUserId(userId)
                     .build();
 
-            com.auction.proto.user.RequestRoleUpgradeResponse response = 
+            RequestRoleUpgradeResponse response = 
                     bidderGrpcClient.requestRoleUpgrade(grpcRequest)
                             .timeout(Duration.ofSeconds(5))
                             .block();
@@ -901,7 +888,7 @@ public class BidderController {
             int userId = getUserId();
             log.info("Getting role upgrade request status for user {}", userId);
             
-            var request = com.auction.proto.user.GetRoleUpgradeRequestStatusRequest.newBuilder()
+            var request = GetRoleUpgradeRequestStatusRequest.newBuilder()
                 .setUserId(userId)
                 .build();
             
@@ -949,7 +936,7 @@ public class BidderController {
             int userId = getUserId();
             log.info("Getting orders for user {} with status={}, page={}, limit={}", userId, status, page, limit);
             
-            var request = com.auction.proto.user.GetBidderListOrderRequest.newBuilder()
+            var request = GetBidderListOrderRequest.newBuilder()
                 .setUserId(userId)
                 .setPage(page)
                 .setLimit(limit)
@@ -965,7 +952,7 @@ public class BidderController {
                 result.put("message", response.getMessage());
                 
                 List<Map<String, Object>> orders = new ArrayList<>();
-                for (com.auction.proto.user.OrderItem order : response.getOrdersList()) {
+                for (OrderItem order : response.getOrdersList()) {
                     Map<String, Object> orderMap = new HashMap<>();
                     orderMap.put("id", order.getId());
                     orderMap.put("productId", order.getProductId());
@@ -1014,7 +1001,7 @@ public class BidderController {
             int userId = getUserId();
             log.info("Getting banned products for user {} with page={}, limit={}", userId, page, limit);
             
-            var request = com.auction.proto.user.GetBannedProductsRequest.newBuilder()
+            var request = GetBannedProductsRequest.newBuilder()
                 .setUserId(userId)
                 .setPage(page)
                 .setLimit(limit)
@@ -1029,7 +1016,7 @@ public class BidderController {
                 result.put("message", response.getMessage());
                 
                 List<Map<String, Object>> bannedProducts = new ArrayList<>();
-                for (com.auction.proto.user.BannedProduct banned : response.getBannedProductsList()) {
+                for (BannedProduct banned : response.getBannedProductsList()) {
                     Map<String, Object> bannedMap = new HashMap<>();
                     bannedMap.put("id", banned.getId());
                     bannedMap.put("productId", banned.getProductId());

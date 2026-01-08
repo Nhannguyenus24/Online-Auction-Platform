@@ -7,26 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import com.auction.proto.auth.ChangePasswordRequest;
-import com.auction.proto.auth.ChangePasswordResponse;
-import com.auction.proto.auth.GetProfileRequest;
-import com.auction.proto.auth.GetProfileResponse;
-import com.auction.proto.auth.LoginRequest;
-import com.auction.proto.auth.LoginResponse;
-import com.auction.proto.auth.LoginWithGoogleRequest;
-import com.auction.proto.auth.ReactorAuthServiceGrpc;
-import com.auction.proto.auth.RefreshTokenRequest;
-import com.auction.proto.auth.RefreshTokenResponse;
-import com.auction.proto.auth.RegisterRequest;
-import com.auction.proto.auth.RegisterResponse;
-import com.auction.proto.auth.ReproduceOTPRequest;
-import com.auction.proto.auth.ReproduceOTPResponse;
-import com.auction.proto.auth.UpdateProfileRequest;
-import com.auction.proto.auth.UpdateProfileResponse;
-import com.auction.proto.auth.ValidateTokenRequest;
-import com.auction.proto.auth.ValidateTokenResponse;
-import com.auction.proto.auth.VerifyOTPRequest;
-import com.auction.proto.auth.VerifyOTPResponse;
+import com.auction.proto.auth.*;
 import com.auction.utils.JsonUtils;
 
 import io.grpc.ManagedChannel;
@@ -130,13 +111,13 @@ public class UserGrpcClient {
     }
 
     // Forgot Password
-    public Mono<com.auction.proto.auth.ForgotPasswordResponse> forgotPassword(com.auction.proto.auth.ForgotPasswordRequest request) {
+    public Mono<ForgotPasswordResponse> forgotPassword(ForgotPasswordRequest request) {
         log.info("gRPC forgotPassword request: {}", JsonUtils.toJson(request));
         return authServiceStub.forgotPassword(Mono.just(request));
     }
 
     // Reset Password
-    public Mono<com.auction.proto.auth.ResetPasswordResponse> resetPassword(com.auction.proto.auth.ResetPasswordRequest request) {
+    public Mono<ResetPasswordResponse> resetPassword(ResetPasswordRequest request) {
         log.info("gRPC resetPassword request: {}", JsonUtils.toJson(request));
         return authServiceStub.resetPassword(Mono.just(request));
     }
