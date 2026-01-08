@@ -12,7 +12,7 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 @Schema(description = "Request to create a new conversation")
 public class CreateConversationRequest {
-	@Schema(description = "Order ID (required, must be unique)", required = true, example = "ORDER123")
+	@Schema(description = "Order ID (required, must be unique)", example = "ORDER123")
 	private String orderId; // Required
 	
 	@Schema(description = "Seller ID", example = "2")

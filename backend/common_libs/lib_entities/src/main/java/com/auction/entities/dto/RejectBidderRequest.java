@@ -4,10 +4,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 public class RejectBidderRequest {
     
-    @Schema(description = "Bidder ID to reject", example = "123", required = true)
+    @Schema(description = "Bidder ID to reject", example = "123")
     private Integer bidderId;
     
-    @Schema(description = "Reason for rejection", example = "Suspicious bidding behavior", required = true)
+    @Schema(description = "Reason for rejection", example = "Suspicious bidding behavior")
     private String reason;
 
     public RejectBidderRequest() {

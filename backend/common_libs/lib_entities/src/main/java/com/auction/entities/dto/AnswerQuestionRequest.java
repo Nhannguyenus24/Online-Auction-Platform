@@ -4,7 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 public class AnswerQuestionRequest {
     
-    @Schema(description = "Answer to the question", example = "This product is brand new and comes with a 1-year warranty.", required = true)
+    @Schema(description = "Answer to the question", example = "This product is brand new and comes with a 1-year warranty.")
     private String answer;
 
     public AnswerQuestionRequest() {

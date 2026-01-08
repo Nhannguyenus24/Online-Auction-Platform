@@ -4,10 +4,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 public class RateBidderRequest {
     
-    @Schema(description = "Order ID", example = "456", required = true)
+    @Schema(description = "Order ID", example = "456")
     private Integer orderId;
     
-    @Schema(description = "Rating score (1-5)", example = "5", required = true, minimum = "1", maximum = "5")
+    @Schema(description = "Rating score (1-5)", example = "5", minimum = "1", maximum = "5")
     private Integer score;
     
     @Schema(description = "Comment for the rating", example = "Great buyer, fast payment!")

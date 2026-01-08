@@ -13,6 +13,7 @@ import reactor.core.publisher.Mono;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.time.ZoneOffset;
 
 /**
  * gRPC implementation of GuestService for public unauthenticated operations
@@ -48,7 +49,7 @@ public class GuestGrpcService extends ReactorGuestServiceGrpc.GuestServiceImplBa
                                                         .setId(parent.getId())
                                                         .setName(parent.getName())
                                                         .setParentId(parent.getParentId())
-                                                        .setCreatedAt(parent.getCreatedAt());
+                                                        .setCreatedAt(parent.getCreatedAt().toEpochSecond(ZoneOffset.ofHours(7)));
 
                                                 // Add children if any
                                                 List<Category> children = childrenMap.getOrDefault(parent.getId(), Collections.emptyList());

@@ -511,7 +511,7 @@ public class AdminController {
 
     public record CreateCategoryRequestDto(
         @NotBlank(message = "Category name is required")
-        @Schema(description = "Category name", example = "Electronics", required = true)
+        @Schema(description = "Category name", example = "Electronics")
         String name,
         
         @Schema(description = "Parent category ID (0 for root category)", example = "0")
@@ -520,7 +520,7 @@ public class AdminController {
 
     public record UpdateCategoryRequestDto(
         @NotBlank(message = "Category name is required")
-        @Schema(description = "Category name", example = "Electronics", required = true)
+        @Schema(description = "Category name", example = "Electronics")
         String name,
         
         @Schema(description = "Parent category ID (0 for root category)", example = "0")
@@ -529,13 +529,13 @@ public class AdminController {
 
     public record RemoveProductRequestDto(
         @NotBlank(message = "Reason is required")
-        @Schema(description = "Reason for removing the product", example = "Violates platform policy", required = true)
+        @Schema(description = "Reason for removing the product", example = "Violates platform policy")
         String reason
     ) {}
 
     public record ProcessUpgradeRequestDto(
         @NotBlank(message = "Action is required")
-        @Schema(description = "Action to perform", example = "approve", allowableValues = {"approve", "reject"}, required = true)
+        @Schema(description = "Action to perform", example = "approve", allowableValues = {"approve", "reject"})
         String action,
         
         @Schema(description = "Reason for rejection (optional)", example = "Insufficient seller qualifications")

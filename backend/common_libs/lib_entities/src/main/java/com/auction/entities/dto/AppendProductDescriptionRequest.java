@@ -4,7 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 public class AppendProductDescriptionRequest {
     
-    @Schema(description = "Additional description to append", example = "UPDATE: Added more photos showing the product from different angles.", required = true)
+    @Schema(description = "Additional description to append", example = "UPDATE: Added more photos showing the product from different angles.")
     private String additionalDescription;
 
     public AppendProductDescriptionRequest() {

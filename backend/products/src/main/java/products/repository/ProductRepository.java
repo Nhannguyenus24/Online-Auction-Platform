@@ -9,12 +9,7 @@ import org.springframework.stereotype.Repository;
 
 import com.auction.entities.database.Product;
 import com.auction.entities.database.User;
-import com.auction.entities.record.BidHistoryRowRecord;
-import com.auction.entities.record.BidRowRecord;
-import com.auction.entities.record.ImageRowRecord;
-import com.auction.entities.record.ProductDetailsRecord;
-import com.auction.entities.record.ProductRowRecord;
-import com.auction.entities.record.QuestionRowRecord;
+import com.auction.entities.record.*;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -418,17 +413,17 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
      * @return flux of banned products
      */
     @Query("""
-        SELECT id, product_id, bidder_id, seller_id, 
-               (SELECT title FROM products WHERE id = product_id) as product_title,
-               (SELECT url FROM product_images WHERE product_id = product_id AND is_primary = true LIMIT 1) as product_image,
-               (SELECT full_name FROM users WHERE id = seller_id) as seller_name,
-               reason, banned_at, banned_until
+        SELECT id, product_id as productId, bidder_id as bidderId, seller_id as sellerId, 
+               (SELECT title FROM products WHERE id = product_id) as productTitle,
+               (SELECT url FROM product_images WHERE product_id = product_id AND is_primary = true LIMIT 1) as productImage,
+               (SELECT full_name FROM users WHERE id = seller_id) as sellerName,
+               reason, banned_at as bannedAt, banned_until as bannedUntil
         FROM banned_products
         WHERE bidder_id = :biderId
         ORDER BY banned_at DESC
         LIMIT :limit OFFSET :offset
         """)
-    Flux<com.auction.entities.record.BannedProductRecord> getBannedProductsByUserId(
+    Flux<BannedProductRecord> getBannedProductsByUserId(
         @Param("biderId") Integer biderId,
         @Param("limit") int limit,
         @Param("offset") int offset

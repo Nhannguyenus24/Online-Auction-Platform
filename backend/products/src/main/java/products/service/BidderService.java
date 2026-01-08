@@ -518,7 +518,7 @@ public class BidderService {
      * Check if previous bidder was outbid and send notification
      */
     private Mono<Void> checkAndNotifyOutbid(int productId, int currentBidderId, double newBidAmount, 
-                                            String productName,  auctionEndTime) {
+                                            String productName, LocalDateTime auctionEndTime) {
         String redisKey = "auction:" + productId + ":bids";
         
         log.debug("Checking for outbid on product {}", productId);
@@ -560,7 +560,7 @@ public class BidderService {
                         double bidDifference = newBidAmount - Double.parseDouble(previousBidAmount);
                         
                         // Calculate time remaining
-                         timeLeft = .between(
+                        Duration timeLeft = Duration.between(
                             TimeUtils.now(), auctionEndTime);
                         String timeRemaining = formatDuration(timeLeft);
                         
@@ -606,7 +606,7 @@ public class BidderService {
         payload.put("auctionLink", "http://localhost:3000/products/" + productId);
         
         RabbitMessage message = RabbitMessage.builder()
-            .eventId(UUID.randomUUID().toString())
+            
             .eventType(EventType.TASK_SEND_MAIL_OUTBID)
             .userId(String.valueOf(outbidUserId))
             .payload(payload)
@@ -626,7 +626,7 @@ public class BidderService {
     /**
      * Format duration to human-readable string
      */
-    private String formatDuration( duration) {
+    private String formatDuration(Duration duration) {
         long hours = duration.toHours();
         long minutes = duration.toMinutesPart();
         
@@ -660,7 +660,7 @@ public class BidderService {
             redisService.hSet(profileKey, "bidTime", String.valueOf(System.currentTimeMillis())),
             redisService.hSet(profileKey, "lastUpdated", TimeUtils.now().toString())
         )
-        .then(redisService.expire(profileKey, .ofSeconds(86400 * 15))) // Expire after 15 days
+        .then(redisService.expire(profileKey, Duration.ofSeconds(86400 * 15))) // Expire after 15 days
         .doOnSuccess(v -> log.debug("Bidder profile saved to Redis: userId={}, productId={}, email={}", 
             userId, productId, email))
         .doOnError(e -> log.error("Failed to save bidder profile to Redis: userId={}, productId={}, error={}", 
@@ -699,7 +699,6 @@ public class BidderService {
             payload.put("totalBids", String.valueOf(product.getBidsCount()));
             
             RabbitMessage message = RabbitMessage.builder()
-                    .eventId(UUID.randomUUID().toString())
                 .eventType(EventType.TASK_SEND_MAIL_ENDED_AUCTION)
                 .userId(String.valueOf(winnerId))
                 .payload(payload)
@@ -720,7 +719,7 @@ public class BidderService {
     /**
      * Send notification to seller when auction ends with a winner
      */
-    private Mono<Void> sendAuctionEndedSellerNotification(com.auction.entities.database.Product product, int winnerId, double finalPrice) {
+    private Mono<Void> sendAuctionEndedSellerNotification(Product product, int winnerId, double finalPrice) {
         log.info("Preparing auction ended notification to seller: sellerId={}, productId={}, finalPrice={}",
             product.getSellerId(), product.getId(), finalPrice);
         
@@ -746,10 +745,10 @@ public class BidderService {
             payload.put("finalPrice", String.format("%.2f", finalPrice));
             payload.put("winnerName", winnerName);
             payload.put("totalBids", String.valueOf(product.getBidsCount()));
-            payload.put("auctionEndTime", product.getEndsAt().toString());
+            payload.put("auctionEndTime", String.valueOf(product.getEndsAt()));
             
             RabbitMessage message = RabbitMessage.builder()
-                .eventId(UUID.randomUUID().toString())
+                
                 .eventType(EventType.TASK_SEND_MAIL_ENDED_AUCTION)
                 .userId(String.valueOf(product.getSellerId()))
                 .payload(payload)
@@ -795,7 +794,7 @@ public class BidderService {
             payload.put("purchaseTime", TimeUtils.now().toString());
             
             RabbitMessage message = RabbitMessage.builder()
-                    .eventId(UUID.randomUUID().toString())
+                    
                 .eventType(EventType.TASK_SEND_MAIL_SUCCESS_BID)
                 .userId(String.valueOf(buyerId))
                 .payload(payload)
@@ -842,7 +841,7 @@ public class BidderService {
             payload.put("purchaseTime", TimeUtils.now().toString());
             
             RabbitMessage message = RabbitMessage.builder()
-                    .eventId(UUID.randomUUID().toString())
+                    
                 .eventType(EventType.TASK_SEND_MAIL_SUCCESS_BID)
                 .userId(String.valueOf(product.getSellerId()))
                 .payload(payload)

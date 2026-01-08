@@ -672,7 +672,7 @@ public class SellerController {
     public ResponseEntity<Map<String, Object>> confirmPaymentReceipt(
             @Parameter(description = "Order ID", required = true)
             @PathVariable int orderId,
-            @RequestBody com.auction.entities.dto.ConfirmPaymentReceiptRequest requestBody) {
+            @RequestBody ConfirmPaymentReceiptRequest requestBody) {
 
         int sellerId = getUserId();
         String invoiceNumber = requestBody.getInvoiceNumber();
