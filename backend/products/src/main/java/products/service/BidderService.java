@@ -719,7 +719,7 @@ public class BidderService {
     /**
      * Send notification to seller when auction ends with a winner
      */
-    private Mono<Void> sendAuctionEndedSellerNotification(Product product, int winnerId, double finalPrice) {
+    private Mono<Void> sendAuctionEndedSellerNotification(com.auction.entities.database.Product product, int winnerId, double finalPrice) {
         log.info("Preparing auction ended notification to seller: sellerId={}, productId={}, finalPrice={}",
             product.getSellerId(), product.getId(), finalPrice);
         
@@ -1383,17 +1383,18 @@ public class BidderService {
             .collectList()
             .flatMap(orders -> {
                 if (orders.isEmpty()) {
-                    log.info("No orders found for user {}", userId);
-                    return Mono.just(new BidderOrdersResult(
-                        java.util.Collections.emptyList(),
-                        new PageInfo.Builder()
+                    PageInfo pageInfo = PageInfo.newBuilder()
                             .setCurrentPage(validPage)
                             .setPageSize(validLimit)
                             .setTotalItems(0)
                             .setTotalPages(0)
                             .setHasNext(false)
                             .setHasPrevious(false)
-                            .build()
+                            .build();
+                    log.info("No orders found for user {}", userId);
+                    return Mono.just(new BidderOrdersResult(
+                        java.util.Collections.emptyList(),
+                            pageInfo
                     ));
                 }
                 
@@ -1404,12 +1405,12 @@ public class BidderService {
                             .map(order -> OrderItem.newBuilder()
                                 .setId(order.getId())
                                 .setProductId(order.getProductId())
-                                .setProductTitle(order.getProductTitle() != null ? order.getProductTitle() : "")
-                                .setProductImage(order.getProductImage() != null ? order.getProductImage() : "")
-                                .setAmount(order.getAmount())
+                                .setProductTitle("")
+                                .setProductImage("")
+                                .setAmount(order.getAmount().doubleValue())
                                 .setStatus(order.getStatus())
                                 .setSellerId(order.getSellerId())
-                                .setSellerName(order.getSellerName() != null ? order.getSellerName() : "")
+                                .setSellerName("")
                                 .setCreatedAt(order.getCreatedAt().toEpochSecond(ZoneOffset.ofHours(7)))
                                 .setUpdatedAt(order.getUpdatedAt().toEpochSecond(ZoneOffset.ofHours(7)))
                                 .build())
@@ -1454,17 +1455,18 @@ public class BidderService {
             .collectList()
             .flatMap(bannedProducts -> {
                 if (bannedProducts.isEmpty()) {
-                    log.info("No banned products found for user {}", userId);
-                    return Mono.just(new BannedProductsResult(
-                        java.util.Collections.emptyList(),
-                        new PageInfo.Builder()
+                    PageInfo pageInfo = PageInfo.newBuilder()
                             .setCurrentPage(validPage)
                             .setPageSize(validLimit)
                             .setTotalItems(0)
                             .setTotalPages(0)
                             .setHasNext(false)
                             .setHasPrevious(false)
-                            .build()
+                            .build();
+                    log.info("No banned products found for user {}", userId);
+                    return Mono.just(new BannedProductsResult(
+                        java.util.Collections.emptyList(),
+                        pageInfo
                     ));
                 }
                 
@@ -1481,11 +1483,11 @@ public class BidderService {
                                 .setProductImage(banned.productImage() != null ? banned.productImage() : "")
                                 .setSellerName(banned.sellerName() != null ? banned.sellerName() : "")
                                 .setReason(banned.reason() != null ? banned.reason() : "")
-                                .setBannedAt(banned.bannedAt())
-                                .setBannedUntil(banned.bannedUntil() != null ? banned.bannedUntil() : 0)
+                                .setBannedAt(banned.bannedAt().toEpochSecond(ZoneOffset.ofHours(7)))
+                                .setBannedUntil(banned.bannedUntil() != null ? banned.bannedUntil().toEpochSecond(ZoneOffset.ofHours(7)) : 0)
                                 .build())
                             .collect(java.util.stream.Collectors.toList());
-                        
+
                         int totalPages = (int) Math.ceil((double) totalCount / validLimit);
                         
                         PageInfo pageInfo = PageInfo.newBuilder()
@@ -1507,12 +1509,12 @@ public class BidderService {
     }
 
     // Helper records for new endpoints
-    public static record BidderOrdersResult(
+    public record BidderOrdersResult(
         List<OrderItem> orders,
         PageInfo pageInfo
     ) {}
     
-    public static record BannedProductsResult(
+    public record BannedProductsResult(
         List<BannedProduct> bannedProducts,
         PageInfo pageInfo
     ) {}

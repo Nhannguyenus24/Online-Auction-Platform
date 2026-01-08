@@ -4,7 +4,6 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
-import com.auction.entities.database.Category;
 import com.auction.entities.record.ImageRowRecord;
 import com.auction.entities.record.ProductListByNameRecord;
 import com.auction.entities.record.ProductListRecord;
@@ -167,7 +166,7 @@ public class GuestService {
     }
 
     // Helper methods for mapping
-    private Category mapEntityToCategory(Category entity) {
+    private Category mapEntityToCategory(com.auction.entities.database.Category entity) {
         return Category.newBuilder()
             .setId(entity.getId())
             .setName(entity.getName())

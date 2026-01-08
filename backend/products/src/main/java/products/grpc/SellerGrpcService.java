@@ -9,7 +9,36 @@ import org.slf4j.LoggerFactory;
 import org.springframework.grpc.server.service.GrpcService;
 
 import com.auction.utils.JsonUtils;
-import com.auctionplatform.seller.grpc.*;
+import com.auctionplatform.seller.grpc.AnswerQuestionRequest;
+import com.auctionplatform.seller.grpc.AnswerQuestionResponse;
+import com.auctionplatform.seller.grpc.AppendProductDescriptionRequest;
+import com.auctionplatform.seller.grpc.AppendProductDescriptionResponse;
+import com.auctionplatform.seller.grpc.ConfirmPaymentReceiptRequest;
+import com.auctionplatform.seller.grpc.ConfirmPaymentReceiptResponse;
+import com.auctionplatform.seller.grpc.CreateAuctionListingRequest;
+import com.auctionplatform.seller.grpc.CreateAuctionListingResponse;
+import com.auctionplatform.seller.grpc.GetActiveListingsRequest;
+import com.auctionplatform.seller.grpc.GetListingsRequest;
+import com.auctionplatform.seller.grpc.GetOrdersRequest;
+import com.auctionplatform.seller.grpc.GetProductDetailsRequest;
+import com.auctionplatform.seller.grpc.GetSellerProfileRequest;
+import com.auctionplatform.seller.grpc.GetSellerRatingsRequest;
+import com.auctionplatform.seller.grpc.GetTransactionHistoryRequest;
+import com.auctionplatform.seller.grpc.GetWinnerItemsRequest;
+import com.auctionplatform.seller.grpc.ListingsResponse;
+import com.auctionplatform.seller.grpc.OrderDetail;
+import com.auctionplatform.seller.grpc.OrdersResponse;
+import com.auctionplatform.seller.grpc.ProductDetailsResponse;
+import com.auctionplatform.seller.grpc.ProductListResponse;
+import com.auctionplatform.seller.grpc.RateBidderRequest;
+import com.auctionplatform.seller.grpc.RateBidderResponse;
+import com.auctionplatform.seller.grpc.RatingsResponse;
+import com.auctionplatform.seller.grpc.ReactorSellerServiceGrpc;
+import com.auctionplatform.seller.grpc.RejectBidderRequest;
+import com.auctionplatform.seller.grpc.RejectBidderResponse;
+import com.auctionplatform.seller.grpc.SellerProfileResponse;
+import com.auctionplatform.seller.grpc.Transaction;
+import com.auctionplatform.seller.grpc.TransactionHistoryResponse;
 
 import products.service.SellerService;
 import products.service.SellerService.CreateListingRequest;
@@ -100,7 +129,9 @@ public class SellerGrpcService extends ReactorSellerServiceGrpc.SellerServiceImp
                     req.getPageSize()
                 )
                 .map(result -> TransactionHistoryResponse.newBuilder()
-                    .addAllTransactions(result.orders())
+                    .addAllTransactions(result.orders().stream()
+                        .map(this::mapOrderToTransaction)
+                        .toList())
                     .setTotalCount(result.totalCount())
                     .setPage(result.page())
                     .setPageSize(result.pageSize())
@@ -385,6 +416,19 @@ public class SellerGrpcService extends ReactorSellerServiceGrpc.SellerServiceImp
     // ============================================================================
     // HELPER METHODS
     // ============================================================================
+
+    private Transaction mapOrderToTransaction(OrderDetail order) {
+        return Transaction.newBuilder()
+            .setOrderId(order.getId())
+            .setProductId(order.getProductId())
+            .setProductTitle(order.getProductTitle())
+            .setBuyerId(order.getBuyerId())
+            .setBuyerName(order.getBuyerName())
+            .setAmount(order.getAmount())
+            .setStatus(order.getStatus())
+            .setCreatedAt(order.getCreatedAt())
+            .build();
+    }
 
     private LocalDateTime parseTimestamp(String timestampStr) {
         try {
