@@ -19,7 +19,6 @@ const isValidToken = async (accessToken) => {
     return payload.exp > currentTime;
 
   } catch (error) {
-    console.error('Token expired or invalid:', error);
     return false;
   }
 };
@@ -27,7 +26,6 @@ const isValidToken = async (accessToken) => {
 const getPayload = async (accessToken) => {
   try {
     if (!PUBLIC_KEY_PEM) {
-      console.warn('VITE_PUBLIC_KEY is not set, cannot verify token');
       return null;
     }
     const publicKey = await importSPKI(PUBLIC_KEY_PEM, 'RS256');

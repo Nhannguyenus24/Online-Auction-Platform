@@ -61,7 +61,6 @@ export const watchlistApi = {
       }
     }).catch((error) => {
       console.error('Add to watchlist API Error:', error);
-      console.error('Error response:', error.response?.data);
       throw error;
     });
   },

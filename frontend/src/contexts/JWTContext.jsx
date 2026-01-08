@@ -67,8 +67,6 @@ export function AuthProvider({ children }) {
                 };
                 authResult = true;
               } else {
-                // Token is invalid, try to refresh
-                console.warn('Auth init - token invalid, trying to refresh...');
                 try {
                   const refreshResponse = await authApi.refreshToken();
                   if (refreshResponse.accessToken) {
@@ -90,11 +88,9 @@ export function AuthProvider({ children }) {
                       authResult = true;
                     }
                   } else {
-                    console.warn('Auth init - refresh failed, clearing');
                     setSession(null);
                   }
                 } catch (refreshError) {
-                  console.warn('Auth init - refresh token failed, clearing session:', refreshError);
                   setSession(null);
                   authResult = false;
                   userData = null;
@@ -103,7 +99,6 @@ export function AuthProvider({ children }) {
             }
           } catch (profileError) {
             // If profile API fails (401/403), try to refresh token
-            console.warn('Auth init - profile API failed, trying refresh:', profileError);
             
             // Check if it's an auth error (401/403)
             const isAuthError = profileError.response?.status === 401 || profileError.response?.status === 403;
@@ -130,7 +125,6 @@ export function AuthProvider({ children }) {
                     authResult = true;
                   }
                 } else {
-                  console.error('Auth init - refresh failed, clearing session');
                   setSession(null);
                 }
               } catch (refreshError) {
@@ -237,13 +231,9 @@ export function AuthProvider({ children }) {
             setUser(finalUserData);
             setIsAuthenticated(true);
           } else {
-            console.warn('Login: token exists but cannot get user info, response:', response);
-            // Still set authenticated if we have token, user info will be fetched later
             setIsAuthenticated(true);
           }
         } catch (profileError) {
-          console.warn('Login: failed to get profile, but token exists:', profileError);
-          // If we have a token, assume authenticated even if we can't get user info
           setIsAuthenticated(true);
         }
       }

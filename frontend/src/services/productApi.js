@@ -1,29 +1,4 @@
-/**
- * Product API utilities
- * 
- * This file exports productApi object containing all product-related API calls.
- * Used by: HomePage, CategoryPage, ProductDetailPage
- */
-
 import axiosInstance from '../utils/axios';
-
-/**
- * Product API response structure from backend:
- * {
- *   success: boolean,
- *   message: string,
- *   products: [
- *     {
- *       id, title, currentPrice, startingPrice, stepPrice, buyNowPrice,
- *       images: [{ id, productId, url, isPrimary, createdAt }],
- *       sellerName, sellerRatingPercent,
- *       bidsCount, viewsCount,
- *       endsAt, status, timeRemaining,
- *       highestBidderMasked
- *     }
- *   ]
- * }
- */
 
 export const productApi = {
   /**

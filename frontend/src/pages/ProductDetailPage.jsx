@@ -204,7 +204,6 @@ function ProductDetailPage() {
         } catch (err) {
           // Handle 403 gracefully (endpoint may not be implemented or require auth)
           if (err.response?.status === 403) {
-            console.warn("Top bidders endpoint returned 403, treating as empty");
             setBidHistory([]);
           } else {
             console.error("Error fetching top bidders:", err);

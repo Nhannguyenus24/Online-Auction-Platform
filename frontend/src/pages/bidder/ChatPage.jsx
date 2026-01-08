@@ -87,13 +87,10 @@ const BidderChatPage = () => {
   // Handle incoming messages for conversation list updates
   const handleConversationMessage = useCallback(
     (payload) => {
-      console.log('handleConversationMessage received:', payload);
-      console.log('orderId from URL:', orderId);
       const isCurrentConversation = orderId === payload.orderId;
       const isBidder = payload.senderRole?.toLowerCase() === 'bidder';
       const isFromOtherParty = !isBidder; // Bidder receives messages from seller
       
-      console.log('isFromOtherParty:', isFromOtherParty, 'isCurrentConversation:', isCurrentConversation);
       
       // If we're viewing this conversation and message is from other party,
       // backend will increment unread count, but we should keep it at 0
@@ -102,25 +99,21 @@ const BidderChatPage = () => {
       if (isFromOtherParty && !isCurrentConversation) {
         // Message from other party and we're NOT viewing it -> refresh from DB to get accurate unread count
         // Add small delay to ensure backend has committed the transaction
-        console.log('Refreshing conversations from DB for bidder...');
         const userId = user?.id?.toString();
         if (!userId) return; // Don't refresh if user is not loaded
         
         setTimeout(() => {
           getConversations('BIDDER', userId)
             .then((data) => {
-              console.log('Refreshed conversations:', data);
               const updatedConversations = (data || []).map(mapConversationToUI);
               setConversations(updatedConversations);
               
               // Check if the conversation has unread count, if not, retry once after another delay
               const targetConv = updatedConversations.find(c => c.orderId === payload.orderId);
               if (targetConv && targetConv.unreadCount === 0) {
-                console.log('Unread count is 0, retrying refresh after delay...');
                 setTimeout(() => {
                   getConversations('BIDDER', userId)
                     .then((retryData) => {
-                      console.log('Retry refreshed conversations:', retryData);
                       setConversations((retryData || []).map(mapConversationToUI));
                     })
                     .catch((err) => {
@@ -153,8 +146,6 @@ const BidderChatPage = () => {
             });
         }, 100); // 100ms delay to ensure backend transaction is committed
       } else {
-        // Message from current user or we're viewing this conversation -> just update last message
-        console.log('Updating last message only (message from current user or viewing conversation)');
         setConversations((prev) => {
           const updated = prev.map((conv) => {
             if (conv.orderId === payload.orderId) {

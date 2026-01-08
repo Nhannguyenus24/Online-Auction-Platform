@@ -27,12 +27,6 @@ const CategorySelector = ({ parentCategory, childCategory, onChange, error, help
         const categoriesData = response.data || [];
         setCategories(categoriesData);
       } catch (err) {
-        console.error('Error fetching categories:', err);
-        console.error('Error details:', {
-          message: err.message,
-          response: err.response?.data,
-          status: err.response?.status,
-        });
         setErrorMessage(err.response?.data?.message || err.message || 'Failed to load categories. Please try again later.');
         setCategories([]);
       } finally {

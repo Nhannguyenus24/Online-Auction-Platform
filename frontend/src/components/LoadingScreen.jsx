@@ -1,4 +1,4 @@
-import { Box, Typography } from '@mui/material';
+import { Box, Skeleton } from '@mui/material';
 import { motion } from 'framer-motion';
 
 const LoadingScreen = ({ fullScreen = true }) => {
@@ -12,6 +12,18 @@ const LoadingScreen = ({ fullScreen = true }) => {
     exit: { 
       opacity: 0,
       transition: { duration: 0.2 }
+    }
+  };
+
+  // Jumping dots animation
+  const dotVariants = {
+    jump: {
+      y: [0, -20, 0],
+      transition: {
+        duration: 0.6,
+        repeat: Infinity,
+        ease: 'easeInOut',
+      }
     }
   };
 
@@ -33,51 +45,46 @@ const LoadingScreen = ({ fullScreen = true }) => {
       <Box
         sx={{
           display: 'flex',
-          flexDirection: 'row',
+          flexDirection: 'column',
           justifyContent: 'center',
           alignItems: 'center',
           minHeight: '100%',
           width: '100%',
           backgroundColor: 'background.default',
           backdropFilter: 'blur(10px)',
-          gap: 0.5,
+          gap: 3,
+          padding: 2,
         }}
       >
-        {/* Please wait text */}
-        <Typography
-          variant="h6"
-          sx={{
-            color: 'text.primary',
-            fontWeight: 500,
-          }}
-        >
-          Please wait
-        </Typography>
+        {/* Skeleton loading cards */}
+        <Box sx={{ width: '100%', maxWidth: 600, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {[1, 2, 3].map((item) => (
+            <Box key={item} sx={{ width: '100%' }}>
+              <Skeleton variant="rectangular" height={100} sx={{ borderRadius: 1, mb: 1 }} />
+              <Skeleton variant="text" width="80%" height={24} sx={{ borderRadius: 0.5 }} />
+            </Box>
+          ))}
+        </Box>
 
-        {/* Animated dots */}
-        <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'flex-end', height: '32px', pb: 0.5 }}>
+        {/* Jumping dots animation */}
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end', justifyContent: 'center' }}>
           {[0, 1, 2].map((index) => (
             <motion.div
               key={index}
-              animate={{
-                opacity: [0.3, 1, 0.3],
-              }}
+              variants={dotVariants}
+              animate="jump"
               transition={{
-                duration: 1.2,
-                repeat: Infinity,
-                delay: index * 0.3,
+                delay: index * 0.1,
               }}
             >
-              <Typography
-                variant="h6"
+              <Box
                 sx={{
-                  color: 'text.primary',
-                  fontWeight: 500,
-                  lineHeight: 1,
+                  width: 12,
+                  height: 12,
+                  borderRadius: '50%',
+                  backgroundColor: 'primary.main',
                 }}
-              >
-                .
-              </Typography>
+              />
             </motion.div>
           ))}
         </Box>

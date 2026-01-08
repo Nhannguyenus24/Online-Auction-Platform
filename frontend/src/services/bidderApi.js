@@ -36,7 +36,6 @@ export const bidderApi = {
       })
       .then((response) => {
         if (response.data.success) {
-          console.log('Bidding history response data:', response.data);
           return {
             success: true,
             message: response.data.message || 'Bidding history retrieved successfully',

@@ -36,15 +36,9 @@ import {
   Assignment,
   History,
   Security,
-  Edit,
-  Delete,
-  Add,
-  Visibility,
 } from '@mui/icons-material';
 import { BarChart } from '@mui/x-charts/BarChart';
 import { LineChart } from '@mui/x-charts/LineChart';
-import { PieChart } from '@mui/x-charts/PieChart';
-import { SparkLineChart } from '@mui/x-charts/SparkLineChart';
 
 import StatCard from '../../components/StatCard';
 import { normalizeTimestamp } from '../../utils/formatTime';

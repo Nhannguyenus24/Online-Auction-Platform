@@ -36,15 +36,12 @@ const useConversationsSocket = ({ orderIds, onMessage }) => {
       reconnectDelay: 4000,
       onConnect: () => {
         setConnected(true);
-        console.log('useConversationsSocket: Connected, subscribing to topics');
         // Subscribe to all conversations
         subscriptionsRef.current = orderIds.map((orderId) => {
           const topic = `/topic/chat.${orderId}`;
-          console.log('useConversationsSocket: Subscribing to', topic);
           return client.subscribe(topic, (frame) => {
             try {
               const payload = JSON.parse(frame.body);
-              console.log('useConversationsSocket: Received message on', topic, payload);
               if (payload?.orderId && onMessage) {
                 onMessage(payload);
               }
