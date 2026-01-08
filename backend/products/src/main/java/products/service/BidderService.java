@@ -1367,4 +1367,158 @@ public class BidderService {
         String status, 
         long createdAt
     ) {}
+
+    /**
+     * Get bidder's orders
+     * Flow:
+     * 1. Query orders from database where buyer_id = userId
+     * 2. Apply pagination
+     * 3. Filter by order status if provided
+     * 4. Return list of orders with product info
+     */
+    public Mono<BidderOrdersResult> getBidderListOrder(int userId, int page, int limit, String status) {
+        log.info("Getting orders for user {} with status={}, page={}, limit={}", userId, status, page, limit);
+        
+        // Validate pagination
+        int validPage = Math.max(1, page);
+        int validLimit = Math.min(Math.max(1, limit), 100); // Max 100
+        int offset = (validPage - 1) * validLimit;
+        
+        return orderRepository.findOrdersByBuyerId(userId, status, validLimit, offset)
+            .collectList()
+            .flatMap(orders -> {
+                if (orders.isEmpty()) {
+                    log.info("No orders found for user {}", userId);
+                    return Mono.just(new BidderOrdersResult(
+                        java.util.Collections.emptyList(),
+                        new com.auction.proto.user.PageInfo.Builder()
+                            .setCurrentPage(validPage)
+                            .setPageSize(validLimit)
+                            .setTotalItems(0)
+                            .setTotalPages(0)
+                            .setHasNext(false)
+                            .setHasPrevious(false)
+                            .build()
+                    ));
+                }
+                
+                // Get total count for pagination
+                return orderRepository.countOrdersByBuyerId(userId, status)
+                    .map(totalCount -> {
+                        List<com.auction.proto.user.OrderItem> orderItems = orders.stream()
+                            .map(order -> com.auction.proto.user.OrderItem.newBuilder()
+                                .setId(order.getId())
+                                .setProductId(order.getProductId())
+                                .setProductTitle(order.getProductTitle() != null ? order.getProductTitle() : "")
+                                .setProductImage(order.getProductImage() != null ? order.getProductImage() : "")
+                                .setAmount(order.getAmount())
+                                .setStatus(order.getStatus())
+                                .setSellerId(order.getSellerId())
+                                .setSellerName(order.getSellerName() != null ? order.getSellerName() : "")
+                                .setCreatedAt(order.getCreatedAt().toEpochSecond(ZoneOffset.ofHours(7)))
+                                .setUpdatedAt(order.getUpdatedAt().toEpochSecond(ZoneOffset.ofHours(7)))
+                                .build())
+                            .collect(java.util.stream.Collectors.toList());
+                        
+                        int totalPages = (int) Math.ceil((double) totalCount / validLimit);
+                        
+                        PageInfo pageInfo = PageInfo.newBuilder()
+                            .setCurrentPage(validPage)
+                            .setPageSize(validLimit)
+                            .setTotalItems(totalCount)
+                            .setTotalPages(totalPages)
+                            .setHasNext(validPage < totalPages)
+                            .setHasPrevious(validPage > 1)
+                            .build();
+                        
+                        log.info("Retrieved {} orders for user {} (total: {})", 
+                            orders.size(), userId, totalCount);
+                        
+                        return new BidderOrdersResult(orderItems, pageInfo);
+                    });
+            })
+            .doOnError(e -> log.error("Error getting orders for user {}: {}", userId, e.getMessage(), e));
+    }
+
+    /**
+     * Get banned products for a bidder
+     * Flow:
+     * 1. Query banned products from database where bidder_id = userId
+     * 2. Apply pagination
+     * 3. Return list of banned products with product info
+     */
+    public Mono<BannedProductsResult> getBannedProducts(int userId, int page, int limit) {
+        log.info("Getting banned products for user {} with page={}, limit={}", userId, page, limit);
+        
+        // Validate pagination
+        int validPage = Math.max(1, page);
+        int validLimit = Math.min(Math.max(1, limit), 100); // Max 100
+        int offset = (validPage - 1) * validLimit;
+        
+        return productRepository.getBannedProductsByUserId(userId, validLimit, offset)
+            .collectList()
+            .flatMap(bannedProducts -> {
+                if (bannedProducts.isEmpty()) {
+                    log.info("No banned products found for user {}", userId);
+                    return Mono.just(new BannedProductsResult(
+                        java.util.Collections.emptyList(),
+                        new com.auction.proto.user.PageInfo.Builder()
+                            .setCurrentPage(validPage)
+                            .setPageSize(validLimit)
+                            .setTotalItems(0)
+                            .setTotalPages(0)
+                            .setHasNext(false)
+                            .setHasPrevious(false)
+                            .build()
+                    ));
+                }
+                
+                // Get total count for pagination
+                return productRepository.countBannedProductsByUserId(userId)
+                    .map(totalCount -> {
+                        List<com.auction.proto.user.BannedProduct> bannedProductItems = bannedProducts.stream()
+                            .map(banned -> com.auction.proto.user.BannedProduct.newBuilder()
+                                .setId(banned.id())
+                                .setProductId(banned.productId())
+                                .setBidderId(banned.bidderId())
+                                .setSellerId(banned.sellerId())
+                                .setProductTitle(banned.productTitle() != null ? banned.productTitle() : "")
+                                .setProductImage(banned.productImage() != null ? banned.productImage() : "")
+                                .setSellerName(banned.sellerName() != null ? banned.sellerName() : "")
+                                .setReason(banned.reason() != null ? banned.reason() : "")
+                                .setBannedAt(banned.bannedAt())
+                                .setBannedUntil(banned.bannedUntil() != null ? banned.bannedUntil() : 0)
+                                .build())
+                            .collect(java.util.stream.Collectors.toList());
+                        
+                        int totalPages = (int) Math.ceil((double) totalCount / validLimit);
+                        
+                        PageInfo pageInfo = PageInfo.newBuilder()
+                            .setCurrentPage(validPage)
+                            .setPageSize(validLimit)
+                            .setTotalItems(totalCount)
+                            .setTotalPages(totalPages)
+                            .setHasNext(validPage < totalPages)
+                            .setHasPrevious(validPage > 1)
+                            .build();
+                        
+                        log.info("Retrieved {} banned products for user {} (total: {})", 
+                            bannedProducts.size(), userId, totalCount);
+                        
+                        return new BannedProductsResult(bannedProductItems, pageInfo);
+                    });
+            })
+            .doOnError(e -> log.error("Error getting banned products for user {}: {}", userId, e.getMessage(), e));
+    }
+
+    // Helper records for new endpoints
+    public static record BidderOrdersResult(
+        java.util.List<com.auction.proto.user.OrderItem> orders,
+        PageInfo pageInfo
+    ) {}
+    
+    public static record BannedProductsResult(
+        java.util.List<com.auction.proto.user.BannedProduct> bannedProducts,
+        PageInfo pageInfo
+    ) {}
 }

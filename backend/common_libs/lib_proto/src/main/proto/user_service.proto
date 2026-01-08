@@ -43,8 +43,10 @@ service UserService {
 
   // 12 get user notifications
   rpc GetUserNotifications(GetUserNotificationsRequest) returns (GetUserNotificationsResponse);
+
   // 13 mark notification as read
   rpc MarkNotificationAsRead(MarkNotificationAsReadRequest) returns (MarkNotificationAsReadResponse);
+
   // 14 get bidder ratings
   rpc GetBidderRatings(GetBidderRatingsRequest) returns (GetBidderRatingsResponse);
   
@@ -59,6 +61,12 @@ service UserService {
   
   //18. Get role upgrade request status
   rpc GetRoleUpgradeRequestStatus(GetRoleUpgradeRequestStatusRequest) returns (GetRoleUpgradeRequestStatusResponse);
+
+  //19 Get bidder list order
+  rpc GetBidderListOrder(GetBidderListOrderRequest) returns (GetBidderListOrderResponse);
+
+  //20 Get product list be banned by bidder
+  rpc GetBannedProducts(GetBannedProductsRequest) returns (GetBannedProductsResponse);
 }
 
 // ==================== Product Messages ====================
@@ -436,4 +444,60 @@ message GetRoleUpgradeRequestStatusResponse {
   bool has_request = 3; // true if user has a request
   string status = 4; // "pending", "approved", "rejected", "not_found"
   int64 created_at = 5; // timestamp when request was created
+}
+// ==================== 19. Get Bidder List Order ====================
+
+message OrderItem {
+  int32 id = 1;
+  int32 product_id = 2;
+  string product_title = 3;
+  string product_image = 4; // Primary image URL
+  double amount = 5;
+  string status = 6; // "pending", "completed", "cancelled"
+  int32 seller_id = 7;
+  string seller_name = 8;
+  int64 created_at = 9;
+  int64 updated_at = 10;
+}
+
+message GetBidderListOrderRequest {
+  int32 user_id = 1; // Authenticated user ID (from JWT)
+  int32 page = 2; // Default: 1
+  int32 limit = 3; // Default: 20, Max: 100
+  string status = 4; // Filter by order status: all, pending, completed, cancelled
+}
+
+message GetBidderListOrderResponse {
+  repeated OrderItem orders = 1;
+  PageInfo page_info = 2;
+  bool success = 3;
+  string message = 4;
+}
+
+// ==================== 20. Get Banned Products ====================
+
+message BannedProduct {
+  int32 id = 1;
+  int32 product_id = 2;
+  int32 bidder_id = 3;
+  int32 seller_id = 4;
+  string product_title = 5;
+  string product_image = 6; // Primary image URL
+  string seller_name = 7;
+  string reason = 8; // Reason for banning (e.g., "non-payment", "fraud", etc.)
+  int64 banned_at = 9;
+  int64 banned_until = 10; // If null, banned permanently
+}
+
+message GetBannedProductsRequest {
+  int32 user_id = 1; // Authenticated user ID (from JWT)
+  int32 page = 2; // Default: 1
+  int32 limit = 3; // Default: 20, Max: 100
+}
+
+message GetBannedProductsResponse {
+  repeated BannedProduct banned_products = 1;
+  PageInfo page_info = 2;
+  bool success = 3;
+  string message = 4;
 }

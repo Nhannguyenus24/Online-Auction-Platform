@@ -186,4 +186,16 @@ public class BidderGrpcClient {
         log.info("gRPC getRoleUpgradeRequestStatus request: {}", JsonUtils.toJson(request));
         return userServiceStub.getRoleUpgradeRequestStatus(Mono.just(request));
     }
+    
+    // Get Bidder List Order
+    public Mono<com.auction.proto.user.GetBidderListOrderResponse> getBidderListOrder(com.auction.proto.user.GetBidderListOrderRequest request) {
+        log.info("gRPC getBidderListOrder request: {}", JsonUtils.toJson(request));
+        return userServiceStub.getBidderListOrder(Mono.just(request));
+    }
+    
+    // Get Banned Products
+    public Mono<com.auction.proto.user.GetBannedProductsResponse> getBannedProducts(com.auction.proto.user.GetBannedProductsRequest request) {
+        log.info("gRPC getBannedProducts request: {}", JsonUtils.toJson(request));
+        return userServiceStub.getBannedProducts(Mono.just(request));
+    }
 }

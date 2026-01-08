@@ -935,4 +935,135 @@ public class BidderController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }
+
+    @GetMapping("/orders")
+    @Operation(summary = "Get bidder orders", description = "Get list of orders for the authenticated bidder. Requires authentication.")
+    public ResponseEntity<Map<String, Object>> getBidderListOrder(
+            @Parameter(description = "Page number (1-based)")
+            @RequestParam(defaultValue = "1") int page,
+            @Parameter(description = "Number of items per page (max 100)")
+            @RequestParam(defaultValue = "20") int limit,
+            @Parameter(description = "Order status filter (all, pending, completed, cancelled)")
+            @RequestParam(defaultValue = "all") String status) {
+        try {
+            int userId = getUserId();
+            log.info("Getting orders for user {} with status={}, page={}, limit={}", userId, status, page, limit);
+            
+            var request = com.auction.proto.user.GetBidderListOrderRequest.newBuilder()
+                .setUserId(userId)
+                .setPage(page)
+                .setLimit(limit)
+                .setStatus(status)
+                .build();
+            
+            var response = bidderGrpcClient.getBidderListOrder(request)
+                .block(Duration.ofSeconds(10));
+            
+            if (response != null && response.getSuccess()) {
+                Map<String, Object> result = new HashMap<>();
+                result.put("success", true);
+                result.put("message", response.getMessage());
+                
+                List<Map<String, Object>> orders = new ArrayList<>();
+                for (com.auction.proto.user.OrderItem order : response.getOrdersList()) {
+                    Map<String, Object> orderMap = new HashMap<>();
+                    orderMap.put("id", order.getId());
+                    orderMap.put("productId", order.getProductId());
+                    orderMap.put("productTitle", order.getProductTitle());
+                    orderMap.put("productImage", order.getProductImage());
+                    orderMap.put("amount", order.getAmount());
+                    orderMap.put("status", order.getStatus());
+                    orderMap.put("sellerId", order.getSellerId());
+                    orderMap.put("sellerName", order.getSellerName());
+                    orderMap.put("createdAt", order.getCreatedAt());
+                    orderMap.put("updatedAt", order.getUpdatedAt());
+                    orders.add(orderMap);
+                }
+                
+                result.put("orders", orders);
+                result.put("pageInfo", mapPageInfo(response.getPageInfo()));
+                
+                log.info("Successfully retrieved {} orders for user {}", orders.size(), userId);
+                return ResponseEntity.ok(result);
+            } else {
+                Map<String, Object> error = new HashMap<>();
+                error.put("success", false);
+                error.put("message", response != null ? response.getMessage() : "Failed to get orders");
+                
+                log.warn("Failed to get orders for user {}: {}", userId, 
+                    response != null ? response.getMessage() : "Unknown error");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
+        } catch (Exception e) {
+            log.error("Error getting bidder orders: {}", e.getMessage(), e);
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Error: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    @GetMapping("/banned-products")
+    @Operation(summary = "Get banned products", description = "Get list of products that the bidder is banned from. Requires authentication.")
+    public ResponseEntity<Map<String, Object>> getBannedProducts(
+            @Parameter(description = "Page number (1-based)")
+            @RequestParam(defaultValue = "1") int page,
+            @Parameter(description = "Number of items per page (max 100)")
+            @RequestParam(defaultValue = "20") int limit) {
+        try {
+            int userId = getUserId();
+            log.info("Getting banned products for user {} with page={}, limit={}", userId, page, limit);
+            
+            var request = com.auction.proto.user.GetBannedProductsRequest.newBuilder()
+                .setUserId(userId)
+                .setPage(page)
+                .setLimit(limit)
+                .build();
+            
+            var response = bidderGrpcClient.getBannedProducts(request)
+                .block(Duration.ofSeconds(10));
+            
+            if (response != null && response.getSuccess()) {
+                Map<String, Object> result = new HashMap<>();
+                result.put("success", true);
+                result.put("message", response.getMessage());
+                
+                List<Map<String, Object>> bannedProducts = new ArrayList<>();
+                for (com.auction.proto.user.BannedProduct banned : response.getBannedProductsList()) {
+                    Map<String, Object> bannedMap = new HashMap<>();
+                    bannedMap.put("id", banned.getId());
+                    bannedMap.put("productId", banned.getProductId());
+                    bannedMap.put("bidderId", banned.getBidderId());
+                    bannedMap.put("sellerId", banned.getSellerId());
+                    bannedMap.put("productTitle", banned.getProductTitle());
+                    bannedMap.put("productImage", banned.getProductImage());
+                    bannedMap.put("sellerName", banned.getSellerName());
+                    bannedMap.put("reason", banned.getReason());
+                    bannedMap.put("bannedAt", banned.getBannedAt());
+                    bannedMap.put("bannedUntil", banned.getBannedUntil());
+                    bannedProducts.add(bannedMap);
+                }
+                
+                result.put("bannedProducts", bannedProducts);
+                result.put("pageInfo", mapPageInfo(response.getPageInfo()));
+                
+                log.info("Successfully retrieved {} banned products for user {}", bannedProducts.size(), userId);
+                return ResponseEntity.ok(result);
+            } else {
+                Map<String, Object> error = new HashMap<>();
+                error.put("success", false);
+                error.put("message", response != null ? response.getMessage() : "Failed to get banned products");
+                
+                log.warn("Failed to get banned products for user {}: {}", userId, 
+                    response != null ? response.getMessage() : "Unknown error");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
+        } catch (Exception e) {
+            log.error("Error getting banned products: {}", e.getMessage(), e);
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Error: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
 }

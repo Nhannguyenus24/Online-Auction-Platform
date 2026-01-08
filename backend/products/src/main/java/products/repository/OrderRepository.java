@@ -47,6 +47,33 @@ public interface OrderRepository extends R2dbcRepository<Order, Integer> {
     );
     
     /**
+     * Find orders by buyer ID with pagination and status filter
+     * @param buyerId the buyer ID
+     * @param statusFilter the status filter (pending, completed, cancelled, all)
+     * @param limit the page size
+     * @param offset the offset
+     * @return list of orders
+     */
+    @Query("""
+        SELECT o.*, p.title as product_title, p.id as product_id, 
+               pi.url as product_image, u.full_name as seller_name
+        FROM orders o
+        JOIN products p ON o.product_id = p.id
+        LEFT JOIN product_images pi ON p.id = pi.product_id AND pi.is_primary = true
+        JOIN users u ON o.seller_id = u.id
+        WHERE o.buyer_id = :buyerId
+          AND (:statusFilter = 'all' OR o.status = :statusFilter)
+        ORDER BY o.created_at DESC
+        LIMIT :limit OFFSET :offset
+        """)
+    Flux<Order> findOrdersByBuyerId(
+        @Param("buyerId") Integer buyerId,
+        @Param("statusFilter") String statusFilter,
+        @Param("limit") int limit,
+        @Param("offset") int offset
+    );
+    
+    /**
      * Count orders by seller ID with status filter
      * @param sellerId the seller ID
      * @param statusFilter the status filter (pending, completed, cancelled, all)
@@ -59,6 +86,22 @@ public interface OrderRepository extends R2dbcRepository<Order, Integer> {
         """)
     Mono<Integer> countOrdersBySellerId(
         @Param("sellerId") Integer sellerId,
+        @Param("statusFilter") String statusFilter
+    );
+    
+    /**
+     * Count orders by buyer ID with status filter
+     * @param buyerId the buyer ID
+     * @param statusFilter the status filter (pending, completed, cancelled, all)
+     * @return the count
+     */
+    @Query("""
+        SELECT COUNT(*) FROM orders
+        WHERE buyer_id = :buyerId
+          AND (:statusFilter = 'all' OR status = :statusFilter)
+        """)
+    Mono<Integer> countOrdersByBuyerId(
+        @Param("buyerId") Integer buyerId,
         @Param("statusFilter") String statusFilter
     );
     

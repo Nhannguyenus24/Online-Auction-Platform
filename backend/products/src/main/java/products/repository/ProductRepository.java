@@ -409,4 +409,39 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
         WHERE user_id = :userId
         """)
     Mono<com.auction.entities.record.UpgradeRequestRecord> getRoleUpgradeRequest(@Param("userId") Integer userId);
+    
+    /**
+     * Get banned products for a bidder with pagination
+     * @param biderId the bidder ID
+     * @param limit the page size
+     * @param offset the offset
+     * @return flux of banned products
+     */
+    @Query("""
+        SELECT id, product_id, bidder_id, seller_id, 
+               (SELECT title FROM products WHERE id = product_id) as product_title,
+               (SELECT url FROM product_images WHERE product_id = product_id AND is_primary = true LIMIT 1) as product_image,
+               (SELECT full_name FROM users WHERE id = seller_id) as seller_name,
+               reason, banned_at, banned_until
+        FROM banned_products
+        WHERE bidder_id = :biderId
+        ORDER BY banned_at DESC
+        LIMIT :limit OFFSET :offset
+        """)
+    Flux<com.auction.entities.record.BannedProductRecord> getBannedProductsByUserId(
+        @Param("biderId") Integer biderId,
+        @Param("limit") int limit,
+        @Param("offset") int offset
+    );
+    
+    /**
+     * Count banned products for a bidder
+     * @param biderId the bidder ID
+     * @return count of banned products
+     */
+    @Query("""
+        SELECT COUNT(*) FROM banned_products
+        WHERE bidder_id = :biderId
+        """)
+    Mono<Integer> countBannedProductsByUserId(@Param("biderId") Integer biderId);
 }

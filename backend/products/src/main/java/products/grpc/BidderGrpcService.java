@@ -484,5 +484,49 @@ public class BidderGrpcService extends ReactorUserServiceGrpc.UserServiceImplBas
                         })
                 );
     }
+    
+    @Override
+    public Mono<com.auction.proto.user.GetBidderListOrderResponse> getBidderListOrder(Mono<com.auction.proto.user.GetBidderListOrderRequest> request) {
+        return request.doOnNext(req -> log.info("Raw get bidder list order request: {}", JsonUtils.toJson(req)))
+                .flatMap(req ->
+                    bidderService.getBidderListOrder(req.getUserId(), req.getPage(), req.getLimit(), req.getStatus())
+                        .map(result -> com.auction.proto.user.GetBidderListOrderResponse.newBuilder()
+                            .addAllOrders(result.orders())
+                            .setPageInfo(result.pageInfo())
+                            .setSuccess(true)
+                            .setMessage("Orders retrieved successfully")
+                            .build())
+                        .doOnNext(resp -> log.info("Raw get bidder list order response: {}", JsonUtils.toJson(resp)))
+                        .onErrorResume(e -> {
+                            log.error("Error getting bidder list order: {}", e.getMessage(), e);
+                            return Mono.just(com.auction.proto.user.GetBidderListOrderResponse.newBuilder()
+                                .setSuccess(false)
+                                .setMessage("Error: " + e.getMessage())
+                                .build());
+                        })
+                );
+    }
+    
+    @Override
+    public Mono<com.auction.proto.user.GetBannedProductsResponse> getBannedProducts(Mono<com.auction.proto.user.GetBannedProductsRequest> request) {
+        return request.doOnNext(req -> log.info("Raw get banned products request: {}", JsonUtils.toJson(req)))
+                .flatMap(req ->
+                    bidderService.getBannedProducts(req.getUserId(), req.getPage(), req.getLimit())
+                        .map(result -> com.auction.proto.user.GetBannedProductsResponse.newBuilder()
+                            .addAllBannedProducts(result.bannedProducts())
+                            .setPageInfo(result.pageInfo())
+                            .setSuccess(true)
+                            .setMessage("Banned products retrieved successfully")
+                            .build())
+                        .doOnNext(resp -> log.info("Raw get banned products response: {}", JsonUtils.toJson(resp)))
+                        .onErrorResume(e -> {
+                            log.error("Error getting banned products: {}", e.getMessage(), e);
+                            return Mono.just(com.auction.proto.user.GetBannedProductsResponse.newBuilder()
+                                .setSuccess(false)
+                                .setMessage("Error: " + e.getMessage())
+                                .build());
+                        })
+                );
+    }
 }
 
