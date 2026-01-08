@@ -238,12 +238,12 @@ const DashBoardPage = () => {
         sx={{
           minHeight: '100vh',
           bgcolor: 'background.default',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+          p: 3,
         }}
       >
-        <CircularProgress size={60} />
+        <Skeleton variant="rectangular" height={300} sx={{ mb: 3 }} />
+        <Skeleton variant="rectangular" height={300} sx={{ mb: 3 }} />
+        <Skeleton variant="rectangular" height={300} />
       </Box>
     );
   }

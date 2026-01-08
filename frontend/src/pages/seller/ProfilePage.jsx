@@ -18,7 +18,7 @@ import {
   IconButton,
   InputAdornment,
   Chip,
-  CircularProgress,
+  Skeleton,
   Table,
   TableBody,
   TableCell,
@@ -514,8 +514,9 @@ const SellerProfilePage = () => {
             {tabValue === 2 && (
               <Box>
                 {loading.ratings ? (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-                    <CircularProgress />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, py: 2 }}>
+                    <Skeleton variant="rectangular" height={150} />
+                    <Skeleton variant="rectangular" height={300} />
                   </Box>
                 ) : (
                   <>

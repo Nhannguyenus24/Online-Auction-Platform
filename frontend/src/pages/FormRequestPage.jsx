@@ -7,7 +7,7 @@ import {
   Paper,
   Button,
   Alert,
-  CircularProgress,
+  Skeleton,
   Stack,
   List,
   ListItem,
@@ -170,7 +170,7 @@ const FormRequestPage = () => {
           {/* Loading Status */}
           {loadingStatus && (
             <Box display="flex" justifyContent="center" my={3}>
-              <CircularProgress />
+              <Skeleton variant="rectangular" height={100} width="100%" />
             </Box>
           )}
 

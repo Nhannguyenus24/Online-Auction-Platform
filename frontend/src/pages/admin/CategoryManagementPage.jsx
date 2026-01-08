@@ -29,6 +29,7 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Skeleton,
   CircularProgress,
 } from '@mui/material';
 import {
@@ -333,8 +334,9 @@ const CategoryManagementPage = () => {
 
           {/* Loading State */}
           {loading ? (
-            <Box display="flex" justifyContent="center" alignItems="center" py={8}>
-              <CircularProgress />
+            <Box display="flex" flexDirection="column" gap={2} py={2}>
+              <Skeleton variant="rectangular" height={56} />
+              <Skeleton variant="rectangular" height={400} />
             </Box>
           ) : (
             <>
@@ -552,7 +554,6 @@ const CategoryManagementPage = () => {
               onClick={handleSaveCategory} 
               variant="contained"
               disabled={!formData.name || saving}
-              startIcon={saving ? <CircularProgress size={20} /> : null}
             >
               {saving ? 'Saving...' : (dialogMode === 'create' ? 'Create' : 'Save Changes')}
             </Button>
@@ -589,7 +590,6 @@ const CategoryManagementPage = () => {
               variant="contained"
               color="error"
               disabled={saving}
-              startIcon={saving ? <CircularProgress size={20} /> : null}
             >
               {saving ? 'Deleting...' : 'Delete'}
             </Button>

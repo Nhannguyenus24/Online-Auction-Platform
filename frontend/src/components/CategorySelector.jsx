@@ -7,7 +7,7 @@ import {
   FormHelperText,
   Box,
   Typography,
-  CircularProgress,
+  Skeleton,
   Alert,
 } from '@mui/material';
 import { categoryApi } from '../services/categoryApi';
@@ -81,11 +81,9 @@ const CategorySelector = ({ parentCategory, childCategory, onChange, error, help
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           Select a category and subcategory for your product.
         </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <CircularProgress size={20} />
-          <Typography variant="body2" color="text.secondary">
-            Loading categories...
-          </Typography>
+        <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
+          <Skeleton variant="rectangular" height={56} sx={{ flex: 1 }} />
+          <Skeleton variant="rectangular" height={56} sx={{ flex: 1 }} />
         </Box>
       </Box>
     );

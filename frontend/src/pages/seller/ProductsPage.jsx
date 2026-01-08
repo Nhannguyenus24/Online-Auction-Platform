@@ -297,8 +297,9 @@ const SellerProductsPage = () => {
 
           <CardContent sx={{ p: 0 }}>
             {loading ? (
-              <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-                <CircularProgress />
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 2, p: 2 }}>
+                <Skeleton variant="rectangular" height={56} />
+                <Skeleton variant="rectangular" height={400} />
               </Box>
             ) : filteredProducts.length === 0 ? (
               <Box sx={{ textAlign: "center", py: 8, px: 3 }}>

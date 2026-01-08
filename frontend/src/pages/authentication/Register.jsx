@@ -18,7 +18,7 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  CircularProgress,
+  Skeleton,
   Box,
 } from "@mui/material";
 import { VerifiedUser, Google } from "@mui/icons-material";
@@ -454,7 +454,7 @@ const Register = () => {
         <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
           <div style={{ width: "100%", display: "flex", justifyContent: "center" }}>
             {googleLoading ? (
-              <CircularProgress />
+              <Skeleton variant="rectangular" height={40} width="330px" />
             ) : (
               <GoogleLogin
                 onSuccess={handleGoogleSignup}
