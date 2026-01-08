@@ -104,8 +104,7 @@ export default function Router() {
         { path: "profile", element: <BidderProfilePage /> },
         { path: "watchlist", element: <BidderWatchListPage /> },
         { path: "auction-history", element: <BidderAuctionHistoryPage /> },
-        { path: "checkout", element: <BidderCheckoutPage /> },
-        { path: "checkout/:id", element: <BidderCheckoutPage /> },
+        { path: "orders", element: <BidderMyOrdersPage /> },
         { path: "order-completion/:orderId", element: <BidderOrderCompletionPage /> },
         { path: "chat", element: <BidderChatPage /> },
         { path: "chat/:orderId", element: <BidderChatPage /> },
@@ -204,8 +203,8 @@ const BidderWatchListPage = Loadable(
 const BidderAuctionHistoryPage = Loadable(
   lazy(() => import("../pages/bidder/AuctionHistory.jsx"))
 );
-const BidderCheckoutPage = Loadable(
-  lazy(() => import("../pages/bidder/CheckoutPage.jsx"))
+const BidderMyOrdersPage = Loadable(
+  lazy(() => import("../pages/bidder/MyOrdersPage.jsx"))
 );
 const BidderOrderCompletionPage = Loadable(
   lazy(() => import("../pages/bidder/OrderCompletionPage.jsx"))

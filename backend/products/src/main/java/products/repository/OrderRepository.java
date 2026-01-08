@@ -143,6 +143,49 @@ public interface OrderRepository extends R2dbcRepository<Order, Integer> {
     );
     
     /**
+     * Update order with Stripe payment intent ID, payment status, and shipping address
+     * @param orderId the order ID
+     * @param stripePaymentIntentId the Stripe payment intent ID
+     * @param paymentStatus the payment status (pending, completed, failed)
+     * @param shippingAddress the shipping address (optional)
+     * @return void
+     */
+    @Query("""
+        UPDATE orders
+        SET stripe_payment_intent_id = :stripePaymentIntentId,
+            payment_status = :paymentStatus,
+            payment_attempted_at = CURRENT_TIMESTAMP,
+            shipping_address = COALESCE(:shippingAddress, shipping_address),
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = :orderId
+        """)
+    Mono<Void> updateOrderPaymentIntentWithShipping(
+        @Param("orderId") Integer orderId,
+        @Param("stripePaymentIntentId") String stripePaymentIntentId,
+        @Param("paymentStatus") String paymentStatus,
+        @Param("shippingAddress") String shippingAddress
+    );
+    
+    /**
+     * Confirm payment and update payment status to completed
+     * @param orderId the order ID
+     * @param paymentIntentId the Stripe Payment Intent ID
+     * @return void
+     */
+    @Query("""
+        UPDATE orders
+        SET payment_status = 'completed',
+            payment_completed_at = CURRENT_TIMESTAMP,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = :orderId
+          AND stripe_payment_intent_id = :paymentIntentId
+        """)
+    Mono<Void> confirmPayment(
+        @Param("orderId") Integer orderId,
+        @Param("paymentIntentId") String paymentIntentId
+    );
+    
+    /**
      * Find order by ID
      * @param orderId the order ID
      * @return the order

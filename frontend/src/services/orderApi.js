@@ -25,6 +25,37 @@ import axiosInstance from '../utils/axios';
 
 export const orderApi = {
   /**
+   * Get list of orders for the authenticated bidder
+   * Requires bidder authentication
+   * @param {number} page - Page number (default: 1)
+   * @param {number} limit - Items per page (default: 20, max: 100)
+   * @param {string} status - Status filter (all, pending, completed, cancelled) (default: 'all')
+   * @returns {Promise} - { success, message, orders: [...], pageInfo: {...} }
+   */
+  getOrders: (page = 1, limit = 20, status = 'all') => {
+    return axiosInstance
+      .get('/api/bidder/orders', {
+        params: { page, limit, status },
+      })
+      .then((response) => {
+        if (response.data.success) {
+          return {
+            success: true,
+            message: response.data.message || 'Orders retrieved successfully',
+            orders: response.data.orders || [],
+            pageInfo: response.data.pageInfo || {},
+          };
+        } else {
+          throw new Error(response.data.message || 'Failed to get orders');
+        }
+      })
+      .catch((error) => {
+        console.error('Get orders error:', error);
+        throw error;
+      });
+  },
+
+  /**
    * Get order by ID
    * Requires bidder authentication
    * @param {number|string} orderId - Order ID
@@ -161,19 +192,35 @@ export const orderApi = {
   /**
    * Create Stripe payment intent
    * Requires authentication
-   * @param {number} amount - Amount in dollars
+   * @param {number|string|null} orderId - Order ID (optional, if provided will fetch order amount)
+   * @param {number|null} amount - Amount in dollars (required if orderId not provided)
    * @param {string} currency - Currency code (default: 'usd')
-   * @returns {Promise} - { success, clientSecret, paymentIntentId }
+   * @param {string|null} shippingAddress - Shipping address (optional)
+   * @returns {Promise} - { success, clientSecret, paymentIntentId, orderId, amount, currency }
    */
-  createPaymentIntent: (amount, currency = 'usd') => {
+  createPaymentIntent: (orderId = null, amount = null, currency = 'usd', shippingAddress = null) => {
+    const requestBody = { currency };
+    if (orderId !== null && orderId !== undefined) {
+      requestBody.orderId = orderId;
+    }
+    if (amount !== null && amount !== undefined) {
+      requestBody.amount = amount;
+    }
+    if (shippingAddress !== null && shippingAddress !== undefined && shippingAddress.trim() !== '') {
+      requestBody.shippingAddress = shippingAddress;
+    }
+    
     return axiosInstance
-      .post('/api/payment/create-payment-intent', { amount, currency })
+      .post('/api/create-payment-intent', requestBody)
       .then((response) => {
         if (response.data.success) {
           return {
             success: true,
             clientSecret: response.data.clientSecret,
             paymentIntentId: response.data.paymentIntentId,
+            orderId: response.data.orderId,
+            amount: response.data.amount,
+            currency: response.data.currency,
           };
         } else {
           throw new Error(response.data.message || 'Failed to create payment intent');
@@ -188,17 +235,22 @@ export const orderApi = {
   /**
    * Confirm payment after successful Stripe payment
    * Requires authentication
-   * @param {string} paymentIntentId - Payment intent ID from Stripe
-   * @returns {Promise} - { success, message }
+   * @param {number|string} orderId - Order ID
+   * @param {string} paymentIntentId - Stripe Payment Intent ID
+   * @returns {Promise} - { success, message, order: {...} }
    */
-  confirmPayment: (paymentIntentId) => {
+  confirmPayment: (orderId, paymentIntentId) => {
     return axiosInstance
-      .post('/api/payment/confirm-payment', { paymentIntentId })
+      .post('/api/confirm-payment', {
+        orderId,
+        paymentIntentId,
+      })
       .then((response) => {
         if (response.data.success) {
           return {
             success: true,
             message: response.data.message || 'Payment confirmed successfully',
+            order: response.data.order,
           };
         } else {
           throw new Error(response.data.message || 'Failed to confirm payment');

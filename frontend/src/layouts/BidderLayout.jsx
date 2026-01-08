@@ -17,7 +17,7 @@ import {
   Favorite as FavoriteIcon,
   History as HistoryIcon,
   Person as PersonIcon,
-  ShoppingCart as ShoppingCartIcon,
+  ShoppingBag as ShoppingBagIcon,
   Chat as ChatIcon,
   Menu as MenuIcon,
   ArrowBack as ArrowBackIcon,
@@ -43,10 +43,10 @@ const BidderLayout = () => {
     { title: 'Dashboard', path: '/bidder/home', icon: <HomeIcon /> },
     { title: 'Watch List', path: '/bidder/watchlist', icon: <FavoriteIcon /> },
     { title: 'Auction History', path: '/bidder/auction-history', icon: <HistoryIcon /> },
-    { title: 'Checkout', path: '/bidder/checkout', icon: <ShoppingCartIcon /> },
+    { title: 'My Orders', path: '/bidder/orders', icon: <ShoppingBagIcon /> },
     { title: 'Chat', path: '/bidder/chat', icon: <ChatIcon /> },
     { title: 'Profile', path: '/bidder/profile', icon: <PersonIcon /> },
-    { title: 'Form Request', path: '/bidder/form-request', icon: <ShoppingCartIcon /> },
+    { title: 'Form Request', path: '/bidder/form-request', icon: <ShoppingBagIcon /> },
   ];
 
   return (

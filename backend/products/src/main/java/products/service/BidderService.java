@@ -1400,37 +1400,69 @@ public class BidderService {
                 
                 // Get total count for pagination
                 return orderRepository.countOrdersByBuyerId(userId, status)
-                    .map(totalCount -> {
-                        List<OrderItem> orderItems = orders.stream()
-                            .map(order -> OrderItem.newBuilder()
-                                .setId(order.getId())
-                                .setProductId(order.getProductId())
-                                .setProductTitle("")
-                                .setProductImage("")
-                                .setAmount(order.getAmount().doubleValue())
-                                .setStatus(order.getStatus())
-                                .setSellerId(order.getSellerId())
-                                .setSellerName("")
-                                .setCreatedAt(order.getCreatedAt().toEpochSecond(ZoneOffset.ofHours(7)))
-                                .setUpdatedAt(order.getUpdatedAt().toEpochSecond(ZoneOffset.ofHours(7)))
-                                .build())
+                    .flatMap(totalCount -> {
+                        // Fetch product and seller info for each order
+                        List<Mono<OrderItem>> orderItemMonos = orders.stream()
+                            .map(order -> {
+                                // Fetch product title
+                                Mono<String> productTitleMono = productRepository.findById(order.getProductId())
+                                    .map(product -> product.getTitle())
+                                    .defaultIfEmpty("Unknown Product");
+                                
+                                // Fetch product primary image
+                                Mono<String> productImageMono = productRepository.getProductImages(order.getProductId())
+                                    .filter(img -> img.is_primary())
+                                    .next()
+                                    .map(ImageRowRecord::url)
+                                    .defaultIfEmpty("");
+                                
+                                // Fetch seller name
+                                Mono<String> sellerNameMono = productRepository.getUserFullName(order.getSellerId())
+                                    .defaultIfEmpty("Seller #" + order.getSellerId());
+                                
+                                return Mono.zip(productTitleMono, productImageMono, sellerNameMono)
+                                    .map(tuple -> {
+                                        String productTitle = tuple.getT1();
+                                        String productImage = tuple.getT2();
+                                        String sellerName = tuple.getT3();
+                                        
+                                        return OrderItem.newBuilder()
+                                            .setId(order.getId())
+                                            .setProductId(order.getProductId())
+                                            .setProductTitle(productTitle)
+                                            .setProductImage(productImage)
+                                            .setAmount(order.getAmount().doubleValue())
+                                            .setStatus(order.getStatus())
+                                            .setSellerId(order.getSellerId())
+                                            .setSellerName(sellerName)
+                                            .setCreatedAt(order.getCreatedAt().toEpochSecond(ZoneOffset.ofHours(7)))
+                                            .setUpdatedAt(order.getUpdatedAt().toEpochSecond(ZoneOffset.ofHours(7)))
+                                            .setPaymentStatus(order.getPaymentStatus() != null ? order.getPaymentStatus() : "pending")
+                                            .build();
+                                    });
+                            })
                             .collect(java.util.stream.Collectors.toList());
                         
-                        int totalPages = (int) Math.ceil((double) totalCount / validLimit);
-                        
-                        PageInfo pageInfo = PageInfo.newBuilder()
-                            .setCurrentPage(validPage)
-                            .setPageSize(validLimit)
-                            .setTotalItems(totalCount)
-                            .setTotalPages(totalPages)
-                            .setHasNext(validPage < totalPages)
-                            .setHasPrevious(validPage > 1)
-                            .build();
-                        
-                        log.info("Retrieved {} orders for user {} (total: {})", 
-                            orders.size(), userId, totalCount);
-                        
-                        return new BidderOrdersResult(orderItems, pageInfo);
+                        return Flux.fromIterable(orderItemMonos)
+                            .flatMap(mono -> mono)
+                            .collectList()
+                            .map(orderItems -> {
+                                int totalPages = (int) Math.ceil((double) totalCount / validLimit);
+                                
+                                PageInfo pageInfo = PageInfo.newBuilder()
+                                    .setCurrentPage(validPage)
+                                    .setPageSize(validLimit)
+                                    .setTotalItems(totalCount)
+                                    .setTotalPages(totalPages)
+                                    .setHasNext(validPage < totalPages)
+                                    .setHasPrevious(validPage > 1)
+                                    .build();
+                                
+                                log.info("Retrieved {} orders for user {} (total: {})", 
+                                    orderItems.size(), userId, totalCount);
+                                
+                                return new BidderOrdersResult(orderItems, pageInfo);
+                            });
                     });
             })
             .doOnError(e -> log.error("Error getting orders for user {}: {}", userId, e.getMessage(), e));
@@ -1560,9 +1592,10 @@ public class BidderService {
      */
     @Transactional
     public Mono<OrderDetail> updateOrderPaymentIntent(int orderId, int userId, 
-                                                       String stripePaymentIntentId, String paymentStatus) {
-        log.info("Updating order payment intent - orderId: {}, userId: {}, paymentIntentId: {}, status: {}", 
-            orderId, userId, stripePaymentIntentId, paymentStatus);
+                                                       String stripePaymentIntentId, String paymentStatus,
+                                                       String shippingAddress) {
+        log.info("Updating order payment intent - orderId: {}, userId: {}, paymentIntentId: {}, status: {}, shippingAddress: {}", 
+            orderId, userId, stripePaymentIntentId, paymentStatus, shippingAddress != null ? "provided" : "not provided");
         
         return orderRepository.findById(orderId)
             .switchIfEmpty(Mono.defer(() -> {
@@ -1576,7 +1609,15 @@ public class BidderService {
                     return Mono.error(new IllegalArgumentException("Unauthorized: Only the buyer can update payment"));
                 }
                 
-                return orderRepository.updateOrderPaymentIntent(orderId, stripePaymentIntentId, paymentStatus)
+                Mono<Void> updateMono;
+                if (shippingAddress != null && !shippingAddress.trim().isEmpty()) {
+                    updateMono = orderRepository.updateOrderPaymentIntentWithShipping(
+                        orderId, stripePaymentIntentId, paymentStatus, shippingAddress);
+                } else {
+                    updateMono = orderRepository.updateOrderPaymentIntent(orderId, stripePaymentIntentId, paymentStatus);
+                }
+                
+                return updateMono
                     .then(orderRepository.findById(orderId))
                     .map(updatedOrder -> OrderDetail.newBuilder()
                         .setId(updatedOrder.getId())
@@ -1596,6 +1637,52 @@ public class BidderService {
                         .build());
             })
             .doOnError(e -> log.error("Error updating order payment intent - orderId: {}, userId: {}, error: {}", 
+                orderId, userId, e.getMessage(), e));
+    }
+    
+    @Transactional
+    public Mono<OrderDetail> confirmPayment(int orderId, int userId, String paymentIntentId) {
+        log.info("Confirming payment - orderId: {}, userId: {}, paymentIntentId: {}", orderId, userId, paymentIntentId);
+        
+        return orderRepository.findById(orderId)
+            .switchIfEmpty(Mono.defer(() -> {
+                log.warn("Order not found with id: {}", orderId);
+                return Mono.error(new IllegalArgumentException("Order not found with id: " + orderId));
+            }))
+            .flatMap(order -> {
+                // Authorization check: user must be buyer
+                if (!order.getBuyerId().equals(userId)) {
+                    log.warn("User {} is not authorized to confirm payment for order {}", userId, orderId);
+                    return Mono.error(new IllegalArgumentException("Unauthorized: Only the buyer can confirm payment"));
+                }
+                
+                // Verify payment intent ID matches
+                if (order.getStripePaymentIntentId() == null || !order.getStripePaymentIntentId().equals(paymentIntentId)) {
+                    log.warn("Payment intent ID mismatch for order {} - expected: {}, got: {}", 
+                        orderId, order.getStripePaymentIntentId(), paymentIntentId);
+                    return Mono.error(new IllegalArgumentException("Payment intent ID mismatch"));
+                }
+                
+                return orderRepository.confirmPayment(orderId, paymentIntentId)
+                    .then(orderRepository.findById(orderId))
+                    .map(updatedOrder -> OrderDetail.newBuilder()
+                        .setId(updatedOrder.getId())
+                        .setProductId(updatedOrder.getProductId())
+                        .setBuyerId(updatedOrder.getBuyerId())
+                        .setSellerId(updatedOrder.getSellerId())
+                        .setAmount(updatedOrder.getAmount().doubleValue())
+                        .setStatus(updatedOrder.getStatus() != null ? updatedOrder.getStatus() : "")
+                        .setPaymentMethod(updatedOrder.getPaymentMethod() != null ? updatedOrder.getPaymentMethod() : "")
+                        .setShippingAddress(updatedOrder.getShippingAddress() != null ? updatedOrder.getShippingAddress() : "")
+                        .setStripePaymentIntentId(updatedOrder.getStripePaymentIntentId() != null ? updatedOrder.getStripePaymentIntentId() : "")
+                        .setPaymentStatus(updatedOrder.getPaymentStatus() != null ? updatedOrder.getPaymentStatus() : "")
+                        .setCreatedAt(updatedOrder.getCreatedAt() != null ? 
+                            updatedOrder.getCreatedAt().toEpochSecond(ZoneOffset.ofHours(7)) : 0)
+                        .setUpdatedAt(updatedOrder.getUpdatedAt() != null ? 
+                            updatedOrder.getUpdatedAt().toEpochSecond(ZoneOffset.ofHours(7)) : 0)
+                        .build());
+            })
+            .doOnError(e -> log.error("Error confirming payment - orderId: {}, userId: {}, error: {}", 
                 orderId, userId, e.getMessage(), e));
     }
 

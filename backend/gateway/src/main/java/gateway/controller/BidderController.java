@@ -964,6 +964,7 @@ public class BidderController {
                     orderMap.put("sellerName", order.getSellerName());
                     orderMap.put("createdAt", order.getCreatedAt());
                     orderMap.put("updatedAt", order.getUpdatedAt());
+                    orderMap.put("paymentStatus", order.getPaymentStatus());
                     orders.add(orderMap);
                 }
                 

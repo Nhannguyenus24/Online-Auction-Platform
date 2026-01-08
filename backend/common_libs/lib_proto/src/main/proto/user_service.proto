@@ -73,6 +73,9 @@ service UserService {
 
   //22 Update order payment intent
   rpc UpdateOrderPaymentIntent(UpdateOrderPaymentIntentRequest) returns (UpdateOrderPaymentIntentResponse);
+
+  //23 Confirm payment
+  rpc ConfirmPayment(ConfirmPaymentRequest) returns (ConfirmPaymentResponse);
 }
 
 // ==================== Product Messages ====================
@@ -464,6 +467,7 @@ message OrderItem {
   string seller_name = 8;
   int64 created_at = 9;
   int64 updated_at = 10;
+  string payment_status = 11; // "pending", "completed", "failed"
 }
 
 message GetBidderListOrderRequest {
@@ -543,9 +547,24 @@ message UpdateOrderPaymentIntentRequest {
   int32 user_id = 2; // Authenticated user ID (for authorization check)
   string stripe_payment_intent_id = 3;
   string payment_status = 4; // "pending", "completed", "failed"
+  string shipping_address = 5; // Optional shipping address
 }
 
 message UpdateOrderPaymentIntentResponse {
+  bool success = 1;
+  string message = 2;
+  OrderDetail order = 3;
+}
+
+// ==================== 23. Confirm Payment ====================
+
+message ConfirmPaymentRequest {
+  int32 order_id = 1;
+  int32 user_id = 2; // Authenticated user ID (for authorization check)
+  string payment_intent_id = 3; // Stripe Payment Intent ID
+}
+
+message ConfirmPaymentResponse {
   bool success = 1;
   string message = 2;
   OrderDetail order = 3;

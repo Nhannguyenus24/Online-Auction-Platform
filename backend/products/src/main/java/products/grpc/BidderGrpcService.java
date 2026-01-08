@@ -529,7 +529,8 @@ public class BidderGrpcService extends ReactorUserServiceGrpc.UserServiceImplBas
                         req.getOrderId(), 
                         req.getUserId(),
                         req.getStripePaymentIntentId(),
-                        req.getPaymentStatus()
+                        req.getPaymentStatus(),
+                        req.getShippingAddress()
                     )
                         .map(order -> UpdateOrderPaymentIntentResponse.newBuilder()
                             .setSuccess(true)
@@ -540,6 +541,31 @@ public class BidderGrpcService extends ReactorUserServiceGrpc.UserServiceImplBas
                         .onErrorResume(e -> {
                             log.error("Error updating order payment intent: {}", e.getMessage(), e);
                             return Mono.just(UpdateOrderPaymentIntentResponse.newBuilder()
+                                .setSuccess(false)
+                                .setMessage("Error: " + e.getMessage())
+                                .build());
+                        })
+                );
+    }
+    
+    @Override
+    public Mono<ConfirmPaymentResponse> confirmPayment(Mono<ConfirmPaymentRequest> request) {
+        return request.doOnNext(req -> log.info("Raw confirm payment request: {}", JsonUtils.toJson(req)))
+                .flatMap(req ->
+                    bidderService.confirmPayment(
+                        req.getOrderId(),
+                        req.getUserId(),
+                        req.getPaymentIntentId()
+                    )
+                        .map(order -> ConfirmPaymentResponse.newBuilder()
+                            .setSuccess(true)
+                            .setMessage("Payment confirmed successfully")
+                            .setOrder(order)
+                            .build())
+                        .doOnNext(resp -> log.info("Raw confirm payment response: {}", JsonUtils.toJson(resp)))
+                        .onErrorResume(e -> {
+                            log.error("Error confirming payment: {}", e.getMessage(), e);
+                            return Mono.just(ConfirmPaymentResponse.newBuilder()
                                 .setSuccess(false)
                                 .setMessage("Error: " + e.getMessage())
                                 .build());

@@ -182,4 +182,10 @@ public class BidderGrpcClient {
         log.info("gRPC updateOrderPaymentIntent request: {}", JsonUtils.toJson(request));
         return userServiceStub.updateOrderPaymentIntent(Mono.just(request));
     }
+    
+    // Confirm Payment
+    public Mono<ConfirmPaymentResponse> confirmPayment(ConfirmPaymentRequest request) {
+        log.info("gRPC confirmPayment request: {}", JsonUtils.toJson(request));
+        return userServiceStub.confirmPayment(Mono.just(request));
+    }
 }

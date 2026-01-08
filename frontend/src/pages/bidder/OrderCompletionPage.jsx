@@ -42,10 +42,16 @@ import {
   Receipt,
   ShoppingBag,
 } from '@mui/icons-material';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements } from '@stripe/react-stripe-js';
 import Page from '../../components/Page';
 import { formatPrice } from '../../utils/formatNumber';
 import { fVNDate } from '../../utils/formatTime';
 import { orderApi } from '../../services/orderApi';
+import StripePaymentForm from '../../components/StripePaymentForm';
+
+// Initialize Stripe (replace with your publishable key from .env)
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_YOUR_PUBLISHABLE_KEY');
 
 const BidderOrderCompletionPage = () => {
   const navigate = useNavigate();
@@ -148,6 +154,12 @@ const BidderOrderCompletionPage = () => {
       return;
     }
 
+    // Stripe payment is handled by StripePaymentForm component
+    if (paymentMethod === 'stripe') {
+      // Payment will be handled by StripePaymentForm's onSuccess callback
+      return;
+    }
+
     if (!orderId) {
       alert('Order ID is missing');
       return;
@@ -171,6 +183,36 @@ const BidderOrderCompletionPage = () => {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleStripePaymentSuccess = async (paymentResult) => {
+    setSubmitting(true);
+    setError(null);
+    try {
+      // Payment was successful via Stripe, update order status
+      // The backend already updated the order with payment intent ID
+      // We just need to refresh the order data
+      const response = await orderApi.getOrder(orderId);
+      if (response.success && response.order) {
+        setOrder(response.order);
+        setActiveStep(1);
+      } else {
+        throw new Error('Payment succeeded but failed to update order');
+      }
+    } catch (err) {
+      console.error('Error updating order after payment:', err);
+      const errorMessage = err.response?.data?.message || err.message || 'Payment succeeded but failed to update order. Please contact support.';
+      setError(errorMessage);
+      alert(errorMessage);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleStripePaymentError = (error) => {
+    console.error('Stripe payment error:', error);
+    const errorMessage = error.message || 'Payment failed. Please try again.';
+    setError(errorMessage);
   };
 
   const handleShippingSubmit = async () => {
@@ -425,16 +467,33 @@ const BidderOrderCompletionPage = () => {
                             </Typography>
                           </Alert>
 
-                          <Button
-                            variant="contained"
-                            size="large"
-                            onClick={handlePayment}
-                            disabled={!paymentMethod || submitting}
-                            fullWidth
-                            sx={{ py: 1.5, fontWeight: 'bold' }}
-                          >
-                            {submitting ? <CircularProgress size={24} /> : 'Complete Payment'}
-                          </Button>
+                          {paymentMethod === 'stripe' ? (
+                            <Box>
+                              <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ mb: 2 }}>
+                                Enter your card details securely
+                              </Typography>
+                              <Elements stripe={stripePromise}>
+                                <StripePaymentForm
+                                  orderId={orderId}
+                                  amount={order.totalAmount}
+                                  currency="usd"
+                                  onSuccess={handleStripePaymentSuccess}
+                                  onError={handleStripePaymentError}
+                                />
+                              </Elements>
+                            </Box>
+                          ) : (
+                            <Button
+                              variant="contained"
+                              size="large"
+                              onClick={handlePayment}
+                              disabled={!paymentMethod || submitting}
+                              fullWidth
+                              sx={{ py: 1.5, fontWeight: 'bold' }}
+                            >
+                              {submitting ? <CircularProgress size={24} /> : 'Complete Payment'}
+                            </Button>
+                          )}
                         </Box>
                       ) : (
                         <Box sx={{ mt: 2, p: 2, bgcolor: 'success.lighter', borderRadius: 2 }}>

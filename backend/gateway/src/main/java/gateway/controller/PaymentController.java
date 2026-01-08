@@ -14,11 +14,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.auction.proto.user.ConfirmPaymentRequest;
+import com.auction.proto.user.ConfirmPaymentResponse;
 import com.auction.proto.user.GetOrderByIdRequest;
 import com.auction.proto.user.GetOrderByIdResponse;
 import com.auction.proto.user.UpdateOrderPaymentIntentRequest;
 import com.auction.proto.user.UpdateOrderPaymentIntentResponse;
 import com.stripe.exception.StripeException;
+import org.springframework.web.bind.annotation.PathVariable;
 
 import gateway.grpc.BidderGrpcClient;
 import gateway.service.StripeService;
@@ -133,17 +136,29 @@ public class PaymentController {
             com.stripe.model.PaymentIntent paymentIntent = stripeService.createPaymentIntent(
                 amount, currency, orderId, userId);
             
+            // Extract shipping address if provided
+            String shippingAddress = null;
+            if (requestBody.containsKey("shippingAddress")) {
+                Object shippingAddressObj = requestBody.get("shippingAddress");
+                if (shippingAddressObj != null) {
+                    shippingAddress = shippingAddressObj.toString();
+                }
+            }
+            
             // Update order with payment intent ID if orderId was provided
             if (orderId != null) {
                 log.info("Updating order {} with payment intent ID: {}", orderId, paymentIntent.getId());
-                UpdateOrderPaymentIntentRequest updateRequest = UpdateOrderPaymentIntentRequest.newBuilder()
+                UpdateOrderPaymentIntentRequest.Builder updateRequestBuilder = UpdateOrderPaymentIntentRequest.newBuilder()
                     .setOrderId(orderId)
                     .setUserId(userId)
                     .setStripePaymentIntentId(paymentIntent.getId())
-                    .setPaymentStatus("pending")
-                    .build();
+                    .setPaymentStatus("pending");
                 
-                UpdateOrderPaymentIntentResponse updateResponse = bidderGrpcClient.updateOrderPaymentIntent(updateRequest)
+                if (shippingAddress != null && !shippingAddress.trim().isEmpty()) {
+                    updateRequestBuilder.setShippingAddress(shippingAddress);
+                }
+                
+                UpdateOrderPaymentIntentResponse updateResponse = bidderGrpcClient.updateOrderPaymentIntent(updateRequestBuilder.build())
                     .block(java.time.Duration.ofSeconds(10));
                 
                 if (updateResponse == null || !updateResponse.getSuccess()) {
@@ -186,6 +201,92 @@ public class PaymentController {
             Map<String, Object> error = new HashMap<>();
             error.put("success", false);
             error.put("message", "Failed to create payment intent: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+    
+    @PostMapping("/confirm-payment")
+    @Operation(summary = "Confirm payment", description = "Confirm a successful payment and update order status. Requires authentication.")
+    public ResponseEntity<Map<String, Object>> confirmPayment(
+            @RequestBody Map<String, Object> requestBody) {
+        
+        int userId = getUserId();
+        log.info("Confirm payment request - userId: {}", userId);
+        
+        try {
+            // Extract parameters
+            Integer orderId = null;
+            String paymentIntentId = null;
+            
+            if (requestBody.containsKey("orderId")) {
+                Object orderIdObj = requestBody.get("orderId");
+                if (orderIdObj != null) {
+                    orderId = Integer.parseInt(orderIdObj.toString());
+                }
+            }
+            
+            if (requestBody.containsKey("paymentIntentId")) {
+                Object paymentIntentIdObj = requestBody.get("paymentIntentId");
+                if (paymentIntentIdObj != null) {
+                    paymentIntentId = paymentIntentIdObj.toString();
+                }
+            }
+            
+            // Validate input
+            if (orderId == null) {
+                Map<String, Object> error = new HashMap<>();
+                error.put("success", false);
+                error.put("message", "orderId is required");
+                return ResponseEntity.badRequest().body(error);
+            }
+            
+            if (paymentIntentId == null || paymentIntentId.trim().isEmpty()) {
+                Map<String, Object> error = new HashMap<>();
+                error.put("success", false);
+                error.put("message", "paymentIntentId is required");
+                return ResponseEntity.badRequest().body(error);
+            }
+            
+            // Confirm payment
+            ConfirmPaymentRequest grpcRequest = ConfirmPaymentRequest.newBuilder()
+                .setOrderId(orderId)
+                .setUserId(userId)
+                .setPaymentIntentId(paymentIntentId)
+                .build();
+            
+            ConfirmPaymentResponse grpcResponse = bidderGrpcClient.confirmPayment(grpcRequest)
+                .block(java.time.Duration.ofSeconds(10));
+            
+            if (grpcResponse == null || !grpcResponse.getSuccess()) {
+                Map<String, Object> error = new HashMap<>();
+                error.put("success", false);
+                error.put("message", grpcResponse != null ? grpcResponse.getMessage() : "Failed to confirm payment");
+                return ResponseEntity.badRequest().body(error);
+            }
+            
+            // Build response
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Payment confirmed successfully");
+            response.put("order", Map.of(
+                "id", grpcResponse.getOrder().getId(),
+                "paymentStatus", grpcResponse.getOrder().getPaymentStatus()
+            ));
+            
+            log.info("Payment confirmed successfully - orderId: {}, paymentIntentId: {}", orderId, paymentIntentId);
+            return ResponseEntity.ok(response);
+            
+        } catch (NumberFormatException e) {
+            log.error("Invalid number format in request: {}", e.getMessage(), e);
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Invalid number format: " + e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        } catch (Exception e) {
+            log.error("Error confirming payment: {}", e.getMessage(), e);
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Failed to confirm payment: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }
