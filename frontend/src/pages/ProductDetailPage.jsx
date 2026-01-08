@@ -27,7 +27,7 @@ import {
   DialogActions,
   Stack,
   Alert,
-  CircularProgress,
+  Skeleton,
   Breadcrumbs,
   Link,
   Rating,
@@ -673,12 +673,20 @@ function ProductDetailPage() {
     return (
       <Page title="Loading Product...">
         <Box sx={{ bgcolor: "grey.50", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <Stack spacing={2} alignItems="center">
-            <CircularProgress size={60} />
-            <Typography variant="h6" color="text.secondary">
-              Loading product...
-            </Typography>
-          </Stack>
+          <Container maxWidth="xl" sx={{ py: 4 }}>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <Box sx={{ width: '60%' }}>
+                <Skeleton variant="rectangular" width="100%" height={400} sx={{ borderRadius: 2, mb: 2 }} />
+                <Skeleton variant="rectangular" width="100%" height={80} sx={{ borderRadius: 2 }} />
+              </Box>
+              <Box sx={{ width: '40%' }}>
+                <Skeleton variant="text" width="100%" height={40} sx={{ mb: 2 }} />
+                <Skeleton variant="text" width="60%" height={20} sx={{ mb: 2 }} />
+                <Skeleton variant="rectangular" width="100%" height={100} sx={{ borderRadius: 1, mb: 2 }} />
+                <Skeleton variant="rectangular" width="100%" height={50} sx={{ borderRadius: 1 }} />
+              </Box>
+            </Box>
+          </Container>
         </Box>
       </Page>
     );
@@ -1106,8 +1114,15 @@ function ProductDetailPage() {
               {activeTab === 0 && (
                 <Box>
                   {loading.bidHistory ? (
-                    <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
-                      <CircularProgress />
+                    <Box sx={{ display: "flex", flexDirection: "column", gap: 2, py: 3 }}>
+                      {[...Array(5)].map((_, index) => (
+                        <Box key={`skeleton-bid-${index}`} sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                          <Skeleton variant="text" width={40} />
+                          <Skeleton variant="text" width={150} />
+                          <Skeleton variant="text" width={120} sx={{ ml: 'auto' }} />
+                          <Skeleton variant="text" width={150} />
+                        </Box>
+                      ))}
                     </Box>
                   ) : error.bidHistory ? (
                     <Alert severity="error">{error.bidHistory}</Alert>
@@ -1173,11 +1188,7 @@ function ProductDetailPage() {
                                       onClick={() => handleOpenRejectDialog(bid)}
                                       disabled={rejectingBid === bid.id}
                                     >
-                                      {rejectingBid === bid.id ? (
-                                        <CircularProgress size={20} />
-                                      ) : (
-                                        <Block />
-                                      )}
+                                      <Block />
                                     </IconButton>
                                   </Tooltip>
                                 </TableCell>
@@ -1195,8 +1206,20 @@ function ProductDetailPage() {
               {activeTab === 1 && (
                 <Box>
                   {loading.questions && (
-                    <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
-                      <CircularProgress />
+                    <Box sx={{ display: "flex", flexDirection: "column", gap: 2, py: 3 }}>
+                      {[...Array(3)].map((_, index) => (
+                        <Box key={`skeleton-qa-${index}`} sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                          <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
+                            <Skeleton variant="circular" width={40} height={40} />
+                            <Box sx={{ flexGrow: 1 }}>
+                              <Skeleton variant="text" width="30%" />
+                              <Skeleton variant="text" width="40%" />
+                            </Box>
+                          </Box>
+                          <Skeleton variant="text" width="100%" />
+                          <Skeleton variant="text" width="80%" />
+                        </Box>
+                      ))}
                     </Box>
                   )}
                   {error.questions && (
@@ -1299,13 +1322,7 @@ function ProductDetailPage() {
                                       submittingAnswer[q.id] || !answerTexts[q.id]?.trim()
                                     }
                                     sx={{ mt: 1 }}
-                                    startIcon={
-                                      submittingAnswer[q.id] ? (
-                                        <CircularProgress size={14} />
-                                      ) : (
-                                        <Send />
-                                      )
-                                    }
+                                    startIcon={<Send />}
                                   >
                                     {submittingAnswer[q.id] ? "Submitting..." : "Submit Answer"}
                                   </Button>
@@ -1330,8 +1347,20 @@ function ProductDetailPage() {
 
           {/* Related Products */}
           {loading.relatedProducts ? (
-            <Box sx={{ mt: 4, display: "flex", justifyContent: "center", py: 4 }}>
-              <CircularProgress />
+            <Box sx={{ mt: 4, py: 4 }}>
+              <Typography variant="h5" fontWeight="bold" sx={{ mb: 3 }}>
+                Related Products
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 3 }}>
+                {[...Array(3)].map((_, index) => (
+                  <Box key={`skeleton-related-${index}`} sx={{ minWidth: 350, flex: '0 0 350px' }}>
+                    <Skeleton variant="rectangular" width="100%" height={200} sx={{ borderRadius: 2, mb: 2 }} />
+                    <Skeleton variant="text" width="100%" height={20} sx={{ mb: 1 }} />
+                    <Skeleton variant="text" width="80%" height={20} sx={{ mb: 2 }} />
+                    <Skeleton variant="text" width="60%" height={16} />
+                  </Box>
+                ))}
+              </Box>
             </Box>
           ) : error.relatedProducts ? (
             <Alert severity="error" sx={{ mt: 4 }}>
@@ -1590,7 +1619,7 @@ function ProductDetailPage() {
                 color="error"
                 onClick={handleConfirmReject}
                 disabled={rejectingBid}
-                startIcon={rejectingBid ? <CircularProgress size={16} /> : <Block />}
+                startIcon={<Block />}
               >
                 {rejectingBid ? "Rejecting..." : "Reject Bid"}
               </Button>
@@ -1639,7 +1668,7 @@ function ProductDetailPage() {
                 color="primary"
                 onClick={handleConfirmBuyNow}
                 disabled={buyingNow}
-                startIcon={buyingNow ? <CircularProgress size={16} /> : <ShoppingCart />}
+                startIcon={<ShoppingCart />}
               >
                 {buyingNow ? "Processing..." : "Confirm Purchase"}
               </Button>

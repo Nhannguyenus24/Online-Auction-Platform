@@ -5,7 +5,7 @@ import {
   MenuItem,
   Divider,
   IconButton,
-  CircularProgress,
+  Skeleton,
 } from '@mui/material';
 import { Delete } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
@@ -53,8 +53,16 @@ const ShoppingCartMenu = ({ anchorEl, open, onClose, items, itemCount, loading, 
       <Divider />
       
       {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-          <CircularProgress size={24} />
+        <Box sx={{ px: 2, py: 1.5 }}>
+          {[...Array(3)].map((_, index) => (
+            <Box key={`skeleton-item-${index}`} sx={{ display: 'flex', gap: 2, mb: 1.5, alignItems: 'flex-start' }}>
+              <Skeleton variant="rectangular" width={60} height={60} sx={{ borderRadius: 1, flexShrink: 0 }} />
+              <Box sx={{ flexGrow: 1, width: '100%' }}>
+                <Skeleton variant="text" width="80%" height={18} sx={{ mb: 0.5 }} />
+                <Skeleton variant="text" width="50%" height={16} />
+              </Box>
+            </Box>
+          ))}
         </Box>
       ) : items.length === 0 ? (
         <Box sx={{ py: 4, textAlign: 'center' }}>

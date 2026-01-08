@@ -4,7 +4,7 @@ import {
   Menu,
   MenuItem,
   Divider,
-  CircularProgress,
+  Skeleton,
 } from '@mui/material';
 import { fVNDate } from '../utils/formatTime';
 
@@ -55,8 +55,14 @@ const NotificationMenu = ({ anchorEl, open, onClose, notifications, loading, onM
       <Divider />
       
       {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-          <CircularProgress size={24} />
+        <Box sx={{ px: 2, py: 1.5 }}>
+          {[...Array(3)].map((_, index) => (
+            <Box key={`skeleton-notif-${index}`} sx={{ mb: 1.5 }}>
+              <Skeleton variant="text" width="80%" height={20} sx={{ mb: 0.5 }} />
+              <Skeleton variant="text" width="100%" height={16} sx={{ mb: 0.5 }} />
+              <Skeleton variant="text" width="60%" height={12} />
+            </Box>
+          ))}
         </Box>
       ) : notifications.length === 0 ? (
         <Box sx={{ py: 4, textAlign: 'center' }}>

@@ -8,7 +8,7 @@ import {
   Button,
   Chip,
   Stack,
-  CircularProgress,
+  Skeleton,
   Alert,
 } from "@mui/material";
 import {
@@ -324,8 +324,29 @@ const HomePage = () => {
           </Box>
           
           {categoriesLoading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-              <CircularProgress />
+            <Box
+              sx={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 3,
+                width: "100%",
+              }}
+            >
+              {[...Array(6)].map((_, index) => (
+                <Box
+                  key={`skeleton-category-${index}`}
+                  sx={{
+                    flex: {
+                      xs: "1 1 100%",
+                      sm: "1 1 calc(50% - 12px)",
+                      md: "1 1 calc(20%)",
+                    },
+                    height: 200,
+                  }}
+                >
+                  <Skeleton variant="rectangular" width="100%" height="100%" />
+                </Box>
+              ))}
             </Box>
           ) : (
             <Box
@@ -510,11 +531,31 @@ const HomePage = () => {
                 </thead>
                 <tbody>
                   {loading.endingSoon ? (
-                    <tr>
-                      <td colSpan={6} style={{ padding: '40px', textAlign: 'center' }}>
-                        <CircularProgress />
-                      </td>
-                    </tr>
+                    [...Array(5)].map((_, index) => (
+                      <tr key={`skeleton-ending-${index}`} style={{ borderBottom: '1px solid #e0e0e0' }}>
+                        <td style={{ padding: '16px' }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                            <Skeleton variant="rectangular" width={60} height={60} />
+                            <Skeleton variant="text" width={250} height={20} />
+                          </Box>
+                        </td>
+                        <td style={{ padding: '16px' }}>
+                          <Skeleton variant="text" width={80} height={32} />
+                        </td>
+                        <td style={{ padding: '16px', textAlign: 'right' }}>
+                          <Skeleton variant="text" width={100} height={24} />
+                        </td>
+                        <td style={{ padding: '16px', textAlign: 'center' }}>
+                          <Skeleton variant="text" width={50} height={24} />
+                        </td>
+                        <td style={{ padding: '16px', textAlign: 'center' }}>
+                          <Skeleton variant="text" width={85} height={24} />
+                        </td>
+                        <td style={{ padding: '16px', textAlign: 'center' }}>
+                          <Skeleton variant="text" width={80} height={36} />
+                        </td>
+                      </tr>
+                    ))
                   ) : errors.endingSoon ? (
                     <tr>
                       <td colSpan={6} style={{ padding: '20px' }}>
@@ -767,11 +808,31 @@ const HomePage = () => {
                 </thead>
                 <tbody>
                   {loading.mostBids ? (
-                    <tr>
-                      <td colSpan={6} style={{ padding: '40px', textAlign: 'center' }}>
-                        <CircularProgress />
-                      </td>
-                    </tr>
+                    [...Array(5)].map((_, index) => (
+                      <tr key={`skeleton-bids-${index}`} style={{ borderBottom: '1px solid #e0e0e0' }}>
+                        <td style={{ padding: '16px' }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                            <Skeleton variant="rectangular" width={60} height={60} />
+                            <Skeleton variant="text" width={250} height={20} />
+                          </Box>
+                        </td>
+                        <td style={{ padding: '16px' }}>
+                          <Skeleton variant="text" width={80} height={32} />
+                        </td>
+                        <td style={{ padding: '16px', textAlign: 'right' }}>
+                          <Skeleton variant="text" width={100} height={24} />
+                        </td>
+                        <td style={{ padding: '16px', textAlign: 'center' }}>
+                          <Skeleton variant="text" width={50} height={24} />
+                        </td>
+                        <td style={{ padding: '16px', textAlign: 'center' }}>
+                          <Skeleton variant="text" width={85} height={24} />
+                        </td>
+                        <td style={{ padding: '16px', textAlign: 'center' }}>
+                          <Skeleton variant="text" width={80} height={36} />
+                        </td>
+                      </tr>
+                    ))
                   ) : errors.mostBids ? (
                     <tr>
                       <td colSpan={6} style={{ padding: '20px' }}>

@@ -17,7 +17,7 @@ import {
   ListItemAvatar,
   ListItemText,
   Badge,
-  CircularProgress,
+  Skeleton,
   Alert,
 } from '@mui/material';
 import {
@@ -394,8 +394,17 @@ const SellerChatPage = () => {
               </Box>
               <List sx={{ p: 0 }}>
                 {loadingConversations ? (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                    <CircularProgress />
+                  <Box sx={{ p: 2 }}>
+                    {[...Array(5)].map((_, index) => (
+                      <Box key={`skeleton-conv-${index}`} sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'flex-start' }}>
+                        <Skeleton variant="circular" width={56} height={56} flexShrink={0} />
+                        <Box sx={{ flexGrow: 1, width: '100%' }}>
+                          <Skeleton variant="text" width="40%" height={20} sx={{ mb: 1 }} />
+                          <Skeleton variant="text" width="100%" height={16} sx={{ mb: 1 }} />
+                          <Skeleton variant="text" width="60%" height={14} />
+                        </Box>
+                      </Box>
+                    ))}
                   </Box>
                 ) : conversations.length === 0 ? (
                   <Box sx={{ textAlign: 'center', py: 4 }}>
@@ -523,12 +532,6 @@ const SellerChatPage = () => {
                 size="small"
                 color={getStatusColor(selectedConversation.status)}
               />
-              <Chip
-                label={socketConnected ? 'Live' : 'Offline'}
-                size="small"
-                color={socketConnected ? 'success' : 'default'}
-                variant={socketConnected ? 'filled' : 'outlined'}
-              />
             </Stack>
           </Box>
 
@@ -550,8 +553,16 @@ const SellerChatPage = () => {
               </Alert>
             )}
             {loading ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-                <CircularProgress />
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 2, py: 3 }}>
+                {[...Array(5)].map((_, index) => (
+                  <Box key={`skeleton-msg-${index}`} sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
+                    <Skeleton variant="circular" width={36} height={36} flexShrink={0} />
+                    <Box sx={{ flexGrow: 1, width: '100%' }}>
+                      <Skeleton variant="text" width="40%" height={16} sx={{ mb: 0.5 }} />
+                      <Skeleton variant="rectangular" width="80%" height={44} sx={{ borderRadius: 1, mb: 1 }} />
+                    </Box>
+                  </Box>
+                ))}
               </Box>
             ) : messages.length === 0 ? (
               <Box sx={{ textAlign: 'center', py: 8 }}>
@@ -688,7 +699,7 @@ const SellerChatPage = () => {
                   },
                 }}
               >
-                {sending ? <CircularProgress size={20} color="inherit" /> : <Send />}
+                {sending ? <Send /> : <Send />}
               </IconButton>
             </Stack>
           </Box>

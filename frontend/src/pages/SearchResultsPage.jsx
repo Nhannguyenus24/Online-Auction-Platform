@@ -17,7 +17,7 @@ import {
   FormControl,
   InputLabel,
   Pagination,
-  CircularProgress,
+  Skeleton,
   Alert,
   TextField,
   InputAdornment,
@@ -28,12 +28,9 @@ import {
   Home,
   NavigateNext,
   AccessTime,
-  LocalOffer,
-  TrendingUp,
   Visibility,
   Gavel,
   Search,
-  FilterList,
 } from '@mui/icons-material';
 import Page from '../components/Page';
 import { formatPrice } from '../utils/formatNumber';
@@ -326,9 +323,25 @@ const SearchResultsPage = () => {
 
           {/* Loading State */}
           {loading && (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-              <CircularProgress />
-            </Box>
+            <Grid container spacing={3}>
+              {[...Array(20)].map((_, index) => (
+                <Grid item xs={12} sm={6} md={4} lg={3} key={`skeleton-${index}`}>
+                  <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                    <Skeleton variant="rectangular" width="100%" height={200} />
+                    <CardContent>
+                      <Skeleton variant="text" width="100%" height={24} sx={{ mb: 1 }} />
+                      <Skeleton variant="text" width="80%" height={20} sx={{ mb: 2 }} />
+                      <Skeleton variant="text" width="60%" height={28} sx={{ mb: 2 }} />
+                      <Stack spacing={1}>
+                        <Skeleton variant="text" width="100%" height={16} />
+                        <Skeleton variant="text" width="100%" height={16} />
+                        <Skeleton variant="text" width="70%" height={16} />
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))}
+            </Grid>
           )}
 
           {/* Error State */}

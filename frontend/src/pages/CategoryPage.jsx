@@ -18,7 +18,7 @@ import {
   FormControl,
   InputLabel,
   Pagination,
-  CircularProgress,
+  Skeleton,
   Alert,
 } from '@mui/material';
 import {
@@ -152,8 +152,9 @@ const CategoryPage = () => {
     return (
       <Page title="Categories - Auction">
         <Container maxWidth="xl" sx={{ py: 8 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-            <CircularProgress />
+          <Box sx={{ mb: 3 }}>
+            <Skeleton variant="rectangular" width="100%" height={60} sx={{ borderRadius: 2, mb: 3 }} />
+            <Skeleton variant="rectangular" width="100%" height={120} sx={{ borderRadius: 3 }} />
           </Box>
         </Container>
       </Page>
@@ -359,9 +360,37 @@ const CategoryPage = () => {
 
               {/* Products Grid */}
               {loading ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-                  <CircularProgress />
-                </Box>
+                <Grid container spacing={3}>
+                  {[...Array(12)].map((_, index) => (
+                    <Grid item xs={12} sm={6} lg={4} key={`skeleton-${index}`}>
+                      <Card
+                        elevation={0}
+                        sx={{
+                          height: '100%',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          border: '1px solid',
+                          borderColor: 'grey.200',
+                          borderRadius: 2,
+                          overflow: 'hidden',
+                        }}
+                      >
+                        <Box sx={{ position: 'relative', paddingTop: '75%', bgcolor: 'grey.50' }}>
+                          <Skeleton variant="rectangular" width="100%" height="100%" sx={{ position: 'absolute', top: 0, left: 0 }} />
+                        </Box>
+                        <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', p: 2.5 }}>
+                          <Skeleton variant="text" width="100%" height={24} sx={{ mb: 1 }} />
+                          <Skeleton variant="text" width="80%" height={20} sx={{ mb: 3 }} />
+                          <Box sx={{ mt: 'auto' }}>
+                            <Skeleton variant="text" width="60%" height={18} sx={{ mb: 1 }} />
+                            <Skeleton variant="text" width="40%" height={28} sx={{ mb: 2 }} />
+                            <Skeleton variant="text" width="50%" height={20} />
+                          </Box>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  ))}
+                </Grid>
               ) : error ? (
                 <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>
               ) : products.length === 0 ? (
