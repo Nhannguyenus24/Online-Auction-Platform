@@ -92,18 +92,29 @@ public class SellerGrpcService extends ReactorSellerServiceGrpc.SellerServiceImp
     @Override
     public Mono<TransactionHistoryResponse> getTransactionHistory(Mono<GetTransactionHistoryRequest> request) {
         return request.doOnNext(req -> log.info("Get transaction history request: {}", JsonUtils.toJson(req)))
-            .map(req -> {
-                // TODO: Implement transaction history from orders/payments service
-                return TransactionHistoryResponse.newBuilder()
-                    .setTotalCount(0)
-                    .setPage(req.getPage())
-                    .setPageSize(req.getPageSize())
-                    .build();
-            })
-            .doOnNext(resp -> log.info("Get transaction history response: {}", JsonUtils.toJson(resp)))
+            .flatMap(req ->
+                sellerService.getOrders(
+                    req.getSellerId(),
+                    "all",  // Get all orders regardless of status
+                    req.getPage(),
+                    req.getPageSize()
+                )
+                .map(result -> TransactionHistoryResponse.newBuilder()
+                    .addAllTransactions(result.orders())
+                    .setTotalCount(result.totalCount())
+                    .setPage(result.page())
+                    .setPageSize(result.pageSize())
+                    .build())
+            )
+            .doOnNext(resp -> log.info("Get transaction history response: transactionsCount={}, totalCount={}, page={}, pageSize={}", 
+                resp.getTransactionsCount(), resp.getTotalCount(), resp.getPage(), resp.getPageSize()))
             .onErrorResume(e -> {
                 log.error("Get transaction history error: {}", e.getMessage(), e);
-                return Mono.just(TransactionHistoryResponse.newBuilder().build());
+                return Mono.just(TransactionHistoryResponse.newBuilder()
+                    .setTotalCount(0)
+                    .setPage(request.block().getPage())
+                    .setPageSize(request.block().getPageSize())
+                    .build());
             });
     }
 
