@@ -122,6 +122,12 @@ CREATE TABLE `orders` (
   `status` varchar(30) DEFAULT 'pending',
   `payment_method` varchar(50),
   `shipping_address` text,
+  `stripe_payment_intent_id` varchar(255),
+  `payment_status` enum('pending', 'completed', 'failed') DEFAULT 'pending',
+  `payment_attempted_at` timestamp NULL,
+  `payment_completed_at` timestamp NULL,
+  `payment_failed_at` timestamp NULL,
+  `payment_failure_reason` text,
   `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );

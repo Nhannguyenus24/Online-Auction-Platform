@@ -122,6 +122,27 @@ public interface OrderRepository extends R2dbcRepository<Order, Integer> {
     );
     
     /**
+     * Update order with Stripe payment intent ID and payment status
+     * @param orderId the order ID
+     * @param stripePaymentIntentId the Stripe payment intent ID
+     * @param paymentStatus the payment status (pending, completed, failed)
+     * @return void
+     */
+    @Query("""
+        UPDATE orders
+        SET stripe_payment_intent_id = :stripePaymentIntentId,
+            payment_status = :paymentStatus,
+            payment_attempted_at = CURRENT_TIMESTAMP,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = :orderId
+        """)
+    Mono<Void> updateOrderPaymentIntent(
+        @Param("orderId") Integer orderId,
+        @Param("stripePaymentIntentId") String stripePaymentIntentId,
+        @Param("paymentStatus") String paymentStatus
+    );
+    
+    /**
      * Find order by ID
      * @param orderId the order ID
      * @return the order

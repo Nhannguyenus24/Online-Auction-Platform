@@ -170,4 +170,16 @@ public class BidderGrpcClient {
         log.info("gRPC getBannedProducts request: {}", JsonUtils.toJson(request));
         return userServiceStub.getBannedProducts(Mono.just(request));
     }
+    
+    // Get Order By ID
+    public Mono<GetOrderByIdResponse> getOrderById(GetOrderByIdRequest request) {
+        log.info("gRPC getOrderById request: {}", JsonUtils.toJson(request));
+        return userServiceStub.getOrderById(Mono.just(request));
+    }
+    
+    // Update Order Payment Intent
+    public Mono<UpdateOrderPaymentIntentResponse> updateOrderPaymentIntent(UpdateOrderPaymentIntentRequest request) {
+        log.info("gRPC updateOrderPaymentIntent request: {}", JsonUtils.toJson(request));
+        return userServiceStub.updateOrderPaymentIntent(Mono.just(request));
+    }
 }

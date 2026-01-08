@@ -1508,6 +1508,97 @@ public class BidderService {
             .doOnError(e -> log.error("Error getting banned products for user {}: {}", userId, e.getMessage(), e));
     }
 
+    /**
+     * Get order by ID with authorization check
+     * @param orderId the order ID
+     * @param userId the user ID (must be buyer or seller of the order)
+     * @return the order details
+     */
+    public Mono<OrderDetail> getOrderById(int orderId, int userId) {
+        log.info("Getting order by ID - orderId: {}, userId: {}", orderId, userId);
+        
+        return orderRepository.findById(orderId)
+            .switchIfEmpty(Mono.defer(() -> {
+                log.warn("Order not found with id: {}", orderId);
+                return Mono.error(new IllegalArgumentException("Order not found with id: " + orderId));
+            }))
+            .flatMap(order -> {
+                // Authorization check: user must be buyer or seller
+                if (!order.getBuyerId().equals(userId) && !order.getSellerId().equals(userId)) {
+                    log.warn("User {} is not authorized to access order {}", userId, orderId);
+                    return Mono.error(new IllegalArgumentException("Unauthorized: You don't have access to this order"));
+                }
+                
+                return Mono.just(OrderDetail.newBuilder()
+                    .setId(order.getId())
+                    .setProductId(order.getProductId())
+                    .setBuyerId(order.getBuyerId())
+                    .setSellerId(order.getSellerId())
+                    .setAmount(order.getAmount().doubleValue())
+                    .setStatus(order.getStatus() != null ? order.getStatus() : "")
+                    .setPaymentMethod(order.getPaymentMethod() != null ? order.getPaymentMethod() : "")
+                    .setShippingAddress(order.getShippingAddress() != null ? order.getShippingAddress() : "")
+                    .setStripePaymentIntentId(order.getStripePaymentIntentId() != null ? order.getStripePaymentIntentId() : "")
+                    .setPaymentStatus(order.getPaymentStatus() != null ? order.getPaymentStatus() : "")
+                    .setCreatedAt(order.getCreatedAt() != null ? 
+                        order.getCreatedAt().toEpochSecond(ZoneOffset.ofHours(7)) : 0)
+                    .setUpdatedAt(order.getUpdatedAt() != null ? 
+                        order.getUpdatedAt().toEpochSecond(ZoneOffset.ofHours(7)) : 0)
+                    .build());
+            })
+            .doOnError(e -> log.error("Error getting order by ID - orderId: {}, userId: {}, error: {}", 
+                orderId, userId, e.getMessage(), e));
+    }
+    
+    /**
+     * Update order payment intent information
+     * @param orderId the order ID
+     * @param userId the user ID (must be buyer of the order)
+     * @param stripePaymentIntentId the Stripe payment intent ID
+     * @param paymentStatus the payment status
+     * @return the updated order details
+     */
+    @Transactional
+    public Mono<OrderDetail> updateOrderPaymentIntent(int orderId, int userId, 
+                                                       String stripePaymentIntentId, String paymentStatus) {
+        log.info("Updating order payment intent - orderId: {}, userId: {}, paymentIntentId: {}, status: {}", 
+            orderId, userId, stripePaymentIntentId, paymentStatus);
+        
+        return orderRepository.findById(orderId)
+            .switchIfEmpty(Mono.defer(() -> {
+                log.warn("Order not found with id: {}", orderId);
+                return Mono.error(new IllegalArgumentException("Order not found with id: " + orderId));
+            }))
+            .flatMap(order -> {
+                // Authorization check: user must be buyer
+                if (!order.getBuyerId().equals(userId)) {
+                    log.warn("User {} is not authorized to update payment for order {}", userId, orderId);
+                    return Mono.error(new IllegalArgumentException("Unauthorized: Only the buyer can update payment"));
+                }
+                
+                return orderRepository.updateOrderPaymentIntent(orderId, stripePaymentIntentId, paymentStatus)
+                    .then(orderRepository.findById(orderId))
+                    .map(updatedOrder -> OrderDetail.newBuilder()
+                        .setId(updatedOrder.getId())
+                        .setProductId(updatedOrder.getProductId())
+                        .setBuyerId(updatedOrder.getBuyerId())
+                        .setSellerId(updatedOrder.getSellerId())
+                        .setAmount(updatedOrder.getAmount().doubleValue())
+                        .setStatus(updatedOrder.getStatus() != null ? updatedOrder.getStatus() : "")
+                        .setPaymentMethod(updatedOrder.getPaymentMethod() != null ? updatedOrder.getPaymentMethod() : "")
+                        .setShippingAddress(updatedOrder.getShippingAddress() != null ? updatedOrder.getShippingAddress() : "")
+                        .setStripePaymentIntentId(updatedOrder.getStripePaymentIntentId() != null ? updatedOrder.getStripePaymentIntentId() : "")
+                        .setPaymentStatus(updatedOrder.getPaymentStatus() != null ? updatedOrder.getPaymentStatus() : "")
+                        .setCreatedAt(updatedOrder.getCreatedAt() != null ? 
+                            updatedOrder.getCreatedAt().toEpochSecond(ZoneOffset.ofHours(7)) : 0)
+                        .setUpdatedAt(updatedOrder.getUpdatedAt() != null ? 
+                            updatedOrder.getUpdatedAt().toEpochSecond(ZoneOffset.ofHours(7)) : 0)
+                        .build());
+            })
+            .doOnError(e -> log.error("Error updating order payment intent - orderId: {}, userId: {}, error: {}", 
+                orderId, userId, e.getMessage(), e));
+    }
+
     // Helper records for new endpoints
     public record BidderOrdersResult(
         List<OrderItem> orders,

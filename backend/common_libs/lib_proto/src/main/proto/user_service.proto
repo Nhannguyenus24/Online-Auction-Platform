@@ -67,6 +67,12 @@ service UserService {
 
   //20 Get product list be banned by bidder
   rpc GetBannedProducts(GetBannedProductsRequest) returns (GetBannedProductsResponse);
+
+  //21 Get order by ID
+  rpc GetOrderById(GetOrderByIdRequest) returns (GetOrderByIdResponse);
+
+  //22 Update order payment intent
+  rpc UpdateOrderPaymentIntent(UpdateOrderPaymentIntentRequest) returns (UpdateOrderPaymentIntentResponse);
 }
 
 // ==================== Product Messages ====================
@@ -500,4 +506,47 @@ message GetBannedProductsResponse {
   PageInfo page_info = 2;
   bool success = 3;
   string message = 4;
+}
+
+// ==================== 21. Get Order By ID ====================
+
+message GetOrderByIdRequest {
+  int32 order_id = 1;
+  int32 user_id = 2; // Authenticated user ID (for authorization check)
+}
+
+message GetOrderByIdResponse {
+  bool success = 1;
+  string message = 2;
+  OrderDetail order = 3;
+}
+
+message OrderDetail {
+  int32 id = 1;
+  int32 product_id = 2;
+  int32 buyer_id = 3;
+  int32 seller_id = 4;
+  double amount = 5;
+  string status = 6;
+  string payment_method = 7;
+  string shipping_address = 8;
+  string stripe_payment_intent_id = 9;
+  string payment_status = 10;
+  int64 created_at = 11;
+  int64 updated_at = 12;
+}
+
+// ==================== 22. Update Order Payment Intent ====================
+
+message UpdateOrderPaymentIntentRequest {
+  int32 order_id = 1;
+  int32 user_id = 2; // Authenticated user ID (for authorization check)
+  string stripe_payment_intent_id = 3;
+  string payment_status = 4; // "pending", "completed", "failed"
+}
+
+message UpdateOrderPaymentIntentResponse {
+  bool success = 1;
+  string message = 2;
+  OrderDetail order = 3;
 }

@@ -35,6 +35,18 @@ public class Order {
     
     private String shippingAddress;
     
+    private String stripePaymentIntentId;
+    
+    private String paymentStatus; // 'pending', 'completed', 'failed'
+    
+    private LocalDateTime paymentAttemptedAt;
+    
+    private LocalDateTime paymentCompletedAt;
+    
+    private LocalDateTime paymentFailedAt;
+    
+    private String paymentFailureReason;
+    
     private LocalDateTime createdAt;
     
     private LocalDateTime updatedAt;

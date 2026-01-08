@@ -499,5 +499,52 @@ public class BidderGrpcService extends ReactorUserServiceGrpc.UserServiceImplBas
                         })
                 );
     }
+    
+    @Override
+    public Mono<GetOrderByIdResponse> getOrderById(Mono<GetOrderByIdRequest> request) {
+        return request.doOnNext(req -> log.info("Raw get order by ID request: {}", JsonUtils.toJson(req)))
+                .flatMap(req ->
+                    bidderService.getOrderById(req.getOrderId(), req.getUserId())
+                        .map(order -> GetOrderByIdResponse.newBuilder()
+                            .setSuccess(true)
+                            .setMessage("Order retrieved successfully")
+                            .setOrder(order)
+                            .build())
+                        .doOnNext(resp -> log.info("Raw get order by ID response: {}", JsonUtils.toJson(resp)))
+                        .onErrorResume(e -> {
+                            log.error("Error getting order by ID: {}", e.getMessage(), e);
+                            return Mono.just(GetOrderByIdResponse.newBuilder()
+                                .setSuccess(false)
+                                .setMessage("Error: " + e.getMessage())
+                                .build());
+                        })
+                );
+    }
+    
+    @Override
+    public Mono<UpdateOrderPaymentIntentResponse> updateOrderPaymentIntent(Mono<UpdateOrderPaymentIntentRequest> request) {
+        return request.doOnNext(req -> log.info("Raw update order payment intent request: {}", JsonUtils.toJson(req)))
+                .flatMap(req ->
+                    bidderService.updateOrderPaymentIntent(
+                        req.getOrderId(), 
+                        req.getUserId(),
+                        req.getStripePaymentIntentId(),
+                        req.getPaymentStatus()
+                    )
+                        .map(order -> UpdateOrderPaymentIntentResponse.newBuilder()
+                            .setSuccess(true)
+                            .setMessage("Order payment intent updated successfully")
+                            .setOrder(order)
+                            .build())
+                        .doOnNext(resp -> log.info("Raw update order payment intent response: {}", JsonUtils.toJson(resp)))
+                        .onErrorResume(e -> {
+                            log.error("Error updating order payment intent: {}", e.getMessage(), e);
+                            return Mono.just(UpdateOrderPaymentIntentResponse.newBuilder()
+                                .setSuccess(false)
+                                .setMessage("Error: " + e.getMessage())
+                                .build());
+                        })
+                );
+    }
 }
 

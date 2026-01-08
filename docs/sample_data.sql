@@ -2,6 +2,29 @@
 -- This file contains test data for development and testing purposes
 
 -- =====================
+-- CLEAR EXISTING DATA (if any)
+-- =====================
+SET FOREIGN_KEY_CHECKS = 0;
+
+DELETE FROM `messages`;
+DELETE FROM `conversations`;
+DELETE FROM `notifications`;
+DELETE FROM `orders`;
+DELETE FROM `reviews`;
+DELETE FROM `product_bans`;
+DELETE FROM `upgrade_requests`;
+DELETE FROM `questions`;
+DELETE FROM `watchlists`;
+DELETE FROM `auto_bids`;
+DELETE FROM `bids`;
+DELETE FROM `product_images`;
+DELETE FROM `products`;
+DELETE FROM `categories`;
+DELETE FROM `users`;
+
+SET FOREIGN_KEY_CHECKS = 1;
+
+-- =====================
 -- INSERT USERS
 -- password: String1234
 -- =====================
@@ -114,46 +137,7 @@ INSERT INTO `product_images` (`id`, `product_id`, `url`, `is_primary`) VALUES
 (38, 26, 'https://example.com/images/gopro_1.jpg', 1),
 (39, 27, 'https://example.com/images/velvet_sofa_1.jpg', 1),
 (40, 27, 'https://example.com/images/velvet_sofa_2.jpg', 0),
-(41, 28, 'https://exam,
-(21, 11, 4, 900.00, 1),
-(22, 12, 5, 700.00, 1),
-(23, 13, 6, 1900.00, 0),
-(24, 13, 4, 1950.00, 1),
-(25, 14, 5, 240.00, 1),
-(26, 15, 4, 300.00, 1),
-(27, 16, 6, 490.00, 0),
-(28, 16, 5, 520.00, 1),
-(29, 17, 4, 95.00, 1),
-(30, 18, 6, 145.00, 1),
-(31, 19, 4, 550.00, 0),
-(32, 19, 5, 580.00, 1),
-(33, 20, 6, 220.00, 1),
-(34, 21, 4, 180.00, 1),
-(35, 22, 5, 330.00,,
-(11, 11, 4, 950.00),
-(12, 12, 5, 750.00),
-(13, 13, 4, 2100.00),
-(14, 14, 5, 280.00),
-(15, 15, 4, 350.00),
-(16, 16, 5, 600.00),
-(17, 19, 5, 650.00),
-(18, 20, 6, 250.00),
-(19, 22, 6, 450.00),
-(20, 23, 5, 1100.00),
-(21, 25, 5, 420.00),
-(22, 27, 5, 800.00) 0),
-(36, 22, 6, 360.00, 1),
-(37, 23, 4, 970.00, 0),
-(38, 23, 5, 1000.00, 1),
-(39, 24, 6, 215.00, 1),
-(40, 25, 4, 350.00, 0),
-(41, 25, 5, 380.00, 1),
-(42, 26, 6, 330.00, 1),
-(43, 27, 4, 680.00, 0),
-(44, 27, 5, 700.00, 1),
-(45, 28, 6, 470.00, 1),
-(46, 29, 4, 55.00, 1),
-(47, 30, 5, 130.00, 1)ple.com/images/dyson_1.jpg', 1),
+(41, 28, 'https://example.com/images/dyson_1.jpg', 1),
 (42, 29, 'https://example.com/images/yoga_mat_1.jpg', 1),
 (43, 30, 'https://example.com/images/vinyl_records_1.jpg', 1),
 (44, 30, 'https://example.com/images/vinyl_records_2.jpg', 0);
@@ -173,16 +157,7 @@ INSERT INTO `bids` (`id`, `product_id`, `bidder_id`, `amount`, `is_auto`) VALUES
 (9, 4, 5, 360.00, 0),
 (10, 4, 6, 380.00, 1),
 (11, 5, 4, 700.00, 0),
-(11, 8, 10),
-(12, 4, 11),
-(13, 4, 16),
-(14, 5, 13),
-(15, 5, 19),
-(16, 6, 20),
-(17, 6, 22),
-(18, 4, 23),
-(19, 5, 25),
-(20, 6, 27);20.00, 1),
+(12, 5, 5, 720.00, 1),
 (13, 6, 6, 170.00, 0),
 (14, 6, 4, 185.00, 1),
 (15, 7, 5, 250.00, 0),
@@ -255,24 +230,15 @@ INSERT INTO `reviews` (`id`, `from_user_id`, `to_user_id`, `product_id`, `score`
 -- =====================
 -- INSERT ORDERS
 -- =====================
-INSERT INTO `orders` (`id`, `product_id`, `buyer_id`, `seller_id`, `amount`, `status`, `payment_method`, `shipping_address`) VALUES
-(1, 1, 6, 2, 950.00, 'completed', 'credit_card', '987 Shopper Court, Hai Phong, Vietnam'),
-(2, 4, 5, 2, 380.00, 'completed', 'credit_card', '654 Customer Street, Can Tho, Vietnam'),
-(3, 5, 4, 7, 720.00, 'pending_payment', 'bank_transfer', '321 Buyer Lane, Da Nang, Vietnam'),
-(4, 8, 6, 7, 500.00, 'shipped', 'credit_card', '987 Shopper Court, Hai Phong, Vietnam'),
-(5, 10, 4, 3, 95.00, 'completed', 'wallet', '321 Buyer Lane, Da Nang, Vietnam');
+INSERT INTO `orders` (`id`, `product_id`, `buyer_id`, `seller_id`, `amount`, `status`, `payment_method`, `shipping_address`, `stripe_payment_intent_id`, `payment_status`, `payment_attempted_at`, `payment_completed_at`, `payment_failed_at`, `payment_failure_reason`) VALUES
+(1, 1, 6, 2, 950.00, 'completed', 'credit_card', '987 Shopper Court, Hai Phong, Vietnam', 'pi_1234567890abcdef', 'completed', NOW(), NOW(), NULL, NULL),
+(2, 4, 5, 2, 380.00, 'completed', 'credit_card', '654 Customer Street, Can Tho, Vietnam', 'pi_0987654321fedcba', 'completed', NOW(), NOW(), NULL, NULL),
+(3, 5, 4, 7, 720.00, 'pending_payment', 'bank_transfer', '321 Buyer Lane, Da Nang, Vietnam', NULL, 'pending', NULL, NULL, NULL, NULL),
+(4, 8, 6, 7, 500.00, 'shipped', 'credit_card', '987 Shopper Court, Hai Phong, Vietnam', 'pi_abcdef1234567890', 'completed', NOW(), NOW(), NULL, NULL),
+(5, 10, 4, 3, 95.00, 'completed', 'wallet', '321 Buyer Lane, Da Nang, Vietnam', NULL, 'completed', NOW(), NOW(), NULL, NULL);
 
 -- =====================
--- INSERT PAYMENTS
--- =====================
-INSERT INTO `payments` (`id`, `order_id`, `provider`, `provider_type`, `provider_txn_id`, `amount`, `currency`, `status`, `paid_at`) VALUES
-(1, 1, 'stripe', 'credit_card', 'txn_stripe_001', 950.00, 'USD', 'completed', NOW()),
-(2, 2, 'paypal', 'paypal', 'txn_paypal_001', 380.00, 'USD', 'completed', NOW()),
-(3, 4, 'strip30 active auction products
--- Product Images: 44 images
--- Bids: 47 bids (mix of manual and auto bids)
--- Auto Bids: 22 auto bids
--- Watchlists: 20ATIONS
+-- INSERT NOTIFICATIONS
 -- =====================
 INSERT INTO `notifications` (`id`, `user_id`, `type`, `payload`, `is_read`) VALUES
 (1, 4, 'bid_outbid', '{"product_id": 1, "product_title": "iPhone 14 Pro Max 256GB", "new_highest_bid": 950.00}', 1),
@@ -288,36 +254,36 @@ INSERT INTO `notifications` (`id`, `user_id`, `type`, `payload`, `is_read`) VALU
 -- INSERT CONVERSATIONS (Chat Service)
 -- =====================
 INSERT INTO `conversations` (`id`, `order_id`, `seller_id`, `seller_name`, `seller_avatar`, `bidder_id`, `bidder_name`, `bidder_avatar`, `product_title`, `product_image`, `status`, `amount`, `last_message_content`, `last_message_sender_role`, `last_message_time`, `unread_count_seller`, `unread_count_bidder`) VALUES
-(1, 1, '2', 'Nguyen Van A', 'https://example.com/avatars/seller1.jpg', '6', 'Hoang Van E', 'https://example.com/avatars/bidder3.jpg', 'iPhone 14 Pro Max 256GB', 'https://example.com/images/iphone14pro_1.jpg', 'completed', 950.00, 'Thank you for the purchase!', 'SELLER', NOW(), 0, 0),
-(2, 2, '2', 'Nguyen Van A', 'https://example.com/avatars/seller1.jpg', '5', 'Le Thi D', 'https://example.com/avatars/bidder2.jpg', 'Wooden Dining Table Set', 'https://example.com/images/dining_table_1.jpg', 'completed', 380.00, 'Please confirm receipt of the table.', 'SELLER', NOW(), 1, 0),
-(3, 3, '7', 'Ngo Thi F', 'https://example.com/avatars/seller3.jpg', '4', 'Pham Van C', 'https://example.com/avatars/bidder1.jpg', 'Stainless Steel Refrigerator', 'https://example.com/images/lg_fridge_1.jpg', 'pending_payment', 720.00, 'Waiting for payment confirmation.', 'SELLER', NOW(), 0, 1),
-(4, 4, '7', 'Ngo Thi F', 'https://example.com/avatars/seller3.jpg', '6', 'Hoang Van E', 'https://example.com/avatars/bidder3.jpg', 'Mountain Bike - Trek X-Caliber', 'https://example.com/images/trek_bike_1.jpg', 'shipped', 500.00, 'Your order has been shipped. Tracking: TRK123456', 'SELLER', NOW(), 0, 0),
-(5, 5, '3', 'Tran Thi B', 'https://example.com/avatars/seller2.jpg', '4', 'Pham Van C', 'https://example.com/avatars/bidder1.jpg', 'Vintage Book Collection', 'https://example.com/images/vintage_books_1.jpg', 'completed', 95.00, 'Perfect condition books! Thank you.', 'BIDDER', NOW(), 0, 0);
+(1, '1', '2', 'Nguyen Van A', 'https://example.com/avatars/seller1.jpg', '6', 'Hoang Van E', 'https://example.com/avatars/bidder3.jpg', 'iPhone 14 Pro Max 256GB', 'https://example.com/images/iphone14pro_1.jpg', 'completed', 950.00, 'Thank you for the purchase!', 'SELLER', NOW(), 0, 0),
+(2, '2', '2', 'Nguyen Van A', 'https://example.com/avatars/seller1.jpg', '5', 'Le Thi D', 'https://example.com/avatars/bidder2.jpg', 'Wooden Dining Table Set', 'https://example.com/images/dining_table_1.jpg', 'completed', 380.00, 'Please confirm receipt of the table.', 'SELLER', NOW(), 1, 0),
+(3, '3', '7', 'Ngo Thi F', 'https://example.com/avatars/seller3.jpg', '4', 'Pham Van C', 'https://example.com/avatars/bidder1.jpg', 'Stainless Steel Refrigerator', 'https://example.com/images/lg_fridge_1.jpg', 'pending_payment', 720.00, 'Waiting for payment confirmation.', 'SELLER', NOW(), 0, 1),
+(4, '4', '7', 'Ngo Thi F', 'https://example.com/avatars/seller3.jpg', '6', 'Hoang Van E', 'https://example.com/avatars/bidder3.jpg', 'Mountain Bike - Trek X-Caliber', 'https://example.com/images/trek_bike_1.jpg', 'shipped', 500.00, 'Your order has been shipped. Tracking: TRK123456', 'SELLER', NOW(), 0, 0),
+(5, '5', '3', 'Tran Thi B', 'https://example.com/avatars/seller2.jpg', '4', 'Pham Van C', 'https://example.com/avatars/bidder1.jpg', 'Vintage Book Collection', 'https://example.com/images/vintage_books_1.jpg', 'completed', 95.00, 'Perfect condition books! Thank you.', 'BIDDER', NOW(), 0, 0);
 
 -- =====================
 -- INSERT MESSAGES (Chat Service)
 -- =====================
 INSERT INTO `messages` (`id`, `order_id`, `sender_role`, `sender_name`, `sender_email`, `content`) VALUES
-(1, 1, 'SELLER', 'Nguyen Van A', 'seller1@example.com', 'Hi, your item has been packed and will be shipped today.'),
-(2, 1, 'BIDDER', 'Hoang Van E', 'bidder3@example.com', 'Great! Thanks for the quick packing.'),
-(3, 1, 'SELLER', 'Nguyen Van A', 'seller1@example.com', 'Thank you for the purchase!'),
-(4, 2, 'SELLER', 'Nguyen Van A', 'seller1@example.com', 'Your dining table has been carefully packaged.'),
-(5, 2, 'SELLER', 'Nguyen Van A', 'seller1@example.com', 'Please confirm receipt of the table.'),
-(6, 3, 'SELLER', 'Ngo Thi F', 'seller3@example.com', 'Your refrigerator is ready to ship. Please arrange payment.'),
-(7, 3, 'BIDDER', 'Pham Van C', 'bidder1@example.com', 'I will transfer payment today. Please wait.'),
-(8, 3, 'SELLER', 'Ngo Thi F', 'seller3@example.com', 'Waiting for payment confirmation.'),
-(9, 4, 'SELLER', 'Ngo Thi F', 'seller3@example.com', 'Your bike is being prepared for shipment.'),
-(10, 4, 'SELLER', 'Ngo Thi F', 'seller3@example.com', 'Your order has been shipped. Tracking: TRK123456'),
-(11, 5, 'SELLER', 'Tran Thi B', 'seller2@example.com', 'Your books are carefully packaged and ready to ship.'),
-(12, 5, 'BIDDER', 'Pham Van C', 'bidder1@example.com', 'Perfect condition books! Thank you.');
+(1, '1', 'SELLER', 'Nguyen Van A', 'seller1@example.com', 'Hi, your item has been packed and will be shipped today.'),
+(2, '1', 'BIDDER', 'Hoang Van E', 'bidder3@example.com', 'Great! Thanks for the quick packing.'),
+(3, '1', 'SELLER', 'Nguyen Van A', 'seller1@example.com', 'Thank you for the purchase!'),
+(4, '2', 'SELLER', 'Nguyen Van A', 'seller1@example.com', 'Your dining table has been carefully packaged.'),
+(5, '2', 'SELLER', 'Nguyen Van A', 'seller1@example.com', 'Please confirm receipt of the table.'),
+(6, '3', 'SELLER', 'Ngo Thi F', 'seller3@example.com', 'Your refrigerator is ready to ship. Please arrange payment.'),
+(7, '3', 'BIDDER', 'Pham Van C', 'bidder1@example.com', 'I will transfer payment today. Please wait.'),
+(8, '3', 'SELLER', 'Ngo Thi F', 'seller3@example.com', 'Waiting for payment confirmation.'),
+(9, '4', 'SELLER', 'Ngo Thi F', 'seller3@example.com', 'Your bike is being prepared for shipment.'),
+(10, '4', 'SELLER', 'Ngo Thi F', 'seller3@example.com', 'Your order has been shipped. Tracking: TRK123456'),
+(11, '5', 'SELLER', 'Tran Thi B', 'seller2@example.com', 'Your books are carefully packaged and ready to ship.'),
+(12, '5', 'BIDDER', 'Pham Van C', 'bidder1@example.com', 'Perfect condition books! Thank you.');
 
 -- =====================
 -- SUMMARY OF TEST DATA
 -- =====================
 -- Users: 8 users (1 admin, 3 sellers, 4 bidders)
 -- Categories: 15 categories (with parent-child relationships)
--- Products: 10 active auction products
--- Product Images: 16 images
+-- Products: 30 active auction products
+-- Product Images: 44 images
 -- Bids: 20 bids (mix of manual and auto bids)
 -- Auto Bids: 10 auto bids
 -- Watchlists: 11 watchlist entries
@@ -325,7 +291,6 @@ INSERT INTO `messages` (`id`, `order_id`, `sender_role`, `sender_name`, `sender_
 -- Upgrade Requests: 4 seller upgrade requests
 -- Reviews: 5 reviews
 -- Orders: 5 orders in various statuses
--- Payments: 4 payments
 -- Notifications: 8 notifications
 -- Conversations: 5 chat conversations
 -- Messages: 12 chat messages
