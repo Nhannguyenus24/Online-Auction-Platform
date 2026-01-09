@@ -34,6 +34,7 @@ service SellerService {
   // Order Management
   rpc GetOrders(GetOrdersRequest) returns (OrdersResponse);
   rpc ConfirmPaymentReceipt(ConfirmPaymentReceiptRequest) returns (ConfirmPaymentReceiptResponse);
+  rpc UpdateOrderStatus(UpdateOrderStatusRequest) returns (UpdateOrderStatusResponse);
 }
 
 // ============================================================================
@@ -295,10 +296,11 @@ message OrderDetail {
   int32 buyer_id = 4;
   string buyer_name = 5;
   float amount = 6;
-  string status = 7;
+  string status = 7; // Order status: pending, processing, shipped, delivered, cancelled
   string payment_method = 8;
-  string created_at = 9;
-  string updated_at = 10;
+  string payment_status = 9; // Payment status: pending, completed, failed
+  string created_at = 10;
+  string updated_at = 11;
 }
 
 message ConfirmPaymentReceiptRequest {
@@ -311,4 +313,18 @@ message ConfirmPaymentReceiptRequest {
 message ConfirmPaymentReceiptResponse {
   bool success = 1;
   string message = 2;
+}
+
+// ==================== Update Order Status ====================
+
+message UpdateOrderStatusRequest {
+  int32 seller_id = 1;
+  int32 order_id = 2;
+  string status = 3; // pending, processing, shipped, delivered, cancelled
+}
+
+message UpdateOrderStatusResponse {
+  bool success = 1;
+  string message = 2;
+  OrderDetail order = 3;
 }

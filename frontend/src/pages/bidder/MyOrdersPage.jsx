@@ -26,6 +26,7 @@ import {
   AccessTime,
   LocalShipping,
   Cancel,
+  Inventory,
 } from '@mui/icons-material';
 import Page from '../../components/Page';
 import { formatPrice } from '../../utils/formatNumber';
@@ -38,8 +39,8 @@ const BidderMyOrdersPage = () => {
   const [error, setError] = useState(null);
   const [orders, setOrders] = useState([]);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [pageSize] = useState(20);
+  const [statusFilter] = useState('all');
   const [pageInfo, setPageInfo] = useState({
     currentPage: 1,
     pageSize: 20,
@@ -53,6 +54,7 @@ const BidderMyOrdersPage = () => {
 
   useEffect(() => {
     fetchOrders();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, pageSize, statusFilter]);
 
   const fetchOrders = async () => {
@@ -136,62 +138,78 @@ const BidderMyOrdersPage = () => {
   };
 
   const getOrderStatusChip = (status) => {
-    const statusLower = status?.toLowerCase();
+    const statusLower = status?.toLowerCase() || '';
     
-    if (statusLower === 'pending') {
+    // Status mapping with colors and icons
+    const statusMap = {
+      pending: {
+        label: 'Pending',
+        color: 'warning',
+        icon: <AccessTime />,
+      },
+      processing: {
+        label: 'Processing',
+        color: 'info',
+        icon: <Inventory />,
+      },
+      shipped: {
+        label: 'Shipped',
+        color: 'primary',
+        icon: <LocalShipping />,
+      },
+      delivered: {
+        label: 'Delivered',
+        color: 'success',
+        icon: <CheckCircle />,
+      },
+      cancelled: {
+        label: 'Cancelled',
+        color: 'error',
+        icon: <Cancel />,
+      },
+      // Legacy statuses for backward compatibility
+      completed: {
+        label: 'Completed',
+        color: 'success',
+        icon: <CheckCircle />,
+      },
+      paid: {
+        label: 'Paid',
+        color: 'info',
+        icon: <Payment />,
+      },
+      shipping: {
+        label: 'Shipping',
+        color: 'primary',
+        icon: <LocalShipping />,
+      },
+    };
+    
+    const statusInfo = statusMap[statusLower];
+    
+    if (statusInfo) {
       return (
         <Chip
-          icon={<AccessTime />}
-          label="Pending"
-          color="warning"
-          size="small"
-        />
-      );
-    } else if (statusLower === 'completed') {
-      return (
-        <Chip
-          icon={<CheckCircle />}
-          label="Completed"
-          color="success"
-          size="small"
-        />
-      );
-    } else if (statusLower === 'cancelled') {
-      return (
-        <Chip
-          icon={<Cancel />}
-          label="Cancelled"
-          color="error"
-          size="small"
-        />
-      );
-    } else if (statusLower === 'paid') {
-      return (
-        <Chip
-          icon={<Payment />}
-          label="Paid"
-          color="info"
-          size="small"
-        />
-      );
-    } else if (statusLower === 'shipping') {
-      return (
-        <Chip
-          icon={<LocalShipping />}
-          label="Shipping"
-          color="primary"
-          size="small"
-        />
-      );
-    } else {
-      return (
-        <Chip
-          label={status}
-          color="default"
+          icon={statusInfo.icon}
+          label={statusInfo.label}
+          color={statusInfo.color}
           size="small"
         />
       );
     }
+    
+    // Fallback for unknown statuses - capitalize first letter
+    const capitalizedStatus = status 
+      ? status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()
+      : 'Unknown';
+    
+    return (
+      <Chip
+        label={capitalizedStatus}
+        color="default"
+        size="small"
+      />
+    );
   };
 
   if (loading && orders.length === 0) {

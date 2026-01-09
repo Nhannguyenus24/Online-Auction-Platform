@@ -5,6 +5,7 @@ import {
   Container,
   Typography,
   Card,
+  Skeleton,
   CardContent,
   Table,
   TableBody,
@@ -184,26 +185,26 @@ const SellerProductsPage = () => {
 
   const getStatusChip = (product) => {
     // Get product status from API response
-    const productStatus = product.status?.toLowerCase() || 'active';
-    
+    const productStatus = product.status?.toLowerCase() || "active";
+
     // Map product status to display format
     switch (productStatus) {
-      case 'active':
-        return { label: 'Active', color: 'success', icon: <CheckCircle /> };
-      case 'ended':
-        return { label: 'Ended', color: 'default', icon: <Cancel /> };
-      case 'pending':
-        return { label: 'Pending', color: 'warning', icon: <AccessTime /> };
-      case 'cancelled':
-        return { label: 'Cancelled', color: 'error', icon: <Cancel /> };
+      case "active":
+        return { label: "Active", color: "success", icon: <CheckCircle /> };
+      case "ended":
+        return { label: "Ended", color: "default", icon: <Cancel /> };
+      case "pending":
+        return { label: "Pending", color: "warning", icon: <AccessTime /> };
+      case "cancelled":
+        return { label: "Cancelled", color: "error", icon: <Cancel /> };
       default:
         // Fallback: check endTime if status is not available
         const now = new Date();
         const endTime = normalizeTimestamp(product.endTime);
         const isEnded = endTime <= now;
-        return isEnded 
-          ? { label: 'Ended', color: 'default', icon: <Cancel /> }
-          : { label: 'Active', color: 'success', icon: <CheckCircle /> };
+        return isEnded
+          ? { label: "Ended", color: "default", icon: <Cancel /> }
+          : { label: "Active", color: "success", icon: <CheckCircle /> };
     }
   };
 

@@ -152,6 +152,33 @@ export const sellerApi = {
   },
 
   /**
+   * Update order status
+   * Requires seller authentication
+   * @param {number|string} orderId - Order ID
+   * @param {string} status - New status (pending, processing, shipped, delivered, cancelled)
+   * @returns {Promise} - { success, message, order: {...} }
+   */
+  updateOrderStatus: (orderId, status) => {
+    return axiosInstance
+      .patch(`/api/seller/orders/${orderId}/status`, { status })
+      .then((response) => {
+        if (response.data.success) {
+          return {
+            success: true,
+            message: response.data.message || 'Order status updated successfully',
+            order: response.data.order,
+          };
+        } else {
+          throw new Error(response.data.message || 'Failed to update order status');
+        }
+      })
+      .catch((error) => {
+        console.error('Update order status error:', error);
+        throw error;
+      });
+  },
+
+  /**
    * Get seller ratings and reviews
    * Requires seller authentication
    * @param {number} page - Page number (default 1)

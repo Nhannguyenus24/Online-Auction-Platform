@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSnackbar } from 'notistack';
 import {
   Box,
   Container,
   Typography,
   Card,
+  Skeleton,
   CardContent,
   Table,
   TableBody,
@@ -13,24 +15,21 @@ import {
   TableHead,
   TableRow,
   Chip,
-  IconButton,
   CircularProgress,
   Pagination,
   Select,
   MenuItem,
   FormControl,
   InputLabel,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  Stack,
-  Alert,
+  IconButton,
+  Tooltip,
 } from '@mui/material';
 import {
   ShoppingCart,
-  Block,
+  CheckCircle,
+  Error as ErrorIcon,
+  AccessTime,
+  LocalShipping,
   Visibility,
 } from '@mui/icons-material';
 import Page from '../../components/Page';
@@ -40,7 +39,8 @@ import { sellerApi } from '../../services/sellerApi';
 
 const SellerOrdersPage = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
+  const { enqueueSnackbar } = useSnackbar();
+  const [loading, setLoading] = useState(false);
   const [orders, setOrders] = useState([]);
   const [pagination, setPagination] = useState({
     currentPage: 1,
@@ -51,66 +51,143 @@ const SellerOrdersPage = () => {
     hasPrevious: false,
   });
   const [pageSize, setPageSize] = useState(10);
-  const [openCancelDialog, setOpenCancelDialog] = useState(false);
-  const [orderToCancel, setOrderToCancel] = useState(null);
-  const [cancellingOrder, setCancellingOrder] = useState(false);
+  const [statusFilter] = useState('all');
+  const [updatingStatus, setUpdatingStatus] = useState({});
 
   useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        setLoading(true);
-        const response = await sellerApi.getOrders(1, 500, 'all');
-        // Map the response to match the expected format
+    fetchOrders();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pagination.currentPage, pageSize, statusFilter]);
+
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+      const response = await sellerApi.getOrders(pagination.currentPage, pageSize, statusFilter);
+      if (response.success) {
         const mappedOrders = (response.orders || []).map((order) => ({
           id: order.id,
-          orderId: order.id,
           productId: order.productId,
           productTitle: order.productTitle || 'Unknown Product',
           buyerId: order.buyerId,
           buyerName: order.buyerName || 'Unknown Buyer',
           amount: order.amount || 0,
           status: order.status || 'pending',
+          paymentStatus: order.paymentStatus || 'pending',
           paymentMethod: order.paymentMethod || '',
-          orderDate: order.createdAt ? normalizeTimestamp(order.createdAt).toISOString() : new Date().toISOString(),
-          productImage: null, // Not available in orders endpoint
+          createdAt: order.createdAt ? normalizeTimestamp(order.createdAt) : new Date(),
+          productImage: null,
         }));
         setOrders(mappedOrders);
-      } catch (err) {
-        console.error('Error fetching orders:', err);
-        setOrders([]);
-      } finally {
-        setLoading(false);
+        setPagination((prev) => ({
+          ...prev,
+          totalItems: response.totalCount || mappedOrders.length,
+          totalPages: Math.ceil((response.totalCount || mappedOrders.length) / pageSize) || 1,
+          currentSize: mappedOrders.length,
+        }));
+      } else {
+        throw new Error(response.message || 'Failed to fetch orders');
       }
+    } catch (err) {
+      console.error('Error fetching orders:', err);
+      setOrders([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStatusChange = async (orderId, newStatus) => {
+    // Ensure status is lowercase to match database expectations
+    const normalizedStatus = newStatus.toLowerCase().trim();
+    
+    setUpdatingStatus((prev) => ({ ...prev, [orderId]: true }));
+    try {
+      const response = await sellerApi.updateOrderStatus(orderId, normalizedStatus);
+      if (response.success) {
+        enqueueSnackbar('Order status updated successfully', { variant: 'success' });
+        await fetchOrders();
+      } else {
+        throw new Error(response.message || 'Failed to update order status');
+      }
+    } catch (err) {
+      console.error('Error updating order status:', err);
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to update order status';
+      enqueueSnackbar(errorMessage, { variant: 'error' });
+    } finally {
+      setUpdatingStatus((prev) => ({ ...prev, [orderId]: false }));
+    }
+  };
+
+  const getPaymentStatusChip = (paymentStatus) => {
+    if (paymentStatus === 'completed') {
+      return (
+        <Chip
+          icon={<CheckCircle />}
+          label="Paid"
+          color="success"
+          size="small"
+          sx={{ fontWeight: 'bold' }}
+        />
+      );
+    } else if (paymentStatus === 'failed') {
+      return (
+        <Chip
+          icon={<ErrorIcon />}
+          label="Failed"
+          color="error"
+          size="small"
+          sx={{ fontWeight: 'bold' }}
+        />
+      );
+    } else {
+      return (
+        <Chip
+          icon={<AccessTime />}
+          label="Pending"
+          color="warning"
+          size="small"
+          sx={{ fontWeight: 'bold' }}
+        />
+      );
+    }
+  };
+
+  const getOrderStatusChip = (status) => {
+    const statusMap = {
+      pending: { label: 'Pending', color: 'warning', icon: <AccessTime /> },
+      processing: { label: 'Processing', color: 'info', icon: <AccessTime /> },
+      shipped: { label: 'Shipped', color: 'primary', icon: <LocalShipping /> },
+      delivered: { label: 'Delivered', color: 'success', icon: <CheckCircle /> },
+      cancelled: { label: 'Cancelled', color: 'error', icon: <ErrorIcon /> },
     };
+    const statusInfo = statusMap[status?.toLowerCase()] || { label: status, color: 'default', icon: null };
+    return (
+      <Chip
+        icon={statusInfo.icon}
+        label={statusInfo.label}
+        color={statusInfo.color}
+        size="small"
+        sx={{ fontWeight: 'bold' }}
+      />
+    );
+  };
 
-    fetchOrders();
-  }, []);
-
-  // Update pagination when data or page size changes
-  useEffect(() => {
-    const totalItems = orders.length;
-    const totalPages = Math.ceil(totalItems / pageSize) || 1;
-    const currentPage = Math.min(pagination.currentPage, totalPages) || 1;
-    const startIndex = (currentPage - 1) * pageSize;
-    const endIndex = startIndex + pageSize;
-    const paginatedData = orders.slice(startIndex, endIndex);
-
-    setPagination({
-      currentPage: currentPage,
-      currentSize: paginatedData.length,
-      totalPages: totalPages,
-      totalItems: totalItems,
-      hasNext: currentPage < totalPages,
-      hasPrevious: currentPage > 1,
-    });
-  }, [orders.length, pageSize]);
-
-  // Get paginated orders
-  const paginatedOrders = (() => {
-    const startIndex = (pagination.currentPage - 1) * pageSize;
-    const endIndex = startIndex + pageSize;
-    return orders.slice(startIndex, endIndex);
-  })();
+  const getNextStatusOptions = (currentStatus, paymentStatus) => {
+    const statusFlow = {
+      pending: ['processing', 'cancelled'],
+      processing: ['shipped', 'cancelled'],
+      shipped: ['delivered'],
+      delivered: [],
+      cancelled: [],
+    };
+    
+    const options = statusFlow[currentStatus?.toLowerCase()] || [];
+    
+    if (paymentStatus !== 'completed') {
+      return options.filter(opt => !['shipped', 'delivered'].includes(opt));
+    }
+    
+    return options;
+  };
 
   const handlePageChange = (event, newPage) => {
     setPagination((prev) => ({ ...prev, currentPage: newPage }));
@@ -119,79 +196,14 @@ const SellerOrdersPage = () => {
   const handlePageSizeChange = (event) => {
     const newSize = parseInt(event.target.value, 10);
     setPageSize(newSize);
-    setPagination((prev) => ({ ...prev, currentPage: 1 })); // Reset to first page
+    setPagination((prev) => ({ ...prev, currentPage: 1 }));
   };
 
-  const handleOpenCancelDialog = (order) => {
-    setOrderToCancel(order);
-    setOpenCancelDialog(true);
-  };
-
-  const handleCloseCancelDialog = () => {
-    setOpenCancelDialog(false);
-    setOrderToCancel(null);
-  };
-
-  const handleConfirmCancelOrder = async () => {
-    if (!orderToCancel) return;
-
-    setCancellingOrder(true);
-    try {
-      // Mock API call - replace with actual API
-      // await axiosInstance.post(`/orders/${orderToCancel.id}/cancel`, {
-      //   reason: 'Người thắng không thanh toán',
-      // });
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // Update order status
-      setOrders((prev) =>
-        prev.map((order) =>
-          order.id === orderToCancel.id
-            ? { ...order, status: 'cancelled' }
-            : order
-        )
-      );
-
-      handleCloseCancelDialog();
-    } catch (err) {
-      console.error('Error cancelling order:', err);
-    } finally {
-      setCancellingOrder(false);
-    }
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'completed':
-        return 'success';
-      case 'pending_payment':
-        return 'warning';
-      case 'cancelled':
-        return 'error';
-      case 'paid':
-      case 'shipping':
-        return 'info';
-      default:
-        return 'default';
-    }
-  };
-
-  const getStatusLabel = (status) => {
-    switch (status) {
-      case 'pending_payment':
-        return 'Pending Payment';
-      case 'paid':
-        return 'Paid';
-      case 'shipping':
-        return 'Shipping';
-      case 'completed':
-        return 'Completed';
-      case 'cancelled':
-        return 'Cancelled';
-      default:
-        return status;
-    }
-  };
+  const paginatedOrders = (() => {
+    const startIndex = (pagination.currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return orders.slice(startIndex, endIndex);
+  })();
 
   return (
     <Page title="Orders - Seller Dashboard">
@@ -205,7 +217,10 @@ const SellerOrdersPage = () => {
           </Typography>
         </Box>
 
-        <Card elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 3 }}>
+        <Card
+          elevation={0}
+          sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 3 }}
+        >
           <Box
             sx={{
               p: 3,
@@ -232,7 +247,7 @@ const SellerOrdersPage = () => {
                 <Skeleton variant="rectangular" height={400} />
               </Box>
             ) : orders.length === 0 ? (
-              <Box sx={{ textAlign: 'center', py: 8 }}>
+              <Box sx={{ textAlign: 'center', py: 8, px: 3 }}>
                 <ShoppingCart sx={{ fontSize: 64, color: 'grey.300', mb: 2 }} />
                 <Typography variant="h6" color="text.secondary" gutterBottom>
                   No Orders Yet
@@ -247,83 +262,120 @@ const SellerOrdersPage = () => {
                   <Table>
                     <TableHead>
                       <TableRow sx={{ bgcolor: 'grey.50' }}>
-                        <TableCell sx={{ fontWeight: 600 }}>Order ID</TableCell>
-                        <TableCell sx={{ fontWeight: 600 }}>Product</TableCell>
-                        <TableCell sx={{ fontWeight: 600 }}>Buyer</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 600 }}>Amount</TableCell>
-                        <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
-                        <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>
-                        <TableCell align="center" sx={{ fontWeight: 600 }}>Actions</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold', py: 2 }}>Product</TableCell>
+                        <TableCell align="center" sx={{ fontWeight: 'bold', py: 2 }}>Buyer</TableCell>
+                        <TableCell align="center" sx={{ fontWeight: 'bold', py: 2 }}>Amount</TableCell>
+                        <TableCell align="center" sx={{ fontWeight: 'bold', py: 2 }}>Payment Status</TableCell>
+                        <TableCell align="center" sx={{ fontWeight: 'bold', py: 2 }}>Order Status</TableCell>
+                        <TableCell align="center" sx={{ fontWeight: 'bold', py: 2 }}>Date</TableCell>
+                        <TableCell align="center" sx={{ fontWeight: 'bold', py: 2 }}>Actions</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {paginatedOrders.map((order) => (
-                        <TableRow key={order.id} hover>
-                          <TableCell>
-                            <Typography variant="body2" fontWeight={600}>
-                              {order.orderId}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                              <Box
-                                component="img"
-                                src={order.productImage}
-                                alt={order.productTitle}
-                                sx={{
-                                  width: 50,
-                                  height: 50,
-                                  objectFit: 'cover',
-                                  borderRadius: 1,
-                                }}
-                              />
-                              <Typography variant="body2" sx={{ maxWidth: 200 }}>
-                                {order.productTitle}
-                              </Typography>
-                            </Box>
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2">{order.buyerName}</Typography>
-                          </TableCell>
-                          <TableCell align="right">
-                            <Typography variant="body2" fontWeight={600} color="primary">
-                              {formatPrice(order.amount)}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Chip
-                              label={getStatusLabel(order.status)}
-                              size="small"
-                              color={getStatusColor(order.status)}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="caption" color="text.secondary">
-                              {fVNDate(order.orderDate)}
-                            </Typography>
-                          </TableCell>
-                          <TableCell align="center">
-                            <Stack direction="row" spacing={1} justifyContent="center">
-                              <IconButton
-                                size="small"
-                                onClick={() => navigate(`/product/${order.productId}`)}
-                                sx={{ color: 'primary.main' }}
+                      {paginatedOrders.map((order) => {
+                        const nextStatusOptions = getNextStatusOptions(order.status, order.paymentStatus);
+                        const canUpdateStatus = nextStatusOptions.length > 0;
+                        const isUpdating = updatingStatus[order.id];
+
+                        return (
+                          <TableRow
+                            key={order.id}
+                            hover
+                            sx={{
+                              '&:hover': { bgcolor: 'action.hover' },
+                            }}
+                          >
+                            <TableCell>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                <Box
+                                  component="img"
+                                  src={order.productImage || '/logo.png'}
+                                  alt={order.productTitle}
+                                  onError={(e) => {
+                                    e.target.src = '/logo.png';
+                                  }}
+                                  sx={{
+                                    width: 60,
+                                    height: 60,
+                                    objectFit: 'cover',
+                                    borderRadius: 1.5,
+                                    border: '1px solid',
+                                    borderColor: 'divider',
+                                  }}
+                                />
+                                <Box>
+                                  <Typography variant="body2" fontWeight={600} sx={{ mb: 0.5 }}>
+                                    {order.productTitle}
+                                  </Typography>
+                                  <Typography variant="caption" color="text.secondary">
+                                    Order #{order.id}
+                                  </Typography>
+                                </Box>
+                              </Box>
+                            </TableCell>
+                            <TableCell align="center">
+                              <Typography variant="body2">{order.buyerName}</Typography>
+                            </TableCell>
+                            <TableCell align="center">
+                              <Typography
+                                variant="body2"
+                                fontWeight={600}
+                                color="primary"
                               >
-                                <Visibility fontSize="small" />
-                              </IconButton>
-                              {(order.status === 'pending_payment' || order.status === 'paid') && (
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handleOpenCancelDialog(order)}
-                                  sx={{ color: 'error.main' }}
-                                >
-                                  <Block fontSize="small" />
-                                </IconButton>
-                              )}
-                            </Stack>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                                {formatPrice(order.amount)}
+                              </Typography>
+                            </TableCell>
+                            <TableCell align="center">
+                              {getPaymentStatusChip(order.paymentStatus)}
+                            </TableCell>
+                            <TableCell align="center">
+                              {getOrderStatusChip(order.status)}
+                            </TableCell>
+                            <TableCell align="center">
+                              <Typography variant="caption" color="text.secondary">
+                                {order.createdAt ? fVNDate(order.createdAt) : 'N/A'}
+                              </Typography>
+                            </TableCell>
+                            <TableCell align="center">
+                              <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', alignItems: 'center' }}>
+                                <Tooltip title="View Product">
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => navigate(`/product/${order.productId}`)}
+                                    sx={{ color: 'primary.main' }}
+                                  >
+                                    <Visibility fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                                {canUpdateStatus && (
+                                  <FormControl size="small" sx={{ minWidth: 120 }}>
+                                    <Select
+                                      value={order.status?.toLowerCase() || 'pending'}
+                                      onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                                      disabled={isUpdating}
+                                      sx={{ fontSize: '0.875rem' }}
+                                    >
+                                      <MenuItem value={order.status?.toLowerCase() || 'pending'} disabled>
+                                        {getOrderStatusChip(order.status).props.label}
+                                      </MenuItem>
+                                      {nextStatusOptions.map((status) => (
+                                        <MenuItem key={status} value={status.toLowerCase()}>
+                                          {status.charAt(0).toUpperCase() + status.slice(1)}
+                                        </MenuItem>
+                                      ))}
+                                    </Select>
+                                  </FormControl>
+                                )}
+                                {!canUpdateStatus && (
+                                  <Typography variant="caption" color="text.secondary">
+                                    {order.status === 'delivered' || order.status === 'cancelled' ? 'Final' : 'No actions'}
+                                  </Typography>
+                                )}
+                              </Box>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </TableContainer>
@@ -379,58 +431,9 @@ const SellerOrdersPage = () => {
             )}
           </CardContent>
         </Card>
-
-        {/* Cancel Order Confirmation Dialog */}
-        <Dialog open={openCancelDialog} onClose={handleCloseCancelDialog} maxWidth="sm" fullWidth>
-          <DialogTitle>Cancel Order</DialogTitle>
-          <DialogContent>
-            <Typography variant="body1" gutterBottom>
-              Are you sure you want to cancel this order?
-            </Typography>
-            {orderToCancel && (
-              <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-                <Typography variant="body2" color="text.secondary">
-                  <strong>Order ID:</strong> {orderToCancel.orderId}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  <strong>Product:</strong> {orderToCancel.productTitle}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  <strong>Buyer:</strong> {orderToCancel.buyerName}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  <strong>Amount:</strong> {formatPrice(orderToCancel.amount)}
-                </Typography>
-              </Box>
-            )}
-            <Alert severity="warning" sx={{ mt: 2 }}>
-              <Typography variant="body2">
-                <strong>Reason:</strong> Người thắng không thanh toán
-              </Typography>
-              <Typography variant="body2" sx={{ mt: 1 }}>
-                This action will cancel the order and automatically -1 the winner's rating.
-              </Typography>
-            </Alert>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleCloseCancelDialog} disabled={cancellingOrder}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleConfirmCancelOrder}
-              variant="contained"
-              color="error"
-              disabled={cancellingOrder}
-              startIcon={cancellingOrder ? <CircularProgress size={16} color="inherit" /> : <Block />}
-            >
-              {cancellingOrder ? 'Cancelling...' : 'Confirm Cancel'}
-            </Button>
-          </DialogActions>
-        </Dialog>
       </Container>
     </Page>
   );
 };
 
 export default SellerOrdersPage;
-

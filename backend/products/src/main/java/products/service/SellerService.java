@@ -403,9 +403,64 @@ public class SellerService {
             .setAmount(order.getAmount() != null ? order.getAmount().floatValue() : 0f)
             .setStatus(order.getStatus() != null ? order.getStatus() : "")
             .setPaymentMethod(order.getPaymentMethod() != null ? order.getPaymentMethod() : "")
+            .setPaymentStatus(order.getPaymentStatus() != null ? order.getPaymentStatus() : "pending")
             .setCreatedAt(order.getCreatedAt() != null ? TimeUtils.toEpochSecond(order.getCreatedAt()) * 1000 + "" : "")
             .setUpdatedAt(order.getUpdatedAt() != null ? TimeUtils.toEpochSecond(order.getUpdatedAt()) * 1000 + "" : "")
             .build();
+    }
+    
+    @Transactional
+    public Mono<OrderDetail> updateOrderStatus(int sellerId, int orderId, String status) {
+        log.info("Updating order status - sellerId: {}, orderId: {}, status: {}", sellerId, orderId, status);
+        
+        // Validate status - normalize to lowercase for comparison
+        String normalizedStatus = status.trim().toLowerCase();
+        List<String> validStatuses = List.of("pending", "processing", "shipped", "delivered", "cancelled");
+        if (!validStatuses.contains(normalizedStatus)) {
+            log.warn("Invalid status provided: {}. Valid statuses: {}", status, validStatuses);
+            return Mono.error(new IllegalArgumentException("Invalid status: " + status + ". Valid statuses: " + validStatuses));
+        }
+        
+        // Use normalized status for database update
+        String statusToUpdate = normalizedStatus;
+        
+        return orderRepository.findById(orderId)
+            .switchIfEmpty(Mono.defer(() -> {
+                log.warn("Order not found with id: {}", orderId);
+                return Mono.error(new IllegalArgumentException("Order not found with id: " + orderId));
+            }))
+            .flatMap(order -> {
+                // Verify seller owns the product
+                return productRepository.findById(order.getProductId())
+                    .switchIfEmpty(Mono.defer(() -> {
+                        log.warn("Product not found with id: {}", order.getProductId());
+                        return Mono.error(new IllegalArgumentException("Product not found"));
+                    }))
+                    .flatMap(product -> {
+                        if (!product.getSellerId().equals(sellerId)) {
+                            log.warn("Seller {} is not authorized to update order {} (product seller: {})", 
+                                sellerId, orderId, product.getSellerId());
+                            return Mono.error(new IllegalArgumentException("Unauthorized: You don't own this product"));
+                        }
+                        
+                        return orderRepository.updateOrderStatus(orderId, statusToUpdate)
+                            .then(orderRepository.findById(orderId))
+                            .flatMap(updatedOrder -> {
+                                // Fetch product title and buyer name
+                                Mono<String> productTitleMono = productRepository.findById(updatedOrder.getProductId())
+                                    .map(Product::getTitle)
+                                    .defaultIfEmpty("Unknown Product");
+                                
+                                Mono<String> buyerNameMono = productRepository.getUserFullName(updatedOrder.getBuyerId())
+                                    .defaultIfEmpty("Buyer #" + updatedOrder.getBuyerId());
+                                
+                                return Mono.zip(productTitleMono, buyerNameMono)
+                                    .map(tuple -> mapOrderToOrderDetail(updatedOrder, tuple.getT1(), tuple.getT2()));
+                            });
+                    });
+            })
+            .doOnError(e -> log.error("Error updating order status - sellerId: {}, orderId: {}, error: {}", 
+                sellerId, orderId, e.getMessage(), e));
     }
 
     // ============================================================================

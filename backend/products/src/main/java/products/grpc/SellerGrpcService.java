@@ -15,6 +15,8 @@ import com.auctionplatform.seller.grpc.AppendProductDescriptionRequest;
 import com.auctionplatform.seller.grpc.AppendProductDescriptionResponse;
 import com.auctionplatform.seller.grpc.ConfirmPaymentReceiptRequest;
 import com.auctionplatform.seller.grpc.ConfirmPaymentReceiptResponse;
+import com.auctionplatform.seller.grpc.UpdateOrderStatusRequest;
+import com.auctionplatform.seller.grpc.UpdateOrderStatusResponse;
 import com.auctionplatform.seller.grpc.CreateAuctionListingRequest;
 import com.auctionplatform.seller.grpc.CreateAuctionListingResponse;
 import com.auctionplatform.seller.grpc.GetActiveListingsRequest;
@@ -25,6 +27,8 @@ import com.auctionplatform.seller.grpc.GetSellerProfileRequest;
 import com.auctionplatform.seller.grpc.GetSellerRatingsRequest;
 import com.auctionplatform.seller.grpc.GetTransactionHistoryRequest;
 import com.auctionplatform.seller.grpc.GetWinnerItemsRequest;
+import com.auctionplatform.seller.grpc.UpdateOrderStatusRequest;
+import com.auctionplatform.seller.grpc.UpdateOrderStatusResponse;
 import com.auctionplatform.seller.grpc.ListingsResponse;
 import com.auctionplatform.seller.grpc.OrderDetail;
 import com.auctionplatform.seller.grpc.OrdersResponse;
@@ -411,6 +415,31 @@ public class SellerGrpcService extends ReactorSellerServiceGrpc.SellerServiceImp
                     .setMessage("Failed to confirm payment: " + e.getMessage())
                     .build());
             });
+    }
+    
+    @Override
+    public Mono<UpdateOrderStatusResponse> updateOrderStatus(Mono<UpdateOrderStatusRequest> request) {
+        return request.doOnNext(req -> log.info("Update order status request: {}", JsonUtils.toJson(req)))
+            .flatMap(req ->
+                sellerService.updateOrderStatus(
+                    req.getSellerId(),
+                    req.getOrderId(),
+                    req.getStatus()
+                )
+                .map(order -> UpdateOrderStatusResponse.newBuilder()
+                    .setSuccess(true)
+                    .setMessage("Order status updated successfully")
+                    .setOrder(order)
+                    .build())
+                .doOnNext(resp -> log.info("Update order status response: {}", JsonUtils.toJson(resp)))
+                .onErrorResume(e -> {
+                    log.error("Update order status error: {}", e.getMessage(), e);
+                    return Mono.just(UpdateOrderStatusResponse.newBuilder()
+                        .setSuccess(false)
+                        .setMessage("Error: " + e.getMessage())
+                        .build());
+                })
+            );
     }
 
     // ============================================================================

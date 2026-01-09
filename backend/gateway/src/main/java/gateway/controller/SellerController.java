@@ -15,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -706,6 +707,68 @@ public class SellerController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }
+    
+    @PatchMapping("/orders/{orderId}/status")
+    @Operation(summary = "Update order status", description = "Update the status of an order. Only the seller who owns the product can update. Requires authentication.")
+    public ResponseEntity<Map<String, Object>> updateOrderStatus(
+            @Parameter(description = "Order ID", required = true)
+            @PathVariable int orderId,
+            @RequestBody Map<String, Object> requestBody) {
+        
+        int sellerId = getUserId();
+        String status = (String) requestBody.get("status");
+        
+        log.info("Update order status request - orderId: {}, sellerId: {}, status: {}", orderId, sellerId, status);
+        
+        if (status == null || status.trim().isEmpty()) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Status is required");
+            return ResponseEntity.badRequest().body(error);
+        }
+        
+        // Normalize status to lowercase to match database expectations
+        String normalizedStatus = status.trim().toLowerCase();
+        
+        // Validate status before sending to service
+        List<String> validStatuses = List.of("pending", "processing", "shipped", "delivered", "cancelled");
+        if (!validStatuses.contains(normalizedStatus)) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Invalid status: " + status + ". Valid statuses: " + validStatuses);
+            return ResponseEntity.badRequest().body(error);
+        }
+        
+        UpdateOrderStatusRequest grpcRequest = UpdateOrderStatusRequest.newBuilder()
+            .setSellerId(sellerId)
+            .setOrderId(orderId)
+            .setStatus(normalizedStatus)
+            .build();
+        
+        try {
+            var response = sellerGrpcClient.updateOrderStatus(grpcRequest).block();
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", response.getSuccess());
+            result.put("message", response.getMessage());
+            
+            if (response.getSuccess() && response.hasOrder()) {
+                result.put("order", mapOrderDetail(response.getOrder()));
+            }
+            
+            if (response.getSuccess()) {
+                log.info("Update order status successful - orderId: {}, status: {}", orderId, status);
+                return ResponseEntity.ok(result);
+            } else {
+                return ResponseEntity.badRequest().body(result);
+            }
+        } catch (Exception e) {
+            log.error("Update order status error: {}", e.getMessage(), e);
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Failed to update order status: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
 
     // ============================================================================
     // HELPER MAPPING METHODS
@@ -820,21 +883,24 @@ public class SellerController {
 
     private List<Map<String, Object>> mapOrderDetailList(List<OrderDetail> orders) {
         List<Map<String, Object>> result = new ArrayList<>();
-        orders.forEach(order -> {
-            Map<String, Object> map = new HashMap<>();
-            map.put("id", order.getId());
-            map.put("productId", order.getProductId());
-            map.put("productTitle", order.getProductTitle());
-            map.put("buyerId", order.getBuyerId());
-            map.put("buyerName", order.getBuyerName());
-            map.put("amount", order.getAmount());
-            map.put("status", order.getStatus());
-            map.put("paymentMethod", order.getPaymentMethod());
-            map.put("createdAt", order.getCreatedAt());
-            map.put("updatedAt", order.getUpdatedAt());
-            result.add(map);
-        });
+        orders.forEach(order -> result.add(mapOrderDetail(order)));
         return result;
+    }
+    
+    private Map<String, Object> mapOrderDetail(OrderDetail order) {
+        Map<String, Object> map = new HashMap<>();
+        map.put("id", order.getId());
+        map.put("productId", order.getProductId());
+        map.put("productTitle", order.getProductTitle());
+        map.put("buyerId", order.getBuyerId());
+        map.put("buyerName", order.getBuyerName());
+        map.put("amount", order.getAmount());
+        map.put("status", order.getStatus());
+        map.put("paymentMethod", order.getPaymentMethod());
+        map.put("paymentStatus", order.getPaymentStatus());
+        map.put("createdAt", order.getCreatedAt());
+        map.put("updatedAt", order.getUpdatedAt());
+        return map;
     }
     
     /**

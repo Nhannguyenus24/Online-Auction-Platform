@@ -143,4 +143,9 @@ public class SellerGrpcClient {
         log.info("gRPC confirmPaymentReceipt request: {}", JsonUtils.toJson(request));
         return sellerServiceStub.confirmPaymentReceipt(Mono.just(request));
     }
+    
+    public Mono<UpdateOrderStatusResponse> updateOrderStatus(UpdateOrderStatusRequest request) {
+        log.info("gRPC updateOrderStatus request: {}", JsonUtils.toJson(request));
+        return sellerServiceStub.updateOrderStatus(Mono.just(request));
+    }
 }
