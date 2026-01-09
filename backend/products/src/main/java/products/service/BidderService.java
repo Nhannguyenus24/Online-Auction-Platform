@@ -4,7 +4,6 @@ import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.time.Duration;
 import java.time.LocalDateTime;
 
@@ -127,7 +126,6 @@ public class BidderService {
                                 )
                 );
     }
-
 
     public Mono<Integer> addToWatchlist(int productId, int userId) {
         return productRepository.addToWatchlist(userId, productId)
@@ -555,14 +553,7 @@ public class BidderService {
                         }
                         
                         String previousBidAmount = profileData.getOrDefault("bidAmount", "0.00").toString();
-                        String email = profileData.getOrDefault("email", "").toString();
-                        String userName = profileData.getOrDefault("userName", "").toString();
                         double bidDifference = newBidAmount - Double.parseDouble(previousBidAmount);
-                        
-                        // Calculate time remaining
-                        Duration timeLeft = Duration.between(
-                            TimeUtils.now(), auctionEndTime);
-                        String timeRemaining = formatDuration(timeLeft);
                         
                         // Send outbid notification via RabbitMQ
                         return sendOutbidNotification(
@@ -573,9 +564,7 @@ public class BidderService {
                             newBidAmount,
                             bidDifference,
                             auctionEndTime,
-                            timeRemaining,
-                            email,
-                            userName
+                            Duration.between(TimeUtils.now(), auctionEndTime).toString(),
                         );
                     });
             })
@@ -589,12 +578,9 @@ public class BidderService {
      */
     private Mono<Void> sendOutbidNotification(int productId, String productName, int outbidUserId,
                                              String yourBidAmount, double newHighestBid, double bidDifference,
-                                             LocalDateTime auctionEndTime, String timeRemaining,
-                                             String email, String userName) {
+                                             LocalDateTime auctionEndTime, String timeRemaining) {
         java.util.Map<String, String> payload = new java.util.HashMap<>();
         payload.put("userId", String.valueOf(outbidUserId));
-        payload.put("email", email);
-        payload.put("userName", userName);
         payload.put("productId", String.valueOf(productId));
         payload.put("productName", productName);
         payload.put("yourBidAmount", yourBidAmount);
@@ -612,8 +598,8 @@ public class BidderService {
             .payload(payload)
             .build();
         
-        log.info("Sending outbid notification: userId={}, email={}, productId={}, yourBid={}, newBid={}",
-            outbidUserId, email, productId, yourBidAmount, newHighestBid);
+        log.info("Sending outbid notification: userId={}, productId={}, yourBid={}, newBid={}",
+            outbidUserId, productId, yourBidAmount, newHighestBid);
         
         return rabbitProducer.sendToQueue(NOTIFICATION_QUEUE, message)
             .doOnSuccess(v -> log.info("Outbid notification sent successfully: userId={}, productId={}",
@@ -622,24 +608,7 @@ public class BidderService {
                 outbidUserId, productId, e.getMessage(), e))
             .onErrorResume(e -> Mono.empty());
     }
-    
-    /**
-     * Format duration to human-readable string
-     */
-    private String formatDuration(Duration duration) {
-        long hours = duration.toHours();
-        long minutes = duration.toMinutesPart();
-        
-        if (hours > 24) {
-            long days = hours / 24;
-            return days + " day" + (days > 1 ? "s" : "");
-        } else if (hours > 0) {
-            return hours + " hour" + (hours > 1 ? "s" : "") + " " + minutes + " min";
-        } else {
-            return minutes + " minute" + (minutes > 1 ? "s" : "");
-        }
-    }
-    
+
     /**
      * Save bidder profile information to Redis for quick access
      * Key format: profile:{userId}:{productId}
@@ -656,9 +625,7 @@ public class BidderService {
             redisService.hSet(profileKey, "productId", String.valueOf(productId)),
             redisService.hSet(profileKey, "bidAmount", String.format("%.2f", bidAmount)),
             redisService.hSet(profileKey, "email", email != null ? email : ""),
-            redisService.hSet(profileKey, "userName", userName != null ? userName : ""),
-            redisService.hSet(profileKey, "bidTime", String.valueOf(System.currentTimeMillis())),
-            redisService.hSet(profileKey, "lastUpdated", TimeUtils.now().toString())
+            redisService.hSet(profileKey, "userName", userName != null ? userName : "")
         )
         .then(redisService.expire(profileKey, Duration.ofSeconds(86400 * 15))) // Expire after 15 days
         .doOnSuccess(v -> log.debug("Bidder profile saved to Redis: userId={}, productId={}, email={}", 
@@ -675,45 +642,32 @@ public class BidderService {
     private Mono<Void> sendAuctionEndedWinnerNotification(com.auction.entities.database.Product product, int winnerId, double winningAmount) {
         log.info("Preparing auction ended notification to winner: userId={}, productId={}, winningAmount={}",
             winnerId, product.getId(), winningAmount);
+
+        Map<String, String> payload = new HashMap<>();
+        payload.put("recipientType", "bidder");
+        payload.put("userId", String.valueOf(winnerId));
+        payload.put("productId", String.valueOf(product.getId()));
+        payload.put("productName", product.getTitle());
+        payload.put("isWinner", "true");
+        payload.put("winningAmount", String.format("%.2f", winningAmount));
+        payload.put("yourBidAmount", String.format("%.2f", winningAmount));
+        payload.put("auctionEndTime", product.getEndsAt().toString());
+        payload.put("totalBids", String.valueOf(product.getBidsCount()));
         
-        // Query email and userName from database
-        return Mono.zip(
-            productRepository.getUserEmail(winnerId).defaultIfEmpty(""),
-            productRepository.getUserFullName(winnerId).defaultIfEmpty("")
-        )
-        .flatMap(userInfo -> {
-            String email = userInfo.getT1();
-            String userName = userInfo.getT2();
-            
-            Map<String, String> payload = new HashMap<>();
-            payload.put("recipientType", "bidder");
-            payload.put("userId", String.valueOf(winnerId));
-            payload.put("email", email);
-            payload.put("userName", userName);
-            payload.put("productId", String.valueOf(product.getId()));
-            payload.put("productName", product.getTitle());
-            payload.put("isWinner", "true");
-            payload.put("winningAmount", String.format("%.2f", winningAmount));
-            payload.put("yourBidAmount", String.format("%.2f", winningAmount));
-            payload.put("auctionEndTime", product.getEndsAt().toString());
-            payload.put("totalBids", String.valueOf(product.getBidsCount()));
-            
-            RabbitMessage message = RabbitMessage.builder()
-                .eventType(EventType.TASK_SEND_MAIL_ENDED_AUCTION)
-                .userId(String.valueOf(winnerId))
-                .payload(payload)
-                .build();
-            
-            log.info("Sending auction ended notification to winner: userId={}, email={}, productId={}",
-                winnerId, email, product.getId());
-            
-            return rabbitProducer.sendToQueue(NOTIFICATION_QUEUE, message)
-                .doOnSuccess(v -> log.info("Auction ended notification sent to winner successfully: userId={}, productId={}",
-                    winnerId, product.getId()))
-                .doOnError(e -> log.error("Failed to send auction ended notification to winner: userId={}, productId={}, error={}",
-                    winnerId, product.getId(), e.getMessage(), e));
-        })
-        .onErrorResume(e -> Mono.empty());
+        RabbitMessage message = RabbitMessage.builder()
+            .eventType(EventType.TASK_SEND_MAIL_ENDED_AUCTION)
+            .userId(String.valueOf(winnerId))
+            .payload(payload)
+            .build();
+        
+        log.info("Sending auction ended notification to winner: userId={}, productId={}",
+            winnerId, product.getId());
+        
+        return rabbitProducer.sendToQueue(NOTIFICATION_QUEUE, message)
+            .doOnSuccess(v -> log.info("Auction ended notification sent to winner successfully: userId={}, productId={}",
+                winnerId, product.getId()))
+            .doOnError(e -> log.error("Failed to send auction ended notification to winner: userId={}, productId={}, error={}",
+                winnerId, product.getId(), e.getMessage(), e));
     }
     
     /**
@@ -722,48 +676,33 @@ public class BidderService {
     private Mono<Void> sendAuctionEndedSellerNotification(com.auction.entities.database.Product product, int winnerId, double finalPrice) {
         log.info("Preparing auction ended notification to seller: sellerId={}, productId={}, finalPrice={}",
             product.getSellerId(), product.getId(), finalPrice);
+            
+        Map<String, String> payload = new HashMap<>();
+        payload.put("recipientType", "seller");
+        payload.put("sellerId", String.valueOf(product.getSellerId()));
+        payload.put("productId", String.valueOf(product.getId()));
+        payload.put("productName", product.getTitle());
+        payload.put("isSold", "true");
+        payload.put("finalPrice", String.format("%.2f", finalPrice));
+        payload.put("userId", String.valueOf(winnerId));
+        payload.put("totalBids", String.valueOf(product.getBidsCount()));
+        payload.put("auctionEndTime", String.valueOf(product.getEndsAt()));
         
-        // Query seller email and userName, and winner name from database
-        return Mono.zip(
-            productRepository.getUserEmail(product.getSellerId()).defaultIfEmpty(""),
-            productRepository.getUserFullName(product.getSellerId()).defaultIfEmpty(""),
-            productRepository.getUserFullName(winnerId).defaultIfEmpty("User #" + winnerId)
-        )
-        .flatMap(userInfo -> {
-            String sellerEmail = userInfo.getT1();
-            String sellerName = userInfo.getT2();
-            String winnerName = userInfo.getT3();
+        RabbitMessage message = RabbitMessage.builder()
             
-            java.util.Map<String, String> payload = new java.util.HashMap<>();
-            payload.put("recipientType", "seller");
-            payload.put("sellerId", String.valueOf(product.getSellerId()));
-            payload.put("email", sellerEmail);
-            payload.put("userName", sellerName);
-            payload.put("productId", String.valueOf(product.getId()));
-            payload.put("productName", product.getTitle());
-            payload.put("isSold", "true");
-            payload.put("finalPrice", String.format("%.2f", finalPrice));
-            payload.put("winnerName", winnerName);
-            payload.put("totalBids", String.valueOf(product.getBidsCount()));
-            payload.put("auctionEndTime", String.valueOf(product.getEndsAt()));
-            
-            RabbitMessage message = RabbitMessage.builder()
-                
-                .eventType(EventType.TASK_SEND_MAIL_ENDED_AUCTION)
-                .userId(String.valueOf(product.getSellerId()))
-                .payload(payload)
-                .build();
-            
-            log.info("Sending auction ended notification to seller: sellerId={}, email={}, productId={}",
-                product.getSellerId(), sellerEmail, product.getId());
-            
-            return rabbitProducer.sendToQueue(NOTIFICATION_QUEUE, message)
-                .doOnSuccess(v -> log.info("Auction ended notification sent to seller successfully: sellerId={}, productId={}",
-                    product.getSellerId(), product.getId()))
-                .doOnError(e -> log.error("Failed to send auction ended notification to seller: sellerId={}, productId={}, error={}",
-                    product.getSellerId(), product.getId(), e.getMessage(), e));
-        })
-        .onErrorResume(e -> Mono.empty());
+            .eventType(EventType.TASK_SEND_MAIL_ENDED_AUCTION)
+            .userId(String.valueOf(product.getSellerId()))
+            .payload(payload)
+            .build();
+        
+        log.info("Sending auction ended notification to seller: sellerId={}, productId={}",
+            product.getSellerId(), product.getId());
+        
+        return rabbitProducer.sendToQueue(NOTIFICATION_QUEUE, message)
+            .doOnSuccess(v -> log.info("Auction ended notification sent to seller successfully: sellerId={}, productId={}",
+                product.getSellerId(), product.getId()))
+            .doOnError(e -> log.error("Failed to send auction ended notification to seller: sellerId={}, productId={}, error={}",
+                product.getSellerId(), product.getId(), e.getMessage(), e));
     }
     
     /**
@@ -772,42 +711,29 @@ public class BidderService {
     private Mono<Void> sendBuyNowBuyerNotification(com.auction.entities.database.Product product, int buyerId, double buyNowPrice) {
         log.info("Preparing buy now notification to buyer: userId={}, productId={}, price={}",
             buyerId, product.getId(), buyNowPrice);
+            
+        Map<String, String> payload = new HashMap<>();
+        payload.put("recipientType", "buyer");
+        payload.put("userId", String.valueOf(buyerId));
+        payload.put("productId", String.valueOf(product.getId()));
+        payload.put("productName", product.getTitle());
+        payload.put("purchaseType", "buy_now");
+        payload.put("price", String.format("%.2f", buyNowPrice));
+        payload.put("purchaseTime", TimeUtils.now().toString());
         
-        // Query email and userName from database
-        return Mono.zip(
-            productRepository.getUserEmail(buyerId).defaultIfEmpty(""),
-            productRepository.getUserFullName(buyerId).defaultIfEmpty("")
-        )
-        .flatMap(userInfo -> {
-            String email = userInfo.getT1();
-            String userName = userInfo.getT2();
-            
-            java.util.Map<String, String> payload = new java.util.HashMap<>();
-            payload.put("recipientType", "buyer");
-            payload.put("userId", String.valueOf(buyerId));
-            payload.put("email", email);
-            payload.put("userName", userName);
-            payload.put("productId", String.valueOf(product.getId()));
-            payload.put("productName", product.getTitle());
-            payload.put("purchaseType", "buy_now");
-            payload.put("price", String.format("%.2f", buyNowPrice));
-            payload.put("purchaseTime", TimeUtils.now().toString());
-            
-            RabbitMessage message = RabbitMessage.builder()
-                    
-                .eventType(EventType.TASK_SEND_MAIL_SUCCESS_BID)
-                .userId(String.valueOf(buyerId))
-                .payload(payload)
-                .build();
-            
-            log.info("Sending buy now notification to buyer: userId={}, email={}, productId={}",
-                buyerId, email, product.getId());
-            
-            return rabbitProducer.sendToQueue(NOTIFICATION_QUEUE, message)
-                .doOnSuccess(v -> log.info("Buy now notification sent to buyer successfully"))
-                .doOnError(e -> log.error("Failed to send buy now notification to buyer: {}", e.getMessage()));
-        })
-        .onErrorResume(e -> Mono.empty());
+        RabbitMessage message = RabbitMessage.builder()
+                
+            .eventType(EventType.TASK_SEND_MAIL_SUCCESS_BID)
+            .userId(String.valueOf(buyerId))
+            .payload(payload)
+            .build();
+        
+        log.info("Sending buy now notification to buyer: userId={}, productId={}",
+            buyerId, product.getId());
+        
+        return rabbitProducer.sendToQueue(NOTIFICATION_QUEUE, message)
+            .doOnSuccess(v -> log.info("Buy now notification sent to buyer successfully"))
+            .doOnError(e -> log.error("Failed to send buy now notification to buyer: {}", e.getMessage()));
     }
     
     /**
@@ -818,43 +744,30 @@ public class BidderService {
             product.getSellerId(), product.getId(), buyNowPrice);
         
         // Query seller email and userName, and buyer name from database
-        return Mono.zip(
-            productRepository.getUserEmail(product.getSellerId()).defaultIfEmpty(""),
-            productRepository.getUserFullName(product.getSellerId()).defaultIfEmpty(""),
-            productRepository.getUserFullName(buyerId).defaultIfEmpty("User #" + buyerId)
-        )
-        .flatMap(userInfo -> {
-            String sellerEmail = userInfo.getT1();
-            String sellerName = userInfo.getT2();
-            String buyerName = userInfo.getT3();
-            
-            java.util.Map<String, String> payload = new java.util.HashMap<>();
-            payload.put("recipientType", "seller");
-            payload.put("sellerId", String.valueOf(product.getSellerId()));
-            payload.put("email", sellerEmail);
-            payload.put("userName", sellerName);
-            payload.put("productId", String.valueOf(product.getId()));
-            payload.put("productName", product.getTitle());
-            payload.put("purchaseType", "buy_now");
-            payload.put("price", String.format("%.2f", buyNowPrice));
-            payload.put("buyerName", buyerName);
-            payload.put("purchaseTime", TimeUtils.now().toString());
-            
-            RabbitMessage message = RabbitMessage.builder()
-                    
-                .eventType(EventType.TASK_SEND_MAIL_SUCCESS_BID)
-                .userId(String.valueOf(product.getSellerId()))
-                .payload(payload)
-                .build();
-            
-            log.info("Sending buy now notification to seller: sellerId={}, email={}, productId={}",
-                product.getSellerId(), sellerEmail, product.getId());
-            
-            return rabbitProducer.sendToQueue(NOTIFICATION_QUEUE, message)
-                .doOnSuccess(v -> log.info("Buy now notification sent to seller successfully"))
-                .doOnError(e -> log.error("Failed to send buy now notification to seller: {}", e.getMessage()));
-        })
-        .onErrorResume(e -> Mono.empty());
+        
+        Map<String, String> payload = new HashMap<>();
+        payload.put("recipientType", "seller");
+        payload.put("sellerId", String.valueOf(product.getSellerId()));
+        payload.put("userId", String.valueOf(buyerId));
+        payload.put("productId", String.valueOf(product.getId()));
+        payload.put("productName", product.getTitle());
+        payload.put("purchaseType", "buy_now");
+        payload.put("price", String.format("%.2f", buyNowPrice));
+        payload.put("purchaseTime", TimeUtils.now().toString());
+        
+        RabbitMessage message = RabbitMessage.builder()
+                
+            .eventType(EventType.TASK_SEND_MAIL_SUCCESS_BID)
+            .userId(String.valueOf(product.getSellerId()))
+            .payload(payload)
+            .build();
+        
+        log.info("Sending buy now notification to seller: sellerId={}, productId={}",
+            product.getSellerId(), product.getId());
+        
+        return rabbitProducer.sendToQueue(NOTIFICATION_QUEUE, message)
+            .doOnSuccess(v -> log.info("Buy now notification sent to seller successfully"))
+            .doOnError(e -> log.error("Failed to send buy now notification to seller: {}", e.getMessage()));
     }
 
     public Mono<MyBidsResult> getMyBids(int userId, int page, int limit, String filter) {
@@ -1277,7 +1190,7 @@ public class BidderService {
         }
         int atIndex = email.indexOf('@');
         if (atIndex <= 2) {
-            return "***" + email.substring(atIndex);
+            return "*****" + email.substring(atIndex);
         }
         return email.substring(0, 2) + "***" + email.substring(atIndex);
     }

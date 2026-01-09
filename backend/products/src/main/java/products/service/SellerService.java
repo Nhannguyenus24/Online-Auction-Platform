@@ -238,7 +238,6 @@ public class SellerService {
         payload.put("productName", product.getTitle());
         payload.put("isSold", "false");
         payload.put("finalPrice", "0.00");
-        payload.put("winnerName", null);
         payload.put("totalBids", "0");
         payload.put("auctionEndTime", product.getEndsAt().toString());
         
