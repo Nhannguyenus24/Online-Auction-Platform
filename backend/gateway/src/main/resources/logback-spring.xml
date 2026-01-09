@@ -20,7 +20,7 @@
         </http>
         <format>
             <label>
-                <pattern>app=${appName},host=${HOSTNAME},level=%level</pattern>
+                <pattern>app=${appName},host=${HOSTNAME},level=%level,severity=%level</pattern>
             </label>
             <message>
                 <pattern>
@@ -34,6 +34,8 @@
                 </pattern>
             </message>
         </format>
+        <batchSize>100</batchSize>
+        <batchTimeoutMs>5000</batchTimeoutMs>
     </appender>
 
     <!-- Async wrapper for Loki to avoid blocking -->

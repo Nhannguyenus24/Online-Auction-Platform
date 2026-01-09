@@ -49,6 +49,12 @@ limits_config:
   per_stream_rate_limit: 3MB
   per_stream_rate_limit_burst: 15MB
 
+# Processing pipeline for log level extraction and parsing
+ingester:
+  max_chunk_age: 3m
+  chunk_idle_period: 3m
+  max_streams_errors_rate: 0.05
+
 compactor:
   working_directory: /loki/compactor
   compaction_interval: 10m
