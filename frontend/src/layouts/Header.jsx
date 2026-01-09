@@ -133,7 +133,7 @@ const Header = () => {
     };
     
     fetchNotifications();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user]);
   
   // Fetch watchlist when user is authenticated
   useEffect(() => {
@@ -162,7 +162,7 @@ const Header = () => {
     };
     
     fetchWatchlist();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user]);
   
 
   const handleOpenUserMenu = (event) => {

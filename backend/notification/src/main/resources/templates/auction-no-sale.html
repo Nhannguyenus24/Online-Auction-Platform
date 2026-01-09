@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Auction Has Ended</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 30px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .header .icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .greeting {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .message {
+            font-size: 15px;
+            line-height: 1.6;
+            color: #555;
+            margin-bottom: 20px;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 14px;
+            margin: 15px 0;
+            background-color: #f8f9fa;
+            color: #495057;
+            border: 2px solid #6c757d;
+        }
+        .details-box {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 20px;
+            margin: 25px 0;
+        }
+        .detail-item {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .detail-item:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+        .detail-label {
+            font-weight: 600;
+            color: #495057;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+        }
+        .detail-value {
+            color: #212529;
+            font-size: 15px;
+            word-wrap: break-word;
+        }
+        .product-name {
+            color: #007bff;
+            font-weight: 600;
+            font-size: 18px;
+        }
+        .amount-highlight {
+            color: #6c757d;
+            font-weight: 700;
+            font-size: 20px;
+        }
+        .info-section {
+            background-color: #e7f3ff;
+            border-left: 4px solid #007bff;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .info-section p {
+            margin: 5px 0;
+            color: #004085;
+            font-size: 14px;
+        }
+        .suggestion-box {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 25px 0;
+        }
+        .suggestion-box h3 {
+            margin: 0 0 15px 0;
+            color: #495057;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        .suggestion-box ul {
+            margin: 0;
+            padding-left: 20px;
+            color: #6c757d;
+        }
+        .suggestion-box li {
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+        .cta-button {
+            display: inline-block;
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            margin: 20px 0;
+            transition: transform 0.2s;
+            text-align: center;
+        }
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,123,255,0.3);
+        }
+        .cta-secondary {
+            display: inline-block;
+            padding: 12px 30px;
+            background-color: white;
+            color: #007bff;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            margin: 20px 10px;
+            border: 2px solid #007bff;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        .cta-secondary:hover {
+            background-color: #007bff;
+            color: white;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 25px 30px;
+            text-align: center;
+            border-top: 1px solid #dee2e6;
+        }
+        .footer p {
+            margin: 5px 0;
+            color: #6c757d;
+            font-size: 13px;
+        }
+        .footer .support-link {
+            color: #0066cc;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .footer .support-link:hover {
+            text-decoration: underline;
+        }
+        .stats-row {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        .stat-item {
+            text-align: center;
+            padding: 15px;
+            min-width: 120px;
+        }
+        .stat-number {
+            font-size: 28px;
+            font-weight: 700;
+            color: #6c757d;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #6c757d;
+            text-transform: uppercase;
+            margin-top: 5px;
+        }
+        @media only screen and (max-width: 600px) {
+            .container {
+                margin: 10px;
+            }
+            .content {
+                padding: 25px 20px;
+            }
+            .header {
+                padding: 25px 20px;
+            }
+            .stats-row {
+                flex-direction: column;
+            }
+            .cta-button, .cta-secondary {
+                display: block;
+                margin: 10px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="icon">⏰</div>
+            <h1>Your Auction Has Ended</h1>
+        </div>
+        
+        <div class="content">
+            <div class="greeting">
+                Dear <strong th:text="${userName}">Seller</strong>,
+            </div>
+            
+            <div class="message">
+                Your auction has ended. Unfortunately, this item did not receive any winning bids at this time.
+            </div>
+            
+            <div class="status-badge">
+                ○ NOT SOLD
+            </div>
+            
+            <div class="details-box">
+                <div class="detail-item">
+                    <div class="detail-label">Product</div>
+                    <div class="detail-value product-name" th:text="${productName}">Product Name</div>
+                </div>
+                
+                <div class="detail-item">
+                    <div class="detail-label">Product ID</div>
+                    <div class="detail-value" th:text="${productId}">12345</div>
+                </div>
+                
+                <div class="detail-item">
+                    <div class="detail-label">Reserve Price</div>
+                    <div class="detail-value amount-highlight" th:text="'$' + ${finalPrice}">$1,000</div>
+                </div>
+                
+                <div class="detail-item">
+                    <div class="detail-label">Auction End Time</div>
+                    <div class="detail-value" th:text="${auctionEndTime}">2024-01-01 10:00:00</div>
+                </div>
+                
+                <div class="detail-item">
+                    <div class="detail-label">Total Bids Received</div>
+                    <div class="detail-value" th:text="${totalBids} + ' bid(s)'">0 bids</div>
+                </div>
+            </div>
+            
+            <div class="stats-row">
+                <div class="stat-item">
+                    <div class="stat-number" th:text="'$' + ${finalPrice}">$1,000</div>
+                    <div class="stat-label">Reserve Price</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" th:text="${totalBids}">0</div>
+                    <div class="stat-label">Total Bids</div>
+                </div>
+            </div>
+            
+            <div class="suggestion-box">
+                <h3>💡 Tips for a Successful Re-listing:</h3>
+                <ul>
+                    <li><strong>Review your pricing:</strong> Consider adjusting the starting price or reserve price to be more competitive</li>
+                    <li><strong>Improve photos:</strong> High-quality images can significantly increase bidder interest</li>
+                    <li><strong>Enhance description:</strong> Add more details about the item's features, condition, and benefits</li>
+                    <li><strong>Timing matters:</strong> Consider listing during peak browsing times or seasons</li>
+                    <li><strong>Add keywords:</strong> Use relevant search terms in your title and description</li>
+                    <li><strong>Offer shipping:</strong> Free or reduced shipping can attract more bidders</li>
+                </ul>
+            </div>
+            
+            <div class="info-section">
+                <p><strong>ℹ️ What's Next?</strong></p>
+                <p>• You can relist this item with improvements</p>
+                <p>• Review analytics to understand viewer engagement</p>
+                <p>• Consider lowering the starting price for better visibility</p>
+                <p>• Contact our seller support for optimization tips</p>
+            </div>
+            
+            <div class="message">
+                Don't be discouraged! Many successful sellers refine their listings based on initial results. We're here to help you succeed.
+            </div>
+            
+            <div style="text-align: center;">
+                <a href="#" class="cta-button">Relist This Item</a>
+                <a href="#" class="cta-secondary">View Analytics</a>
+            </div>
+            
+            <div class="message" style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #dee2e6;">
+                <strong>Need help?</strong> Our seller support team is available to assist you with pricing strategies, listing optimization, and market insights.
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p><strong>Online Auction Platform</strong></p>
+            <p>© 2025 Online Auction Platform. All rights reserved.</p>
+            <p>Need assistance? Contact our <a href="#" class="support-link">Seller Support Team</a></p>
+            <p style="margin-top: 10px; font-size: 11px;">
+                This is an automated notification. Please do not reply to this email.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

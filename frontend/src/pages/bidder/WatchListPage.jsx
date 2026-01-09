@@ -31,7 +31,7 @@ import {
 } from '@mui/icons-material';
 import Page from '../../components/Page';
 import { formatPrice } from '../../utils/formatNumber';
-import { fVNDate, normalizeTimestamp } from '../../utils/formatTime';
+import { normalizeTimestamp } from '../../utils/formatTime';
 import { watchlistApi } from '../../services/watchlistApi';
 
 const BidderWatchListPage = () => {

@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Congratulations! You Won the Auction</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 30px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .header .icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .greeting {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .message {
+            font-size: 15px;
+            line-height: 1.6;
+            color: #555;
+            margin-bottom: 20px;
+        }
+        .celebration {
+            text-align: center;
+            font-size: 64px;
+            margin: 20px 0;
+            animation: bounce 1s ease-in-out;
+        }
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateY(0);
+            }
+            40% {
+                transform: translateY(-20px);
+            }
+            60% {
+                transform: translateY(-10px);
+            }
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 14px;
+            margin: 15px 0;
+            background-color: #fff3cd;
+            color: #856404;
+            border: 2px solid #ffc107;
+        }
+        .details-box {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 20px;
+            margin: 25px 0;
+        }
+        .detail-item {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .detail-item:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+        .detail-label {
+            font-weight: 600;
+            color: #495057;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+        }
+        .detail-value {
+            color: #212529;
+            font-size: 15px;
+            word-wrap: break-word;
+        }
+        .product-name {
+            color: #ffc107;
+            font-weight: 600;
+            font-size: 18px;
+        }
+        .amount-highlight {
+            color: #28a745;
+            font-weight: 700;
+            font-size: 24px;
+        }
+        .winner-badge {
+            background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+            border: 3px solid #ffc107;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 25px 0;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(255, 193, 7, 0.3);
+        }
+        .winner-badge .trophy {
+            font-size: 64px;
+            margin-bottom: 10px;
+        }
+        .winner-badge .title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #856404;
+            margin: 10px 0;
+        }
+        .winner-badge .subtitle {
+            font-size: 14px;
+            color: #856404;
+            font-weight: 500;
+        }
+        .info-section {
+            background-color: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .info-section p {
+            margin: 5px 0;
+            color: #155724;
+            font-size: 14px;
+        }
+        .info-section strong {
+            color: #0c3d1f;
+        }
+        .payment-section {
+            background-color: #e7f3ff;
+            border-left: 4px solid #007bff;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .payment-section p {
+            margin: 5px 0;
+            color: #004085;
+            font-size: 14px;
+        }
+        .cta-button {
+            display: inline-block;
+            padding: 14px 35px;
+            background: linear-gradient(135deg, #28a745 0%, #218838 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 16px;
+            margin: 20px 0;
+            transition: all 0.3s;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+        }
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(40, 167, 69, 0.4);
+        }
+        .stats-row {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        .stat-item {
+            text-align: center;
+            padding: 15px;
+            min-width: 120px;
+        }
+        .stat-number {
+            font-size: 28px;
+            font-weight: 700;
+            color: #ffc107;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #6c757d;
+            text-transform: uppercase;
+            margin-top: 5px;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 25px 30px;
+            text-align: center;
+            border-top: 1px solid #dee2e6;
+        }
+        .footer p {
+            margin: 5px 0;
+            color: #6c757d;
+            font-size: 13px;
+        }
+        .footer .support-link {
+            color: #0066cc;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .footer .support-link:hover {
+            text-decoration: underline;
+        }
+        .confetti {
+            text-align: center;
+            font-size: 32px;
+            margin: 10px 0;
+        }
+        @media only screen and (max-width: 600px) {
+            .container {
+                margin: 10px;
+            }
+            .content {
+                padding: 25px 20px;
+            }
+            .header {
+                padding: 25px 20px;
+            }
+            .celebration {
+                font-size: 48px;
+            }
+            .stats-row {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="icon">🎊</div>
+            <h1>Congratulations! You Won the Auction!</h1>
+        </div>
+        
+        <div class="content">
+            <div class="greeting">
+                Dear <strong th:text="${userName}">Winner</strong>,
+            </div>
+            
+            <div class="celebration">🏆</div>
+            <div class="confetti">🎉 🎈 🎊 ✨ 🎁</div>
+            
+            <div class="winner-badge">
+                <div class="trophy">🏆</div>
+                <div class="title">YOU ARE THE WINNER!</div>
+                <div class="subtitle">The auction has ended and you placed the winning bid</div>
+            </div>
+            
+            <div class="message">
+                <strong>Fantastic news!</strong> The auction for <strong th:text="${productName}">this item</strong> has ended, and <strong>you are the highest bidder</strong>! You have successfully won this auction.
+            </div>
+            
+            <div class="status-badge">
+                ✓ WINNING BID
+            </div>
+            
+            <div class="details-box">
+                <div class="detail-item">
+                    <div class="detail-label">Product</div>
+                    <div class="detail-value product-name" th:text="${productName}">Product Name</div>
+                </div>
+                
+                <div class="detail-item">
+                    <div class="detail-label">Product ID</div>
+                    <div class="detail-value" th:text="${productId}">12345</div>
+                </div>
+                
+                <div class="detail-item">
+                    <div class="detail-label">Your Winning Bid</div>
+                    <div class="detail-value amount-highlight" th:text="'$' + ${winningAmount}">$1,000</div>
+                </div>
+                
+                <div class="detail-item" th:if="${yourBidAmount != null and yourBidAmount != 'N/A'}">
+                    <div class="detail-label">Your Final Bid</div>
+                    <div class="detail-value" th:text="'$' + ${yourBidAmount}">$1,000</div>
+                </div>
+                
+                <div class="detail-item">
+                    <div class="detail-label">Auction End Time</div>
+                    <div class="detail-value" th:text="${auctionEndTime}">2024-01-01 10:00:00</div>
+                </div>
+                
+                <div class="detail-item">
+                    <div class="detail-label">Total Bids Placed</div>
+                    <div class="detail-value" th:text="${totalBids} + ' bid(s)'">15 bids</div>
+                </div>
+            </div>
+            
+            <div class="stats-row">
+                <div class="stat-item">
+                    <div class="stat-number" th:text="'$' + ${winningAmount}">$1,500</div>
+                    <div class="stat-label">Winning Amount</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" th:text="${totalBids}">15</div>
+                    <div class="stat-label">Total Bids</div>
+                </div>
+            </div>
+            
+            <div class="info-section">
+                <p><strong>✓ What Happens Next?</strong></p>
+                <p>1. The seller has been notified of your winning bid</p>
+                <p>2. You will receive payment instructions shortly</p>
+                <p>3. Complete the payment within the specified timeframe</p>
+                <p>4. After payment confirmation, the seller will ship your item</p>
+            </div>
+            
+            <div class="payment-section">
+                <p><strong>💳 Payment Information</strong></p>
+                <p>• Please complete payment within 48 hours to secure your purchase</p>
+                <p>• Check your dashboard for detailed payment instructions</p>
+                <p>• Contact the seller if you have any questions about the item</p>
+            </div>
+            
+            <div class="message">
+                <strong>Important:</strong> Please proceed with the payment as soon as possible to complete your purchase. The seller is waiting to send you your item!
+            </div>
+            
+            <div style="text-align: center;">
+                <a href="#" class="cta-button">Complete Payment Now</a>
+            </div>
+            
+            <div class="message" style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #dee2e6;">
+                <strong>Thank you for bidding!</strong> We hope you enjoy your new purchase. If you have any questions or need assistance, please don't hesitate to contact our support team.
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p><strong>Online Auction Platform</strong></p>
+            <p>© 2025 Online Auction Platform. All rights reserved.</p>
+            <p>Need help? Contact our <a href="#" class="support-link">Customer Support Team</a></p>
+            <p style="margin-top: 10px; font-size: 11px;">
+                This is an automated notification. Please do not reply to this email.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

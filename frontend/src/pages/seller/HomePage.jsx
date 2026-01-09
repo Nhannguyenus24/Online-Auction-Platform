@@ -64,12 +64,12 @@ const SellerHomePage = () => {
     const fetchAllData = async () => {
       try {
         // Fetch active listings
-        const activeRes = await sellerApi.getActiveListings(1, 500);
+        const activeRes = await sellerApi.getActiveListings(1, 99);
         const active = (activeRes.products || []).map(mapProduct);
         setActiveListings(active);
         
         // Fetch won items
-        const wonRes = await sellerApi.getWinnerItems(1, 500);
+        const wonRes = await sellerApi.getWinnerItems(1, 99);
         const wonData = (wonRes.products || []).map(p => mapProduct(p, true));
         setWonItems(wonData);
         
@@ -99,7 +99,7 @@ const SellerHomePage = () => {
         // Active Listings
         try {
           setLoading((prev) => ({ ...prev, active: true }));
-          const response = await sellerApi.getActiveListings(1, 500);
+          const response = await sellerApi.getActiveListings(1, 99);
           const active = (response.products || []).map(mapProduct);
           setActiveListings(active);
         } catch (err) {
@@ -112,7 +112,7 @@ const SellerHomePage = () => {
         // Won Items
         try {
           setLoading((prev) => ({ ...prev, won: true }));
-          const response = await sellerApi.getWinnerItems(1, 500);
+          const response = await sellerApi.getWinnerItems(1, 99);
           const wonData = (response.products || []).map(p => mapProduct(p, true));
           setWonItems(wonData);
         } catch (err) {
@@ -190,7 +190,7 @@ const SellerHomePage = () => {
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
             <StatCard
-              title="Won Items"
+              title="Sold Items"
               value={stats.wonItems}
               icon={<EmojiEvents />}
               color="success"
@@ -241,7 +241,7 @@ const SellerHomePage = () => {
             <Tab
               icon={<EmojiEvents />}
               iconPosition="start"
-              label={`Won Items (${wonItems.length})`}
+              label={`Sold Items (${wonItems.length})`}
             />
           </Tabs>
 
@@ -250,7 +250,7 @@ const SellerHomePage = () => {
             <Box sx={{ mb: 3 }}>
               <TextField
                 fullWidth
-                placeholder={`Search ${tabValue === 0 ? 'active listings' : 'won items'}...`}
+                placeholder={`Search ${tabValue === 0 ? 'active listings' : 'sold items'}...`}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 InputProps={{

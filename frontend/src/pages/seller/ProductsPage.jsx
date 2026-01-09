@@ -60,7 +60,7 @@ const SellerProductsPage = () => {
       setLoading(true);
       try {
         // Fetch all active listings with a large page size to get all data
-        const response = await sellerApi.getListings("active", 1, 500);
+        const response = await sellerApi.getListings("all", 1, 10);
         // Map the response to match the expected format
         const mappedProducts = (response.listings || []).map((listing) => {
           // Parse endsAt timestamp (can be string or number)
@@ -135,7 +135,7 @@ const SellerProductsPage = () => {
           return !hasStartedBidding(product) && product.status === "active";
         });
       default: // All
-        return allProducts.filter((product) => product.status === "active");
+        return allProducts;
     }
   };
 
@@ -260,8 +260,7 @@ const SellerProductsPage = () => {
               <Tab
                 label={
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <Inventory /> All ({allProducts.filter((p) => p.status === "active").length}
-                    )
+                    <Inventory /> All ({allProducts.length})
                   </Box>
                 }
               />

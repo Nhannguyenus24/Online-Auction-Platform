@@ -27,8 +27,6 @@ import com.auctionplatform.seller.grpc.GetSellerProfileRequest;
 import com.auctionplatform.seller.grpc.GetSellerRatingsRequest;
 import com.auctionplatform.seller.grpc.GetTransactionHistoryRequest;
 import com.auctionplatform.seller.grpc.GetWinnerItemsRequest;
-import com.auctionplatform.seller.grpc.UpdateOrderStatusRequest;
-import com.auctionplatform.seller.grpc.UpdateOrderStatusResponse;
 import com.auctionplatform.seller.grpc.ListingsResponse;
 import com.auctionplatform.seller.grpc.OrderDetail;
 import com.auctionplatform.seller.grpc.OrdersResponse;

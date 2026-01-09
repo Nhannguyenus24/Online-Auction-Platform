@@ -5,7 +5,6 @@ import {
   Container,
   Typography,
   Card,
-  Avatar,
   TextField,
   IconButton,
   Stack,
@@ -16,9 +15,7 @@ import {
   List,
   ListItem,
   ListItemButton,
-  ListItemAvatar,
   ListItemText,
-  Badge,
 } from '@mui/material';
 import { Send, ArrowBack, CheckCircle, Schedule } from '@mui/icons-material';
 import Page from '../../components/Page';
@@ -27,8 +24,6 @@ import useChatSocket from '../../hooks/useChatSocket';
 import useConversationsSocket from '../../hooks/useConversationsSocket';
 import { getMessagesByOrder, getConversations, markConversationAsRead } from '../../services/chatApi';
 import { useAuth } from '../../hooks/useAuth';
-
-const defaultAvatar = '/anonymous-user.jpg';
 
 const BidderChatPage = () => {
   const { orderId } = useParams();
@@ -50,7 +45,6 @@ const BidderChatPage = () => {
       orderId: conv.orderId,
       seller: {
         name: conv.sellerName || `Seller ${conv.orderId}`,
-        avatar: conv.sellerAvatar || defaultAvatar,
       },
       status: conv.status || 'pending_payment',
       amount: conv.amount ? Number(conv.amount) : 0,
@@ -92,13 +86,7 @@ const BidderChatPage = () => {
       const isFromOtherParty = !isBidder; // Bidder receives messages from seller
       
       
-      // If we're viewing this conversation and message is from other party,
-      // backend will increment unread count, but we should keep it at 0
-      // because user is actively viewing it. We'll refresh from DB when leaving.
-      // If we're NOT viewing it, we need to fetch the latest unread count from DB.
       if (isFromOtherParty && !isCurrentConversation) {
-        // Message from other party and we're NOT viewing it -> refresh from DB to get accurate unread count
-        // Add small delay to ensure backend has committed the transaction
         const userId = user?.id?.toString();
         if (!userId) return; // Don't refresh if user is not loaded
         
@@ -420,15 +408,6 @@ const BidderChatPage = () => {
                       },
                     }}
                   >
-                    <ListItemAvatar>
-                      <Badge
-                        variant="dot"
-                        color="error"
-                        invisible={conversation.unreadCount === 0}
-                      >
-                        <Avatar src={conversation.seller.avatar} alt={conversation.seller.name} />
-                      </Badge>
-                    </ListItemAvatar>
                     <ListItemText
                       primary={
                         <Typography variant="subtitle2" fontWeight={conversation.unreadCount > 0 ? 600 : 400}>
@@ -512,7 +491,6 @@ const BidderChatPage = () => {
             <IconButton onClick={() => navigate('/bidder/chat')}>
               <ArrowBack />
             </IconButton>
-            <Avatar src={selectedConversation.seller.avatar} alt={selectedConversation.seller.name} />
             <Box sx={{ flex: 1 }}>
               <Typography variant="subtitle1" fontWeight={600}>
                 {selectedConversation.seller.name}
@@ -569,7 +547,6 @@ const BidderChatPage = () => {
               <Stack spacing={2}>
                 {messages.map((msg, index) => {
                   const self = isSelf(msg);
-                  const showAvatar = index === 0 || messages[index - 1].sender !== msg.sender;
                   const showTime =
                     index === messages.length - 1 ||
                     new Date(msg.time) - new Date(messages[index + 1].time) > 5 * 60 * 1000;
@@ -584,9 +561,6 @@ const BidderChatPage = () => {
                         alignItems: 'flex-end',
                       }}
                     >
-                      {!self && showAvatar && (
-                        <Avatar src={selectedConversation.seller.avatar} alt={selectedConversation.seller.name} sx={{ width: 32, height: 32 }} />
-                      )}
                       <Box
                         sx={{
                           maxWidth: { xs: '85%', sm: '75%', md: '70%' },
@@ -602,8 +576,6 @@ const BidderChatPage = () => {
                             bgcolor: self ? 'primary.main' : 'white',
                             color: self ? 'white' : 'text.primary',
                             borderRadius: 2,
-                            borderTopLeftRadius: showAvatar && !self ? 0.5 : 2,
-                            borderTopRightRadius: showAvatar && self ? 0.5 : 2,
                             boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
                           }}
                         >
@@ -628,7 +600,6 @@ const BidderChatPage = () => {
                           </Box>
                         )}
                       </Box>
-                      {self && showAvatar && <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>B</Avatar>}
                     </Box>
                   );
                 })}

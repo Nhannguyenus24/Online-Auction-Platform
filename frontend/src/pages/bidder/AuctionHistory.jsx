@@ -63,8 +63,8 @@ const BidderAuctionHistoryPage = () => {
       try {
         // Fetch all data (fetch large limit to get all data for client-side filtering)
         const [biddingRes, wonRes] = await Promise.all([
-          bidderApi.getBiddingHistory(1, 1000, 'all'), // Get all data
-          bidderApi.getWonItems(1, 1000),
+          bidderApi.getBiddingHistory(1, 10, 'all'), // Get all data
+          bidderApi.getWonItems(1, 10),
         ]);
         
         // Map API response to component format
@@ -78,8 +78,6 @@ const BidderAuctionHistoryPage = () => {
           isHighestBidder: bid.isWinning,
           endTime: normalizeTimestamp(bid.productEndsAt), // Normalize timestamp from backend
           bidDate: normalizeTimestamp(bid.bidCreatedAt), // Normalize timestamp from backend
-          bidCount: 0, // Not available in API response
-          condition: null, // Not available in API response
           productStatus: bid.productStatus,
         }));
         
@@ -455,22 +453,6 @@ const BidderAuctionHistoryPage = () => {
                                   {bid.title}
                                 </Typography>
                                 <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                                  {bid.condition && (
-                                    <Chip
-                                      label={bid.condition}
-                                      size="small"
-                                      color={bid.condition === 'New' ? 'success' : 'default'}
-                                      sx={{ height: 20, fontSize: '0.7rem' }}
-                                    />
-                                  )}
-                                  {bid.bidCount !== undefined && bid.bidCount !== null && (
-                                    <Chip
-                                      icon={<Gavel sx={{ fontSize: 12 }} />}
-                                      label={`${bid.bidCount} bids`}
-                                      size="small"
-                                      sx={{ height: 20, fontSize: '0.7rem' }}
-                                    />
-                                  )}
                                 </Box>
                               </Box>
                             </Box>

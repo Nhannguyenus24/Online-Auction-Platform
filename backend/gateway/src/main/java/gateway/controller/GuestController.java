@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.PositiveOrZero;
 
 import com.auction.proto.guest.*;
 import com.auction.utils.JsonUtils;

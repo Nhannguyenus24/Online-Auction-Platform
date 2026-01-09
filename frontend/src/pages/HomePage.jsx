@@ -103,6 +103,7 @@ const HomePage = () => {
   // Product states
   const [endingSoonProducts, setEndingSoonProducts] = useState([]);
   const [mostBidsProducts, setMostBidsProducts] = useState([]);
+  const [highestPriceProducts, setHighestPriceProducts] = useState([]);
   
   // Category states
   const [categories, setCategories] = useState([]);
@@ -155,9 +156,10 @@ const HomePage = () => {
     const fetchTopProducts = async () => {
       try {
         // Fetch all 3 APIs in parallel
-        const [endingSoonRes, mostBidsRes] = await Promise.all([
+        const [endingSoonRes, mostBidsRes, highestPriceRes] = await Promise.all([
           productApi.getTopEndingProducts(5).catch(err => ({ success: false, products: [], error: err })),
           productApi.getTopBidCountProducts(5).catch(err => ({ success: false, products: [], error: err })),
+          productApi.getTopPriceProducts(5).catch(err => ({ success: false, products: [], error: err })),
         ]);
 
         // Process ending soon products
@@ -182,6 +184,18 @@ const HomePage = () => {
           setMostBidsProducts([]);
           setLoading(prev => ({ ...prev, mostBids: false }));
           setErrors(prev => ({ ...prev, mostBids: mostBidsRes.error?.message || 'Failed to load most popular products' }));
+        }
+
+        // Process highest price products
+        if (highestPriceRes.success) {
+          const mappedProducts = (highestPriceRes.products || []).map(mapProductFromAPI);
+          setHighestPriceProducts(mappedProducts);
+          setLoading(prev => ({ ...prev, highestPrice: false }));
+          setErrors(prev => ({ ...prev, highestPrice: null }));
+        } else {
+          setHighestPriceProducts([]);
+          setLoading(prev => ({ ...prev, highestPrice: false }));
+          setErrors(prev => ({ ...prev, highestPrice: highestPriceRes.error?.message || 'Failed to load highest price products' }));
         }
       } catch (error) {
         console.error('Error fetching top products:', error);
@@ -923,6 +937,286 @@ const HomePage = () => {
                             sx={{ fontSize: 16, color: "primary.main" }}
                           />
                           <Typography variant="body2" fontWeight={600}>
+                            {product.bidCount}
+                          </Typography>
+                        </Box>
+                      </td>
+                      <td style={{ padding: "16px", textAlign: "center" }}>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 0.5,
+                          }}
+                        >
+                          <AccessTime
+                            sx={{ fontSize: 16, color: "text.secondary" }}
+                          />
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            fontWeight={600}
+                            sx={{
+                              minWidth: "85px",
+                              fontVariantNumeric: "tabular-nums",
+                            }}
+                          >
+                            {getTimeLeft(product.endTime)}
+                          </Typography>
+                        </Box>
+                      </td>
+                      <td style={{ padding: "16px", textAlign: "center" }}>
+                        <Button
+                          variant="contained"
+                          size="small"
+                          disabled={getTimeLeft(product.endTime) === "Ended"}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/product/${product.id}`);
+                          }}
+                          sx={{ textTransform: "none", fontWeight: 600 }}
+                        >
+                          {getTimeLeft(product.endTime) === "Ended" ? "Ended" : "Bid Now"}
+                        </Button>
+                      </td>
+                    </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </Box>
+          </Box>
+        </Container>
+
+        {/* Top Price Products Section */}
+        <Container maxWidth="xl" sx={{ mt: 6, mb: 6 }}>
+          <Box>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                mb: 3,
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                <LocalOffer sx={{ color: "warning.main", fontSize: 28 }} />
+                <Typography variant="h5" fontWeight={700}>
+                  💰 Top Price Products
+                </Typography>
+              </Box>
+              <Button
+                endIcon={<ArrowForward />}
+                onClick={() => navigate("/search")}
+                sx={{ textTransform: "none", fontWeight: 600 }}
+              >
+                View All
+              </Button>
+            </Box>
+
+            <Box
+              sx={{
+                bgcolor: "white",
+                borderRadius: 2,
+                overflow: "hidden",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+              }}
+            >
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                }}
+              >
+                <thead style={{ backgroundColor: "#fafafa" }}>
+                  <tr>
+                    <th
+                      style={{
+                        padding: "16px",
+                        textAlign: "left",
+                        fontWeight: 600,
+                        fontSize: "0.875rem",
+                        color: "#666",
+                      }}
+                    >
+                      Product
+                    </th>
+                    <th
+                      style={{
+                        padding: "16px",
+                        fontWeight: 600,
+                        fontSize: "0.875rem",
+                        color: "#666",
+                      }}
+                    >
+                      Condition
+                    </th>
+                    <th
+                      style={{
+                        padding: "16px",
+                        textAlign: "right",
+                        fontWeight: 600,
+                        fontSize: "0.875rem",
+                        color: "#666",
+                      }}
+                    >
+                      Current Price
+                    </th>
+                    <th
+                      style={{
+                        padding: "16px",
+                        textAlign: "center",
+                        fontWeight: 600,
+                        fontSize: "0.875rem",
+                        color: "#666",
+                      }}
+                    >
+                      Bids
+                    </th>
+                    <th
+                      style={{
+                        padding: "16px",
+                        textAlign: "center",
+                        fontWeight: 600,
+                        fontSize: "0.875rem",
+                        color: "#666",
+                      }}
+                    >
+                      Time Left
+                    </th>
+                    <th
+                      style={{
+                        padding: "16px",
+                        textAlign: "center",
+                        fontWeight: 600,
+                        fontSize: "0.875rem",
+                        color: "#666",
+                      }}
+                    >
+                      Action
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading.highestPrice ? (
+                    [...Array(5)].map((_, index) => (
+                      <tr key={`skeleton-price-${index}`} style={{ borderBottom: '1px solid #e0e0e0' }}>
+                        <td style={{ padding: '16px' }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                            <Skeleton variant="rectangular" width={60} height={60} />
+                            <Skeleton variant="text" width={250} height={20} />
+                          </Box>
+                        </td>
+                        <td style={{ padding: '16px' }}>
+                          <Skeleton variant="text" width={80} height={32} />
+                        </td>
+                        <td style={{ padding: '16px', textAlign: 'right' }}>
+                          <Skeleton variant="text" width={100} height={24} />
+                        </td>
+                        <td style={{ padding: '16px', textAlign: 'center' }}>
+                          <Skeleton variant="text" width={50} height={24} />
+                        </td>
+                        <td style={{ padding: '16px', textAlign: 'center' }}>
+                          <Skeleton variant="text" width={85} height={24} />
+                        </td>
+                        <td style={{ padding: '16px', textAlign: 'center' }}>
+                          <Skeleton variant="text" width={80} height={36} />
+                        </td>
+                      </tr>
+                    ))
+                  ) : errors.highestPrice ? (
+                    <tr>
+                      <td colSpan={6} style={{ padding: '20px' }}>
+                        <Alert severity="error">{errors.highestPrice}</Alert>
+                      </td>
+                    </tr>
+                  ) : highestPriceProducts.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} style={{ padding: '40px', textAlign: 'center' }}>
+                        <Typography color="text.secondary">No products available</Typography>
+                      </td>
+                    </tr>
+                  ) : (
+                    highestPriceProducts.map((product, index) => (
+                    <tr
+                      key={`highest-price-${product.id}-${index}`}
+                      style={{
+                        borderBottom:
+                          index < highestPriceProducts.length - 1
+                            ? "1px solid #e0e0e0"
+                            : "none",
+                        cursor: "pointer",
+                        transition: "background-color 0.2s",
+                      }}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.backgroundColor = "#f9f9f9")
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.backgroundColor = "transparent")
+                      }
+                      onClick={() => navigate(`/product/${product.id}`)}
+                    >
+                      <td style={{ padding: "16px" }}>
+                        <Box
+                          sx={{ display: "flex", alignItems: "center", gap: 2 }}
+                        >
+                          <Box
+                            component="img"
+                            src={product.image}
+                            alt={product.title}
+                            sx={{
+                              width: 60,
+                              height: 60,
+                              objectFit: "cover",
+                              borderRadius: 1,
+                              border: "1px solid",
+                              borderColor: "grey.200",
+                            }}
+                          />
+                          <Typography
+                            variant="body2"
+                            fontWeight={500}
+                            sx={{ maxWidth: 300 }}
+                          >
+                            {product.title}
+                          </Typography>
+                        </Box>
+                      </td>
+                      <td style={{ padding: "16px" }}>
+                        <Chip
+                          label={product.condition}
+                          size="small"
+                          color={
+                            product.condition === "New" ? "success" : "default"
+                          }
+                        />
+                      </td>
+                      <td style={{ padding: "16px", textAlign: "right" }}>
+                        <Typography
+                          variant="h6"
+                          fontWeight={700}
+                          color="warning.main"
+                          sx={{ fontVariantNumeric: "tabular-nums" }}
+                        >
+                          {formatPrice(product.currentPrice)}
+                        </Typography>
+                      </td>
+                      <td style={{ padding: "16px", textAlign: "center" }}>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 0.5,
+                          }}
+                        >
+                          <Gavel sx={{ fontSize: 16, color: "text.secondary" }} />
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{ fontVariantNumeric: "tabular-nums" }}
+                          >
                             {product.bidCount}
                           </Typography>
                         </Box>

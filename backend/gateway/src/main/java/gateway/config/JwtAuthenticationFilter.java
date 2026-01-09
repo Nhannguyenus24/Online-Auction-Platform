@@ -42,7 +42,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // Get Authorization header
         String authHeader = request.getHeader("Authorization");
         String requestPath = request.getRequestURI();
-        
         // Check if this is a protected endpoint
         boolean isProtectedEndpoint = isProtectedEndpoint(requestPath);
         

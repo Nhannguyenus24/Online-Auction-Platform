@@ -53,7 +53,6 @@ limits_config:
 ingester:
   max_chunk_age: 3m
   chunk_idle_period: 3m
-  max_streams_errors_rate: 0.05
 
 compactor:
   working_directory: /loki/compactor

@@ -1,4 +1,4 @@
-import { Box, Skeleton } from '@mui/material';
+import { Box } from '@mui/material';
 import { motion } from 'framer-motion';
 
 const LoadingScreen = ({ fullScreen = true }) => {
@@ -56,15 +56,6 @@ const LoadingScreen = ({ fullScreen = true }) => {
           padding: 2,
         }}
       >
-        {/* Skeleton loading cards */}
-        <Box sx={{ width: '100%', maxWidth: 600, display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {[1, 2, 3].map((item) => (
-            <Box key={item} sx={{ width: '100%' }}>
-              <Skeleton variant="rectangular" height={100} sx={{ borderRadius: 1, mb: 1 }} />
-              <Skeleton variant="text" width="80%" height={24} sx={{ borderRadius: 0.5 }} />
-            </Box>
-          ))}
-        </Box>
 
         {/* Jumping dots animation */}
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end', justifyContent: 'center' }}>

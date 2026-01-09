@@ -63,18 +63,6 @@ public class AdminController {
         return Integer.parseInt(authentication.getName());
     }
 
-    private ResponseEntity<StandardResponseDto> invalidRoleFilter() {
-        return ResponseEntity.badRequest().body(
-            new StandardResponseDto(false, "Invalid roleFilter. Must be: bidder, seller, or admin")
-        );
-    }
-
-    private ResponseEntity<StandardResponseDto> invalidStatusFilter() {
-        return ResponseEntity.badRequest().body(
-            new StandardResponseDto(false, "Invalid statusFilter. Must be: pending, approved, or rejected")
-        );
-    }
-
     // ============================================================================
     // USER STATISTICS
     // ============================================================================
@@ -90,7 +78,7 @@ public class AdminController {
         // Validate roleFilter if provided
         if (!roleFilter.isEmpty() && !roleFilter.matches("^(bidder|seller|admin)$")) {
             log.error("Invalid roleFilter value: {}", roleFilter);
-            return invalidRoleFilter();
+            return ResponseEntity.badRequest().body(null);
         }
 
         UserStatisticsRequest grpcRequest = UserStatisticsRequest.newBuilder()
@@ -204,19 +192,19 @@ public class AdminController {
             if (response == null) {
                 throw new RuntimeException("gRPC response is null");
             }
-            
+
             ProfitDataDto monthlyProfit = null;
             if (response.hasMonthlyProfit()) {
                 var mp = response.getMonthlyProfit();
                 monthlyProfit = new ProfitDataDto(mp.getMonth(), mp.getTotalSales(), mp.getProfit(), mp.getCompletedOrders());
             }
-            
+
             ProfitDataDto yearlyProfit = null;
             if (response.hasYearlyProfit()) {
                 var yp = response.getYearlyProfit();
                 yearlyProfit = new ProfitDataDto(yp.getYear(), yp.getTotalSales(), yp.getProfit(), yp.getCompletedOrders());
             }
-            
+
             ProfitStatisticsResponseDto result = new ProfitStatisticsResponseDto(monthlyProfit, yearlyProfit);
 
             log.info("Get profit statistics successful: {}", JsonUtils.toJson(result));
@@ -248,8 +236,7 @@ public class AdminController {
 
         // Validate roleFilter if provided
         if (!roleFilter.isEmpty() && !roleFilter.matches("^(bidder|seller|admin)$")) {
-            log.error("Invalid roleFilter value: {}", roleFilter);
-            return invalidRoleFilter();
+            return ResponseEntity.badRequest().body(null);
         }
 
         GetAllUsersRequest grpcRequest = GetAllUsersRequest.newBuilder()
@@ -312,7 +299,7 @@ public class AdminController {
         // Validate statusFilter if provided
         if (!statusFilter.isEmpty() && !statusFilter.matches("^(pending|approved|rejected)$")) {
             log.error("Invalid statusFilter value: {}", statusFilter);
-            return invalidStatusFilter();
+            return ResponseEntity.badRequest().body(null);
         }
 
         GetUpgradeRequestsRequest grpcRequest = GetUpgradeRequestsRequest.newBuilder()

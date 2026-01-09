@@ -5,7 +5,6 @@ import {
   Container,
   Typography,
   Card,
-  Avatar,
   TextField,
   IconButton,
   Stack,
@@ -14,9 +13,7 @@ import {
   List,
   ListItem,
   ListItemButton,
-  ListItemAvatar,
   ListItemText,
-  Badge,
   Skeleton,
   Alert,
 } from '@mui/material';
@@ -52,7 +49,6 @@ const SellerChatPage = () => {
       orderId: conv.orderId,
       winner: {
         name: conv.bidderName || `Bidder ${conv.orderId}`,
-        avatar: conv.bidderAvatar || '/anonymous-user.jpg',
       },
       status: conv.status || 'pending_payment',
       amount: conv.amount ? Number(conv.amount) : 0,
@@ -425,15 +421,6 @@ const SellerChatPage = () => {
                       },
                     }}
                   >
-                    <ListItemAvatar>
-                      <Badge
-                        variant="dot"
-                        color="error"
-                        invisible={conversation.unreadCount === 0}
-                      >
-                        <Avatar src={conversation.winner.avatar} alt={conversation.winner.name} />
-                      </Badge>
-                    </ListItemAvatar>
                     <ListItemText
                       primary={
                         <Typography variant="subtitle2" fontWeight={conversation.unreadCount > 0 ? 600 : 400}>
@@ -517,7 +504,6 @@ const SellerChatPage = () => {
             <IconButton onClick={() => navigate('/seller/chat')}>
               <ArrowBack />
             </IconButton>
-            <Avatar src={selectedConversation.winner.avatar} alt={selectedConversation.winner.name} />
             <Box sx={{ flex: 1 }}>
               <Typography variant="subtitle1" fontWeight={600}>
                 {selectedConversation.winner.name}
@@ -574,7 +560,6 @@ const SellerChatPage = () => {
               <Stack spacing={2}>
                 {messages.map((msg, index) => {
                   const isSeller = msg.sender === 'seller';
-                  const showAvatar = index === 0 || messages[index - 1].sender !== msg.sender;
                   const showTime =
                     index === messages.length - 1 ||
                     new Date(msg.time) - new Date(messages[index + 1].time) > 5 * 60 * 1000;
@@ -589,13 +574,6 @@ const SellerChatPage = () => {
                         alignItems: 'flex-end',
                       }}
                     >
-                      {!isSeller && showAvatar && (
-                        <Avatar
-                          src={selectedConversation.winner.avatar}
-                          alt={selectedConversation.winner.name}
-                          sx={{ width: 32, height: 32 }}
-                        />
-                      )}
                       <Box
                         sx={{
                           maxWidth: { xs: '85%', sm: '75%', md: '70%' },
@@ -611,8 +589,6 @@ const SellerChatPage = () => {
                             bgcolor: isSeller ? 'primary.main' : 'white',
                             color: isSeller ? 'white' : 'text.primary',
                             borderRadius: 2,
-                            borderTopLeftRadius: showAvatar && !isSeller ? 0.5 : 2,
-                            borderTopRightRadius: showAvatar && isSeller ? 0.5 : 2,
                             boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
                           }}
                         >
@@ -637,9 +613,6 @@ const SellerChatPage = () => {
                           </Box>
                         )}
                       </Box>
-                      {isSeller && showAvatar && (
-                        <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>S</Avatar>
-                      )}
                     </Box>
                   );
                 })}

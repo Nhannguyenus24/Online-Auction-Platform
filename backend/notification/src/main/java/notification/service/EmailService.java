@@ -14,6 +14,7 @@ import org.thymeleaf.context.Context;
 
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
+import notification.repository.UserRepository;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
@@ -23,6 +24,7 @@ public class EmailService {
     private final JavaMailSender mailSender;
     private final TemplateEngine templateEngine;
     private final NotificationService notificationService;
+    private final UserRepository userRepository;
 
     @Value("${app.mail.from-address}")
     private String fromAddress;
@@ -31,10 +33,11 @@ public class EmailService {
     private String fromName;
 
     private EmailService(JavaMailSender mailSender, TemplateEngine templateEngine,
-                         NotificationService notificationService) {
+                         NotificationService notificationService,  UserRepository userRepository) {
         this.mailSender = mailSender;
         this.templateEngine = templateEngine;
         this.notificationService = notificationService;
+        this.userRepository = userRepository;
     }
     /**
      * Gửi email HTML với template (Reactive)
@@ -96,8 +99,8 @@ public class EmailService {
     /**
      * Gửi email thông báo bid thành công (Reactive)
      */
-    public Mono<Void> sendBidSuccessEmail(String to, String userName, String productName, 
-                                          String bidAmount, String productId, String bidTime, 
+    public Mono<Void> sendBidSuccessEmail(String to, String userName, String productName,
+                                          String bidAmount, String productId, String bidTime,
                                           String auctionEndTime) {
         Map<String, Object> variables = Map.of(
                 "userName", userName,
@@ -251,12 +254,10 @@ public class EmailService {
     /**
      * Gửi bid success email và lưu notification vào DB
      */
-    public Mono<Void> sendBidSuccessEmailWithNotification(String to, Integer userId, String userName, 
+    public Mono<Void> sendBidSuccessEmailWithNotification(Integer userId,
                                                           String productName, String bidAmount, String productId, 
                                                           String bidTime, String auctionEndTime) {
         Map<String, Object> notificationPayload = Map.of(
-                "email", to,
-                "userName", userName,
                 "productName", productName,
                 "bidAmount", bidAmount,
                 "productId", productId,
@@ -265,21 +266,21 @@ public class EmailService {
                 "type", "bid_success"
         );
 
-        return sendBidSuccessEmail(to, userName, productName, bidAmount, productId, bidTime, auctionEndTime)
-                .then(saveNotificationToDatabase(userId, "BID_SUCCESS", notificationPayload));
+        return userRepository.findById(userId)
+                .flatMap(user -> sendBidSuccessEmail(user.getEmail(), user.getFullName(), productName, bidAmount, productId, bidTime, auctionEndTime)
+                        .then(saveNotificationToDatabase(userId, "BID_SUCCESS", notificationPayload)));
     }
+
 
     /**
      * Gửi bid outbid email và lưu notification vào DB
      */
-    public Mono<Void> sendBidOutbidEmailWithNotification(String to, Integer userId, String userName, 
+    public Mono<Void> sendBidOutbidEmailWithNotification(Integer userId,
                                                          String productName, String yourBidAmount, 
                                                          String newHighestBid, String bidDifference, 
                                                          String outbidTime, String auctionEndTime, 
                                                          String timeRemaining, String auctionLink) {
         Map<String, Object> notificationPayload = Map.of(
-                "email", to,
-                "userName", userName,
                 "productName", productName,
                 "yourBidAmount", yourBidAmount,
                 "newHighestBid", newHighestBid,
@@ -290,22 +291,21 @@ public class EmailService {
                 "type", "bid_outbid"
         );
 
-        return sendBidOutbidEmail(to, userName, productName, yourBidAmount, newHighestBid, 
-                bidDifference, outbidTime, auctionEndTime, timeRemaining, auctionLink)
-                .then(saveNotificationToDatabase(userId, "BID_OUTBID", notificationPayload));
+        return userRepository.findById(userId)
+                        .flatMap(user -> sendBidOutbidEmail(user.getEmail(), user.getFullName(), productName, yourBidAmount, newHighestBid,
+                                bidDifference, outbidTime, auctionEndTime, timeRemaining, auctionLink) .then(saveNotificationToDatabase(userId, "BID_OUTBID", notificationPayload)))
+               ;
     }
 
     /**
      * Gửi account violation warning email và lưu notification vào DB
      */
-    public Mono<Void> sendAccountViolationWarningEmailWithNotification(String to, Integer userId, String userName, 
+    public Mono<Void> sendAccountViolationWarningEmailWithNotification(Integer userId,
                                                                        String violationType, String violationDescription,
                                                                        String detectionDate, String warningLevel,
                                                                        String referenceNumber, String termsLink,
                                                                        String guidelinesLink) {
         Map<String, Object> notificationPayload = Map.of(
-                "email", to,
-                "userName", userName,
                 "violationType", violationType,
                 "violationDescription", violationDescription,
                 "detectionDate", detectionDate,
@@ -314,9 +314,10 @@ public class EmailService {
                 "type", "account_violation_warning"
         );
 
-        return sendAccountViolationWarningEmail(to, userName, violationType, violationDescription,
-                detectionDate, warningLevel, referenceNumber, termsLink, guidelinesLink)
-                .then(saveNotificationToDatabase(userId, "ACCOUNT_VIOLATION_WARNING", notificationPayload));
+        return userRepository.findById(userId)
+                        .flatMap(user -> sendAccountViolationWarningEmail(user.getEmail(), user.getFullName(), violationType, violationDescription,
+                                detectionDate, warningLevel, referenceNumber, termsLink, guidelinesLink).then(saveNotificationToDatabase(userId, "ACCOUNT_VIOLATION_WARNING", notificationPayload)));
+
     }
 
     /**
@@ -324,11 +325,8 @@ public class EmailService {
      * Email và userName đã được truyền vào từ payload
      */
     public Mono<Void> sendProductBannedUserEmailWithNotification(Integer userId, String productName,
-                                                                 String productId, String reason, String banTime, String username, String email) {
+                                                                 String productId, String reason, String banTime) {
         Map<String, Object> notificationPayload = Map.of(
-                "userId", userId,
-                "email", email,
-                "userName", username,
                 "productName", productName,
                 "productId", productId,
                 "reason", reason,
@@ -336,10 +334,10 @@ public class EmailService {
                 "type", "product_banned_user"
         );
 
-        log.info("Sending product ban email to user: email={}, userId={}, productId={}", 
-            email, userId, productId);
+        log.info("Sending product ban email to user: userId={}, productId={}", userId, productId);
         
-        return sendProductBannedUserEmail(email, username, productName, productId, reason, banTime)
+        return userRepository.findById(userId)
+                .flatMap(user -> sendProductBannedUserEmail(user.getEmail(), user.getFullName(), productName, productId, reason, banTime))
                 .then(saveNotificationToDatabase(userId, "PRODUCT_BANNED_USER", notificationPayload))
                 .doOnSuccess(v -> log.info("Product ban notification sent and saved: userId={}, productId={}", userId, productId));
     }
@@ -348,15 +346,11 @@ public class EmailService {
      * Gửi auction ended email và lưu notification vào DB
      * Email và userName đã được truyền vào từ payload
      */
-    public Mono<Void> sendAuctionEndedEmailWithNotification(String email, String userName,
-                                                            Integer userId, String productName,
+    public Mono<Void> sendAuctionEndedEmailWithNotification(Integer userId, String productName,
                                                             String productId, boolean isWinner,
                                                             String winningAmount, String yourBidAmount,
                                                             String auctionEndTime, String totalBids) {
         Map<String, Object> notificationPayload = new java.util.HashMap<>();
-        notificationPayload.put("email", email);
-        notificationPayload.put("userName", userName);
-        notificationPayload.put("userId", userId);
         notificationPayload.put("productName", productName);
         notificationPayload.put("productId", productId);
         notificationPayload.put("isWinner", isWinner);
@@ -366,13 +360,13 @@ public class EmailService {
         notificationPayload.put("totalBids", totalBids);
         notificationPayload.put("type", "auction_ended");
 
-        log.info("Sending auction ended email to bidder: email={}, userId={}, productId={}, isWinner={}", 
-            email, userId, productId, isWinner);
+        log.info("Sending auction ended email to bidder: userId={}, productId={}, isWinner={}",
+            userId, productId, isWinner);
         
         String notificationType = isWinner ? "AUCTION_WON" : "AUCTION_ENDED";
         
-        return sendAuctionEndedBidderEmail(email, userName, productName, productId, 
-                isWinner, winningAmount, yourBidAmount, auctionEndTime, totalBids)
+        return userRepository.findById(userId).flatMap(user -> sendAuctionEndedBidderEmail(user.getEmail(), user.getFullName(), productName, productId,
+                isWinner, winningAmount, yourBidAmount, auctionEndTime, totalBids))
                 .then(saveNotificationToDatabase(userId, notificationType, notificationPayload))
                 .doOnSuccess(v -> log.info("Auction ended notification sent and saved: userId={}, productId={}, isWinner={}", 
                     userId, productId, isWinner));
@@ -382,31 +376,26 @@ public class EmailService {
      * Gửi auction ended seller email và lưu notification vào DB
      * Email và userName đã được truyền vào từ payload
      */
-    public Mono<Void> sendAuctionEndedSellerEmailWithNotification(String email, String userName,
-                                                                  Integer sellerId, String productName,
+    public Mono<Void> sendAuctionEndedSellerEmailWithNotification(Integer sellerId, String productName,
                                                                   String productId, boolean isSold,
-                                                                  String finalPrice, String winnerName,
+                                                                  String finalPrice,
                                                                   String totalBids, String auctionEndTime) {
         Map<String, Object> notificationPayload = new java.util.HashMap<>();
-        notificationPayload.put("email", email);
-        notificationPayload.put("userName", userName);
-        notificationPayload.put("sellerId", sellerId);
         notificationPayload.put("productName", productName);
         notificationPayload.put("productId", productId);
         notificationPayload.put("isSold", isSold);
         notificationPayload.put("finalPrice", finalPrice);
-        notificationPayload.put("winnerName", winnerName != null ? winnerName : "N/A");
         notificationPayload.put("totalBids", totalBids);
         notificationPayload.put("auctionEndTime", auctionEndTime);
         notificationPayload.put("type", "auction_ended_seller");
 
-        log.info("Sending auction ended email to seller: email={}, sellerId={}, productId={}, isSold={}", 
-            email, sellerId, productId, isSold);
+        log.info("Sending auction ended email to seller: sellerId={}, productId={}, isSold={}", sellerId, productId, isSold);
         
         String notificationType = isSold ? "AUCTION_SOLD" : "AUCTION_ENDED_NO_SALE";
         
-        return sendAuctionEndedSellerEmail(email, userName, productName, productId,
-                isSold, finalPrice, winnerName, totalBids, auctionEndTime)
+        return userRepository.findById(sellerId)
+                        .flatMap(user -> sendAuctionEndedSellerEmail(user.getEmail(), user.getFullName(), productName, productId,
+                                isSold, finalPrice, "", totalBids, auctionEndTime))
                 .then(saveNotificationToDatabase(sellerId, notificationType, notificationPayload))
                 .doOnSuccess(v -> log.info("Auction ended seller notification sent and saved: sellerId={}, productId={}, isSold={}", 
                     sellerId, productId, isSold));

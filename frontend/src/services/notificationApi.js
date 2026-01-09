@@ -117,7 +117,7 @@ export const notificationApi = {
       }
     }).catch((error) => {
       console.error('Notifications API Error:', error);
-      console.error('Error response:', error.response?.data);
+      console.error('Error response:', error);
       throw error;
     });
   },

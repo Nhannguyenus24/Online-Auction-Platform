@@ -71,7 +71,6 @@ const Login = () => {
       const response = await authApi.loginWithGoogle({
         googleIdToken: credentialResponse.credential,
       });
-
       if (response.accessToken) {
         await authLogin(response.accessToken, response.user || null);
         setStatus("success");

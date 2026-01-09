@@ -340,9 +340,9 @@ function ProductDetailPage() {
     const fetchMyBidHistory = async () => {
       try {
         setLoading((prev) => ({ ...prev, myBidHistory: true }));
-        const response = await bidderApi.getBiddingHistory(1, 20, 'all');
+        const response = await productApi.getProductBids(productId, 1, 20);
         if (response.success) {
-          setMyBidHistory(response.data || []);
+          setMyBidHistory(response.bids || []);
           setMyBidHistoryPageInfo(response.pageInfo || {});
           setError((prev) => ({ ...prev, myBidHistory: null }));
         } else {
@@ -357,7 +357,7 @@ function ProductDetailPage() {
     };
 
     fetchMyBidHistory();
-  }, [isAuthenticated, activeTab]);
+  }, [isAuthenticated, activeTab, productId]);
 
   // Check if current user is the seller/owner of this product
  
@@ -367,12 +367,25 @@ function ProductDetailPage() {
   // Get all images from product
   const allImages = product?.images?.map((img) => img.url) || [];
 
+  
+  // Auto-slide product images every 3 seconds
+  useEffect(() => {
+    if (!product || allImages.length <= 1) return;
+
+    const slideInterval = setInterval(() => {
+      setSelectedImage((prev) => 
+        prev === allImages.length - 1 ? 0 : prev + 1
+      );
+    }, 3000);
+
+    return () => clearInterval(slideInterval);
+  }, [product]);
   const getTimeLeft = (endTime) => {
     // Check if product has ended
     if (product?.status?.toLowerCase() === 'ended') {
       return 'Ended';
     }
-
+    
     const now = new Date();
     const normalizedEndTime = endTime instanceof Date ? endTime : normalizeTimestamp(endTime);
     const diff = normalizedEndTime - now;
@@ -1397,25 +1410,13 @@ function ProductDetailPage() {
                       <Table>
                         <TableHead>
                           <TableRow sx={{ bgcolor: "grey.100" }}>
-                            <TableCell>Product</TableCell>
+                            <TableCell>Bid type</TableCell>
                             <TableCell align="right">Bid Amount</TableCell>
-                            <TableCell align="right">Current Price</TableCell>
-                            <TableCell align="center">Status</TableCell>
                             <TableCell align="right">Bid Date</TableCell>
                           </TableRow>
                         </TableHead>
                         <TableBody>
                           {myBidHistory.map((bid) => {
-                            const statusColor = 
-                              bid.isWinning ? "success" : 
-                              bid.productStatus === "ended" ? "error" : 
-                              "warning";
-                            
-                            const statusLabel = 
-                              bid.productStatus === "ended" ? 
-                                (bid.isWinning ? "Won" : "Lost") : 
-                              bid.isWinning ? "Leading" : "Outbid";
-
                             return (
                               <TableRow 
                                 key={bid.bidId}
@@ -1425,18 +1426,7 @@ function ProductDetailPage() {
                               >
                                 <TableCell>
                                   <Stack direction="row" spacing={2} alignItems="center">
-                                    {bid.productPrimaryImage && (
-                                      <Box
-                                        component="img"
-                                        src={bid.productPrimaryImage}
-                                        alt={bid.productTitle}
-                                        sx={{ width: 40, height: 40, borderRadius: 1, objectFit: 'cover' }}
-                                      />
-                                    )}
                                     <Box>
-                                      <Typography variant="body2" fontWeight="medium" noWrap sx={{ maxWidth: 200 }}>
-                                        {bid.productTitle}
-                                      </Typography>
                                       <Typography variant="caption" color="text.secondary">
                                         {bid.isAuto ? "Auto Bid" : "Manual Bid"}
                                       </Typography>
@@ -1445,25 +1435,12 @@ function ProductDetailPage() {
                                 </TableCell>
                                 <TableCell align="right">
                                   <Typography variant="body2" fontWeight="medium">
-                                    {formatPrice(bid.bidAmount)}
-                                  </Typography>
-                                </TableCell>
-                                <TableCell align="right">
-                                  <Typography variant="body2">
-                                    {formatPrice(bid.currentPrice)}
-                                  </Typography>
-                                </TableCell>
-                                <TableCell align="center">
-                                  <Chip
-                                    label={statusLabel}
-                                    color={statusColor}
-                                    size="small"
-                                    variant={bid.productStatus === "ended" ? "filled" : "outlined"}
-                                  />
+                                    {formatPrice(bid.amount)}
+                                  </Typography> 
                                 </TableCell>
                                 <TableCell align="right">
                                   <Typography variant="body2" color="text.secondary">
-                                    {fVNDateTime(bid.bidCreatedAt)}
+                                    {fVNDateTime(bid.createdAt)}
                                   </Typography>
                                 </TableCell>
                               </TableRow>

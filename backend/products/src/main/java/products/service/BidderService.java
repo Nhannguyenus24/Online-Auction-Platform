@@ -287,25 +287,28 @@ public class BidderService {
                 })
                     .then(Mono.defer(() -> {
                         // Handle auto-extend
+                        LocalDateTime newEndTime;
                         if (product.getIsAutoExtend()) {
                             Duration timeLeft = Duration.between(now, product.getEndsAt());
                             if (timeLeft.getSeconds() < product.getAutoExtendSeconds()) {
-                                 LocalDateTime newEndTime = now.plusSeconds(product.getAutoExtendSeconds());
+                                newEndTime = now.plusSeconds(product.getAutoExtendSeconds());
                                 log.info("Auto-extending product {} from {} to {}", 
                                     productId, product.getEndsAt(), newEndTime);
-                                
-                                return productRepository.updateProductEndTime(productId, newEndTime)
-                                    .then(Mono.fromRunnable(() -> {
-                                        // Reschedule auction end
-                                        auctionService.scheduleEndAuction(
-                                                (long) productId,
+                            } else {
+                                newEndTime = product.getEndsAt();
+                            }
+                        } else {
+                            newEndTime = product.getEndsAt();
+                        }
+                        return productRepository.updateProductEndTime(productId, newEndTime)
+                                .then(Mono.fromRunnable(() -> {
+                                    // Reschedule auction end
+                                    auctionService.scheduleEndAuction(
+                                            (long) productId,
                                             TimeUtils.toInstant(newEndTime),
                                             () -> handleAuctionEnd(productId)
-                                        );
-                                    }));
-                            }
-                        }
-                        return Mono.empty();
+                                    );
+                                }));
                     }))
                     .then(Mono.defer(() -> {
                         double nextMinBid = bidAmount + product.getStepPrice().doubleValue();
@@ -564,7 +567,7 @@ public class BidderService {
                             newBidAmount,
                             bidDifference,
                             auctionEndTime,
-                            Duration.between(TimeUtils.now(), auctionEndTime).toString(),
+                            Duration.between(TimeUtils.now(), auctionEndTime).toString()
                         );
                     });
             })
@@ -938,8 +941,8 @@ public class BidderService {
             productRepository.getUserFullName(buyerId).defaultIfEmpty("Buyer"),
             productRepository.getUserFullName(product.getSellerId()).defaultIfEmpty("Seller"),
             productRepository.getProductImages(product.getId())
-                .filter(img -> img.is_primary())
-                .map(img -> img.url())
+                .filter(ImageRowRecord::is_primary)
+                .map(ImageRowRecord::url)
                 .next()
                 .defaultIfEmpty(""),
             orderRepository.findOrderIdByProductAndUsers(product.getId(), buyerId, product.getSellerId())
@@ -1319,12 +1322,12 @@ public class BidderService {
                             .map(order -> {
                                 // Fetch product title
                                 Mono<String> productTitleMono = productRepository.findById(order.getProductId())
-                                    .map(product -> product.getTitle())
+                                    .map(com.auction.entities.database.Product::getTitle)
                                     .defaultIfEmpty("Unknown Product");
                                 
                                 // Fetch product primary image
                                 Mono<String> productImageMono = productRepository.getProductImages(order.getProductId())
-                                    .filter(img -> img.is_primary())
+                                    .filter(ImageRowRecord::is_primary)
                                     .next()
                                     .map(ImageRowRecord::url)
                                     .defaultIfEmpty("");
