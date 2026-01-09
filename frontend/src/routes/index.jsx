@@ -3,7 +3,6 @@ import { Navigate, useRoutes } from "react-router-dom";
 // components
 import LoadingScreen from "../components/LoadingScreen";
 import AuthGuard from "../guards/AuthGuard";
-import GuestGuard from "../guards/GuestGuard";
 // ----------------------------------------------------------------------
 
 const Loadable = (Component) => (props) =>
@@ -47,34 +46,25 @@ export default function Router() {
       children: [
         { 
           path: "login", 
-          element: (
-            <GuestGuard>
-              <Login />
-            </GuestGuard>
+          element: (<Login />
           )
         },
         { 
           path: "forgot-password", 
           element: (
-            <GuestGuard>
-              <ForgotPassword />
-            </GuestGuard>
+            <ForgotPassword />
           )
         },
         { 
           path: "register", 
-          element: (
-            <GuestGuard>
+            element: (
               <Register />
-            </GuestGuard>
           )
         },
         { 
           path: "reset-password", 
           element: (
-            <GuestGuard>
               <ResetPassword />
-            </GuestGuard>
           )
         },
       ],
@@ -112,7 +102,7 @@ export default function Router() {
     },
     {
       path: "seller",
-      element: <SellerLayout />,
+      element: <AuthGuard><SellerLayout /></AuthGuard>,
       children: [
         { path: "", element: <Navigate to="/seller/home" replace /> },
         { path: "home", element: <SellerHomePage /> },

@@ -55,6 +55,7 @@ import { formatPrice } from '../utils/formatNumber';
 import { normalizeTimestamp, fVNDateTime } from '../utils/formatTime';
 import { productApi } from '../services/productApi';
 import { watchlistApi } from '../services/watchlistApi';
+import { bidderApi } from '../services/bidderApi';
 
 
 function ProductDetailPage() {
@@ -67,6 +68,8 @@ function ProductDetailPage() {
   const [bidHistory, setBidHistory] = useState([]);
   const [questions, setQuestions] = useState([]);
   const [relatedProducts, setRelatedProducts] = useState([]);
+  const [myBidHistory, setMyBidHistory] = useState([]);
+  const [myBidHistoryPageInfo, setMyBidHistoryPageInfo] = useState({});
   // UI state
   const [selectedImage, setSelectedImage] = useState(0);
   const [isWatchlisted, setIsWatchlisted] = useState(false);
@@ -95,12 +98,14 @@ function ProductDetailPage() {
     bidHistory: false,
     questions: false,
     relatedProducts: false,
+    myBidHistory: false,
   });
   const [error, setError] = useState({
     product: null,
     bidHistory: null,
     questions: null,
     relatedProducts: null,
+    myBidHistory: null,
   });
 
   // Fetch product data
@@ -327,6 +332,32 @@ function ProductDetailPage() {
 
     return () => clearInterval(timer);
   }, [product]);
+
+  // Fetch user's bid history when tab is accessed
+  useEffect(() => {
+    if (!isAuthenticated || activeTab !== 2) return;
+
+    const fetchMyBidHistory = async () => {
+      try {
+        setLoading((prev) => ({ ...prev, myBidHistory: true }));
+        const response = await bidderApi.getBiddingHistory(1, 20, 'all');
+        if (response.success) {
+          setMyBidHistory(response.data || []);
+          setMyBidHistoryPageInfo(response.pageInfo || {});
+          setError((prev) => ({ ...prev, myBidHistory: null }));
+        } else {
+          setError((prev) => ({ ...prev, myBidHistory: response.message || 'Failed to load bid history' }));
+        }
+      } catch (err) {
+        console.error('Error fetching bid history:', err);
+        setError((prev) => ({ ...prev, myBidHistory: err.message || 'Failed to load bid history' }));
+      } finally {
+        setLoading((prev) => ({ ...prev, myBidHistory: false }));
+      }
+    };
+
+    fetchMyBidHistory();
+  }, [isAuthenticated, activeTab]);
 
   // Check if current user is the seller/owner of this product
  
@@ -1041,7 +1072,6 @@ function ProductDetailPage() {
                 dangerouslySetInnerHTML={{ __html: productDescription }}
               />
 
-              {/* Seller can append description */}
               {isSeller && (
                 <Box sx={{ mt: 4, pt: 3, borderTop: 1, borderColor: "divider" }}>
                   {!showAppendDescription ? (
@@ -1108,6 +1138,7 @@ function ProductDetailPage() {
               >
                 <Tab label={`Top ${bidHistory.length} Bidders`} />
                 <Tab label={`Q&A (${questions.length})`} />
+                {isAuthenticated && <Tab label="My Bid History" />}
               </Tabs>
 
               {/* Top Bidders Tab */}
@@ -1339,6 +1370,108 @@ function ProductDetailPage() {
                         </Paper>
                       ))}
                     </Stack>
+                  )}
+                </Box>
+              )}
+
+              {/* My Bid History Tab */}
+              {isAuthenticated && activeTab === 2 && (
+                <Box>
+                  {loading.myBidHistory ? (
+                    <Box sx={{ display: "flex", flexDirection: "column", gap: 2, py: 3 }}>
+                      {[...Array(5)].map((_, index) => (
+                        <Box key={`skeleton-my-bid-${index}`} sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                          <Skeleton variant="text" width={100} />
+                          <Skeleton variant="text" width={150} />
+                          <Skeleton variant="text" width={120} sx={{ ml: 'auto' }} />
+                          <Skeleton variant="text" width={150} />
+                        </Box>
+                      ))}
+                    </Box>
+                  ) : error.myBidHistory ? (
+                    <Alert severity="error">{error.myBidHistory}</Alert>
+                  ) : myBidHistory.length === 0 ? (
+                    <Alert severity="info">You haven't placed any bids yet.</Alert>
+                  ) : (
+                    <TableContainer>
+                      <Table>
+                        <TableHead>
+                          <TableRow sx={{ bgcolor: "grey.100" }}>
+                            <TableCell>Product</TableCell>
+                            <TableCell align="right">Bid Amount</TableCell>
+                            <TableCell align="right">Current Price</TableCell>
+                            <TableCell align="center">Status</TableCell>
+                            <TableCell align="right">Bid Date</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {myBidHistory.map((bid) => {
+                            const statusColor = 
+                              bid.isWinning ? "success" : 
+                              bid.productStatus === "ended" ? "error" : 
+                              "warning";
+                            
+                            const statusLabel = 
+                              bid.productStatus === "ended" ? 
+                                (bid.isWinning ? "Won" : "Lost") : 
+                              bid.isWinning ? "Leading" : "Outbid";
+
+                            return (
+                              <TableRow 
+                                key={bid.bidId}
+                                hover
+                                sx={{ cursor: 'pointer' }}
+                                onClick={() => navigate(`/product/${bid.productId}`)}
+                              >
+                                <TableCell>
+                                  <Stack direction="row" spacing={2} alignItems="center">
+                                    {bid.productPrimaryImage && (
+                                      <Box
+                                        component="img"
+                                        src={bid.productPrimaryImage}
+                                        alt={bid.productTitle}
+                                        sx={{ width: 40, height: 40, borderRadius: 1, objectFit: 'cover' }}
+                                      />
+                                    )}
+                                    <Box>
+                                      <Typography variant="body2" fontWeight="medium" noWrap sx={{ maxWidth: 200 }}>
+                                        {bid.productTitle}
+                                      </Typography>
+                                      <Typography variant="caption" color="text.secondary">
+                                        {bid.isAuto ? "Auto Bid" : "Manual Bid"}
+                                      </Typography>
+                                    </Box>
+                                  </Stack>
+                                </TableCell>
+                                <TableCell align="right">
+                                  <Typography variant="body2" fontWeight="medium">
+                                    {formatPrice(bid.bidAmount)}
+                                  </Typography>
+                                </TableCell>
+                                <TableCell align="right">
+                                  <Typography variant="body2">
+                                    {formatPrice(bid.currentPrice)}
+                                  </Typography>
+                                </TableCell>
+                                <TableCell align="center">
+                                  <Chip
+                                    label={statusLabel}
+                                    color={statusColor}
+                                    size="small"
+                                    variant={bid.productStatus === "ended" ? "filled" : "outlined"}
+                                  />
+                                </TableCell>
+                                <TableCell align="right">
+                                  <Typography variant="body2" color="text.secondary">
+                                    {fVNDateTime(bid.bidCreatedAt)}
+                                  </Typography>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
                   )}
                 </Box>
               )}
