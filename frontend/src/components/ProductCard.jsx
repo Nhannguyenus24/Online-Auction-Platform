@@ -13,9 +13,19 @@ import {
   LocalOffer,
   CheckCircle,
   Visibility,
+  Bolt,
 } from '@mui/icons-material';
 import { formatPrice } from '../utils/formatNumber';
 import { normalizeTimestamp } from '../utils/formatTime';
+
+// Check if product is newly listed (within 30 minutes)
+const isNewlyListed = (createdAt) => {
+  if (!createdAt) return false;
+  const created = normalizeTimestamp(createdAt);
+  const now = new Date();
+  const diffMinutes = (now - created) / (1000 * 60);
+  return diffMinutes <= 30;
+};
 
 const ProductCard = ({
   product,
@@ -105,6 +115,29 @@ const ProductCard = ({
             {product.bidCount || product.bidsCount || 0} bids
           </Typography>
         </Box>
+        {isNewlyListed(product.createdAt) && (
+          <Chip
+            icon={<Bolt />}
+            label="New"
+            size="small"
+            variant="filled"
+            sx={{
+              position: 'absolute',
+              top: 12,
+              left: 12,
+              fontWeight: 'bold',
+              fontSize: '0.75rem',
+              background: 'linear-gradient(135deg, #ff6b6b 0%, #ff8787 100%)',
+              color: 'white',
+              animation: 'pulse 2s infinite',
+              '@keyframes pulse': {
+                '0%': { boxShadow: '0 0 0 0 rgba(255, 107, 107, 0.7)' },
+                '70%': { boxShadow: '0 0 0 6px rgba(255, 107, 107, 0)' },
+                '100%': { boxShadow: '0 0 0 0 rgba(255, 107, 107, 0)' },
+              },
+            }}
+          />
+        )}
         {product.condition && (
           <Chip
             label={product.condition}
