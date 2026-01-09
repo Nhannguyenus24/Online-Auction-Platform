@@ -18,6 +18,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+
 import com.auction.proto.auth.*;
 
 import gateway.grpc.UserGrpcClient;
@@ -44,10 +47,56 @@ public class AuthController {
     }
     private static final int REFRESH_TOKEN_MAX_AGE = 7 * 24 * 60 * 60; // 7 days in seconds
 
+    private Mono<ResponseEntity<Map<String, Object>>> badRequestResponse(String message) {
+        Map<String, Object> error = new HashMap<>();
+        error.put("success", false);
+        error.put("message", message);
+        return Mono.just(ResponseEntity.badRequest().body(error));
+    }
+
+    private boolean isValidEmail(String email) {
+        return email != null && email.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
+    }
+
+    private boolean isValidPassword(String password) {
+        // Min 8 chars, at least 1 uppercase, 1 lowercase, 1 digit, 1 special char
+        return password != null && password.length() >= 8 && 
+               password.matches("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]+$");
+    }
+
+    private boolean isValidOTP(String otp) {
+        return otp != null && otp.matches("^\\d{6}$");
+    }
+
     @PostMapping("/register")
     @Operation(summary = "Register new user", description = "Register a new user account. Returns OTP for email verification.")
     public Mono<ResponseEntity<Map<String, Object>>> register(@RequestBody com.auction.entities.dto.RegisterRequest request) {
         log.info("Register request for email: {}", request.getEmail());
+        
+        // Validate email
+        if (!isValidEmail(request.getEmail())) {
+            log.error("Invalid email format: {}", request.getEmail());
+            return badRequestResponse("Invalid email format");
+        }
+
+        // Validate password
+        if (!isValidPassword(request.getPassword())) {
+            log.error("Password does not meet requirements");
+            return badRequestResponse("Password must be at least 8 characters with uppercase, lowercase, digit, and special character");
+        }
+
+        // Validate fullName
+        if (request.getFullName() == null || request.getFullName().trim().isEmpty()) {
+            log.error("Full name is required");
+            return badRequestResponse("Full name is required");
+        }
+
+        // Validate phoneNumber if provided
+        if (request.getPhoneNumber() != null && !request.getPhoneNumber().isEmpty() && 
+            !request.getPhoneNumber().matches("^[+]?[0-9]{10,15}$")) {
+            log.error("Invalid phone number format: {}", request.getPhoneNumber());
+            return badRequestResponse("Invalid phone number format");
+        }
         
         RegisterRequest grpcRequest = RegisterRequest.newBuilder()
                 .setEmail(request.getEmail())
@@ -88,6 +137,18 @@ public class AuthController {
             @RequestBody com.auction.entities.dto.LoginRequest request,
             HttpServletResponse response) {
         log.info("Login request for email: {}", request.getEmail());
+        
+        // Validate email
+        if (!isValidEmail(request.getEmail())) {
+            log.error("Invalid email format: {}", request.getEmail());
+            return badRequestResponse("Invalid email format");
+        }
+
+        // Validate password
+        if (request.getPassword() == null || request.getPassword().isEmpty()) {
+            log.error("Password is required");
+            return badRequestResponse("Password is required");
+        }
         
         LoginRequest grpcRequest = LoginRequest.newBuilder()
                 .setEmail(request.getEmail())
@@ -201,6 +262,12 @@ public class AuthController {
     public Mono<ResponseEntity<Map<String, Object>>> reproduceOTP(@RequestBody com.auction.entities.dto.ReproduceOTPRequest request){
         log.info("Reproduce OTP request for user: {}", request.getEmail());
 
+        // Validate email
+        if (!isValidEmail(request.getEmail())) {
+            log.error("Invalid email format: {}", request.getEmail());
+            return badRequestResponse("Invalid email format");
+        }
+
         ReproduceOTPRequest grpcRequest = ReproduceOTPRequest.newBuilder()
                 .setEmail(request.getEmail())
                 .build();
@@ -231,6 +298,18 @@ public class AuthController {
     public Mono<ResponseEntity<Map<String, Object>>> verifyOTP(@RequestBody com.auction.entities.dto.VerifyOTPRequest request) {
         
         log.info("OTP verification request for user: {}", request.getEmail());
+        
+        // Validate email
+        if (!isValidEmail(request.getEmail())) {
+            log.error("Invalid email format: {}", request.getEmail());
+            return badRequestResponse("Invalid email format");
+        }
+
+        // Validate OTP
+        if (!isValidOTP(request.getOtp())) {
+            log.error("Invalid OTP format: {}", request.getOtp());
+            return badRequestResponse("OTP must be 6 digits");
+        }
         
         VerifyOTPRequest grpcRequest = VerifyOTPRequest.newBuilder()
                 .setEmail(String.valueOf(request.getEmail()))
@@ -269,6 +348,27 @@ public class AuthController {
         
         log.info("Change password request for user: {}", userId);
         
+        // Validate oldPassword
+        if (request.getOldPassword() == null || request.getOldPassword().isEmpty()) {
+            log.error("Old password is required");
+            return Mono.just(ResponseEntity.badRequest().body(
+                Map.of("success", false, "message", "Old password is required")));
+        }
+
+        // Validate newPassword
+        if (!isValidPassword(request.getNewPassword())) {
+            log.error("New password does not meet requirements");
+            return Mono.just(ResponseEntity.badRequest().body(
+                Map.of("success", false, "message", "Password must be at least 8 characters with uppercase, lowercase, digit, and special character")));
+        }
+
+        // Check that old and new password are different
+        if (request.getOldPassword().equals(request.getNewPassword())) {
+            log.error("New password must be different from old password");
+            return Mono.just(ResponseEntity.badRequest().body(
+                Map.of("success", false, "message", "New password must be different from old password")));
+        }
+        
         ChangePasswordRequest grpcRequest = ChangePasswordRequest.newBuilder()
                 .setUserId(userId)
                 .setOldPassword(request.getOldPassword())
@@ -300,6 +400,13 @@ public class AuthController {
     @Operation(summary = "Validate token", description = "Validate JWT access token. For internal use by Gateway.")
     public Mono<ResponseEntity<Map<String, Object>>> validateToken(
             @Parameter(description = "Access token to validate") @RequestParam String token) {
+        
+        // Validate token
+        if (token == null || token.trim().isEmpty()) {
+            log.error("Token is required");
+            return Mono.just(ResponseEntity.badRequest().body(
+                Map.of("valid", false, "error", "Token is required")));
+        }
         
         ValidateTokenRequest grpcRequest = ValidateTokenRequest.newBuilder()
                 .setAccessToken(token)
@@ -385,6 +492,28 @@ public class AuthController {
         
         log.info("Update profile request for user: {}", userId);
         
+        // Validate fullName if provided
+        if (request.getFullName() != null && request.getFullName().trim().isEmpty()) {
+            log.error("Full name cannot be empty");
+            return Mono.just(ResponseEntity.badRequest().body(
+                Map.of("success", false, "message", "Full name cannot be empty")));
+        }
+
+        // Validate phoneNumber if provided
+        if (request.getPhoneNumber() != null && !request.getPhoneNumber().isEmpty() && 
+            !request.getPhoneNumber().matches("^[+]?[0-9]{10,15}$")) {
+            log.error("Invalid phone number format: {}", request.getPhoneNumber());
+            return Mono.just(ResponseEntity.badRequest().body(
+                Map.of("success", false, "message", "Invalid phone number format")));
+        }
+
+        // Validate address if provided
+        if (request.getAddress() != null && request.getAddress().trim().isEmpty()) {
+            log.error("Address cannot be empty");
+            return Mono.just(ResponseEntity.badRequest().body(
+                Map.of("success", false, "message", "Address cannot be empty")));
+        }
+        
         UpdateProfileRequest grpcRequest = UpdateProfileRequest.newBuilder()
                 .setUserId(userId)
                 .setFullName(request.getFullName() != null ? request.getFullName() : "")
@@ -433,6 +562,13 @@ public class AuthController {
             HttpServletResponse response) {
         
         log.info("Google login request received");
+        
+        // Validate googleIdToken
+        if (request.getGoogleIdToken() == null || request.getGoogleIdToken().trim().isEmpty()) {
+            log.error("Google ID token is required");
+            return Mono.just(ResponseEntity.badRequest().body(
+                Map.of("success", false, "message", "Google ID token is required")));
+        }
         
         // Verify Google ID token and get profile information
         return googleOAuthService.verifyAndGetProfile(request.getGoogleIdToken())
@@ -493,6 +629,12 @@ public class AuthController {
         
         log.info("Forgot password request for email: {}", request.getEmail());
         
+        // Validate email
+        if (!isValidEmail(request.getEmail())) {
+            log.error("Invalid email format: {}", request.getEmail());
+            return badRequestResponse("Invalid email format");
+        }
+        
         ForgotPasswordRequest grpcRequest = ForgotPasswordRequest.newBuilder()
                 .setEmail(request.getEmail())
                 .build();
@@ -525,6 +667,24 @@ public class AuthController {
             @RequestBody com.auction.entities.dto.ResetPasswordRequest request) {
         
         log.info("Reset password request for email: {}", request.getEmail());
+        
+        // Validate email
+        if (!isValidEmail(request.getEmail())) {
+            log.error("Invalid email format: {}", request.getEmail());
+            return badRequestResponse("Invalid email format");
+        }
+
+        // Validate OTP
+        if (!isValidOTP(request.getOtp())) {
+            log.error("Invalid OTP format: {}", request.getOtp());
+            return badRequestResponse("OTP must be 6 digits");
+        }
+
+        // Validate newPassword
+        if (!isValidPassword(request.getNewPassword())) {
+            log.error("New password does not meet requirements");
+            return badRequestResponse("Password must be at least 8 characters with uppercase, lowercase, digit, and special character");
+        }
         
         ResetPasswordRequest grpcRequest = ResetPasswordRequest.newBuilder()
                 .setEmail(request.getEmail())

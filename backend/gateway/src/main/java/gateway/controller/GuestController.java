@@ -11,6 +11,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.PositiveOrZero;
+
 import com.auction.proto.guest.*;
 import com.auction.utils.JsonUtils;
 
@@ -29,6 +33,13 @@ public class GuestController {
 
     public GuestController(GuestGrpcClient guestGrpcClient) {
         this.guestGrpcClient = guestGrpcClient;
+    }
+
+    private Mono<ResponseEntity<Map<String, Object>>> badRequestError(String message) {
+        Map<String, Object> error = new HashMap<>();
+        error.put("success", false);
+        error.put("message", message);
+        return Mono.just(ResponseEntity.badRequest().body(error));
     }
 
     @GetMapping("/categories")
@@ -89,7 +100,7 @@ public class GuestController {
     @Operation(summary = "Get top ending products", description = "Get top products ending soon. Default limit is 5.")
     public Mono<ResponseEntity<Map<String, Object>>> getTopEndingProducts(
             @Parameter(description = "Number of products to return (max 20)") 
-            @RequestParam(defaultValue = "5") int limit) {
+            @RequestParam(defaultValue = "5") @Positive(message = "Limit must be greater than 0") @Max(value = 20, message = "Limit must not exceed 20") int limit) {
         
         log.info("Get top ending products request, limit: {}", limit);
 
@@ -120,7 +131,7 @@ public class GuestController {
     @Operation(summary = "Get top bid count products", description = "Get top products with most bids. Default limit is 5.")
     public Mono<ResponseEntity<Map<String, Object>>> getTopBidCountProducts(
             @Parameter(description = "Number of products to return (max 20)") 
-            @RequestParam(defaultValue = "5") int limit) {
+            @RequestParam(defaultValue = "5") @Positive(message = "Limit must be greater than 0") @Max(value = 20, message = "Limit must not exceed 20") int limit) {
         
         log.info("Get top bid count products request, limit: {}", limit);
 
@@ -151,7 +162,7 @@ public class GuestController {
     @Operation(summary = "Get top price products", description = "Get top products with highest current price. Default limit is 5.")
     public Mono<ResponseEntity<Map<String, Object>>> getTopPriceProducts(
             @Parameter(description = "Number of products to return (max 20)") 
-            @RequestParam(defaultValue = "5") int limit) {
+            @RequestParam(defaultValue = "5") @Positive(message = "Limit must be greater than 0") @Max(value = 20, message = "Limit must not exceed 20") int limit) {
         
         log.info("Get top price products request, limit: {}", limit);
 
@@ -182,7 +193,7 @@ public class GuestController {
     @Operation(summary = "List products by category", description = "List products by category with filters and pagination. Supports search, price range, sorting, and status filtering.")
     public Mono<ResponseEntity<Map<String, Object>>> listProductsByCategory(
             @Parameter(description = "Category ID (level 2)", required = true) 
-            @RequestParam int categoryId,
+            @RequestParam @Positive(message = "Category ID must be greater than 0") int categoryId,
             @Parameter(description = "Search keyword for product title") 
             @RequestParam(required = false) String searchKeyword,
             @Parameter(description = "Minimum price") 
@@ -194,25 +205,51 @@ public class GuestController {
             @Parameter(description = "Sort order (ENDING_SOON_DESC, ENDING_SOON_ASC, PRICE_ASC, PRICE_DESC, NEWEST_FIRST, OLDEST_FIRST, MOST_BIDS, MOST_VIEWS)") 
             @RequestParam(defaultValue = "ENDING_SOON_DESC") String sortOrder,
             @Parameter(description = "Page number (1-based)") 
-            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "1") @Positive(message = "Page must be greater than 0") int page,
             @Parameter(description = "Number of items per page (max 100)") 
-            @RequestParam(defaultValue = "20") int limit) {
+            @RequestParam(defaultValue = "20") @Positive(message = "Limit must be greater than 0") @Max(value = 100, message = "Limit must not exceed 100") int limit) {
         
         log.info("List products by category request - categoryId: {}, page: {}, limit: {}", categoryId, page, limit);
+
+        // Validate status
+        if (!status.matches("^(active|ended|all)$")) {
+            log.error("Invalid status value: {}. Must be: active, ended, or all", status);
+            return badRequestError("Invalid status. Must be: active, ended, or all");
+        }
+
+        // Validate sortOrder
+        SortOrder sortOrderEnum = validateAndParseSortOrder(sortOrder);
+        if (sortOrderEnum == null) {
+            return badRequestError("Invalid sortOrder. Must be one of: ENDING_SOON_DESC, ENDING_SOON_ASC, PRICE_ASC, PRICE_DESC, NEWEST_FIRST, OLDEST_FIRST, MOST_BIDS, MOST_VIEWS");
+        }
+
+        // Validate price range
+        double minPriceVal = Objects.requireNonNullElse(minPrice, 0.0);
+        double maxPriceVal = Objects.requireNonNullElse(maxPrice, 99999999.0);
+        
+        if (minPriceVal < 0) {
+            return badRequestError("Minimum price must be >= 0");
+        }
+        if (maxPriceVal < 0) {
+            return badRequestError("Maximum price must be >= 0");
+        }
+        if (minPriceVal > maxPriceVal) {
+            return badRequestError("Minimum price must be <= maximum price");
+        }
 
         // Build request
         ListProductsByCategoryRequest.Builder requestBuilder = ListProductsByCategoryRequest.newBuilder()
                 .setCategoryId(categoryId)
                 .setStatus(status)
-                .setSortOrder(parseSortOrder(sortOrder))
+                .setSortOrder(sortOrderEnum)
                 .setPage(page)
                 .setLimit(limit);
 
         if (searchKeyword != null && !searchKeyword.isEmpty()) {
             requestBuilder.setSearchKeyword(searchKeyword);
         }
-        requestBuilder.setMinPrice(Objects.requireNonNullElse(minPrice, 0.0));
-        requestBuilder.setMaxPrice(Objects.requireNonNullElse(maxPrice, 99999999.0));
+        requestBuilder.setMinPrice(minPriceVal);
+        requestBuilder.setMaxPrice(maxPriceVal);
 
         return guestGrpcClient.listProductsByCategory(requestBuilder.build())
                 .map(response -> {
@@ -270,22 +307,48 @@ public class GuestController {
             @Parameter(description = "Sort order (ENDING_SOON_DESC, ENDING_SOON_ASC, PRICE_ASC, PRICE_DESC, NEWEST_FIRST, OLDEST_FIRST, MOST_BIDS, MOST_VIEWS)") 
             @RequestParam(defaultValue = "ENDING_SOON_DESC") String sortOrder,
             @Parameter(description = "Page number (1-based)") 
-            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "1") @Positive(message = "Page must be greater than 0") int page,
             @Parameter(description = "Number of items per page (max 100)") 
-            @RequestParam(defaultValue = "20") int limit) {
+            @RequestParam(defaultValue = "20") @Positive(message = "Limit must be greater than 0") @Max(value = 100, message = "Limit must not exceed 100") int limit) {
         
         log.info("Search products by name request - searchKeyword: {}, page: {}, limit: {}", searchKeyword, page, limit);
+
+        // Validate status
+        if (!status.matches("^(active|ended|all)$")) {
+            log.error("Invalid status value: {}. Must be: active, ended, or all", status);
+            return badRequestError("Invalid status. Must be: active, ended, or all");
+        }
+
+        // Validate sortOrder
+        SortOrder sortOrderEnum = validateAndParseSortOrder(sortOrder);
+        if (sortOrderEnum == null) {
+            return badRequestError("Invalid sortOrder. Must be one of: ENDING_SOON_DESC, ENDING_SOON_ASC, PRICE_ASC, PRICE_DESC, NEWEST_FIRST, OLDEST_FIRST, MOST_BIDS, MOST_VIEWS");
+        }
+
+        // Validate price range
+        double minPriceVal = Objects.requireNonNullElse(minPrice, 0.0);
+        double maxPriceVal = Objects.requireNonNullElse(maxPrice, 999999999.0);
+        
+        if (minPriceVal < 0) {
+            return badRequestError("Minimum price must be >= 0");
+        }
+        if (maxPriceVal < 0) {
+            return badRequestError("Maximum price must be >= 0");
+        }
+        if (minPriceVal > maxPriceVal) {
+            return badRequestError("Minimum price must be <= maximum price");
+        }
 
         // Build request
         ListProductsByNameRequest.Builder requestBuilder = ListProductsByNameRequest.newBuilder()
                 .setSearchKeyword(searchKeyword != null ? searchKeyword : "")
                 .setStatus(status)
-                .setSortOrder(parseSortOrder(sortOrder))
+                .setSortOrder(sortOrderEnum)
                 .setPage(page)
                 .setLimit(limit);
 
-        requestBuilder.setMinPrice(Objects.requireNonNullElse(minPrice, 0.0));
-        requestBuilder.setMaxPrice(Objects.requireNonNullElse(maxPrice, 999999999.0));
+        requestBuilder.setMinPrice(minPriceVal);
+        requestBuilder.setMaxPrice(maxPriceVal);
 
         return guestGrpcClient.listProductsByName(requestBuilder.build())
                 .map(response -> {
@@ -368,6 +431,15 @@ public class GuestController {
         productMap.put("images", images);
 
         return productMap;
+    }
+
+    private SortOrder validateAndParseSortOrder(String sortOrderStr) {
+        try {
+            return SortOrder.valueOf(sortOrderStr);
+        } catch (IllegalArgumentException e) {
+            log.warn("Invalid sort order: {}", sortOrderStr);
+            return null;
+        }
     }
 
     private SortOrder parseSortOrder(String sortOrderStr) {

@@ -39,6 +39,8 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Max;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -61,6 +63,18 @@ public class AdminController {
         return Integer.parseInt(authentication.getName());
     }
 
+    private ResponseEntity<StandardResponseDto> invalidRoleFilter() {
+        return ResponseEntity.badRequest().body(
+            new StandardResponseDto(false, "Invalid roleFilter. Must be: bidder, seller, or admin")
+        );
+    }
+
+    private ResponseEntity<StandardResponseDto> invalidStatusFilter() {
+        return ResponseEntity.badRequest().body(
+            new StandardResponseDto(false, "Invalid statusFilter. Must be: pending, approved, or rejected")
+        );
+    }
+
     // ============================================================================
     // USER STATISTICS
     // ============================================================================
@@ -72,6 +86,12 @@ public class AdminController {
             @RequestParam(required = false, defaultValue = "") String roleFilter) {
         
         log.info("Get user statistics request - roleFilter: {}", roleFilter);
+
+        // Validate roleFilter if provided
+        if (!roleFilter.isEmpty() && !roleFilter.matches("^(bidder|seller|admin)$")) {
+            log.error("Invalid roleFilter value: {}", roleFilter);
+            return invalidRoleFilter();
+        }
 
         UserStatisticsRequest grpcRequest = UserStatisticsRequest.newBuilder()
                 .setRoleFilter(roleFilter)
@@ -109,9 +129,15 @@ public class AdminController {
             @Parameter(description = "Period type (daily, monthly, yearly)", required = true)
             @RequestParam String period,
             @Parameter(description = "Number of periods to return")
-            @RequestParam(defaultValue = "30") int limit) {
+            @RequestParam(defaultValue = "30") @Positive(message = "Limit must be greater than 0") int limit) {
         
         log.info("Get registration statistics request - period: {}, limit: {}", period, limit);
+
+        // Validate period
+        if (!period.matches("^(daily|monthly|yearly)$")) {
+            log.error("Invalid period value: {}. Must be: daily, monthly, or yearly", period);
+            return ResponseEntity.badRequest().body(null);
+        }
 
         RegistrationStatisticsRequest grpcRequest = RegistrationStatisticsRequest.newBuilder()
                 .setPeriod(period)
@@ -155,6 +181,18 @@ public class AdminController {
             @RequestParam(required = false, defaultValue = "") String year) {
         
         log.info("Get profit statistics request - month: {}, year: {}", month, year);
+
+        // Validate month format if provided
+        if (!month.isEmpty() && !month.matches("^\\d{4}-\\d{2}$")) {
+            log.error("Invalid month format: {}. Must be YYYY-MM", month);
+            return ResponseEntity.badRequest().body(null);
+        }
+
+        // Validate year format if provided
+        if (!year.isEmpty() && !year.matches("^\\d{4}$")) {
+            log.error("Invalid year format: {}. Must be YYYY", year);
+            return ResponseEntity.badRequest().body(null);
+        }
 
         ProfitStatisticsRequest grpcRequest = ProfitStatisticsRequest.newBuilder()
                 .setMonth(month)
@@ -201,12 +239,18 @@ public class AdminController {
             @Parameter(description = "Role filter (bidder, seller, admin)")
             @RequestParam(required = false, defaultValue = "") String roleFilter,
             @Parameter(description = "Page number (1-based)")
-            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "1") @Positive(message = "Page must be greater than 0") int page,
             @Parameter(description = "Number of items per page")
-            @RequestParam(defaultValue = "20") int pageSize) {
+            @RequestParam(defaultValue = "20") @Positive(message = "PageSize must be greater than 0") @Max(value = 100, message = "PageSize must not exceed 100") int pageSize) {
         
         log.info("Get all users - searchQuery: {}, roleFilter: {}, page: {}, pageSize: {}", 
                 searchQuery, roleFilter, page, pageSize);
+
+        // Validate roleFilter if provided
+        if (!roleFilter.isEmpty() && !roleFilter.matches("^(bidder|seller|admin)$")) {
+            log.error("Invalid roleFilter value: {}", roleFilter);
+            return invalidRoleFilter();
+        }
 
         GetAllUsersRequest grpcRequest = GetAllUsersRequest.newBuilder()
                 .setSearchQuery(searchQuery)
@@ -259,11 +303,17 @@ public class AdminController {
             @Parameter(description = "Status filter (pending, approved, rejected)")
             @RequestParam(required = false, defaultValue = "") String statusFilter,
             @Parameter(description = "Page number (1-based)")
-            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "1") @Positive(message = "Page must be greater than 0") int page,
             @Parameter(description = "Number of items per page")
-            @RequestParam(defaultValue = "20") int pageSize) {
+            @RequestParam(defaultValue = "20") @Positive(message = "PageSize must be greater than 0") @Max(value = 100, message = "PageSize must not exceed 100") int pageSize) {
         
         log.info("Get upgrade requests - statusFilter: {}, page: {}, pageSize: {}", statusFilter, page, pageSize);
+
+        // Validate statusFilter if provided
+        if (!statusFilter.isEmpty() && !statusFilter.matches("^(pending|approved|rejected)$")) {
+            log.error("Invalid statusFilter value: {}", statusFilter);
+            return invalidStatusFilter();
+        }
 
         GetUpgradeRequestsRequest grpcRequest = GetUpgradeRequestsRequest.newBuilder()
                 .setStatusFilter(statusFilter)
@@ -311,7 +361,7 @@ public class AdminController {
     @Operation(summary = "Approve or reject upgrade request", description = "Approve or reject a user upgrade request. Requires admin authentication.")
     public ResponseEntity<StandardResponseDto> processUpgradeRequest(
             @Parameter(description = "Request ID", required = true)
-            @PathVariable int requestId,
+            @PathVariable @Positive(message = "Request ID must be greater than 0") int requestId,
             @Valid @RequestBody ProcessUpgradeRequestDto requestDto) {
         
         int adminId = getUserId();
@@ -356,6 +406,14 @@ public class AdminController {
         
         log.info("Create category request - name: {}, parentId: {}", requestDto.name(), requestDto.parentId());
 
+        // Validate parentId if provided
+        if (requestDto.parentId() != null && requestDto.parentId() < 0) {
+            log.error("Invalid parentId value: {}. Must be >= 0", requestDto.parentId());
+            return ResponseEntity.badRequest().body(
+                new CreateCategoryResponseDto(false, "Parent ID must be greater than or equal to 0", null)
+            );
+        }
+
         CreateCategoryRequest grpcRequest = CreateCategoryRequest.newBuilder()
                 .setName(requestDto.name())
                 .setParentId(requestDto.parentId() != null ? requestDto.parentId() : 0)
@@ -390,7 +448,7 @@ public class AdminController {
     @Operation(summary = "Update category", description = "Update an existing product category. Requires admin authentication.")
     public ResponseEntity<StandardResponseDto> updateCategory(
             @Parameter(description = "Category ID", required = true)
-            @PathVariable int categoryId,
+            @PathVariable @Positive(message = "Category ID must be greater than 0") int categoryId,
             @Valid @RequestBody UpdateCategoryRequestDto requestDto) {
         
         log.info("Update category request - categoryId: {}, name: {}, parentId: {}", 
@@ -426,7 +484,7 @@ public class AdminController {
     @Operation(summary = "Delete category", description = "Delete a product category. Cannot delete if category has products. Requires admin authentication.")
     public ResponseEntity<DeleteCategoryResponseDto> deleteCategory(
             @Parameter(description = "Category ID", required = true)
-            @PathVariable int categoryId) {
+            @PathVariable @Positive(message = "Category ID must be greater than 0") int categoryId) {
         
         log.info("Delete category request - categoryId: {}", categoryId);
 
@@ -467,7 +525,7 @@ public class AdminController {
     @Operation(summary = "Remove product", description = "Remove/ban a product from the platform. Requires admin authentication.")
     public ResponseEntity<RemoveProductResponseDto> removeProduct(
             @Parameter(description = "Product ID", required = true)
-            @PathVariable int productId,
+            @PathVariable @Positive(message = "Product ID must be greater than 0") int productId,
             @Valid @RequestBody RemoveProductRequestDto requestDto) {
         
         int adminId = getUserId();

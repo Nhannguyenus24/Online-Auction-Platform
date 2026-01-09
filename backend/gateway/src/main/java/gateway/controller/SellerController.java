@@ -36,6 +36,8 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Max;
 
 @RestController
 @RequestMapping("/api/seller")
@@ -54,6 +56,13 @@ public class SellerController {
     private int getUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         return Integer.parseInt(authentication.getName());
+    }
+
+    private ResponseEntity<Map<String, Object>> badRequestResponse(String message) {
+        Map<String, Object> error = new HashMap<>();
+        error.put("success", false);
+        error.put("message", message);
+        return ResponseEntity.badRequest().body(error);
     }
 
     // ============================================================================
@@ -91,9 +100,9 @@ public class SellerController {
     @Operation(summary = "Get active listings", description = "Get seller's active product listings. Requires authentication.")
     public ResponseEntity<Map<String, Object>> getActiveListings(
             @Parameter(description = "Page number (1-based)")
-            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "1") @Positive(message = "Page must be greater than 0") int page,
             @Parameter(description = "Number of items per page")
-            @RequestParam(defaultValue = "20") int pageSize) {
+            @RequestParam(defaultValue = "20") @Positive(message = "PageSize must be greater than 0") @Max(value = 100, message = "PageSize must not exceed 100") int pageSize) {
 
         int sellerId = getUserId();
         log.info("Get active listings request - sellerId: {}, page: {}, pageSize: {}", sellerId, page, pageSize);
@@ -128,9 +137,9 @@ public class SellerController {
     @Operation(summary = "Get winner items", description = "Get products where winner has been determined. Requires authentication.")
     public ResponseEntity<Map<String, Object>> getWinnerItems(
             @Parameter(description = "Page number (1-based)")
-            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "1") @Positive(message = "Page must be greater than 0") int page,
             @Parameter(description = "Number of items per page")
-            @RequestParam(defaultValue = "20") int pageSize) {
+            @RequestParam(defaultValue = "20") @Positive(message = "PageSize must be greater than 0") @Max(value = 100, message = "PageSize must not exceed 100") int pageSize) {
 
         int sellerId = getUserId();
         log.info("Get winner items request - sellerId: {}, page: {}, pageSize: {}", sellerId, page, pageSize);
@@ -165,15 +174,21 @@ public class SellerController {
     @Operation(summary = "Get transaction history", description = "Get seller's transaction history. Requires authentication.")
     public ResponseEntity<Map<String, Object>> getTransactionHistory(
             @Parameter(description = "Page number (1-based)")
-            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "1") @Positive(message = "Page must be greater than 0") int page,
             @Parameter(description = "Number of items per page")
-            @RequestParam(defaultValue = "20") int pageSize,
+            @RequestParam(defaultValue = "20") @Positive(message = "PageSize must be greater than 0") @Max(value = 100, message = "PageSize must not exceed 100") int pageSize,
             @Parameter(description = "Status filter (completed, pending, cancelled)")
             @RequestParam(defaultValue = "") String filter) {
 
         int sellerId = getUserId();
         log.info("Get transaction history request - sellerId: {}, page: {}, pageSize: {}, filter: {}", 
                 sellerId, page, pageSize, filter);
+
+        // Validate filter if provided
+        if (!filter.isEmpty() && !filter.matches("^(completed|pending|cancelled)$")) {
+            log.error("Invalid filter value: {}", filter);
+            return badRequestResponse("Invalid filter. Must be: completed, pending, or cancelled");
+        }
 
         GetTransactionHistoryRequest grpcRequest = GetTransactionHistoryRequest.newBuilder()
                 .setSellerId(sellerId)
@@ -206,9 +221,9 @@ public class SellerController {
     @Operation(summary = "Get seller ratings", description = "Get seller's ratings and reviews. Requires authentication.")
     public ResponseEntity<Map<String, Object>> getSellerRatings(
             @Parameter(description = "Page number (1-based)")
-            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "1") @Positive(message = "Page must be greater than 0") int page,
             @Parameter(description = "Number of items per page")
-            @RequestParam(defaultValue = "20") int pageSize) {
+            @RequestParam(defaultValue = "20") @Positive(message = "PageSize must be greater than 0") @Max(value = 100, message = "PageSize must not exceed 100") int pageSize) {
 
         int sellerId = getUserId();
         log.info("Get seller ratings request - sellerId: {}, page: {}, pageSize: {}", sellerId, page, pageSize);
@@ -276,21 +291,99 @@ public class SellerController {
         int sellerId = getUserId();
         
         try {
-            // Parse parameters from strings
-            int categoryId = Integer.parseInt(categoryIdStr);
-            float startingPrice = Float.parseFloat(startingPriceStr);
-            float stepPrice = Float.parseFloat(stepPriceStr);
-            
+            // Validate title
+            if (title == null || title.trim().isEmpty()) {
+                return badRequestResponse("Title is required");
+            }
+            if (title.trim().length() > 255) {
+                return badRequestResponse("Title must not exceed 255 characters");
+            }
+
+            // Validate description
+            if (description == null || description.trim().isEmpty()) {
+                return badRequestResponse("Description is required");
+            }
+            if (description.trim().length() > 5000) {
+                return badRequestResponse("Description must not exceed 5000 characters");
+            }
+
+            // Parse and validate categoryId
+            int categoryId;
+            try {
+                categoryId = Integer.parseInt(categoryIdStr);
+                if (categoryId <= 0) {
+                    return badRequestResponse("Category ID must be greater than 0");
+                }
+            } catch (NumberFormatException e) {
+                return badRequestResponse("Invalid category ID format");
+            }
+
+            // Parse and validate startingPrice
+            float startingPrice;
+            try {
+                startingPrice = Float.parseFloat(startingPriceStr);
+                if (startingPrice <= 0) {
+                    return badRequestResponse("Starting price must be greater than 0");
+                }
+            } catch (NumberFormatException e) {
+                return badRequestResponse("Invalid starting price format");
+            }
+
+            // Parse and validate stepPrice
+            float stepPrice;
+            try {
+                stepPrice = Float.parseFloat(stepPriceStr);
+                if (stepPrice <= 0) {
+                    return badRequestResponse("Step price must be greater than 0");
+                }
+            } catch (NumberFormatException e) {
+                return badRequestResponse("Invalid step price format");
+            }
+
+            // Parse and validate dates
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
-            LocalDateTime startsAt = LocalDateTime.parse(startsAtStr, formatter);
-            LocalDateTime endsAt = LocalDateTime.parse(endsAtStr, formatter);
-            
-            Float buyNowPrice = (buyNowPriceStr != null && !buyNowPriceStr.isEmpty()) 
-                ? Float.parseFloat(buyNowPriceStr) : null;
+            LocalDateTime startsAt;
+            LocalDateTime endsAt;
+            try {
+                startsAt = LocalDateTime.parse(startsAtStr, formatter);
+                endsAt = LocalDateTime.parse(endsAtStr, formatter);
+            } catch (java.time.format.DateTimeParseException e) {
+                return badRequestResponse("Invalid date format. Expected format: yyyy-MM-dd'T'HH:mm:ss");
+            }
+
+            // Validate date logic
+            if (endsAt.isBefore(startsAt) || endsAt.isEqual(startsAt)) {
+                return badRequestResponse("End date must be after start date");
+            }
+
+            // Parse and validate optional buyNowPrice
+            Float buyNowPrice = null;
+            if (buyNowPriceStr != null && !buyNowPriceStr.isEmpty()) {
+                try {
+                    buyNowPrice = Float.parseFloat(buyNowPriceStr);
+                    if (buyNowPrice <= startingPrice) {
+                        return badRequestResponse("Buy now price must be greater than starting price");
+                    }
+                } catch (NumberFormatException e) {
+                    return badRequestResponse("Invalid buy now price format");
+                }
+            }
+
+            // Parse optional autoExtendSeconds
+            Integer autoExtendSeconds = null;
+            if (autoExtendSecondsStr != null && !autoExtendSecondsStr.isEmpty()) {
+                try {
+                    autoExtendSeconds = Integer.parseInt(autoExtendSecondsStr);
+                    if (autoExtendSeconds < 0) {
+                        return badRequestResponse("Auto extend seconds must be >= 0");
+                    }
+                } catch (NumberFormatException e) {
+                    return badRequestResponse("Invalid auto extend seconds format");
+                }
+            }
+
             Boolean isAutoExtend = (isAutoExtendStr != null && !isAutoExtendStr.isEmpty()) 
                 ? Boolean.parseBoolean(isAutoExtendStr) : null;
-            Integer autoExtendSeconds = (autoExtendSecondsStr != null && !autoExtendSecondsStr.isEmpty()) 
-                ? Integer.parseInt(autoExtendSecondsStr) : null;
             
             log.info("Create auction listing request - sellerId: {}, startsAt: {}, endsAt: {}", sellerId, startsAt, endsAt);
 
@@ -300,21 +393,35 @@ public class SellerController {
             
             if (images != null && !images.isEmpty()) {
                 log.info("Images list size: {}", images.size());
-                List<MultipartFile> filesToUpload = images.size() > 4 ? images.subList(0, 4) : images;
                 
-                // Validate image types
-                for (MultipartFile file : filesToUpload) {
+                // Validate max 4 images
+                if (images.size() > 4) {
+                    return badRequestResponse("Maximum 4 images allowed. You provided " + images.size());
+                }
+                
+                // Validate each image file
+                final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+                for (MultipartFile file : images) {
+                    // Validate file type
                     String contentType = file.getContentType();
                     if (!isValidImageType(contentType)) {
-                        Map<String, Object> error = new HashMap<>();
-                        error.put("success", false);
-                        error.put("message", "Invalid file type: " + file.getOriginalFilename() + ". Only JPG, JPEG, PNG, GIF, WEBP are allowed.");
-                        return ResponseEntity.badRequest().body(error);
+                        return badRequestResponse("Invalid file type: " + file.getOriginalFilename() + ". Only JPG, JPEG, PNG, GIF, WEBP are allowed.");
+                    }
+                    
+                    // Validate file size
+                    if (file.getSize() > MAX_FILE_SIZE) {
+                        return badRequestResponse("File " + file.getOriginalFilename() + " exceeds 10MB limit. Size: " + 
+                            (file.getSize() / (1024.0 * 1024.0)) + "MB");
+                    }
+                    
+                    // Validate file not empty
+                    if (file.isEmpty()) {
+                        return badRequestResponse("File " + file.getOriginalFilename() + " is empty");
                     }
                 }
                 
-                log.info("Uploading {} images to Cloudinary", filesToUpload.size());
-                imageUrls = cloudinaryService.uploadMultipleServlet(filesToUpload, "products");
+                log.info("Uploading {} images to Cloudinary", images.size());
+                imageUrls = cloudinaryService.uploadMultipleServlet(images, "products");
                 log.info("Uploaded {} images successfully", imageUrls.size());
             }
 
@@ -391,7 +498,7 @@ public class SellerController {
     @Operation(summary = "Get product details (owner view)", description = "Get detailed product information for seller. Requires authentication.")
     public ResponseEntity<Map<String, Object>> getProductDetails(
             @Parameter(description = "Product ID", required = true)
-            @PathVariable int productId) {
+            @PathVariable @Positive(message = "Product ID must be greater than 0") int productId) {
 
         int sellerId = getUserId();
         log.info("Get product details request - productId: {}, sellerId: {}", productId, sellerId);
@@ -422,11 +529,20 @@ public class SellerController {
     @Operation(summary = "Answer question", description = "Answer a question about a product. Requires authentication.")
     public ResponseEntity<Map<String, Object>> answerQuestion(
             @Parameter(description = "Question ID", required = true)
-            @PathVariable int questionId,
+            @PathVariable @Positive(message = "Question ID must be greater than 0") int questionId,
             @RequestBody com.auction.entities.dto.AnswerQuestionRequest requestBody) {
 
         int sellerId = getUserId();
         String answer = requestBody.getAnswer();
+        
+        // Validate answer
+        if (answer == null || answer.trim().isEmpty()) {
+            return badRequestResponse("Answer is required");
+        }
+        if (answer.trim().length() > 5000) {
+            return badRequestResponse("Answer must not exceed 5000 characters");
+        }
+        
         log.info("Answer question request - questionId: {}, sellerId: {}", questionId, sellerId);
 
         AnswerQuestionRequest grpcRequest = AnswerQuestionRequest.newBuilder()
@@ -460,12 +576,26 @@ public class SellerController {
     @Operation(summary = "Reject bidder", description = "Reject a bidder from participating in the auction. Requires authentication.")
     public ResponseEntity<Map<String, Object>> rejectBidder(
             @Parameter(description = "Product ID", required = true)
-            @PathVariable int productId,
+            @PathVariable @Positive(message = "Product ID must be greater than 0") int productId,
             @RequestBody com.auction.entities.dto.RejectBidderRequest requestBody) {
 
         int sellerId = getUserId();
         int bidderId = requestBody.getBidderId();
         String reason = requestBody.getReason();
+        
+        // Validate bidderId
+        if (bidderId <= 0) {
+            return badRequestResponse("Bidder ID must be greater than 0");
+        }
+        
+        // Validate reason
+        if (reason == null || reason.trim().isEmpty()) {
+            return badRequestResponse("Reason is required");
+        }
+        if (reason.trim().length() > 500) {
+            return badRequestResponse("Reason must not exceed 500 characters");
+        }
+        
         log.info("Reject bidder request - productId: {}, bidderId: {}, sellerId: {}", productId, bidderId, sellerId);
 
         RejectBidderRequest grpcRequest = RejectBidderRequest.newBuilder()
@@ -500,11 +630,20 @@ public class SellerController {
     @Operation(summary = "Append product description", description = "Append additional description to a product. Requires authentication.")
     public ResponseEntity<Map<String, Object>> appendProductDescription(
             @Parameter(description = "Product ID", required = true)
-            @PathVariable int productId,
+            @PathVariable @Positive(message = "Product ID must be greater than 0") int productId,
             @RequestBody com.auction.entities.dto.AppendProductDescriptionRequest requestBody) {
 
         int sellerId = getUserId();
         String additionalDescription = requestBody.getAdditionalDescription();
+        
+        // Validate additional description
+        if (additionalDescription == null || additionalDescription.trim().isEmpty()) {
+            return badRequestResponse("Additional description is required");
+        }
+        if (additionalDescription.trim().length() > 5000) {
+            return badRequestResponse("Additional description must not exceed 5000 characters");
+        }
+        
         log.info("Append product description request - productId: {}, sellerId: {}", productId, sellerId);
 
         AppendProductDescriptionRequest grpcRequest = AppendProductDescriptionRequest.newBuilder()
@@ -539,13 +678,29 @@ public class SellerController {
     @Operation(summary = "Rate bidder", description = "Rate a bidder after transaction. Requires authentication.")
     public ResponseEntity<Map<String, Object>> rateBidder(
             @Parameter(description = "Bidder ID", required = true)
-            @PathVariable int bidderId,
+            @PathVariable @Positive(message = "Bidder ID must be greater than 0") int bidderId,
             @RequestBody com.auction.entities.dto.RateBidderRequest requestBody) {
 
         int sellerId = getUserId();
         int orderId = requestBody.getOrderId();
         int score = requestBody.getScore();
         String comment = requestBody.getComment();
+        
+        // Validate orderId
+        if (orderId <= 0) {
+            return badRequestResponse("Order ID must be greater than 0");
+        }
+        
+        // Validate score (1-5)
+        if (score < 1 || score > 5) {
+            return badRequestResponse("Score must be between 1 and 5");
+        }
+        
+        // Validate comment
+        if (comment != null && comment.trim().length() > 1000) {
+            return badRequestResponse("Comment must not exceed 1000 characters");
+        }
+        
         log.info("Rate bidder request - bidderId: {}, sellerId: {}, orderId: {}, score: {}", 
                 bidderId, sellerId, orderId, score);
 
@@ -588,11 +743,18 @@ public class SellerController {
             @Parameter(description = "Status filter (active, expired, all)")
             @RequestParam(defaultValue = "all") String filter,
             @Parameter(description = "Page number (1-based)")
-            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "1") @Positive(message = "Page must be greater than 0") int page,
             @Parameter(description = "Number of items per page")
-            @RequestParam(defaultValue = "20") int pageSize) {
+            @RequestParam(defaultValue = "20") @Positive(message = "Page size must be greater than 0") @Max(value = 100, message = "Page size must not exceed 100") int pageSize) {
 
         int sellerId = getUserId();
+        
+        // Validate filter
+        if (!filter.isEmpty() && !filter.matches("^(active|expired|all)$")) {
+            log.error("Invalid filter value: {}", filter);
+            return badRequestResponse("Invalid filter. Must be: active, expired, or all");
+        }
+        
         log.info("Get listings request - sellerId: {}, filter: {}, page: {}, pageSize: {}", 
                 sellerId, filter, page, pageSize);
 
@@ -633,11 +795,18 @@ public class SellerController {
             @Parameter(description = "Status filter (pending, completed, cancelled, all)")
             @RequestParam(defaultValue = "all") String statusFilter,
             @Parameter(description = "Page number (1-based)")
-            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "1") @Positive(message = "Page must be greater than 0") int page,
             @Parameter(description = "Number of items per page")
-            @RequestParam(defaultValue = "20") int pageSize) {
+            @RequestParam(defaultValue = "20") @Positive(message = "Page size must be greater than 0") @Max(value = 100, message = "Page size must not exceed 100") int pageSize) {
 
         int sellerId = getUserId();
+        
+        // Validate statusFilter
+        if (!statusFilter.isEmpty() && !statusFilter.matches("^(pending|completed|cancelled|all)$")) {
+            log.error("Invalid status filter value: {}", statusFilter);
+            return badRequestResponse("Invalid status filter. Must be: pending, completed, cancelled, or all");
+        }
+        
         log.info("Get orders request - sellerId: {}, statusFilter: {}, page: {}, pageSize: {}", 
                 sellerId, statusFilter, page, pageSize);
 
@@ -672,12 +841,23 @@ public class SellerController {
     @Operation(summary = "Confirm payment receipt", description = "Confirm payment receipt for an order. Requires authentication.")
     public ResponseEntity<Map<String, Object>> confirmPaymentReceipt(
             @Parameter(description = "Order ID", required = true)
-            @PathVariable int orderId,
+            @PathVariable @Positive(message = "Order ID must be greater than 0") int orderId,
             @RequestBody ConfirmPaymentReceiptRequest requestBody) {
 
         int sellerId = getUserId();
         String invoiceNumber = requestBody.getInvoiceNumber();
         String paymentConfirmationNotes = requestBody.getPaymentConfirmationNotes();
+        
+        // Validate invoiceNumber
+        if (invoiceNumber != null && invoiceNumber.trim().length() > 100) {
+            return badRequestResponse("Invoice number must not exceed 100 characters");
+        }
+        
+        // Validate paymentConfirmationNotes
+        if (paymentConfirmationNotes != null && paymentConfirmationNotes.trim().length() > 1000) {
+            return badRequestResponse("Payment confirmation notes must not exceed 1000 characters");
+        }
+        
         log.info("Confirm payment receipt request - orderId: {}, sellerId: {}", orderId, sellerId);
 
         ConfirmPaymentReceiptRequest grpcRequest = ConfirmPaymentReceiptRequest.newBuilder()
@@ -712,7 +892,7 @@ public class SellerController {
     @Operation(summary = "Update order status", description = "Update the status of an order. Only the seller who owns the product can update. Requires authentication.")
     public ResponseEntity<Map<String, Object>> updateOrderStatus(
             @Parameter(description = "Order ID", required = true)
-            @PathVariable int orderId,
+            @PathVariable @Positive(message = "Order ID must be greater than 0") int orderId,
             @RequestBody Map<String, Object> requestBody) {
         
         int sellerId = getUserId();
@@ -721,10 +901,7 @@ public class SellerController {
         log.info("Update order status request - orderId: {}, sellerId: {}, status: {}", orderId, sellerId, status);
         
         if (status == null || status.trim().isEmpty()) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("success", false);
-            error.put("message", "Status is required");
-            return ResponseEntity.badRequest().body(error);
+            return badRequestResponse("Status is required");
         }
         
         // Normalize status to lowercase to match database expectations
@@ -733,10 +910,7 @@ public class SellerController {
         // Validate status before sending to service
         List<String> validStatuses = List.of("pending", "processing", "shipped", "delivered", "cancelled");
         if (!validStatuses.contains(normalizedStatus)) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("success", false);
-            error.put("message", "Invalid status: " + status + ". Valid statuses: " + validStatuses);
-            return ResponseEntity.badRequest().body(error);
+            return badRequestResponse("Invalid status: " + status + ". Valid statuses: " + validStatuses);
         }
         
         UpdateOrderStatusRequest grpcRequest = UpdateOrderStatusRequest.newBuilder()

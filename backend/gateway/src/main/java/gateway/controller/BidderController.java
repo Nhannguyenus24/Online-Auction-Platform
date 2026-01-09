@@ -53,6 +53,13 @@ public class BidderController {
             @Parameter(description = "Product ID", required = true)
             @PathVariable int productId) {
 
+        if (productId <= 0) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Invalid productId");
+            return ResponseEntity.badRequest().body(error);
+        }
+
         int userId = getUserId();
         log.info("Get product details request - productId: {}, userId: {}", productId, userId);
 
@@ -91,6 +98,13 @@ public class BidderController {
             @Parameter(description = "Number of products to return (max 20)")
             @RequestParam(defaultValue = "5") int limit) {
 
+        if (productId <= 0 || limit <= 0 || limit > 20) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Invalid productId or limit");
+            return ResponseEntity.badRequest().body(error);
+        }
+
         int userId = getUserId();
         log.info("Get related products request - productId: {}, userId: {}, limit: {}", productId, userId, limit);
 
@@ -125,6 +139,13 @@ public class BidderController {
     @Operation(summary = "Add to watchlist", description = "Add a product to user's watchlist. Requires authentication.")
     public ResponseEntity<Map<String, Object>> addToWatchlist(
             @RequestBody com.auction.entities.dto.AddToWatchlistRequest requestBody) {
+
+        if (requestBody == null || requestBody.productId() <= 0) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Bad body request");
+            return ResponseEntity.badRequest().body(error);
+        }
 
         int userId = getUserId();
         int productId = requestBody.productId();
@@ -162,6 +183,13 @@ public class BidderController {
     public ResponseEntity<Map<String, Object>> removeFromWatchlist(
             @Parameter(description = "Product ID", required = true)
             @PathVariable int productId) {
+
+        if (productId <= 0) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Invalid productId");
+            return ResponseEntity.badRequest().body(error);
+        }
 
         int userId = getUserId();
         log.info("Remove from watchlist request - productId: {}, userId: {}", productId, userId);
@@ -201,6 +229,13 @@ public class BidderController {
             @RequestParam(defaultValue = "20") int limit,
             @Parameter(description = "Product status filter (active, ended, all)")
             @RequestParam(defaultValue = "active") String status) {
+
+        if (page <= 0 || limit <= 0 || limit > 100) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Invalid page or limit");
+            return ResponseEntity.badRequest().body(error);
+        }
 
         int userId = getUserId();
         log.info("Get watchlist request - userId: {}, page: {}, limit: {}", userId, page, limit);
@@ -246,6 +281,13 @@ public class BidderController {
             @PathVariable int productId,
             @RequestBody com.auction.entities.dto.AskQuestionRequest requestBody) {
 
+        if (productId <= 0 || requestBody == null || requestBody.question() == null || requestBody.question().trim().isEmpty()) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Bad body request");
+            return ResponseEntity.badRequest().body(error);
+        }
+
         int userId = getUserId();
         String question = requestBody.question();
         log.info("Ask question request - productId: {}, userId: {}", productId, userId);
@@ -288,6 +330,13 @@ public class BidderController {
             @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "Number of items per page (max 100)")
             @RequestParam(defaultValue = "20") int limit) {
+
+        if (productId <= 0 || page <= 0 || limit <= 0 || limit > 100) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Invalid productId, page or limit");
+            return ResponseEntity.badRequest().body(error);
+        }
 
         log.info("Get product questions request - productId: {}, page: {}, limit: {}", productId, page, limit);
 
@@ -342,6 +391,13 @@ public class BidderController {
             @Parameter(description = "Number of items per page (max 100)")
             @RequestParam(defaultValue = "20") int limit) {
 
+        if (productId <= 0 || page <= 0 || limit <= 0 || limit > 100) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Invalid productId, page or limit");
+            return ResponseEntity.badRequest().body(error);
+        }
+
         int userId = getUserId();
         log.info("Get product bids request - productId: {}, userId: {}, page: {}, limit: {}", productId, userId, page, limit);
 
@@ -392,6 +448,13 @@ public class BidderController {
             @PathVariable int productId,
             @RequestBody com.auction.entities.dto.PlaceBidRequest requestBody) {
 
+        if (productId <= 0 || requestBody == null || requestBody.bidAmount() <= 0) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Bad body request");
+            return ResponseEntity.badRequest().body(error);
+        }
+
         int userId = getUserId();
         double bidAmount = requestBody.bidAmount();
         log.info("Place bid request - productId: {}, userId: {}, amount: {}", productId, userId, bidAmount);
@@ -434,6 +497,13 @@ public class BidderController {
             @Parameter(description = "Product ID", required = true)
             @PathVariable int productId,
             @RequestBody com.auction.entities.dto.SetAutoBidRequest requestBody) {
+
+        if (productId <= 0 || requestBody == null || requestBody.maxAmount() <= 0) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Bad body request");
+            return ResponseEntity.badRequest().body(error);
+        }
 
         int userId = getUserId();
         double maxAmount = requestBody.maxAmount();
@@ -479,6 +549,13 @@ public class BidderController {
             @RequestParam(defaultValue = "20") int limit,
             @Parameter(description = "Filter (all, winning, outbid, won, lost)")
             @RequestParam(defaultValue = "all") String filter) {
+
+        if (page <= 0 || limit <= 0 || limit > 100) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Invalid page or limit");
+            return ResponseEntity.badRequest().body(error);
+        }
 
         int userId = getUserId();
         log.info("Get my bids request - userId: {}, page: {}, limit: {}, filter: {}", userId, page, limit, filter);
@@ -697,6 +774,13 @@ public class BidderController {
             @Parameter(description = "Number of items per page")
             @RequestParam(defaultValue = "20") int pageSize) {
 
+        if (page <= 0 || pageSize <= 0 || pageSize > 100) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Invalid page or pageSize");
+            return ResponseEntity.badRequest().body(error);
+        }
+
         int bidderId = getUserId();
         log.info("Get bidder ratings request - bidderId: {}, page: {}, pageSize: {}", bidderId, page, pageSize);
 
@@ -732,6 +816,13 @@ public class BidderController {
     public ResponseEntity<Map<String, Object>> buyNowProduct(
             @Parameter(description = "Product ID", required = true)
             @PathVariable int productId) {
+
+        if (productId <= 0) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Invalid productId");
+            return ResponseEntity.badRequest().body(error);
+        }
 
         int userId = getUserId();
         log.info("Buy now product request - productId: {}, userId: {}", productId, userId);
@@ -776,6 +867,13 @@ public class BidderController {
             @PathVariable int productId,
             @Parameter(description = "Number of top bidders to return (default 5, max 10)")
             @RequestParam(defaultValue = "5") int limit) {
+        
+        if (productId <= 0 || limit <= 0 || limit > 10) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Invalid productId or limit");
+            return ResponseEntity.badRequest().body(error);
+        }
         
         log.info("Get top bidders request - productId: {}, limit: {}", productId, limit);
         
