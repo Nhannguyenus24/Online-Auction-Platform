@@ -41,6 +41,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         // Get Authorization header
         String authHeader = request.getHeader("Authorization");
+        String requestPath = request.getRequestURI();
+        
+        // Check if this is a protected endpoint
+        boolean isProtectedEndpoint = isProtectedEndpoint(requestPath);
         
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             try {
@@ -74,8 +78,26 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 
             } catch (Exception e) {
                 log.warn("JWT validation failed: {}", e.getMessage());
+                // Return 401 Unauthorized for invalid token
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid or expired token");
+                return;
             }
+        } else if (isProtectedEndpoint) {
+            // Return 401 Unauthorized if token is missing for protected endpoint
+            log.warn("Missing authorization token for protected endpoint: {}", requestPath);
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Missing authorization token");
+            return;
         }
+        
         filterChain.doFilter(request, response);
+    }
+    
+    /**
+     * Check if the request path is a protected endpoint
+     */
+    private boolean isProtectedEndpoint(String requestPath) {
+        return requestPath.startsWith("/api/admin/") ||
+               requestPath.startsWith("/api/seller/") ||
+               requestPath.startsWith("/api/bidder/");
     }
 }

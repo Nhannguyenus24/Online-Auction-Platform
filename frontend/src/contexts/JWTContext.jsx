@@ -36,6 +36,7 @@ export function AuthProvider({ children }) {
           setSession(accessToken);
           
           // Try to get profile from API first (most reliable)
+          // Note: axios interceptor will automatically handle 401 by refreshing token
           try {
             const response = await authApi.getProfile();
             
@@ -66,75 +67,25 @@ export function AuthProvider({ children }) {
                   roleName: payload.roleName || payload.role || payload.roles?.[0],
                 };
                 authResult = true;
-              } else {
-                try {
-                  const refreshResponse = await authApi.refreshToken();
-                  if (refreshResponse.accessToken) {
-                    setSession(refreshResponse.accessToken);
-                    // Try to get profile again with new token
-                    const profileRetry = await authApi.getProfile();
-                    const retryProfile = profileRetry.data?.profile || profileRetry.data?.data?.profile || profileRetry.data;
-                    if (retryProfile && (retryProfile.id || retryProfile.userId)) {
-                      userData = {
-                        id: retryProfile.id || retryProfile.userId,
-                        email: retryProfile.email,
-                        fullName: retryProfile.fullName || retryProfile.name,
-                        roles: retryProfile.roles || [retryProfile.role],
-                        roleName: retryProfile.roleName || retryProfile.role || retryProfile.roles?.[0],
-                        phoneNumber: retryProfile.phoneNumber,
-                        address: retryProfile.address,
-                        isVerified: retryProfile.isVerified,
-                      };
-                      authResult = true;
-                    }
-                  } else {
-                    setSession(null);
-                  }
-                } catch (refreshError) {
-                  setSession(null);
-                  authResult = false;
-                  userData = null;
-                }
               }
             }
           } catch (profileError) {
-            // If profile API fails (401/403), try to refresh token
+            // If profile API still fails after axios interceptor attempted refresh
+            const status = profileError.response?.status;
             
-            // Check if it's an auth error (401/403)
-            const isAuthError = profileError.response?.status === 401 || profileError.response?.status === 403;
-            
-            if (isAuthError) {
-              try {
-                const refreshResponse = await authApi.refreshToken();
-                if (refreshResponse.accessToken) {
-                  setSession(refreshResponse.accessToken);
-                  // Try to get profile again with new token
-                  const profileRetry = await authApi.getProfile();
-                  const retryProfile = profileRetry.data?.profile || profileRetry.data?.data?.profile || profileRetry.data;
-                  if (retryProfile && (retryProfile.id || retryProfile.userId)) {
-                    userData = {
-                      id: retryProfile.id || retryProfile.userId,
-                      email: retryProfile.email,
-                      fullName: retryProfile.fullName || retryProfile.name,
-                      roles: retryProfile.roles || [retryProfile.role],
-                      roleName: retryProfile.roleName || retryProfile.role || retryProfile.roles?.[0],
-                      phoneNumber: retryProfile.phoneNumber,
-                      address: retryProfile.address,
-                      isVerified: retryProfile.isVerified,
-                    };
-                    authResult = true;
-                  }
-                } else {
-                  setSession(null);
-                }
-              } catch (refreshError) {
-                console.error('Auth init - refresh token failed, clearing session:', refreshError);
-                setSession(null);
-                authResult = false;
-                userData = null;
-              }
+            if (status === 401) {
+              // Token refresh failed - clear session
+              console.error('Auth init - token refresh failed, clearing session');
+              setSession(null);
+              authResult = false;
+              userData = null;
+            } else if (status === 403) {
+              // Forbidden - user exists but no permission
+              setSession(null);
+              authResult = false;
+              userData = null;
             } else {
-              // Not an auth error, try token payload as fallback
+              // Other errors - try token payload as fallback
               const payload = await getPayload(accessToken);
               if (payload) {
                 userData = {
@@ -146,7 +97,7 @@ export function AuthProvider({ children }) {
                 };
                 authResult = true;
               } else {
-                console.error('Auth init - token invalid, clearing session');
+                console.error('Auth init - profile error and token invalid:', profileError.message);
                 setSession(null);
                 authResult = false;
                 userData = null;
