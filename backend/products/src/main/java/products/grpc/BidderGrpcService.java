@@ -230,30 +230,6 @@ public class BidderGrpcService extends ReactorUserServiceGrpc.UserServiceImplBas
     }
 
     @Override
-    public Mono<SetAutoBidResponse> setAutoBid(Mono<SetAutoBidRequest> request) {
-        return request.doOnNext(req -> log.info("Raw set auto bid request: {}", JsonUtils.toJson(req)))
-                .flatMap(req ->
-                    bidderService.setAutoBid(req.getProductId(), req.getUserId(), req.getMaxAmount())
-                        .map(result -> SetAutoBidResponse.newBuilder()
-                            .setSuccess(true)
-                            .setMessage("Auto-bid set successfully")
-                            .setAutoBidId(result.autoBidId())
-                            .setMaxAmount(result.maxAmount())
-                            .setCurrentBid(result.currentBid())
-                            .setCreatedAt(result.createdAt())
-                            .build())
-                        .doOnNext(resp -> log.info("Raw set auto bid response: {}", JsonUtils.toJson(resp)))
-                        .onErrorResume(e -> {
-                            log.error("Set auto bid error: {}", e.getMessage());
-                            return Mono.just(SetAutoBidResponse.newBuilder()
-                                .setSuccess(false)
-                                .setMessage("Failed to set auto-bid: " + e.getMessage())
-                                .build());
-                        })
-                );
-    }
-
-    @Override
     public Mono<GetMyBidsResponse> getMyBids(Mono<GetMyBidsRequest> request) {
         return request.doOnNext(req -> log.info("Raw get my bids request: {}", JsonUtils.toJson(req)))
                 .flatMap(req ->

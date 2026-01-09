@@ -32,9 +32,6 @@ service UserService {
   // 8. Place a bid on a product
   rpc PlaceBid(PlaceBidRequest) returns (PlaceBidResponse);
   
-  // 9. Set up auto-bid for a product
-  rpc SetAutoBid(SetAutoBidRequest) returns (SetAutoBidResponse);
-  
   // 10. Get user's bid history
   rpc GetMyBids(GetMyBidsRequest) returns (GetMyBidsResponse);
   
@@ -288,22 +285,6 @@ message PlaceBidResponse {
   bool is_highest_bidder = 7;
 }
 
-// ==================== 8. Set Auto-Bid ====================
-
-message SetAutoBidRequest {
-  int32 product_id = 1;
-  int32 user_id = 2; // Authenticated user ID (from JWT)
-  double max_amount = 3; // Maximum amount user is willing to bid
-}
-
-message SetAutoBidResponse {
-  bool success = 1;
-  string message = 2;
-  int32 auto_bid_id = 3;
-  double max_amount = 4;
-  double current_bid = 5; // Current bid amount after auto-bid setup
-  int64 created_at = 6;
-}
 
 // ==================== 9. Get User's Bid History ====================
 

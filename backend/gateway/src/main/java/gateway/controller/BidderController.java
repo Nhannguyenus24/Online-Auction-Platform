@@ -491,55 +491,6 @@ public class BidderController {
         }
     }
 
-    @PostMapping("/products/{productId}/auto-bid")
-    @Operation(summary = "Set auto-bid", description = "Set up automatic bidding for a product. Requires authentication.")
-    public ResponseEntity<Map<String, Object>> setAutoBid(
-            @Parameter(description = "Product ID", required = true)
-            @PathVariable int productId,
-            @RequestBody com.auction.entities.dto.SetAutoBidRequest requestBody) {
-
-        if (productId <= 0 || requestBody == null || requestBody.maxAmount() <= 0) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("success", false);
-            error.put("message", "Bad body request");
-            return ResponseEntity.badRequest().body(error);
-        }
-
-        int userId = getUserId();
-        double maxAmount = requestBody.maxAmount();
-        log.info("Set auto-bid request - productId: {}, userId: {}, maxAmount: {}", productId, userId, maxAmount);
-
-        SetAutoBidRequest grpcRequest = SetAutoBidRequest.newBuilder()
-                .setProductId(productId)
-                .setUserId(userId)
-                .setMaxAmount(maxAmount)
-                .build();
-
-        try {
-            var response = bidderGrpcClient.setAutoBid(grpcRequest).block();
-            Map<String, Object> result = new HashMap<>();
-            result.put("success", response.getSuccess());
-            result.put("message", response.getMessage());
-            result.put("autoBidId", response.getAutoBidId());
-            result.put("maxAmount", response.getMaxAmount());
-            result.put("currentBid", response.getCurrentBid());
-            result.put("createdAt", response.getCreatedAt());
-
-            if (response.getSuccess()) {
-                log.info("Set auto-bid successful - productId: {}, autoBidId: {}", productId, response.getAutoBidId());
-                return ResponseEntity.ok(result);
-            } else {
-                return ResponseEntity.badRequest().body(result);
-            }
-        } catch (Exception e) {
-            log.error("Set auto-bid error: {}", e.getMessage(), e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("success", false);
-            error.put("message", "Failed to set auto-bid: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
-        }
-    }
-
     @GetMapping("/bids")
     @Operation(summary = "Get my bids", description = "Get user's bid history with pagination and filters. Requires authentication.")
     public ResponseEntity<Map<String, Object>> getMyBids(

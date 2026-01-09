@@ -15,7 +15,6 @@ DELETE FROM `product_bans`;
 DELETE FROM `upgrade_requests`;
 DELETE FROM `questions`;
 DELETE FROM `watchlists`;
-DELETE FROM `auto_bids`;
 DELETE FROM `bids`;
 DELETE FROM `product_images`;
 DELETE FROM `products`;
@@ -166,21 +165,6 @@ INSERT INTO `bids` (`id`, `product_id`, `bidder_id`, `amount`, `is_auto`) VALUES
 (18, 8, 5, 500.00, 1),
 (19, 9, 4, 1000.00, 0),
 (20, 9, 6, 1050.00, 1);
-
--- =====================
--- INSERT AUTO BIDS
--- =====================
-INSERT INTO `auto_bids` (`id`, `product_id`, `bidder_id`, `max_amount`) VALUES
-(1, 1, 6, 1000.00),
-(2, 2, 5, 1200.00),
-(3, 3, 7, 3000.00),
-(4, 4, 6, 400.00),
-(5, 5, 5, 800.00),
-(6, 6, 4, 220.00),
-(7, 7, 4, 350.00),
-(8, 8, 5, 550.00),
-(9, 9, 6, 1100.00),
-(10, 10, 4, 120.00);
 
 -- =====================
 -- INSERT WATCHLISTS

@@ -20,6 +20,7 @@ import com.auction.utils.TimeUtils;
 import com.auctionplatform.seller.grpc.*;
 
 import com.auction.entities.record.ImageRowRecord;
+import com.auction.redis.service.ReactiveRedisService;
 import products.repository.OrderRepository;
 import products.repository.ProductRepository;
 import products.repository.ReviewRepository;
@@ -36,18 +37,21 @@ public class SellerService {
     private final ReviewRepository reviewRepository;
     private final AuctionService auctionService;
     private final ReactiveRabbitProducer rabbitProducer;
+    private final ReactiveRedisService redisService;
     
     private static final String NOTIFICATION_QUEUE = "dev";
 
     public SellerService(SellerRepository sellerRepository, ProductRepository productRepository, 
                         OrderRepository orderRepository, ReviewRepository reviewRepository,
-                        AuctionService auctionService, ReactiveRabbitProducer rabbitProducer) {
+                        AuctionService auctionService, ReactiveRabbitProducer rabbitProducer,
+                        ReactiveRedisService redisService) {
         this.sellerRepository = sellerRepository;
         this.productRepository = productRepository;
         this.orderRepository = orderRepository;
         this.reviewRepository = reviewRepository;
         this.auctionService = auctionService;
         this.rabbitProducer = rabbitProducer;
+        this.redisService = redisService;
     }
 
     // ============================================================================
@@ -527,16 +531,70 @@ public class SellerService {
                     });
             })
             .flatMap(product -> {
-                // Send notification via RabbitMQ
-                return sendBannedUserNotification(bidderId, product, reason)
-                    .thenReturn("Bidder rejected successfully")
-                    .onErrorResume(e -> {
-                        log.warn("Failed to send ban notification, but ban was successful: {}", e.getMessage());
-                        return Mono.just("Bidder rejected successfully (notification failed)");
-                    });
+                // Remove bidder from Redis and recalculate price
+                String redisKey = "auction:" + productId + ":bids";
+                return redisService.zRemove(redisKey, String.valueOf(bidderId))
+                    .then(recalculateCurrentPrice(productId, product))
+                        .then(sendBannedUserNotification(bidderId, product, reason))
+                        .thenReturn("Bidder rejected successfully")
+                        .onErrorResume(e -> {
+                            log.warn("Failed to send ban notification, but ban was successful:");
+                            return Mono.just("Bidder rejected successfully (notification failed)");
+                        });
             })
             .doOnSuccess(result -> log.info("Bidder {} successfully banned from product {} by seller {}", bidderId, productId, sellerId))
             .doOnError(e -> log.error("Error rejecting bidder {} from product {}: {}", bidderId, productId, e.getMessage(), e));
+    }
+    
+    /**
+     * Recalculate current price after removing a bidder (same logic as placeBid)
+     */
+    private Mono<Void> recalculateCurrentPrice(int productId, Product product) {
+        String redisKey = "auction:" + productId + ":bids";
+        return redisService.zRevRange(redisKey, 0, 1)
+            .collectList()
+            .flatMap(topBidderIds -> {
+                if (topBidderIds.isEmpty()) {
+                    // No bidders left - reset to starting price
+                    double newCurrentPrice = product.getStartingPrice().doubleValue();
+                    log.info("No bidders left for product {}, resetting to starting price: {}", productId, newCurrentPrice);
+                    return productRepository.updateProductPrice(productId, newCurrentPrice);
+                } else if (topBidderIds.size() == 1) {
+                    // Only one bidder left - price = current + step
+                    double newCurrentPrice = product.getCurrentPrice().doubleValue() + product.getStepPrice().doubleValue();
+                    log.info("Single bidder left for product {}, new price = current + step: {}", productId, newCurrentPrice);
+                    return productRepository.updateProductPrice(productId, newCurrentPrice);
+                } else {
+                    // Two or more bidders - get their scores
+                    String firstBidderId = topBidderIds.get(0).toString();
+                    String secondBidderId = topBidderIds.get(1).toString();
+                    
+                    return Mono.zip(
+                        redisService.zScore(redisKey, firstBidderId).defaultIfEmpty(0.0),
+                        redisService.zScore(redisKey, secondBidderId).defaultIfEmpty(0.0)
+                    ).flatMap(scores -> {
+                        double firstBidderMaxAmount = scores.getT1();
+                        double secondBidderMaxAmount = scores.getT2();
+                        double newCurrentPrice;
+                        
+                        if (firstBidderMaxAmount == secondBidderMaxAmount) {
+                            // Equal max amounts - current price is the max amount
+                            newCurrentPrice = firstBidderMaxAmount;
+                            log.info("Equal max amounts for product {}, price = {}", productId, newCurrentPrice);
+                        } else {
+                            // First bidder has higher max - price is min(second + step, first max)
+                            double secondPlusStep = secondBidderMaxAmount + product.getStepPrice().doubleValue();
+                            newCurrentPrice = Math.min(secondPlusStep, firstBidderMaxAmount);
+                            log.info("Recalculated price for product {}: second={}, step={}, first={}, result={}", 
+                                productId, secondBidderMaxAmount, product.getStepPrice(), firstBidderMaxAmount, newCurrentPrice);
+                        }
+                        
+                        // Update current price in database
+                        return productRepository.updateProductPrice(productId, newCurrentPrice);
+                    });
+                }
+            })
+            .then();
     }
     
     /**

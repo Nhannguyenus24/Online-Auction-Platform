@@ -66,7 +66,7 @@ const BidderAuctionHistoryPage = () => {
           bidderApi.getBiddingHistory(1, 10, 'all'), // Get all data
           bidderApi.getWonItems(1, 10),
         ]);
-        
+        console.log('Bidding history response:', biddingRes);
         // Map API response to component format
         const mappedBids = (biddingRes.data || []).map((bid) => ({
           id: bid.bidId,
@@ -74,7 +74,6 @@ const BidderAuctionHistoryPage = () => {
           title: bid.productTitle,
           image: bid.productPrimaryImage,
           myBid: bid.bidAmount,
-          currentPrice: bid.currentPrice,
           isHighestBidder: bid.isWinning,
           endTime: normalizeTimestamp(bid.productEndsAt), // Normalize timestamp from backend
           bidDate: normalizeTimestamp(bid.bidCreatedAt), // Normalize timestamp from backend
@@ -117,36 +116,13 @@ const BidderAuctionHistoryPage = () => {
   };
 
   const getStatus = (bid) => {
-    // Get product status from API response
-    const productStatus = bid.productStatus?.toLowerCase() || 'active';
-    
-    // Check if auction has actually ended by comparing endTime
-    const endTime = normalizeTimestamp(bid.endTime);
-    const now = new Date();
-    const isActuallyEnded = endTime <= now;
-    
-    // If endTime has passed, override status to 'ended' for consistency
-    // This handles cases where backend hasn't updated status yet
-    if (isActuallyEnded && productStatus === 'active') {
-      return { label: 'Ended', color: 'default', icon: <Cancel /> };
+    if (bid.isHighestBidder) {
+      if (bid.endTime <= new Date()) {
+        return { label: 'Won', color: 'primary', icon: <EmojiEvents fontSize="small" /> };
+      } 
+      return { label: 'Leading', color: 'success', icon: <CheckCircle fontSize="small" /> }
     }
-    
-    // Map product status to display format
-    switch (productStatus) {
-      case 'active':
-        return { label: 'Active', color: 'success', icon: <CheckCircle /> };
-      case 'ended':
-        return { label: 'Ended', color: 'default', icon: <Cancel /> };
-      case 'pending':
-        return { label: 'Pending', color: 'warning', icon: <AccessTime /> };
-      case 'cancelled':
-        return { label: 'Cancelled', color: 'error', icon: <Cancel /> };
-      default: {
-        // Fallback: check endTime if status is not available
-        return isActuallyEnded 
-          ? { label: 'Ended', color: 'default', icon: <Cancel /> }
-          : { label: 'Active', color: 'success', icon: <CheckCircle /> };
-      }
+    else { return { label: 'Outbid', color: 'error', icon: <Cancel fontSize="small" /> };
     }
   };
 
@@ -401,9 +377,6 @@ const BidderAuctionHistoryPage = () => {
                         Your Bid
                       </TableCell>
                       <TableCell align="center" sx={{ fontWeight: 'bold', py: 2 }}>
-                        Current Price
-                      </TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 'bold', py: 2 }}>
                         Status
                       </TableCell>
                       <TableCell align="center" sx={{ fontWeight: 'bold', py: 2 }}>
@@ -422,7 +395,7 @@ const BidderAuctionHistoryPage = () => {
                       const status = getStatus(bid);
                       const endTime = normalizeTimestamp(bid.endTime);
                       const now = new Date();
-                      const isEnded = bid.productStatus === 'ended' || endTime <= now;
+                      const isEnded = bid.isWinning === 'ended' || endTime <= now;
 
                       return (
                         <TableRow
@@ -461,23 +434,6 @@ const BidderAuctionHistoryPage = () => {
                             <Typography variant="body2" fontWeight={600} color="primary">
                               {formatPrice(bid.myBid)}
                             </Typography>
-                          </TableCell>
-                          <TableCell align="center">
-                            <Typography
-                              variant="body2"
-                              fontWeight={600}
-                              color={bid.isHighestBidder && !isEnded ? 'success.main' : 'text.primary'}
-                            >
-                              {formatPrice(bid.currentPrice)}
-                            </Typography>
-                            {bid.isHighestBidder && !isEnded && (
-                              <Chip
-                                label="Leading"
-                                size="small"
-                                color="success"
-                                sx={{ mt: 0.5, height: 18, fontSize: '0.65rem' }}
-                              />
-                            )}
                           </TableCell>
                           <TableCell align="center">
                             <Chip

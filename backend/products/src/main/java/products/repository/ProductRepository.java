@@ -9,7 +9,13 @@ import org.springframework.stereotype.Repository;
 
 import com.auction.entities.database.Product;
 import com.auction.entities.database.User;
-import com.auction.entities.record.*;
+import com.auction.entities.record.BannedProductRecord;
+import com.auction.entities.record.BidHistoryRowRecord;
+import com.auction.entities.record.BidRowRecord;
+import com.auction.entities.record.ImageRowRecord;
+import com.auction.entities.record.ProductDetailsRecord;
+import com.auction.entities.record.ProductRowRecord;
+import com.auction.entities.record.QuestionRowRecord;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -314,10 +320,6 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
     @Query("UPDATE products SET ends_at = :endsAt, updated_at = CURRENT_TIMESTAMP WHERE id = :productId")
     Mono<Void> updateProductEndTime(@Param("productId") Integer productId, @Param("endsAt") java.time.LocalDateTime endsAt);
     
-    // Insert or update auto bid
-    @Query("INSERT INTO auto_bids (product_id, bidder_id, max_amount, created_at) VALUES (:productId, :bidderId, :maxAmount, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE max_amount = :maxAmount")
-    Mono<Void> upsertAutoBid(@Param("productId") Integer productId, @Param("bidderId") Integer bidderId, @Param("maxAmount") Double maxAmount);
-    
     // Get banned user IDs for a product
     @Query("SELECT user_id FROM product_bans WHERE product_id = :productId")
     Flux<Integer> getBannedUserIds(@Param("productId") Integer productId);
@@ -351,14 +353,6 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
         AND amount = (SELECT MAX(amount) FROM bids WHERE product_id = :productId)
         """)
     Mono<Long> isHighestBidder(@Param("productId") Integer productId, @Param("userId") Integer userId);
-    
-    // Get user's auto-bid for a product
-    @Query("""
-        SELECT id, product_id, bidder_id, max_amount, created_at
-        FROM auto_bids
-        WHERE product_id = :productId AND bidder_id = :userId
-        """)
-    Mono<products.dto.AutoBidRowDto> getUserAutoBid(@Param("productId") Integer productId, @Param("userId") Integer userId);
     
     // Get user full name by user ID
     @Query("SELECT full_name FROM users WHERE id = :userId")

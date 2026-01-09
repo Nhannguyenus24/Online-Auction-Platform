@@ -99,12 +99,6 @@ public class BidderGrpcClient {
         return userServiceStub.placeBid(Mono.just(request));
     }
 
-    // Set Auto Bid
-    public Mono<SetAutoBidResponse> setAutoBid(SetAutoBidRequest request) {
-        log.info("gRPC setAutoBid request: {}", JsonUtils.toJson(request));
-        return userServiceStub.setAutoBid(Mono.just(request));
-    }
-
     // Get My Bids
     public Mono<GetMyBidsResponse> getMyBids(GetMyBidsRequest request) {
         log.info("gRPC getMyBids request: {}", JsonUtils.toJson(request));

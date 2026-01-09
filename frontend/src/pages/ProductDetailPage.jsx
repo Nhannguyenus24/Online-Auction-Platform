@@ -342,7 +342,9 @@ function ProductDetailPage() {
         setLoading((prev) => ({ ...prev, myBidHistory: true }));
         const response = await productApi.getProductBids(productId, 1, 20);
         if (response.success) {
-          setMyBidHistory(response.bids || []);
+          // Filter to only show current user's bids
+          const userBids = (response.bids || []).filter(bid => bid.isCurrentUser);
+          setMyBidHistory(userBids);
           setMyBidHistoryPageInfo(response.pageInfo || {});
           setError((prev) => ({ ...prev, myBidHistory: null }));
         } else {
@@ -459,16 +461,16 @@ function ProductDetailPage() {
         }
 
         // Refresh bid history
-          const bidResponse = await productApi.getTopBidders(productId, 5);
+          const bidResponse = await productApi.getProductBids(productId, 1, 20);
           if (bidResponse.success) {
-            const mappedBids = (bidResponse.topBidders || []).map((bidder) => ({
+            const mappedBids = (bidResponse.bids || []).map((bidder) => ({
               id: bidder.bidderId,
               bidder: bidder.bidderName || "Anonymous",
               bidderId: bidder.bidderId,
               amount: bidder.bidAmount,
               time: normalizeTimestamp(bidder.bidTime),
             }));
-            setBidHistory(mappedBids);
+            setMyBidHistory(mappedBids);
           }
 
         setOpenBidDialog(false);
@@ -753,7 +755,7 @@ function ProductDetailPage() {
       </Page>
     );
   }
-
+  console.log(myBidHistory);
   return (
     <Page title={`${product.title} - Product Detail`}>
       <Box sx={{ bgcolor: "grey.50", minHeight: "100vh" }}>
@@ -1618,7 +1620,7 @@ function ProductDetailPage() {
                   <br />
                   Minimum bid:{' '}
                   <strong>
-                    {formatPrice(product.currentPrice + product.bidIncrement)}
+                    {formatPrice(Math.min(product.currentPrice + product.bidIncrement, product.buyNowPrice || Infinity))}
                   </strong>
                   {product.buyNowPrice && (
                     <>
@@ -1628,7 +1630,7 @@ function ProductDetailPage() {
                   )}
                 </Alert>
                 <TextField
-                  label="Your Bid Amount"
+                  label="Your Maximum Bid Amount"
                   type="number"
                   fullWidth
                   value={bidAmount}

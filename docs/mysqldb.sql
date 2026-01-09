@@ -59,14 +59,6 @@ CREATE TABLE `bids` (
   `created_at` timestamp DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE `auto_bids` (
-  `id` int PRIMARY KEY AUTO_INCREMENT,
-  `product_id` int NOT NULL,
-  `bidder_id` int NOT NULL,
-  `max_amount` numeric(18,2) NOT NULL,
-  `created_at` timestamp DEFAULT CURRENT_TIMESTAMP
-);
-
 CREATE TABLE `watchlists` (
   `id` int PRIMARY KEY AUTO_INCREMENT,
   `user_id` int NOT NULL,
@@ -194,10 +186,6 @@ ALTER TABLE `product_images` ADD FOREIGN KEY (`product_id`) REFERENCES `products
 ALTER TABLE `bids` ADD FOREIGN KEY (`product_id`) REFERENCES `products` (`id`);
 
 ALTER TABLE `bids` ADD FOREIGN KEY (`bidder_id`) REFERENCES `users` (`id`);
-
-ALTER TABLE `auto_bids` ADD FOREIGN KEY (`product_id`) REFERENCES `products` (`id`);
-
-ALTER TABLE `auto_bids` ADD FOREIGN KEY (`bidder_id`) REFERENCES `users` (`id`);
 
 ALTER TABLE `watchlists` ADD FOREIGN KEY (`user_id`) REFERENCES `users` (`id`);
 

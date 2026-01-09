@@ -1,11 +1,11 @@
 package products.service;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.time.Duration;
-import java.time.LocalDateTime;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,7 +20,17 @@ import com.auction.entities.record.ImageRowRecord;
 import com.auction.entities.record.ProductDetailsRecord;
 import com.auction.entities.record.ProductRowRecord;
 import com.auction.entities.record.QuestionRowRecord;
-import com.auction.proto.user.*;
+import com.auction.proto.user.BannedProduct;
+import com.auction.proto.user.Bid;
+import com.auction.proto.user.BidHistoryItem;
+import com.auction.proto.user.OrderDetail;
+import com.auction.proto.user.OrderItem;
+import com.auction.proto.user.PageInfo;
+import com.auction.proto.user.Product;
+import com.auction.proto.user.ProductImage;
+import com.auction.proto.user.Question;
+import com.auction.proto.user.SellerInfo;
+import com.auction.proto.user.UserNotification;
 import com.auction.rabbitmq.services.ReactiveRabbitProducer;
 import com.auction.utils.TimeUtils;
 
@@ -84,9 +94,6 @@ public class BidderService {
                         .doOnNext(count -> log.debug("Watchlist check for user {}: {}", userId, count)),
                     productRepository.isHighestBidder(productId, userId)
                         .doOnNext(count -> log.debug("Highest bidder check for user {}: {}", userId, count)),
-                    productRepository.getUserAutoBid(productId, userId)
-                        .defaultIfEmpty(new products.dto.AutoBidRowDto(0, productId, userId, 0.0, TimeUtils.now().toEpochSecond(ZoneOffset.ofHours(7))))
-                        .doOnNext(autoBid -> log.debug("Auto bid for user {}: maxAmount={}", userId, autoBid.maxAmount())),
                     productRepository.getProductQuestions(productId, 10, 0)
                         .map(this::mapDtoToQuestion)
                         .collectList()
@@ -95,15 +102,13 @@ public class BidderService {
                     var images = tuple.getT1();
                     var isInWatchlistCount = tuple.getT2();
                     var isHighestBidderCount = tuple.getT3();
-                    var autoBidDto = tuple.getT4();
-                    var questions = tuple.getT5();
+                    var questions = tuple.getT4();
                     
                     boolean isInWatchlist = isInWatchlistCount > 0;
                     boolean isHighestBidder = isHighestBidderCount > 0;
-                    double userMaxAutoBid = autoBidDto.maxAmount();
                     log.info("Successfully built product details for productId={}: images={}, inWatchlist={}, isHighestBidder={}, questions={}", 
                         productId, images.size(), isInWatchlist, isHighestBidder, questions.size());
-                    return mapDtoToProductWithUserData(productDto, images, questions, isInWatchlist, isHighestBidder, userMaxAutoBid);
+                    return mapDtoToProductWithUserData(productDto, images, questions, isInWatchlist, isHighestBidder, 0.0);
                 })
             )
             .doOnError(e -> log.error("Error getting product details for productId={}: {}", productId, e.getMessage(), e));
@@ -267,7 +272,7 @@ public class BidderService {
 
                 if (bidAmount < minBid) {
                     return Mono.error(new IllegalArgumentException(
-                        String.format("Bid amount must be at least %.2f", minBid)));
+                        String.format("Max bid amount must be at least %.2f", minBid)));
                 }
                 
                 // Insert bid into database and fetch user info for Redis
@@ -280,9 +285,58 @@ public class BidderService {
                     String userName = userInfo.getT2();
                     
                     return productRepository.insertBid(productId, userId, bidAmount, false)
-                        .then(productRepository.updateProductPrice(productId, bidAmount))
-                        .then(redisService.zAdd("auction:" + productId + ":bids", String.valueOf(userId), bidAmount))
                         .then(saveBidderProfileToRedis(productId, userId, bidAmount, email, userName))
+                        .then(redisService.zAdd("auction:" + productId + ":bids", String.valueOf(userId), bidAmount))
+                        .then(Mono.defer(() -> {
+                            // Auto-bidding logic: Get top 2 bidders from Redis
+                            String redisKey = "auction:" + productId + ":bids";
+                            return redisService.zRevRange(redisKey, 0, 1)
+                                .collectList()
+                                .flatMap(topBidderIds -> {
+                                    if (topBidderIds.isEmpty()) {
+                                        // No bidders (shouldn't happen as we just added)
+                                        double newCurrentPrice = product.getCurrentPrice().doubleValue() + product.getStepPrice().doubleValue();
+                                        log.warn("No bidders found in Redis after adding bid for product {}", productId);
+                                        return productRepository.updateProductPrice(productId, newCurrentPrice)
+                                            .thenReturn(newCurrentPrice);
+                                    } else if (topBidderIds.size() == 1) {
+                                        // Only current bidder exists
+                                        double newCurrentPrice = product.getCurrentPrice().doubleValue() + product.getStepPrice().doubleValue();
+                                        log.info("Single bidder for product {}, new price = current + step: {}", productId, newCurrentPrice);
+                                        return productRepository.updateProductPrice(productId, newCurrentPrice)
+                                            .thenReturn(newCurrentPrice);
+                                    } else {
+                                        // Two or more bidders - get their scores
+                                        String firstBidderId = topBidderIds.get(0).toString();
+                                        String secondBidderId = topBidderIds.get(1).toString();
+                                        
+                                        return Mono.zip(
+                                            redisService.zScore(redisKey, firstBidderId).defaultIfEmpty(0.0),
+                                            redisService.zScore(redisKey, secondBidderId).defaultIfEmpty(0.0)
+                                        ).flatMap(scores -> {
+                                            double firstBidderMaxAmount = scores.getT1();
+                                            double secondBidderMaxAmount = scores.getT2();
+                                            double newCurrentPrice;
+                                            
+                                            if (firstBidderMaxAmount == secondBidderMaxAmount) {
+                                                // Equal max amounts - current price is the max amount
+                                                newCurrentPrice = firstBidderMaxAmount;
+                                                log.info("Equal max amounts for product {}, price = {}", productId, newCurrentPrice);
+                                            } else {
+                                                // First bidder has higher max - price is min(second + step, first max)
+                                                double secondPlusStep = secondBidderMaxAmount + product.getStepPrice().doubleValue();
+                                                newCurrentPrice = Math.min(secondPlusStep, firstBidderMaxAmount);
+                                                log.info("Auto-bid calculation for product {}: second={}, step={}, first={}, result={}", 
+                                                    productId, secondBidderMaxAmount, product.getStepPrice(), firstBidderMaxAmount, newCurrentPrice);
+                                            }
+                                            
+                                            // Update current price in database
+                                            return productRepository.updateProductPrice(productId, newCurrentPrice)
+                                                .thenReturn(newCurrentPrice);
+                                        });
+                                    }
+                                });
+                        }))
                         .then(checkAndNotifyOutbid(productId, userId, bidAmount, product.getTitle(), product.getEndsAt()));
                 })
                     .then(Mono.defer(() -> {
@@ -321,35 +375,6 @@ public class BidderService {
                 productId, userId, bidAmount))
             .doOnError(e -> log.error("Error placing bid: product={}, user={}, amount={}, error={}", 
                 productId, userId, bidAmount, e.getMessage()));
-    }
-
-    @Transactional(rollbackFor = Exception.class, timeout = 10)
-    public Mono<AutoBidResult> setAutoBid(int productId, int userId, double maxAmount) {
-        log.info("User {} setting auto-bid {} on product {}", userId, maxAmount, productId);
-        
-        // Use pessimistic lock to prevent race conditions
-        // Lock is automatically released when transaction commits or rolls back
-        return productRepository.findByIdForUpdate(productId)
-            .switchIfEmpty(Mono.error(new IllegalArgumentException("Product not found")))
-            .flatMap(product -> {
-                if (!"active".equals(product.getStatus())) {
-                    return Mono.error(new IllegalStateException("Product is not active"));
-                }
-                
-                if (maxAmount <= product.getCurrentPrice().doubleValue()) {
-                    return Mono.error(new IllegalArgumentException(
-                        "Max bid amount must be higher than current price"));
-                }
-                
-                return productRepository.upsertAutoBid(productId, userId, maxAmount)
-                    .then(Mono.defer(() -> {
-                        long timestamp = System.currentTimeMillis() / 1000;
-                        return Mono.just(new AutoBidResult(0, maxAmount, product.getCurrentPrice().doubleValue(), timestamp));
-                    }));
-            })
-            .doOnSuccess(result -> log.info("Auto-bid set successfully: product={}, user={}, maxAmount={}", 
-                productId, userId, maxAmount))
-            .doOnError(e -> log.error("Error setting auto-bid: {}", e.getMessage()));
     }
 
     @Transactional(rollbackFor = Exception.class, timeout = 15)
@@ -477,32 +502,29 @@ public class BidderService {
                     log.info("Winner for product {}: User ID {}", productId, winnerId);
                     
                     // Get winner's bid amount and product details to create order
-                    return redisService.zScore(redisKey, String.valueOf(winnerId))
-                        .flatMap(winningBid -> 
-                            productRepository.findById(productId)
+                    return productRepository.findById(productId)
                                 .flatMap(product -> {
                                     log.info("Creating order for product {}: winner={}, amount={}", 
-                                        productId, winnerId, winningBid);
+                                        productId, winnerId, product.getCurrentPrice());
                                     
                                     // Create order in database
                                     return orderRepository.createOrder(
                                         productId,
                                         winnerId,
                                         product.getSellerId(),
-                                        winningBid
+                                        product.getCurrentPrice().doubleValue()
                                     )
                                             .then(Mono.defer(() -> {
                                                 log.info("Order created successfully: productId={}, buyerId={}, sellerId={}, amount={}",
-                                                    productId, winnerId, product.getSellerId(), winningBid);
+                                                    productId, winnerId, product.getSellerId(), product.getCurrentPrice());
                                                 return productRepository.findById(productId)
                                                     .flatMap(prod -> Mono.when(
-                                                        createConversationForOrder(product, winnerId, winningBid),
-                                                        sendAuctionEndedWinnerNotification(product, winnerId, winningBid),
-                                                        sendAuctionEndedSellerNotification(product, winnerId, winningBid)
+                                                        createConversationForOrder(product, winnerId, product.getCurrentPrice().doubleValue()),
+                                                        sendAuctionEndedWinnerNotification(product, winnerId, product.getCurrentPrice().doubleValue()),
+                                                        sendAuctionEndedSellerNotification(product, winnerId, product.getCurrentPrice().doubleValue())
                                                     ));
                                             }));
                                 })
-                        )
                         .switchIfEmpty(Mono.defer(() -> {
                             log.error("Could not get winning bid amount for user {} on product {}", 
                                 winnerId, productId);
@@ -656,7 +678,7 @@ public class BidderService {
         payload.put("yourBidAmount", String.format("%.2f", winningAmount));
         payload.put("auctionEndTime", product.getEndsAt().toString());
         payload.put("totalBids", String.valueOf(product.getBidsCount()));
-        
+
         RabbitMessage message = RabbitMessage.builder()
             .eventType(EventType.TASK_SEND_MAIL_ENDED_AUCTION)
             .userId(String.valueOf(winnerId))
@@ -721,8 +743,9 @@ public class BidderService {
         payload.put("productId", String.valueOf(product.getId()));
         payload.put("productName", product.getTitle());
         payload.put("purchaseType", "buy_now");
-        payload.put("price", String.format("%.2f", buyNowPrice));
-        payload.put("purchaseTime", TimeUtils.now().toString());
+        payload.put("bidAmount", String.format("%.2f", buyNowPrice));
+        payload.put("bidTime", TimeUtils.now().toString());
+        payload.put("auctionEndTime", product.getEndsAt().toString());
         
         RabbitMessage message = RabbitMessage.builder()
                 
@@ -755,8 +778,9 @@ public class BidderService {
         payload.put("productId", String.valueOf(product.getId()));
         payload.put("productName", product.getTitle());
         payload.put("purchaseType", "buy_now");
-        payload.put("price", String.format("%.2f", buyNowPrice));
-        payload.put("purchaseTime", TimeUtils.now().toString());
+        payload.put("bidAmount", String.format("%.2f", buyNowPrice));
+        payload.put("bidTime", TimeUtils.now().toString());
+        payload.put("auctionEndTime",  product.getEndsAt().toString());
         
         RabbitMessage message = RabbitMessage.builder()
                 
