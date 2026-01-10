@@ -1,7 +1,9 @@
 package gateway.controller;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -12,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,8 +25,10 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 
 import com.auction.proto.auth.*;
+import com.auction.proto.rating.*;
 
 import gateway.grpc.UserGrpcClient;
+import gateway.grpc.RatingGrpcClient;
 import gateway.service.GoogleOAuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -39,10 +44,12 @@ import reactor.core.publisher.Mono;
 public class AuthController {
     private static final Logger log = LoggerFactory.getLogger(AuthController.class);
     private final UserGrpcClient userGrpcClient;
+    private final RatingGrpcClient ratingGrpcClient;
     private final GoogleOAuthService googleOAuthService;
     
-    public AuthController(UserGrpcClient userGrpcClient, GoogleOAuthService googleOAuthService) {
+    public AuthController(UserGrpcClient userGrpcClient, RatingGrpcClient ratingGrpcClient, GoogleOAuthService googleOAuthService) {
         this.userGrpcClient = userGrpcClient;
+        this.ratingGrpcClient = ratingGrpcClient;
         this.googleOAuthService = googleOAuthService;
     }
     private static final int REFRESH_TOKEN_MAX_AGE = 7 * 24 * 60 * 60; // 7 days in seconds
@@ -477,6 +484,145 @@ public class AuthController {
                     log.error("Get profile error: {}", e.getMessage());
                     Map<String, Object> error = new HashMap<>();
                     error.put("message", "Get profile failed: " + e.getMessage());
+                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error));
+                });
+    }
+
+    @GetMapping("/profile/{userId}")
+    @Operation(summary = "Get user profile by ID", description = "Get user profile information by user ID. Public endpoint - no authentication required.")
+    public Mono<ResponseEntity<Map<String, Object>>> getProfileById(
+            @Parameter(description = "User ID") @PathVariable String userId) {
+        
+        log.info("Get public profile request for user ID: {}", userId);
+        
+        // Validate userId
+        if (userId == null || userId.trim().isEmpty()) {
+            log.error("User ID is required");
+            return Mono.just(ResponseEntity.badRequest().body(
+                Map.of("success", false, "message", "User ID is required")));
+        }
+
+        // Validate userId is numeric
+        try {
+            Integer.parseInt(userId);
+        } catch (NumberFormatException e) {
+            log.error("Invalid user ID format: {}", userId);
+            return Mono.just(ResponseEntity.badRequest().body(
+                Map.of("success", false, "message", "Invalid user ID format")));
+        }
+        
+        GetProfileRequest grpcRequest = GetProfileRequest.newBuilder()
+                .setUserId(userId)
+                .build();
+
+        return userGrpcClient.getProfile(grpcRequest)
+                .map(profileResponse -> {
+                    Map<String, Object> result = new HashMap<>();
+
+                    if (!profileResponse.getUserId().isEmpty()) {
+                        Map<String, Object> profile = new HashMap<>();
+                        profile.put("userId", profileResponse.getUserId());
+                        profile.put("email", profileResponse.getEmail());
+                        profile.put("fullName", profileResponse.getFullName());
+                        profile.put("phoneNumber", profileResponse.getPhoneNumber());
+                        profile.put("address", profileResponse.getAddress());
+                        profile.put("role", profileResponse.getRole());
+                        profile.put("isVerified", profileResponse.getIsVerified());
+                        profile.put("createdAt", profileResponse.getCreatedAt());
+                        profile.put("positiveReviews", profileResponse.getPositiveReviews());
+                        profile.put("negativeReviews", profileResponse.getNegativeReviews());
+                        result.put("success", true);
+                        result.put("profile", profile);
+                        result.put("message", profileResponse.getMessage());
+                        
+                        log.info("Public profile retrieved successfully for user ID: {}", userId);
+                        return ResponseEntity.ok(result);
+                    } else {
+                        result.put("success", false);
+                        result.put("message", profileResponse.getMessage() != null && !profileResponse.getMessage().isEmpty() 
+                            ? profileResponse.getMessage() : "User not found");
+                        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(result);
+                    }
+                })
+                .onErrorResume(e -> {
+                    log.error("Get public profile error: {}", e.getMessage(), e);
+                    Map<String, Object> error = new HashMap<>();
+                    error.put("success", false);
+                    error.put("message", "Get profile failed: " + e.getMessage());
+                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error));
+                });
+    }
+
+    @GetMapping("/profile/{userId}/ratings")
+    @Operation(summary = "Get user ratings by ID", description = "Get user ratings and reviews by user ID. Public endpoint - no authentication required.")
+    public Mono<ResponseEntity<Map<String, Object>>> getUserRatingsById(
+            @Parameter(description = "User ID") @PathVariable String userId,
+            @Parameter(description = "Page number (1-based)") @RequestParam(defaultValue = "1") int page,
+            @Parameter(description = "Number of items per page") @RequestParam(defaultValue = "20") int pageSize) {
+        
+        log.info("Get public user ratings request for user ID: {}, page: {}, pageSize: {}", userId, page, pageSize);
+        
+        // Validate userId
+        if (userId == null || userId.trim().isEmpty()) {
+            log.error("User ID is required");
+            return Mono.just(ResponseEntity.badRequest().body(
+                Map.of("success", false, "message", "User ID is required")));
+        }
+
+        // Validate userId is numeric
+        int userIdInt;
+        try {
+            userIdInt = Integer.parseInt(userId);
+        } catch (NumberFormatException e) {
+            log.error("Invalid user ID format: {}", userId);
+            return Mono.just(ResponseEntity.badRequest().body(
+                Map.of("success", false, "message", "Invalid user ID format")));
+        }
+
+        // Validate pagination
+        if (page <= 0 || pageSize <= 0 || pageSize > 100) {
+            return Mono.just(ResponseEntity.badRequest().body(
+                Map.of("success", false, "message", "Invalid page or pageSize")));
+        }
+        
+        GetUserRatingsRequest grpcRequest = GetUserRatingsRequest.newBuilder()
+                .setUserId(userIdInt)
+                .setPage(page)
+                .setPageSize(pageSize)
+                .build();
+
+        return ratingGrpcClient.getUserRatings(grpcRequest)
+                .map(ratingsResponse -> {
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("success", true);
+                    result.put("userId", String.valueOf(ratingsResponse.getUserId()));
+                    result.put("totalRatings", ratingsResponse.getTotalRatings());
+                    result.put("message", ratingsResponse.getMessage() != null && !ratingsResponse.getMessage().isEmpty() 
+                        ? ratingsResponse.getMessage() : "Ratings retrieved successfully");
+
+                    // Map ratings
+                    List<Map<String, Object>> ratings = new ArrayList<>();
+                    ratingsResponse.getRatingsList().forEach(rating -> {
+                        Map<String, Object> ratingMap = new HashMap<>();
+                        ratingMap.put("reviewId", rating.getReviewId());
+                        ratingMap.put("fromUserId", rating.getFromUserId());
+                        ratingMap.put("fromUserName", rating.getFromUserName());
+                        ratingMap.put("productId", rating.getProductId());
+                        ratingMap.put("productTitle", rating.getProductTitle());
+                        ratingMap.put("comment", rating.getComment());
+                        ratingMap.put("createdAt", String.valueOf(rating.getCreatedAt()));
+                        ratings.add(ratingMap);
+                    });
+                    result.put("ratings", ratings);
+                    
+                    log.info("Public user ratings retrieved successfully for user ID: {}, total: {}", userId, ratingsResponse.getTotalRatings());
+                    return ResponseEntity.ok(result);
+                })
+                .onErrorResume(e -> {
+                    log.error("Get public user ratings error: {}", e.getMessage(), e);
+                    Map<String, Object> error = new HashMap<>();
+                    error.put("success", false);
+                    error.put("message", "Get ratings failed: " + e.getMessage());
                     return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error));
                 });
     }

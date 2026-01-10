@@ -95,6 +95,7 @@ function ProductDetailPage() {
   const [isSeller, setIsSeller] = useState(false);
   const [timeLeft, setTimeLeft] = useState('');
   const [hasStarted, setHasStarted] = useState(true);
+  const [highestBidderId, setHighestBidderId] = useState(null);
   // Loading and error states
   const [loading, setLoading] = useState({
     product: true,
@@ -209,6 +210,10 @@ function ProductDetailPage() {
               time: normalizeTimestamp(bidder.bidTime),
             }));
             setBidHistory(mappedBids);
+            // Set highest bidder ID if seller and there are bids
+            if (isSeller && mappedBids.length > 0) {
+              setHighestBidderId(mappedBids[0].bidderId);
+            }
           }
         } catch (err) {
           // Handle 403 gracefully (endpoint may not be implemented or require auth)
@@ -983,11 +988,21 @@ function ProductDetailPage() {
 
                     {/* Time Left / Starts At */}
                     <Box sx={{ mb: 3, p: 2, bgcolor: hasStarted ? "warning.light" : "info.light", borderRadius: 1 }}>
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <AccessTime fontSize="small" />
-                        <Typography variant="body1" fontWeight="medium">
-                          {hasStarted ? `Time Left: ${timeLeft}` : `Starts In: ${timeLeft}`}
-                        </Typography>
+                      <Stack spacing={1}>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <AccessTime fontSize="small" />
+                          <Typography variant="body1" fontWeight="medium">
+                            {hasStarted ? `Time Left: ${timeLeft}` : `Starts In: ${timeLeft}`}
+                          </Typography>
+                        </Stack>
+                        <Stack direction="row" spacing={2} sx={{ mt: 1 }}>
+                          <Typography variant="caption" color="text.secondary">
+                            Posted: {fVNDateTime(product.postedTime)}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Ends: {fVNDateTime(product.endTime)}
+                          </Typography>
+                        </Stack>
                       </Stack>
                     </Box>
 
@@ -1025,10 +1040,32 @@ function ProductDetailPage() {
                         <Typography variant="body2" color="text.secondary" gutterBottom>
                           Current Highest Bidder
                         </Typography>
-                        <Typography variant="body1" fontWeight="medium">
-                          {product.currentBidder.name}
-                          {product.currentBidder.bidCount > 0 && ` (${product.currentBidder.bidCount} bids)`}
-                        </Typography>
+                        {isSeller && highestBidderId ? (
+                          <Link
+                            component="button"
+                            variant="body1"
+                            fontWeight="medium"
+                            onClick={() => navigate(`/user/${highestBidderId}`)}
+                            sx={{
+                              color: 'text.primary',
+                              textDecoration: 'none',
+                              '&:hover': { textDecoration: 'underline', color: 'primary.main' },
+                              cursor: 'pointer',
+                              display: 'block',
+                            }}
+                          >
+                            {product.currentBidder.name}
+                            {product.currentBidder.bidCount > 0 && ` (${product.currentBidder.bidCount} bids)`}
+                            <Typography variant="caption" color="primary" sx={{ ml: 1 }}>
+                              View Profile & Reviews →
+                            </Typography>
+                          </Link>
+                        ) : (
+                          <Typography variant="body1" fontWeight="medium">
+                            {product.currentBidder.name}
+                            {product.currentBidder.bidCount > 0 && ` (${product.currentBidder.bidCount} bids)`}
+                          </Typography>
+                        )}
                       </Box>
                     )}
 
@@ -1071,22 +1108,53 @@ function ProductDetailPage() {
                           sx={{ width: 56, height: 56 }}
                         />
                         <Box sx={{ flex: 1 }}>
-                          <Typography variant="h6" fontWeight="medium">
+                          <Link
+                            component="button"
+                            variant="h6"
+                            fontWeight="medium"
+                            onClick={() => navigate(`/user/${product.sellerId}`)}
+                            sx={{
+                              color: 'text.primary',
+                              textDecoration: 'none',
+                              '&:hover': { textDecoration: 'underline', color: 'primary.main' },
+                              cursor: 'pointer',
+                            }}
+                          >
                             {product.seller.name}
-                          </Typography>
-                          <Stack direction="row" spacing={2} alignItems="center">
-                            <Stack direction="row" spacing={0.5} alignItems="center">
-                              <ThumbUp fontSize="small" color="success" />
-                              <Typography variant="body2" color="text.secondary">
-                                {product.seller.positiveReviews || 0}
-                              </Typography>
-                            </Stack>
-                            <Stack direction="row" spacing={0.5} alignItems="center">
-                              <ThumbDown fontSize="small" color="error" />
-                              <Typography variant="body2" color="text.secondary">
-                                {product.seller.negativeReviews || 0}
-                              </Typography>
-                            </Stack>
+                          </Link>
+                          <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 0.5 }}>
+                            <Link
+                              component="button"
+                              onClick={() => navigate(`/user/${product.sellerId}`)}
+                              sx={{
+                                textDecoration: 'none',
+                                '&:hover': { textDecoration: 'underline' },
+                                cursor: 'pointer',
+                              }}
+                            >
+                              <Stack direction="row" spacing={0.5} alignItems="center">
+                                <ThumbUp fontSize="small" color="success" />
+                                <Typography variant="body2" color="text.secondary">
+                                  {product.seller.positiveReviews || 0}
+                                </Typography>
+                              </Stack>
+                            </Link>
+                            <Link
+                              component="button"
+                              onClick={() => navigate(`/user/${product.sellerId}`)}
+                              sx={{
+                                textDecoration: 'none',
+                                '&:hover': { textDecoration: 'underline' },
+                                cursor: 'pointer',
+                              }}
+                            >
+                              <Stack direction="row" spacing={0.5} alignItems="center">
+                                <ThumbDown fontSize="small" color="error" />
+                                <Typography variant="body2" color="text.secondary">
+                                  {product.seller.negativeReviews || 0}
+                                </Typography>
+                              </Stack>
+                            </Link>
                           </Stack>
                         </Box>
                       </Stack>
@@ -1239,7 +1307,22 @@ function ProductDetailPage() {
                               </TableCell>
                               <TableCell>
                                 <Stack direction="row" spacing={1} alignItems="center">
-                                  <Typography variant="body2">{bid.bidder}</Typography>
+                                  {isSeller && bid.bidderId ? (
+                                    <Link
+                                      component="button"
+                                      onClick={() => navigate(`/user/${bid.bidderId}`)}
+                                      sx={{
+                                        color: 'text.primary',
+                                        textDecoration: 'none',
+                                        '&:hover': { textDecoration: 'underline', color: 'primary.main' },
+                                        cursor: 'pointer',
+                                      }}
+                                    >
+                                      <Typography variant="body2">{bid.bidder}</Typography>
+                                    </Link>
+                                  ) : (
+                                    <Typography variant="body2">{bid.bidder}</Typography>
+                                  )}
                                   {rejectedBids.has(bid.id) && (
                                     <Chip label="Rejected" color="error" size="small" />
                                   )}

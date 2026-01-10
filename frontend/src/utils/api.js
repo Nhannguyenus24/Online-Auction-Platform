@@ -150,6 +150,25 @@ export const authApi = {
   getProfile: () => axiosInstance.get('/api/auth/profile'),
 
   /**
+   * Get user profile by ID (public endpoint)
+   * @param {string|number} userId - User ID
+   * @returns {Promise} - { success, profile: { userId, email, fullName, phoneNumber, address, role, isVerified, createdAt }, message }
+   */
+  getProfileById: (userId) => axiosInstance.get(`/api/auth/profile/${userId}`),
+
+  /**
+   * Get user ratings/reviews by ID (public endpoint)
+   * @param {string|number} userId - User ID
+   * @param {number} page - Page number (default: 1)
+   * @param {number} pageSize - Items per page (default: 20)
+   * @returns {Promise} - { success, userId, totalRatings, ratings: [...], message }
+   */
+  getUserRatingsById: (userId, page = 1, pageSize = 20) => 
+    axiosInstance.get(`/api/auth/profile/${userId}/ratings`, {
+      params: { page, pageSize }
+    }),
+
+  /**
    * Update user profile
    * @param {Object} data - { fullName, phoneNumber, address }
    * @returns {Promise} - { success, message, profile }

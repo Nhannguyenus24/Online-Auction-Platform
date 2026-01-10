@@ -157,6 +157,8 @@ message GetProfileResponse {
   bool is_verified = 7;
   string created_at = 8;
   string message = 9;
+  int32 positive_reviews = 10;
+  int32 negative_reviews = 11;
 }
 
 // 10. UPDATE PROFILE

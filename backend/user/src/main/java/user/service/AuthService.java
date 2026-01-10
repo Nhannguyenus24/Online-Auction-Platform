@@ -352,7 +352,9 @@ public class AuthService {
                         user.getAddress(),
                         user.getRole(),
                         user.getIsEmailVerified(),
-                        user.getCreatedAt() != null ? user.getCreatedAt().toString() : ""
+                        user.getCreatedAt() != null ? user.getCreatedAt().toString() : "",
+                        user.getPositiveReviews() != null ? user.getPositiveReviews() : 0,
+                        user.getNegativeReviews() != null ? user.getNegativeReviews() : 0
                 ));
     }
 
@@ -384,7 +386,9 @@ public class AuthService {
                                     savedUser.getAddress(),
                                     savedUser.getRole(),
                                     savedUser.getIsEmailVerified(),
-                                    savedUser.getCreatedAt() != null ? savedUser.getCreatedAt().toString() : ""
+                                    savedUser.getCreatedAt() != null ? savedUser.getCreatedAt().toString() : "",
+                                    savedUser.getPositiveReviews() != null ? savedUser.getPositiveReviews() : 0,
+                                    savedUser.getNegativeReviews() != null ? savedUser.getNegativeReviews() : 0
                             ));
                 });
     }
@@ -445,5 +449,5 @@ public class AuthService {
     public record LoginResult(String accessToken, String refreshToken, Integer userId, String email, String fullName, String role) {}
     public record RefreshResult(String accessToken, String refreshToken) {}
     public record ValidateResult(boolean isValid, Integer userId, String email, String role, String errorMessage) {}
-    public record ProfileResult(Integer userId, String email, String fullName, String phone, String address, String role, Boolean isVerified, String createdAt) {}
+    public record ProfileResult(Integer userId, String email, String fullName, String phone, String address, String role, Boolean isVerified, String createdAt, Integer positiveReviews, Integer negativeReviews) {}
 }

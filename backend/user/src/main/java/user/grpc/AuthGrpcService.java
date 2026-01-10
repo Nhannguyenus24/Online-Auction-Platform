@@ -199,6 +199,8 @@ public class AuthGrpcService extends ReactorAuthServiceGrpc.AuthServiceImplBase 
                                         .setRole(profile.role())
                                         .setIsVerified(profile.isVerified() != null ? profile.isVerified() : false)
                                         .setCreatedAt(profile.createdAt())
+                                        .setPositiveReviews(profile.positiveReviews() != null ? profile.positiveReviews() : 0)
+                                        .setNegativeReviews(profile.negativeReviews() != null ? profile.negativeReviews() : 0)
                                         .setMessage("Profile retrieved successfully")
                                         .build());
                     } catch (NumberFormatException e) {
@@ -241,6 +243,8 @@ public class AuthGrpcService extends ReactorAuthServiceGrpc.AuthServiceImplBase 
                                         .setRole(profile.role())
                                         .setIsVerified(profile.isVerified() != null ? profile.isVerified() : false)
                                         .setCreatedAt(profile.createdAt())
+                                        .setPositiveReviews(profile.positiveReviews() != null ? profile.positiveReviews() : 0)
+                                        .setNegativeReviews(profile.negativeReviews() != null ? profile.negativeReviews() : 0)
                                         .build())
                                 .build());
                     } catch (NumberFormatException e) {

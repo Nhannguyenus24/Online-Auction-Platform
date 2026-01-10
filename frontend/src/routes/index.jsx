@@ -37,6 +37,7 @@ export default function Router() {
         { path: "about-us", element: <AboutUs /> },
         { path: "maintenance", element: <Maintenance /> },
         { path: "product/:id", element: <ProductDetailPage /> },
+        { path: "user/:userId", element: <UserProfilePage /> },
         { path: "500", element: <Page500 /> },
         { path: "404", element: <Page404 /> },
       ],
@@ -207,6 +208,9 @@ const AboutUs = Loadable(lazy(() => import("../pages/AboutUs")));
 const Maintenance = Loadable(lazy(() => import("../pages/Maintenance")));
 const ProductDetailPage = Loadable(
   lazy(() => import("../pages/ProductDetailPage.jsx"))
+);
+const UserProfilePage = Loadable(
+  lazy(() => import("../pages/UserProfilePage.jsx"))
 );
 const CategoryPage = Loadable(lazy(() => import("../pages/CategoryPage.jsx")));
 const CareersPage = Loadable(lazy(() => import("../pages/CareersPage.jsx")));
