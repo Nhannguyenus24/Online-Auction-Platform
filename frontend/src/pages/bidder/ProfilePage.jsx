@@ -20,7 +20,6 @@ import {
   InputAdornment,
   Chip,
   CircularProgress,
-  Rating,
   Skeleton,
 } from '@mui/material';
 import {
@@ -36,6 +35,8 @@ import {
   LocalOffer,
   Delete as DeleteIcon,
   CheckCircle,
+  ThumbUp,
+  ThumbDown,
 } from '@mui/icons-material';
 import Page from '../../components/Page';
 import { formatPrice } from '../../utils/formatNumber';
@@ -80,7 +81,7 @@ const BidderProfilePage = () => {
     changingPassword: false,
   });
   const [ratingSubTab, setRatingSubTab] = useState(0); // 0: Received, 1: Rate Sellers
-  const [ratingForm, setRatingForm] = useState({}); // { productId: { score: 1-5, comment: '', sellerId: number, orderId: number } }
+  const [ratingForm, setRatingForm] = useState({}); // { productId: { like: boolean, comment: '', sellerId: number, orderId: number } }
 
   // Form states
   const [profileData, setProfileData] = useState(defaultProfileData);
@@ -298,16 +299,26 @@ const BidderProfilePage = () => {
           const ratingsRes = await bidderApi.getRatings(1, 20);
           
           // Map API response to component format
-          const mappedReceived = (ratingsRes.reviews || []).map((review) => ({
-            id: review.id,
-            fromUser: review.fromUserName || `User #${review.fromUserId}`,
-            fromUserId: review.fromUserId,
-            rating: review.score >= 4 ? 1 : -1, // Convert score (1-5) to rating (+1/-1)
-            comment: review.comment || '',
-            date: new Date(parseInt(review.createdAt)), // Convert timestamp string to Date
-            productTitle: '', // API doesn't return product title yet
-            productId: null,
-          }));
+          const mappedReceived = (ratingsRes.reviews || []).map((review) => {
+            // Determine rating: check like field first, then score, default to positive if neither available
+            let rating = 1; // Default to positive
+            if (review.like !== undefined) {
+              rating = review.like === true ? 1 : -1;
+            } else if (review.score !== undefined) {
+              rating = review.score >= 4 ? 1 : -1;
+            }
+            
+            return {
+              id: review.id,
+              fromUser: review.fromUserName || `User #${review.fromUserId}`,
+              fromUserId: review.fromUserId,
+              rating: rating,
+              comment: review.comment || '',
+              date: new Date(parseInt(review.createdAt)), // Convert timestamp string to Date
+              productTitle: '', // API doesn't return product title yet
+              productId: null,
+            };
+          });
           
           // Update profile data with latest ratings stats
           const ratingFromPercent = (ratingsRes.ratingPercent || 0) / 20;
@@ -361,7 +372,7 @@ const BidderProfilePage = () => {
                 completedDate: order.createdAt || order.updatedAt,
                 isRated: !!existingRating,
                 existingRating: existingRating ? {
-                  score: existingRating.score || existingRating.rating || 0,
+                  like: existingRating.like !== undefined ? existingRating.like : (existingRating.score >= 4),
                   comment: existingRating.comment || '',
                 } : null,
               };
@@ -667,12 +678,20 @@ const BidderProfilePage = () => {
                         </Typography>
                         {profileData.totalRatings > 0 && (
                           <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Star sx={{ color: 'warning.main', fontSize: 18 }} />
-                            <Typography variant="body2" fontWeight={500}>
-                              {profileData.rating} ({profileData.totalRatings} ratings)
-                            </Typography>
+                            <Stack direction="row" spacing={0.5} alignItems="center">
+                              <ThumbUp fontSize="small" color="success" />
+                              <Typography variant="body2" color="text.secondary">
+                                {profileData.positiveRatings || 0}
+                              </Typography>
+                            </Stack>
+                            <Stack direction="row" spacing={0.5} alignItems="center">
+                              <ThumbDown fontSize="small" color="error" />
+                              <Typography variant="body2" color="text.secondary">
+                                {profileData.negativeRatings || 0}
+                              </Typography>
+                            </Stack>
                             <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-                              • {profileData.positiveRatings}+ / {profileData.negativeRatings}-
+                              • {profileData.totalRatings} ratings
                             </Typography>
                           </Box>
                         )}
@@ -856,20 +875,20 @@ const BidderProfilePage = () => {
                         <Grid container spacing={3} alignItems="center">
                           <Grid item xs={12} md={4}>
                             <Box sx={{ textAlign: 'center' }}>
-                              <Typography variant="h3" fontWeight={700} color="primary">
-                                {profileData.rating}
-                              </Typography>
-                              <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5, mb: 1 }}>
-                                {[1, 2, 3, 4, 5].map((star) => (
-                                  <Star
-                                    key={star}
-                                    sx={{
-                                      fontSize: 24,
-                                      color: star <= Math.round(profileData.rating) ? 'warning.main' : 'grey.300',
-                                    }}
-                                  />
-                                ))}
-                              </Box>
+                              <Stack direction="row" spacing={2} justifyContent="center" alignItems="center" sx={{ mb: 1 }}>
+                                <Stack direction="row" spacing={0.5} alignItems="center">
+                                  <ThumbUp fontSize="small" color="success" />
+                                  <Typography variant="h6" fontWeight="bold">
+                                    {profileData.positiveRatings || 0}
+                                  </Typography>
+                                </Stack>
+                                <Stack direction="row" spacing={0.5} alignItems="center">
+                                  <ThumbDown fontSize="small" color="error" />
+                                  <Typography variant="h6" fontWeight="bold">
+                                    {profileData.negativeRatings || 0}
+                                  </Typography>
+                                </Stack>
+                              </Stack>
                               <Typography variant="body2" color="text.secondary">
                                 {profileData.totalRatings} ratings
                               </Typography>
@@ -937,7 +956,6 @@ const BidderProfilePage = () => {
                       <Box>
                         {ratingsReceived.length === 0 ? (
                           <Box sx={{ textAlign: 'center', py: 8 }}>
-                            <Star sx={{ fontSize: 64, color: 'grey.300', mb: 2 }} />
                             <Typography variant="h6" color="text.secondary" gutterBottom>
                               No Ratings Received Yet
                             </Typography>
@@ -950,20 +968,13 @@ const BidderProfilePage = () => {
                             {ratingsReceived.map((rating) => (
                               <Card key={rating.id} elevation={0} sx={{ border: '1px solid', borderColor: 'divider' }}>
                                 <CardContent>
-                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 2 }}>
-                                    <Box>
-                                      <Typography variant="subtitle1" fontWeight={600}>
-                                        {rating.fromUser}
-                                      </Typography>
-                                      <Typography variant="caption" color="text.secondary">
-                                        {fVNDate(rating.date)}
-                                      </Typography>
-                                    </Box>
-                                    <Chip
-                                      label={rating.rating === 1 ? '+1' : '-1'}
-                                      color={rating.rating === 1 ? 'success' : 'error'}
-                                      size="small"
-                                    />
+                                  <Box sx={{ mb: 2 }}>
+                                    <Typography variant="subtitle1" fontWeight={600}>
+                                      {rating.fromUser}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                      {fVNDate(rating.date)}
+                                    </Typography>
                                   </Box>
                                   <Typography variant="body2" sx={{ mb: 1 }}>
                                     {rating.comment}
@@ -1033,11 +1044,23 @@ const BidderProfilePage = () => {
                                               <Typography variant="body2" gutterBottom>
                                                 Your Rating
                                               </Typography>
-                                              <Rating
-                                                value={item.existingRating?.score || 0}
-                                                readOnly
-                                                size="large"
-                                              />
+                                              <Stack direction="row" spacing={1} alignItems="center">
+                                                {item.existingRating?.like !== false ? (
+                                                  <>
+                                                    <ThumbUp fontSize="small" color="success" />
+                                                    <Typography variant="body2" color="text.secondary">
+                                                      Positive
+                                                    </Typography>
+                                                  </>
+                                                ) : (
+                                                  <>
+                                                    <ThumbDown fontSize="small" color="error" />
+                                                    <Typography variant="body2" color="text.secondary">
+                                                      Negative
+                                                    </Typography>
+                                                  </>
+                                                )}
+                                              </Stack>
                                             </Box>
                                             {item.existingRating?.comment && (
                                               <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
@@ -1057,21 +1080,46 @@ const BidderProfilePage = () => {
                                               <Typography variant="body2" gutterBottom>
                                                 Rate Seller
                                               </Typography>
-                                              <Rating
-                                                value={ratingForm[item.productId]?.score || 0}
-                                                onChange={(e, newValue) => {
-                                                  setRatingForm({
-                                                    ...ratingForm,
-                                                    [item.productId]: {
-                                                      ...ratingForm[item.productId],
-                                                      score: newValue || 0,
-                                                      sellerId: item.sellerId,
-                                                      orderId: item.orderId,
-                                                    },
-                                                  });
-                                                }}
-                                                size="large"
-                                              />
+                                              <Stack direction="row" spacing={2}>
+                                                <Button
+                                                  variant={ratingForm[item.productId]?.like === true ? "contained" : "outlined"}
+                                                  color="success"
+                                                  startIcon={<ThumbUp />}
+                                                  onClick={() => {
+                                                    setRatingForm({
+                                                      ...ratingForm,
+                                                      [item.productId]: {
+                                                        ...ratingForm[item.productId],
+                                                        like: true,
+                                                        sellerId: item.sellerId,
+                                                        orderId: item.orderId,
+                                                      },
+                                                    });
+                                                  }}
+                                                  size="small"
+                                                >
+                                                  Positive
+                                                </Button>
+                                                <Button
+                                                  variant={ratingForm[item.productId]?.like === false ? "contained" : "outlined"}
+                                                  color="error"
+                                                  startIcon={<ThumbDown />}
+                                                  onClick={() => {
+                                                    setRatingForm({
+                                                      ...ratingForm,
+                                                      [item.productId]: {
+                                                        ...ratingForm[item.productId],
+                                                        like: false,
+                                                        sellerId: item.sellerId,
+                                                        orderId: item.orderId,
+                                                      },
+                                                    });
+                                                  }}
+                                                  size="small"
+                                                >
+                                                  Negative
+                                                </Button>
+                                              </Stack>
                                             </Box>
                                             <TextField
                                               fullWidth
@@ -1093,10 +1141,11 @@ const BidderProfilePage = () => {
                                             <Button
                                               variant="contained"
                                               size="small"
-                                              disabled={!ratingForm[item.productId]?.score || loading.saving}
+                                              disabled={ratingForm[item.productId]?.like === undefined || loading.saving}
+                                              fullWidth
                                               onClick={async () => {
                                                 const formData = ratingForm[item.productId];
-                                                if (!formData || !formData.score || !formData.sellerId || !item.productId) {
+                                                if (!formData || formData.like === undefined || !formData.sellerId || !item.productId) {
                                                   setErrorMessage('Please provide a rating');
                                                   return;
                                                 }
@@ -1108,7 +1157,7 @@ const BidderProfilePage = () => {
                                                     formData.sellerId,
                                                     item.productId,
                                                     formData.orderId,
-                                                    formData.score,
+                                                    formData.like,
                                                     formData.comment || ''
                                                   );
                                                   setSuccessMessage('Rating submitted successfully!');
@@ -1118,11 +1167,11 @@ const BidderProfilePage = () => {
                                                   setItemsNeedingRating((prev) =>
                                                     prev.map((i) =>
                                                       i.id === item.id
-                                                        ? {
+                                                        ?                                                           {
                                                             ...i,
                                                             isRated: true,
                                                             existingRating: {
-                                                              score: formData.score,
+                                                              like: formData.like,
                                                               comment: formData.comment || '',
                                                             },
                                                           }
@@ -1158,7 +1207,7 @@ const BidderProfilePage = () => {
                                                       ...item,
                                                       isRated: !!existingRating,
                                                       existingRating: existingRating ? {
-                                                        score: existingRating.score || existingRating.rating || 0,
+                                                        like: existingRating.like !== undefined ? existingRating.like : (existingRating.score >= 4),
                                                         comment: existingRating.comment || '',
                                                       } : null,
                                                     };

@@ -167,16 +167,16 @@ export const orderApi = {
    * @param {number|string} sellerId - Seller ID
    * @param {number|string} productId - Product ID (required)
    * @param {number|string} orderId - Order ID (optional)
-   * @param {number} score - Rating score (1-5)
+   * @param {boolean} like - True for positive rating, false for negative rating
    * @param {string} comment - Optional comment
    * @returns {Promise} - { success, message, reviewId }
    */
-  rateSeller: (sellerId, productId, orderId = null, score, comment = '') => {
+  rateSeller: (sellerId, productId, orderId = null, like, comment = '') => {
     return axiosInstance
       .post(`/api/bidder/sellers/${sellerId}/rate`, {
         productId,
         orderId,
-        score,
+        like,
         comment,
       })
       .then((response) => {
