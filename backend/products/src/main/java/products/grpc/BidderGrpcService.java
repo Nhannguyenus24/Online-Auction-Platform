@@ -302,7 +302,6 @@ public class BidderGrpcService extends ReactorUserServiceGrpc.UserServiceImplBas
                         GetBidderRatingsResponse.Builder responseBuilder = GetBidderRatingsResponse.newBuilder()
                             .setPositiveReviews(result.positiveReviews())
                             .setNegativeReviews(result.negativeReviews())
-                            .setRatingPercent(result.ratingPercent())
                             .setTotalCount(result.totalCount());
                         
                         // Map reviews
@@ -311,7 +310,6 @@ public class BidderGrpcService extends ReactorUserServiceGrpc.UserServiceImplBas
                                 .setId(review.id())
                                 .setFromUserId(review.fromUserId())
                                 .setFromUserName(review.fromUserName())
-                                .setScore(review.score())
                                 .setComment(review.comment())
                                 .setCreatedAt(review.createdAt())
                                 .build();

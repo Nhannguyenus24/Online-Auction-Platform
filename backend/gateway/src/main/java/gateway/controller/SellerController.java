@@ -42,7 +42,6 @@ import com.auctionplatform.seller.grpc.ListingDetail;
 import com.auctionplatform.seller.grpc.OrderDetail;
 import com.auctionplatform.seller.grpc.ProductDetailsResponse;
 import com.auctionplatform.seller.grpc.ProductSummary;
-import com.auctionplatform.seller.grpc.RateBidderRequest;
 import com.auctionplatform.seller.grpc.RejectBidderRequest;
 import com.auctionplatform.seller.grpc.Review;
 import com.auctionplatform.seller.grpc.SellerProfileResponse;
@@ -265,7 +264,6 @@ public class SellerController {
             result.put("success", true);
             result.put("positiveReviews", response.getPositiveReviews());
             result.put("negativeReviews", response.getNegativeReviews());
-            result.put("ratingPercent", response.getRatingPercent());
             result.put("reviews", mapReviewList(response.getReviewsList()));
             result.put("totalCount", response.getTotalCount());
 
@@ -711,7 +709,7 @@ public class SellerController {
         int sellerId = getUserId();
         Integer orderId = requestBody.getOrderId();
         Integer productId = requestBody.getProductId();
-        Integer score = requestBody.getScore();
+        boolean like = requestBody.getLike();
         String comment = requestBody.getComment();
         
         // Validate orderId
@@ -723,25 +721,19 @@ public class SellerController {
         if (productId == null || productId <= 0) {
             return badRequestResponse("Product ID is required and must be greater than 0");
         }
-        
-        // Validate score (1-5)
-        if (score == null || score < 1 || score > 5) {
-            return badRequestResponse("Score must be between 1 and 5");
-        }
-        
         // Validate comment
         if (comment != null && comment.trim().length() > 1000) {
             return badRequestResponse("Comment must not exceed 1000 characters");
         }
         
-        log.info("Rate bidder request - bidderId: {}, sellerId: {}, productId: {}, orderId: {}, score: {}", 
-                bidderId, sellerId, productId, orderId, score);
+        log.info("Rate bidder request - bidderId: {}, sellerId: {}, productId: {}, orderId: {}",
+                bidderId, sellerId, productId, orderId);
 
         AddUserRatingRequest grpcRequest = AddUserRatingRequest.newBuilder()
                 .setFromUserId(sellerId)
                 .setToUserId(bidderId)
                 .setProductId(productId)
-                .setScore(score)
+                .setLike(like)
                 .setComment(comment != null ? comment : "")
                 .build();
 
@@ -883,12 +875,12 @@ public class SellerController {
         String paymentConfirmationNotes = requestBody.getPaymentConfirmationNotes();
         
         // Validate invoiceNumber
-        if (invoiceNumber != null && invoiceNumber.trim().length() > 100) {
+        if (invoiceNumber.trim().length() > 100) {
             return badRequestResponse("Invoice number must not exceed 100 characters");
         }
         
         // Validate paymentConfirmationNotes
-        if (paymentConfirmationNotes != null && paymentConfirmationNotes.trim().length() > 1000) {
+        if (paymentConfirmationNotes.trim().length() > 1000) {
             return badRequestResponse("Payment confirmation notes must not exceed 1000 characters");
         }
         
@@ -897,8 +889,8 @@ public class SellerController {
         ConfirmPaymentReceiptRequest grpcRequest = ConfirmPaymentReceiptRequest.newBuilder()
                 .setSellerId(sellerId)
                 .setOrderId(orderId)
-                .setInvoiceNumber(invoiceNumber != null ? invoiceNumber : "")
-                .setPaymentConfirmationNotes(paymentConfirmationNotes != null ? paymentConfirmationNotes : "")
+                .setInvoiceNumber(invoiceNumber)
+                .setPaymentConfirmationNotes(paymentConfirmationNotes)
                 .build();
 
         try {
@@ -991,7 +983,6 @@ public class SellerController {
         profile.put("address", response.getAddress());
         profile.put("positiveReviews", response.getPositiveReviews());
         profile.put("negativeReviews", response.getNegativeReviews());
-        profile.put("ratingPercent", response.getRatingPercent());
         profile.put("createdAt", response.getCreatedAt());
         return profile;
     }
@@ -1038,7 +1029,6 @@ public class SellerController {
             map.put("id", review.getId());
             map.put("fromUserId", review.getFromUserId());
             map.put("fromUserName", review.getFromUserName());
-            map.put("score", review.getScore());
             map.put("comment", review.getComment());
             map.put("createdAt", review.getCreatedAt());
             result.add(map);

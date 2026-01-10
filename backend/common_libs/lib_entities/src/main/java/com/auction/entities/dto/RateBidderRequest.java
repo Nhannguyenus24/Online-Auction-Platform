@@ -1,7 +1,15 @@
 package com.auction.entities.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class RateBidderRequest {
     
     @Schema(description = "Order ID", example = "456")
@@ -10,51 +18,9 @@ public class RateBidderRequest {
     @Schema(description = "Product ID", example = "123")
     private Integer productId;
     
-    @Schema(description = "Rating score (1-5)", example = "5", minimum = "1", maximum = "5")
-    private Integer score;
+    @Schema(description = "Vote", example = "true")
+    private Boolean like;
     
     @Schema(description = "Comment for the rating", example = "Great buyer, fast payment!")
     private String comment;
-
-    public RateBidderRequest() {
-    }
-
-    public RateBidderRequest(Integer orderId, Integer productId, Integer score, String comment) {
-        this.orderId = orderId;
-        this.productId = productId;
-        this.score = score;
-        this.comment = comment;
-    }
-
-    public Integer getOrderId() {
-        return orderId;
-    }
-
-    public void setOrderId(Integer orderId) {
-        this.orderId = orderId;
-    }
-
-    public Integer getScore() {
-        return score;
-    }
-
-    public void setScore(Integer score) {
-        this.score = score;
-    }
-
-    public String getComment() {
-        return comment;
-    }
-
-    public void setComment(String comment) {
-        this.comment = comment;
-    }
-
-    public Integer getProductId() {
-        return productId;
-    }
-
-    public void setProductId(Integer productId) {
-        this.productId = productId;
-    }
 }

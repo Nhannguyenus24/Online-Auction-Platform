@@ -47,7 +47,8 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
                p.step_price, p.buy_now_price, p.starts_at, p.ends_at,
                p.is_auto_extend, p.auto_extend_seconds, p.status, p.views_count,
                p.bids_count, p.created_at, p.updated_at, u.full_name as seller_name,
-               u.rating_percent as seller_rating_percent, u.positive_reviews as seller_positive_reviews
+               u.positive_reviews as seller_positive_reviews,
+               u.negative_reviews as seller_negative_reviews
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
         LEFT JOIN users u ON p.seller_id = u.id
@@ -64,7 +65,8 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
                p.step_price, p.buy_now_price, p.starts_at, p.ends_at,
                p.is_auto_extend, p.auto_extend_seconds, p.status, p.views_count,
                p.bids_count, p.created_at, p.updated_at, u.full_name as seller_name,
-               u.rating_percent as seller_rating_percent, u.positive_reviews as seller_positive_reviews
+               u.positive_reviews as seller_positive_reviews,
+               u.negative_reviews as seller_negative_reviews
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
         LEFT JOIN users u ON p.seller_id = u.id
@@ -81,7 +83,8 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
                p.step_price, p.buy_now_price, p.starts_at, p.ends_at,
                p.is_auto_extend, p.auto_extend_seconds, p.status, p.views_count,
                p.bids_count, p.created_at, p.updated_at, u.full_name as seller_name,
-               u.rating_percent as seller_rating_percent, u.positive_reviews as seller_positive_reviews
+               u.positive_reviews as seller_positive_reviews,
+               u.negative_reviews as seller_negative_reviews
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
         LEFT JOIN users u ON p.seller_id = u.id
@@ -118,7 +121,8 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
                p.step_price, p.buy_now_price, p.starts_at, p.ends_at,
                p.is_auto_extend, p.auto_extend_seconds, p.status, p.views_count,
                p.bids_count, p.created_at, p.updated_at, u.full_name as seller_name,
-               u.rating_percent as seller_rating_percent, u.positive_reviews as seller_positive_reviews
+               u.positive_reviews as seller_positive_reviews,
+               u.negative_reviews as seller_negative_reviews
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
         LEFT JOIN users u ON p.seller_id = u.id
@@ -169,7 +173,8 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
                p.step_price, p.buy_now_price, p.starts_at, p.ends_at,
                p.is_auto_extend, p.auto_extend_seconds, p.status, p.views_count,
                p.bids_count, p.created_at, p.updated_at, u.full_name as seller_name,
-               u.rating_percent as seller_rating_percent, u.positive_reviews as seller_positive_reviews
+               u.positive_reviews as seller_positive_reviews,
+               u.negative_reviews as seller_negative_reviews
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
         LEFT JOIN users u ON p.seller_id = u.id
@@ -209,7 +214,7 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
                p.is_auto_extend, p.auto_extend_seconds, p.status, p.views_count,
                p.bids_count, p.created_at, p.updated_at,
                u.id as seller_id, u.full_name as seller_name, u.email as seller_email,
-               u.rating_percent as seller_rating_percent, u.positive_reviews as seller_positive_reviews,
+               u.positive_reviews as seller_positive_reviews,
                u.negative_reviews as seller_negative_reviews
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
@@ -225,7 +230,8 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
                p.step_price, p.buy_now_price, p.starts_at, p.ends_at,
                p.is_auto_extend, p.auto_extend_seconds, p.status, p.views_count,
                p.bids_count, p.created_at, p.updated_at, u.full_name as seller_name,
-               u.rating_percent as seller_rating_percent, u.positive_reviews as seller_positive_reviews
+               u.positive_reviews as seller_positive_reviews,
+               u.negative_reviews as seller_negative_reviews
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
         LEFT JOIN users u ON p.seller_id = u.id
@@ -242,7 +248,8 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
                p.step_price, p.buy_now_price, p.starts_at, p.ends_at,
                p.is_auto_extend, p.auto_extend_seconds, p.status, p.views_count,
                p.bids_count, p.created_at, p.updated_at, u.full_name as seller_name,
-               u.rating_percent as seller_rating_percent, u.positive_reviews as seller_positive_reviews
+               u.positive_reviews as seller_positive_reviews,
+               u.negative_reviews as seller_negative_reviews
         FROM watchlists w
         LEFT JOIN products p ON w.product_id = p.id
         LEFT JOIN categories c ON p.category_id = c.id

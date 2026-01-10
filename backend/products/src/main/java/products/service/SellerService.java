@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import com.auction.entities.database.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -66,14 +67,7 @@ public class SellerService {
         
         return Mono.zip(
             // Get total count
-            reviewRepository.countByToUserId(sellerId),
-            // Get positive reviews count
-            reviewRepository.countPositiveReviews(sellerId),
-            // Get negative reviews count
-            reviewRepository.countNegativeReviews(sellerId),
-            // Get average score
-            reviewRepository.getAverageScore(sellerId).defaultIfEmpty(0.0),
-            // Get paginated reviews
+            productRepository.findUserById(sellerId),
             reviewRepository.findByToUserIdOrderByCreatedAtDesc(sellerId)
                 .skip(offset)
                 .take(pageSize)
@@ -86,28 +80,19 @@ public class SellerService {
                         .setId(review.getId())
                         .setFromUserId(review.getFromUserId())
                         .setFromUserName(userName)
-                        .setScore(review.getScore())
                         .setComment(review.getComment() != null ? review.getComment() : "")
                         .setCreatedAt(TimeUtils.toEpochSecond(review.getCreatedAt()) * 1000 + "")
                         .build());
                 })
                 .collectList()
         ).map(tuple -> {
-            int totalCount = tuple.getT1();
-            int positiveReviews = tuple.getT2();
-            int negativeReviews = tuple.getT3();
-            double avgScore = tuple.getT4();
-            List<Review> reviews = tuple.getT5();
-            
-            // Calculate rating percent (average score / 5 * 100)
-            float ratingPercent = (float) (avgScore / 5.0 * 100.0);
-            
+            User seller = tuple.getT1();
+            List<Review> reviews = tuple.getT2();
             return new RatingsResult(
-                positiveReviews,
-                negativeReviews,
-                ratingPercent,
+                seller.getPositiveReviews(),
+                seller.getNegativeReviews(),
                 reviews,
-                totalCount
+                seller.getPositiveReviews() + seller.getNegativeReviews()
             );
         });
     }
@@ -658,7 +643,6 @@ public class SellerService {
     public record RatingsResult(
         int positiveReviews,
         int negativeReviews,
-        float ratingPercent,
         List<Review> reviews,
         int totalCount
     ) {}

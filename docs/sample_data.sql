@@ -27,15 +27,15 @@ SET FOREIGN_KEY_CHECKS = 1;
 -- INSERT USERS
 -- password: String1234
 -- =====================
-INSERT INTO `users` (`id`, `email`, `password_hash`, `full_name`, `role`, `phone`, `address`, `is_email_verified`, `positive_reviews`, `negative_reviews`, `rating_percent`) VALUES
-(1, 'nhannguyentrong355@gmail.com', '$2a$10$B9Nb3RVgybru2vvyVNRqrejtZG0V1o9XK8QUlm4lcwybozRwzbYEe', 'Admin User', 'admin', '+84901234567', '123 Admin Street, Ho Chi Minh City', 1, 50, 1, 98.03),
-(2, 'seller1@example.com', '$2a$10$B9Nb3RVgybru2vvyVNRqrejtZG0V1o9XK8QUlm4lcwybozRwzbYEe', 'Nguyen Van A', 'seller', '+84912345678', '456 Seller Avenue, Ho Chi Minh City', 1, 45, 2, 95.74),
-(3, 'seller2@example.com', '$2a$10$B9Nb3RVgybru2vvyVNRqrejtZG0V1o9XK8QUlm4lcwybozRwzbYEe', 'Tran Thi B', 'seller', '+84923456789', '789 Merchant Road, Hanoi', 1, 38, 1, 97.43),
-(4, 'bidder1@example.com', '$2a$10$B9Nb3RVgybru2vvyVNRqrejtZG0V1o9XK8QUlm4lcwybozRwzbYEe', 'Pham Van C', 'bidder', '+84934567890', '321 Buyer Lane, Da Nang', 1, 15, 0, 100.00),
-(5, 'bidder2@example.com', '$2a$10$B9Nb3RVgybru2vvyVNRqrejtZG0V1o9XK8QUlm4lcwybozRwzbYEe', 'Le Thi D', 'bidder', '+84945678901', '654 Customer Street, Can Tho', 1, 22, 1, 95.65),
-(6, 'bidder3@example.com', '$2a$10$B9Nb3RVgybru2vvyVNRqrejtZG0V1o9XK8QUlm4lcwybozRwzbYEe', 'Hoang Van E', 'bidder', '+84956789012', '987 Shopper Court, Hai Phong', 1, 18, 0, 100.00),
-(7, 'seller3@example.com', '$2a$10$B9Nb3RVgybru2vvyVNRqrejtZG0V1o9XK8QUlm4lcwybozRwzbYEe', 'Ngo Thi F', 'seller', '+84967890123', '111 Shop Place, Nha Trang', 1, 52, 3, 94.54),
-(8, 'bidder4@example.com', '$2a$10$B9Nb3RVgybru2vvyVNRqrejtZG0V1o9XK8QUlm4lcwybozRwzbYEe', 'Do Van G', 'bidder', '+84978901234', '222 Auction Street, Vung Tau', 0, 5, 0, 100.00);
+INSERT INTO `users` (`id`, `email`, `password_hash`, `full_name`, `role`, `phone`, `address`, `is_email_verified`, `positive_reviews`, `negative_reviews`) VALUES
+(1, 'nhannguyentrong355@gmail.com', '$2a$10$B9Nb3RVgybru2vvyVNRqrejtZG0V1o9XK8QUlm4lcwybozRwzbYEe', 'Admin User', 'admin', '+84901234567', '123 Admin Street, Ho Chi Minh City', 1, 50, 1),
+(2, 'seller1@example.com', '$2a$10$B9Nb3RVgybru2vvyVNRqrejtZG0V1o9XK8QUlm4lcwybozRwzbYEe', 'Nguyen Van A', 'seller', '+84912345678', '456 Seller Avenue, Ho Chi Minh City', 1, 45, 2),
+(3, 'seller2@example.com', '$2a$10$B9Nb3RVgybru2vvyVNRqrejtZG0V1o9XK8QUlm4lcwybozRwzbYEe', 'Tran Thi B', 'seller', '+84923456789', '789 Merchant Road, Hanoi', 1, 38, 1),
+(4, 'bidder1@example.com', '$2a$10$B9Nb3RVgybru2vvyVNRqrejtZG0V1o9XK8QUlm4lcwybozRwzbYEe', 'Pham Van C', 'bidder', '+84934567890', '321 Buyer Lane, Da Nang', 1, 15, 0),
+(5, 'bidder2@example.com', '$2a$10$B9Nb3RVgybru2vvyVNRqrejtZG0V1o9XK8QUlm4lcwybozRwzbYEe', 'Le Thi D', 'bidder', '+84945678901', '654 Customer Street, Can Tho', 1, 22, 1),
+(6, 'bidder3@example.com', '$2a$10$B9Nb3RVgybru2vvyVNRqrejtZG0V1o9XK8QUlm4lcwybozRwzbYEe', 'Hoang Van E', 'bidder', '+84956789012', '987 Shopper Court, Hai Phong', 1, 18, 0),
+(7, 'seller3@example.com', '$2a$10$B9Nb3RVgybru2vvyVNRqrejtZG0V1o9XK8QUlm4lcwybozRwzbYEe', 'Ngo Thi F', 'seller', '+84967890123', '111 Shop Place, Nha Trang', 1, 52, 3),
+(8, 'bidder4@example.com', '$2a$10$B9Nb3RVgybru2vvyVNRqrejtZG0V1o9XK8QUlm4lcwybozRwzbYEe', 'Do Van G', 'bidder', '+84978901234', '222 Auction Street, Vung Tau', 0, 5, 0);
 
 -- =====================
 -- INSERT CATEGORIES
@@ -204,12 +204,12 @@ INSERT INTO `upgrade_requests` (`id`, `user_id`, `requested_role`, `status`, `ad
 -- =====================
 -- INSERT REVIEWS
 -- =====================
-INSERT INTO `reviews` (`id`, `from_user_id`, `to_user_id`, `product_id`, `score`, `comment`) VALUES
-(1, 4, 2, 1, 5, 'Excellent seller, fast shipping, product is exactly as described.'),
-(2, 5, 2, 2, 5, 'Very professional seller, highly recommended!'),
-(3, 6, 2, 4, 4, 'Good quality furniture, minor scratches on delivery but overall satisfied.'),
-(4, 4, 7, 5, 5, 'Great product, seller very responsive to questions.'),
-(5, 5, 7, 8, 4, 'Good bike, as described. Shipping took a bit longer than expected.');
+INSERT INTO `reviews` (`id`, `from_user_id`, `to_user_id`, `product_id`, `comment`) VALUES
+(1, 4, 2, 1, 'Excellent seller, fast shipping, product is exactly as described.'),
+(2, 5, 2, 2, 'Very professional seller, highly recommended!'),
+(3, 6, 2, 4, 'Good quality furniture, minor scratches on delivery but overall satisfied.'),
+(4, 4, 7, 5, 'Great product, seller very responsive to questions.'),
+(5, 5, 7, 8, 'Good bike, as described. Shipping took a bit longer than expected.');
 
 -- =====================
 -- INSERT ORDERS

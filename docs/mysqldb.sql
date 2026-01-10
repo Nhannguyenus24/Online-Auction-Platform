@@ -9,7 +9,6 @@ CREATE TABLE `users` (
   `is_email_verified` boolean DEFAULT false,
   `positive_reviews` int DEFAULT 0,
   `negative_reviews` int DEFAULT 0,
-  `rating_percent` numeric(5,2) DEFAULT 0,
   `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -100,7 +99,6 @@ CREATE TABLE `reviews` (
   `from_user_id` int NOT NULL,
   `to_user_id` int NOT NULL,
   `product_id` int,
-  `score` int NOT NULL,
   `comment` text,
   `created_at` timestamp DEFAULT CURRENT_TIMESTAMP
 );

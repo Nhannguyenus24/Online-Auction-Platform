@@ -15,18 +15,15 @@ service RatingService {
     
     // Get all ratings for a user
     rpc GetUserRatings (GetUserRatingsRequest) returns (GetUserRatingsResponse);
-    
-    // Get rating statistics for a user
-    rpc GetRatingStats (GetRatingStatsRequest) returns (GetRatingStatsResponse);
 }
 
 // Add/Update rating request
 message AddUserRatingRequest {
-    int32 from_user_id = 1; // người đánh giá
-    int32 to_user_id = 2; // người được đánh giá
-    int32 product_id = 3; // sản phẩm liên quan
-    int32 score = 4; // điểm đánh giá (1-5)
-    string comment = 5; // bình luận (optional)
+    int32 from_user_id = 1;
+    int32 to_user_id = 2;
+    int32 product_id = 3;
+    bool like = 4;
+    string comment = 5;
 }
 
 // Add rating response
@@ -64,24 +61,6 @@ message GetUserRatingsResponse {
     string message = 4;
 }
 
-// Rating statistics request
-message GetRatingStatsRequest {
-    int32 user_id = 1;
-}
-
-// Rating statistics response
-message GetRatingStatsResponse {
-    int32 user_id = 1;
-    int32 total_ratings = 2; // tổng số đánh giá
-    double average_score = 3; // điểm trung bình
-    int32 five_star = 4; // số 5 sao
-    int32 four_star = 5; // số 4 sao
-    int32 three_star = 6; // số 3 sao
-    int32 two_star = 7; // số 2 sao
-    int32 one_star = 8; // số 1 sao
-    string message = 9;
-}
-
 // Rating detail
 message RatingDetail {
     int32 review_id = 1;
@@ -89,7 +68,6 @@ message RatingDetail {
     string from_user_name = 3;
     int32 product_id = 4;
     string product_title = 5;
-    int32 score = 6; // điểm đánh giá (1-5)
     string comment = 7; // bình luận
     int64 created_at = 8;
 }

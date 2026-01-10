@@ -178,7 +178,6 @@ public class AdminService {
                                                             .setIsEmailVerified(user.getIsEmailVerified() != null ? user.getIsEmailVerified() : false)
                                                             .setPositiveReviews(user.getPositiveReviews() != null ? user.getPositiveReviews() : 0)
                                                             .setNegativeReviews(user.getNegativeReviews() != null ? user.getNegativeReviews() : 0)
-                                                            .setRatingPercent(user.getRatingPercent() != null ? user.getRatingPercent().doubleValue() : 0.0)
                                                             .setUserCreatedAt(userCreatedAtMillis)
                                                             .setCurrentRole(user.getRole() != null ? user.getRole() : "")
                                                             .build();
@@ -420,7 +419,6 @@ public class AdminService {
                                     .setIsEmailVerified(user.getIsEmailVerified() != null ? user.getIsEmailVerified() : false)
                                     .setPositiveReviews(user.getPositiveReviews() != null ? user.getPositiveReviews() : 0)
                                     .setNegativeReviews(user.getNegativeReviews() != null ? user.getNegativeReviews() : 0)
-                                    .setRatingPercent(user.getRatingPercent() != null ? user.getRatingPercent().doubleValue() : 0.0)
                                     .setCreatedAt(user.getCreatedAt() != null ? 
                                             user.getCreatedAt().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli() : 0L)
                                     .setUpdatedAt(user.getUpdatedAt() != null ? 

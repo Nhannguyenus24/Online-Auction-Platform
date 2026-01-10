@@ -68,10 +68,4 @@ public class RatingGrpcClient {
         log.info("gRPC getUserRatings request: {}", JsonUtils.toJson(request));
         return ratingServiceStub.getUserRatings(Mono.just(request));
     }
-
-    // Get rating statistics
-    public Mono<GetRatingStatsResponse> getRatingStats(GetRatingStatsRequest request) {
-        log.info("gRPC getRatingStats request: {}", JsonUtils.toJson(request));
-        return ratingServiceStub.getRatingStats(Mono.just(request));
-    }
 }

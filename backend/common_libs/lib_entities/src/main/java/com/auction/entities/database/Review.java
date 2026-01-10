@@ -26,8 +26,6 @@ public class Review {
     
     private Integer productId;
     
-    private Integer score;
-    
     private String comment;
     
     private LocalDateTime createdAt;

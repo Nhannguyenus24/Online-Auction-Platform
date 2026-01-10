@@ -197,8 +197,8 @@ public class GuestService {
             .setViewsCount(dto.viewsCount())
             .setBidsCount(dto.bidsCount())
             .setSellerName(dto.sellerName())
-            .setSellerRatingPercent(dto.sellerRatingPercent())
             .setSellerPositiveReviews(dto.sellerPositiveReviews())
+            .setSellerNegativeReviews(dto.sellerNegativeReviews())
             .addAllImages(images)
             .build();
     }

@@ -28,7 +28,6 @@ public record ProductDetailsRecord(
     LocalDateTime updatedAt,
     String sellerName,
     String sellerEmail,
-    double sellerRatingPercent,
     int sellerPositiveReviews,
     int sellerNegativeReviews
 ) {}

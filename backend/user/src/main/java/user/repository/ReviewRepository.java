@@ -17,6 +17,7 @@ public interface ReviewRepository extends R2dbcRepository<Review, Integer> {
      */
     Mono<Review> findByFromUserIdAndToUserIdAndProductId(Integer fromUserId, Integer toUserId, Integer productId);
 
+    Mono<Long> findIdByFromUserIdAndToUserId(Integer fromUserId, Integer toUserId);
     /**
      * Find all ratings received by a user (ordered by created_at desc)
      */
@@ -32,16 +33,4 @@ public interface ReviewRepository extends R2dbcRepository<Review, Integer> {
      */
     @Query("SELECT COUNT(*) FROM reviews WHERE to_user_id = :toUserId")
     Mono<Integer> countRatingsByUserId(Integer toUserId);
-
-    /**
-     * Get average score for a user
-     */
-    @Query("SELECT AVG(CAST(score AS DECIMAL)) FROM reviews WHERE to_user_id = :toUserId")
-    Mono<Double> getAverageScore(Integer toUserId);
-
-    /**
-     * Count ratings by score for a user
-     */
-    @Query("SELECT COUNT(*) FROM reviews WHERE to_user_id = :toUserId AND score = :score")
-    Mono<Integer> countRatingsByScore(Integer toUserId, Integer score);
 }

@@ -1,15 +1,17 @@
 package user.service;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.auction.entities.database.Review;
-import com.auction.entities.database.User;
-import com.auction.proto.rating.*;
+import com.auction.proto.rating.AddUserRatingRequest;
+import com.auction.proto.rating.AddUserRatingResponse;
+import com.auction.proto.rating.DeleteUserRatingRequest;
+import com.auction.proto.rating.DeleteUserRatingResponse;
+import com.auction.proto.rating.GetUserRatingsRequest;
+import com.auction.proto.rating.GetUserRatingsResponse;
+import com.auction.proto.rating.RatingDetail;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -30,12 +32,34 @@ public class RatingService {
     }
 
     /**
+     * Increment positive review count for a user
+     */
+    private Mono<Void> incrementPositiveReview(Integer userId) {
+        log.info("Incrementing positive review count for user {}", userId);
+        return userRepository.incrementPositiveReviews(userId)
+                .doOnSuccess(count -> log.info("Updated positive reviews for user {}", userId))
+                .doOnError(error -> log.error("Error incrementing positive reviews for user {}", userId, error))
+                .then();
+    }
+
+    /**
+     * Increment negative review count for a user
+     */
+    private Mono<Void> incrementNegativeReview(Integer userId) {
+        log.info("Incrementing negative review count for user {}", userId);
+        return userRepository.incrementNegativeReviews(userId)
+                .doOnSuccess(count -> log.info("Updated negative reviews for user {}", userId))
+                .doOnError(error -> log.error("Error incrementing negative reviews for user {}", userId, error))
+                .then();
+    }
+
+    /**
      * Add or update user rating (1-5 stars)
      * Also updates rating_percent, positive_reviews, negative_reviews in users table
      */
     public Mono<AddUserRatingResponse> addUserRating(AddUserRatingRequest request) {
-        log.info("Processing rating from user {} to user {} for product {} with score {}",
-                request.getFromUserId(), request.getToUserId(), request.getProductId(), request.getScore());
+        log.info("Processing rating from user {} to user {} for product {}",
+                request.getFromUserId(), request.getToUserId(), request.getProductId());
 
         // Check if rating already exists
         return reviewRepository.findByFromUserIdAndToUserIdAndProductId(
@@ -46,7 +70,6 @@ public class RatingService {
         .flatMap(existing -> {
             // Update existing rating
             log.info("Updating existing rating {}", existing.getId());
-            existing.setScore(request.getScore());
             existing.setComment(request.getComment());
             return reviewRepository.save(existing);
         })
@@ -57,22 +80,30 @@ public class RatingService {
                         .fromUserId(request.getFromUserId())
                         .toUserId(request.getToUserId())
                         .productId(request.getProductId())
-                        .score(request.getScore())
                         .comment(request.getComment())
                         .build();
-
-                return reviewRepository.save(review);
+                
+                // Save review and update user statistics based on like/dislike
+                return reviewRepository.save(review)
+                        .flatMap(savedReview -> {
+                            if (request.getLike()) {
+                                return incrementPositiveReview(request.getToUserId())
+                                        .thenReturn(savedReview);
+                            } else {
+                                return incrementNegativeReview(request.getToUserId())
+                                        .thenReturn(savedReview);
+                            }
+                        });
             })
         )
         .flatMap(savedReview -> {
             log.info("Rating saved successfully with id {}", savedReview.getId());
             // Recalculate and update user rating statistics from all reviews
-            return recalculateUserRatingStats(request.getToUserId())
-                    .then(Mono.just(AddUserRatingResponse.newBuilder()
+            return Mono.just(AddUserRatingResponse.newBuilder()
                             .setSuccess(true)
                             .setMessage("Rating added successfully")
                             .setReviewId(savedReview.getId())
-                            .build()));
+                            .build());
         })
         .onErrorResume(error -> {
             log.error("Error saving rating", error);
@@ -81,59 +112,6 @@ public class RatingService {
                     .setMessage("Failed to save rating: " + error.getMessage())
                     .build());
         });
-    }
-
-    /**
-     * Recalculate user rating statistics from all reviews
-     * Updates positive_reviews, negative_reviews, rating_percent in users table
-     */
-    private Mono<Void> recalculateUserRatingStats(Integer toUserId) {
-        return reviewRepository.findByToUserIdOrderByCreatedAtDesc(toUserId)
-                .collectList()
-                .flatMap(reviews -> {
-                    // Count positive (score >= 4) and negative (score < 4) reviews
-                    int positiveCount = 0;
-                    int negativeCount = 0;
-                    
-                    for (Review review : reviews) {
-                        if (review.getScore() >= 4) {
-                            positiveCount++;
-                        } else {
-                            negativeCount++;
-                        }
-                    }
-                    
-                    // Store in final variables for use in lambda
-                    final int positiveReviews = positiveCount;
-                    final int negativeReviews = negativeCount;
-                    final int totalReviews = positiveReviews + negativeReviews;
-                    
-                    // Calculate rating percent
-                    final BigDecimal ratingPercent;
-                    if (totalReviews > 0) {
-                        double percent = (double) positiveReviews / totalReviews * 100.0;
-                        ratingPercent = BigDecimal.valueOf(percent).setScale(2, RoundingMode.HALF_UP);
-                    } else {
-                        ratingPercent = BigDecimal.ZERO;
-                    }
-                    
-                    log.info("Recalculated user {} rating stats: positive={}, negative={}, total={}, ratingPercent={}", 
-                            toUserId, positiveReviews, negativeReviews, totalReviews, ratingPercent);
-                    
-                    // Update user
-                    return userRepository.findByUserId(toUserId)
-                            .flatMap(user -> {
-                                user.setPositiveReviews(positiveReviews);
-                                user.setNegativeReviews(negativeReviews);
-                                user.setRatingPercent(ratingPercent);
-                                return userRepository.save(user);
-                            })
-                            .then();
-                })
-                .onErrorResume(error -> {
-                    log.error("Error recalculating user rating stats for user {}", toUserId, error);
-                    return Mono.empty();
-                });
     }
 
     /**
@@ -200,52 +178,6 @@ public class RatingService {
     }
 
     /**
-     * Get rating statistics for a user
-     */
-    public Mono<GetRatingStatsResponse> getRatingStats(GetRatingStatsRequest request) {
-        log.info("Fetching rating statistics for user {}", request.getUserId());
-
-        Integer userId = request.getUserId();
-
-        return Mono.zip(
-                reviewRepository.countRatingsByUserId(userId),
-                reviewRepository.getAverageScore(userId),
-                reviewRepository.countRatingsByScore(userId, 5),
-                reviewRepository.countRatingsByScore(userId, 4),
-                reviewRepository.countRatingsByScore(userId, 3),
-                reviewRepository.countRatingsByScore(userId, 2),
-                reviewRepository.countRatingsByScore(userId, 1)
-        )
-        .map(tuple -> {
-            int totalRatings = tuple.getT1();
-            double avgScore = tuple.getT2();
-            int fiveStar = tuple.getT3();
-            int fourStar = tuple.getT4();
-            int threeStar = tuple.getT5();
-            int twoStar = tuple.getT6();
-            int oneStar = tuple.getT7();
-
-            return GetRatingStatsResponse.newBuilder()
-                    .setUserId(userId)
-                    .setTotalRatings(totalRatings)
-                    .setAverageScore(avgScore)
-                    .setFiveStar(fiveStar)
-                    .setFourStar(fourStar)
-                    .setThreeStar(threeStar)
-                    .setTwoStar(twoStar)
-                    .setOneStar(oneStar)
-                    .build();
-        })
-        .onErrorResume(error -> {
-            log.error("Error fetching rating statistics", error);
-            return Mono.just(GetRatingStatsResponse.newBuilder()
-                    .setUserId(userId)
-                    .setTotalRatings(0)
-                    .build());
-        });
-    }
-
-    /**
      * Build rating detail with user information
      */
     private Mono<RatingDetail> buildRatingDetail(Review review) {
@@ -256,7 +188,6 @@ public class RatingService {
                         .setFromUserName(fromUser != null ? fromUser.getFullName() : "Unknown")
                         .setProductId(review.getProductId())
                         .setProductTitle("")
-                        .setScore(review.getScore())
                         .setComment(review.getComment() != null ? review.getComment() : "")
                         .setCreatedAt(review.getCreatedAt() != null ? review.getCreatedAt().getSecond() : 0)
                         .build())
@@ -265,7 +196,6 @@ public class RatingService {
                         .setFromUserId(review.getFromUserId())
                         .setFromUserName("Unknown")
                         .setProductId(review.getProductId())
-                        .setScore(review.getScore())
                         .setComment(review.getComment() != null ? review.getComment() : "")
                         .build()))
                 .onErrorResume(error -> {
@@ -275,7 +205,6 @@ public class RatingService {
                             .setFromUserId(review.getFromUserId())
                             .setFromUserName("Unknown")
                             .setProductId(review.getProductId())
-                            .setScore(review.getScore())
                             .build());
                 });
     }

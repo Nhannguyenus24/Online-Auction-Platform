@@ -593,14 +593,12 @@ public class BidderController {
             sellerInfoMap.put("id", sellerInfo.getId());
             sellerInfoMap.put("fullName", sellerInfo.getFullName());
             sellerInfoMap.put("email", sellerInfo.getEmail());
-            sellerInfoMap.put("ratingPercent", sellerInfo.getRatingPercent());
             sellerInfoMap.put("positiveReviews", sellerInfo.getPositiveReviews());
             sellerInfoMap.put("negativeReviews", sellerInfo.getNegativeReviews());
             productMap.put("sellerInfo", sellerInfoMap);
             
             // Also add flat fields for frontend compatibility
             productMap.put("sellerName", sellerInfo.getFullName());
-            productMap.put("sellerRatingPercent", sellerInfo.getRatingPercent());
             productMap.put("sellerRatingCount", sellerInfo.getPositiveReviews() + sellerInfo.getNegativeReviews());
             productMap.put("sellerAvatar", ""); // Avatar not available in proto, set to empty string
         } else {
@@ -751,7 +749,6 @@ public class BidderController {
             result.put("success", true);
             result.put("positiveReviews", response.getPositiveReviews());
             result.put("negativeReviews", response.getNegativeReviews());
-            result.put("ratingPercent", response.getRatingPercent());
             result.put("reviews", mapBidderReviewList(response.getReviewsList()));
             result.put("totalCount", response.getTotalCount());
 
@@ -884,7 +881,6 @@ public class BidderController {
             map.put("id", review.getId());
             map.put("fromUserId", review.getFromUserId());
             map.put("fromUserName", review.getFromUserName());
-            map.put("score", review.getScore());
             map.put("comment", review.getComment());
             map.put("createdAt", review.getCreatedAt());
             result.add(map);
@@ -1129,26 +1125,19 @@ public class BidderController {
             return ResponseEntity.badRequest().body(error);
         }
 
-        if (requestBody.getScore() == null || requestBody.getScore() < 1 || requestBody.getScore() > 5) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("success", false);
-            error.put("message", "Score must be between 1 and 5");
-            return ResponseEntity.badRequest().body(error);
-        }
-
         int bidderId = getUserId();
         int productId = requestBody.getProductId();
-        int score = requestBody.getScore();
+        boolean like = requestBody.getLike();
         String comment = requestBody.getComment() != null ? requestBody.getComment() : "";
 
-        log.info("Rate seller request - sellerId: {}, bidderId: {}, productId: {}, score: {}", 
-                sellerId, bidderId, productId, score);
+        log.info("Rate seller request - sellerId: {}, bidderId: {}, productId: {}",
+                sellerId, bidderId, productId);
 
         AddUserRatingRequest grpcRequest = AddUserRatingRequest.newBuilder()
                 .setFromUserId(bidderId)
                 .setToUserId(sellerId)
                 .setProductId(productId)
-                .setScore(score)
+                .setLike(like)
                 .setComment(comment)
                 .build();
 

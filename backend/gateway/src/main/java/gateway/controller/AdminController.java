@@ -263,7 +263,6 @@ public class AdminController {
                     user.getIsEmailVerified(),
                     user.getPositiveReviews(),
                     user.getNegativeReviews(),
-                    user.getRatingPercent(),
                     user.getCreatedAt(),
                     user.getUpdatedAt()
                 ))
@@ -699,8 +698,6 @@ public class AdminController {
         int positiveReviews,
         @Schema(description = "Negative reviews count", example = "2")
         int negativeReviews,
-        @Schema(description = "Rating percentage", example = "88.5")
-        double ratingPercent,
         @Schema(description = "Created timestamp", example = "1704067200000")
         long createdAt,
         @Schema(description = "Updated timestamp", example = "1704153600000")

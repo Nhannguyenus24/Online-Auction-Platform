@@ -79,8 +79,8 @@ message Product {
   int64 updated_at = 19;
   repeated ProductImage images = 20;
   string seller_name = 21;
-  double seller_rating_percent = 22;
-  int32 seller_positive_reviews = 23;
+  int32 seller_positive_reviews = 22;
+  int32 seller_negative_reviews = 23;
   string highest_bidder_masked = 24; // Masked bidder info for privacy
   int64 time_remaining = 25; // Seconds remaining until end
 }

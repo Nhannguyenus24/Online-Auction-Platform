@@ -70,20 +70,4 @@ public class RatingGrpcService extends ReactorRatingServiceGrpc.RatingServiceImp
                 })
         );
     }
-
-    @Override
-    public Mono<GetRatingStatsResponse> getRatingStats(Mono<GetRatingStatsRequest> request) {
-        return request.doOnNext(req -> log.info("Raw get rating stats request: {}", JsonUtils.toJson(req)))
-                .flatMap(req ->
-            ratingService.getRatingStats(req)
-                .map(result -> result)
-                .doOnNext(result -> log.info("Raw get rating stats: {}", JsonUtils.toJson(result)))
-                .onErrorResume(e -> {
-                    log.error("Get rating stats error: {}", e.getMessage());
-                    return Mono.just(GetRatingStatsResponse.newBuilder()
-                        .setMessage("Failed to fetch rating stats: " + e.getMessage())
-                        .build());
-                })
-        );
-    }
 }

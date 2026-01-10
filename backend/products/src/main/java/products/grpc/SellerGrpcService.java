@@ -159,7 +159,6 @@ public class SellerGrpcService extends ReactorSellerServiceGrpc.SellerServiceImp
                     .map(result -> RatingsResponse.newBuilder()
                         .setPositiveReviews(result.positiveReviews())
                         .setNegativeReviews(result.negativeReviews())
-                        .setRatingPercent(result.ratingPercent())
                         .addAllReviews(result.reviews())
                         .setTotalCount(result.totalCount())
                         .build())

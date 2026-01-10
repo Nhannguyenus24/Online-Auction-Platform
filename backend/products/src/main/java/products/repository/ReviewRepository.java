@@ -25,18 +25,6 @@ public interface ReviewRepository extends R2dbcRepository<Review, Integer> {
     Mono<Integer> countByToUserId(@Param("toUserId") Integer toUserId);
 
     /**
-     * Count positive reviews (score >= 4) for a user
-     */
-    @Query("SELECT COUNT(*) FROM reviews WHERE to_user_id = :toUserId AND score >= 4")
-    Mono<Integer> countPositiveReviews(@Param("toUserId") Integer toUserId);
-
-    /**
-     * Count negative reviews (score < 4) for a user
-     */
-    @Query("SELECT COUNT(*) FROM reviews WHERE to_user_id = :toUserId AND score < 4")
-    Mono<Integer> countNegativeReviews(@Param("toUserId") Integer toUserId);
-
-    /**
      * Get average score for a user
      */
     @Query("SELECT AVG(CAST(score AS DECIMAL)) FROM reviews WHERE to_user_id = :toUserId")

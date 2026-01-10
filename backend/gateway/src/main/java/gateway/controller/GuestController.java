@@ -411,7 +411,6 @@ public class GuestController {
         productMap.put("createdAt", product.getCreatedAt());
         productMap.put("updatedAt", product.getUpdatedAt());
         productMap.put("sellerName", product.getSellerName());
-        productMap.put("sellerRatingPercent", product.getSellerRatingPercent());
         productMap.put("sellerPositiveReviews", product.getSellerPositiveReviews());
         productMap.put("highestBidderMasked", product.getHighestBidderMasked());
         productMap.put("timeRemaining", product.getTimeRemaining());

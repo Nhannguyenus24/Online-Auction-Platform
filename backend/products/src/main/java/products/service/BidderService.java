@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.auction.entities.database.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -886,7 +887,6 @@ public class BidderService {
                 .setId(dto.sellerId())
                 .setFullName(dto.sellerName())
                 .setEmail(dto.sellerEmail() != null ? dto.sellerEmail() : "")
-                .setRatingPercent(dto.sellerRatingPercent())
                 .setPositiveReviews(dto.sellerPositiveReviews())
                 .setNegativeReviews(dto.sellerNegativeReviews())
                 .build();
@@ -1009,7 +1009,6 @@ public class BidderService {
     public static record BidderRatingsResult(
         int positiveReviews,
         int negativeReviews,
-        float ratingPercent,
         List<BidderReview> reviews,
         int totalCount
     ) {}
@@ -1017,7 +1016,6 @@ public class BidderService {
         int id,
         int fromUserId,
         String fromUserName,
-        int score,
         String comment,
         String createdAt
     ) {}
@@ -1093,13 +1091,7 @@ public class BidderService {
         
         return Mono.zip(
             // Get total count
-            reviewRepository.countByToUserId(bidderId),
-            // Get positive reviews count
-            reviewRepository.countPositiveReviews(bidderId),
-            // Get negative reviews count
-            reviewRepository.countNegativeReviews(bidderId),
-            // Get average score
-            reviewRepository.getAverageScore(bidderId).defaultIfEmpty(0.0),
+            productRepository.findUserById(bidderId),
             // Get paginated reviews
             reviewRepository.findByToUserIdOrderByCreatedAtDesc(bidderId)
                 .skip(offset)
@@ -1113,28 +1105,20 @@ public class BidderService {
                         review.getId(),
                         review.getFromUserId(),
                         userName,
-                        review.getScore(),
                         review.getComment() != null ? review.getComment() : "",
                         String.valueOf(TimeUtils.toEpochSecond(review.getCreatedAt()) * 1000)
                     ));
                 })
                 .collectList()
         ).map(tuple -> {
-            int totalCount = tuple.getT1();
-            int positiveReviews = tuple.getT2();
-            int negativeReviews = tuple.getT3();
-            double avgScore = tuple.getT4();
-            List<BidderReview> reviews = tuple.getT5();
-            
-            // Calculate rating percent (average score / 5 * 100)
-            float ratingPercent = (float) (avgScore / 5.0 * 100.0);
-            
+            User bidder = tuple.getT1();
+            List<BidderReview> reviews = tuple.getT2();
+
             return new BidderRatingsResult(
-                positiveReviews,
-                negativeReviews,
-                ratingPercent,
+                    bidder.getPositiveReviews(),
+                bidder.getNegativeReviews(),
                 reviews,
-                totalCount
+                    bidder.getPositiveReviews() +  bidder.getNegativeReviews()
             );
         });
     }
