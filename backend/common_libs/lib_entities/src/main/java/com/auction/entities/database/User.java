@@ -38,8 +38,6 @@ public class User {
     
     private Integer negativeReviews;
     
-    private BigDecimal ratingPercent;
-    
     private LocalDateTime createdAt;
     
     private LocalDateTime updatedAt;

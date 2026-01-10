@@ -604,7 +604,6 @@ public class BidderController {
         } else {
             // If seller info is not available, set defaults
             productMap.put("sellerName", "Unknown Seller");
-            productMap.put("sellerRatingPercent", 0.0);
             productMap.put("sellerRatingCount", 0);
             productMap.put("sellerAvatar", "");
         }

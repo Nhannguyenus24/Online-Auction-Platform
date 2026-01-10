@@ -45,6 +45,8 @@ import {
   Block,
   Home,
   NavigateNext,
+  ThumbUp,
+  ThumbDown,
 } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
@@ -1072,17 +1074,19 @@ function ProductDetailPage() {
                           <Typography variant="h6" fontWeight="medium">
                             {product.seller.name}
                           </Typography>
-                          <Stack direction="row" spacing={1} alignItems="center">
-                            <Rating
-                              value={product.seller.rating}
-                              precision={0.1}
-                              size="small"
-                              readOnly
-                            />
-                            <Typography variant="body2" color="text.secondary">
-                              {product.seller.rating.toFixed(1)} ({product.seller.ratingCount}{' '}
-                              reviews)
-                            </Typography>
+                          <Stack direction="row" spacing={2} alignItems="center">
+                            <Stack direction="row" spacing={0.5} alignItems="center">
+                              <ThumbUp fontSize="small" color="success" />
+                              <Typography variant="body2" color="text.secondary">
+                                {product.seller.positiveReviews || 0}
+                              </Typography>
+                            </Stack>
+                            <Stack direction="row" spacing={0.5} alignItems="center">
+                              <ThumbDown fontSize="small" color="error" />
+                              <Typography variant="body2" color="text.secondary">
+                                {product.seller.negativeReviews || 0}
+                              </Typography>
+                            </Stack>
                           </Stack>
                         </Box>
                       </Stack>

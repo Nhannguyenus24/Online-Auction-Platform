@@ -1,6 +1,5 @@
 package user.service;
 
-import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -72,7 +71,6 @@ public class AuthService {
                     user.setIsEmailVerified(false);
                     user.setPositiveReviews(0);
                     user.setNegativeReviews(0);
-                    user.setRatingPercent(BigDecimal.ZERO);
                     user.setCreatedAt(TimeUtils.now());
 
                     return userRepository.save(user)
@@ -421,7 +419,6 @@ public class AuthService {
                         newUser.setIsEmailVerified(true); // Google accounts are already verified
                         newUser.setPositiveReviews(0);
                         newUser.setNegativeReviews(0);
-                        newUser.setRatingPercent(BigDecimal.ZERO);
                         newUser.setCreatedAt(TimeUtils.now());
                         
                         return userRepository.save(newUser);
