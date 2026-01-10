@@ -2,7 +2,7 @@ package com.auction.entities.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
-public class RateBidderRequest {
+public class RateSellerRequest {
     
     @Schema(description = "Order ID", example = "456")
     private Integer orderId;
@@ -13,13 +13,13 @@ public class RateBidderRequest {
     @Schema(description = "Rating score (1-5)", example = "5", minimum = "1", maximum = "5")
     private Integer score;
     
-    @Schema(description = "Comment for the rating", example = "Great buyer, fast payment!")
+    @Schema(description = "Comment for the rating", example = "Great seller, fast shipping!")
     private String comment;
 
-    public RateBidderRequest() {
+    public RateSellerRequest() {
     }
 
-    public RateBidderRequest(Integer orderId, Integer productId, Integer score, String comment) {
+    public RateSellerRequest(Integer orderId, Integer productId, Integer score, String comment) {
         this.orderId = orderId;
         this.productId = productId;
         this.score = score;
@@ -32,6 +32,14 @@ public class RateBidderRequest {
 
     public void setOrderId(Integer orderId) {
         this.orderId = orderId;
+    }
+
+    public Integer getProductId() {
+        return productId;
+    }
+
+    public void setProductId(Integer productId) {
+        this.productId = productId;
     }
 
     public Integer getScore() {
@@ -48,13 +56,5 @@ public class RateBidderRequest {
 
     public void setComment(String comment) {
         this.comment = comment;
-    }
-
-    public Integer getProductId() {
-        return productId;
-    }
-
-    public void setProductId(Integer productId) {
-        this.productId = productId;
     }
 }

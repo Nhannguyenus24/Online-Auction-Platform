@@ -25,6 +25,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.auction.proto.user.*;
 
 import gateway.grpc.BidderGrpcClient;
+import gateway.grpc.RatingGrpcClient;
+import com.auction.proto.rating.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -37,9 +39,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public class BidderController {
     private static final Logger log = LoggerFactory.getLogger(BidderController.class);
     private final BidderGrpcClient bidderGrpcClient;
+    private final RatingGrpcClient ratingGrpcClient;
 
-    public BidderController(BidderGrpcClient bidderGrpcClient) {
+    public BidderController(BidderGrpcClient bidderGrpcClient, RatingGrpcClient ratingGrpcClient) {
         this.bidderGrpcClient = bidderGrpcClient;
+        this.ratingGrpcClient = ratingGrpcClient;
     }
 
     private int getUserId() {
@@ -1100,6 +1104,72 @@ public class BidderController {
             Map<String, Object> error = new HashMap<>();
             error.put("success", false);
             error.put("message", "Error: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    @PostMapping("/sellers/{sellerId}/rate")
+    @Operation(summary = "Rate seller", description = "Rate a seller after transaction. Requires authentication.")
+    public ResponseEntity<Map<String, Object>> rateSeller(
+            @Parameter(description = "Seller ID", required = true)
+            @PathVariable int sellerId,
+            @RequestBody com.auction.entities.dto.RateSellerRequest requestBody) {
+
+        if (sellerId <= 0) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Invalid sellerId");
+            return ResponseEntity.badRequest().body(error);
+        }
+
+        if (requestBody == null || requestBody.getProductId() == null || requestBody.getProductId() <= 0) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Product ID is required");
+            return ResponseEntity.badRequest().body(error);
+        }
+
+        if (requestBody.getScore() == null || requestBody.getScore() < 1 || requestBody.getScore() > 5) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Score must be between 1 and 5");
+            return ResponseEntity.badRequest().body(error);
+        }
+
+        int bidderId = getUserId();
+        int productId = requestBody.getProductId();
+        int score = requestBody.getScore();
+        String comment = requestBody.getComment() != null ? requestBody.getComment() : "";
+
+        log.info("Rate seller request - sellerId: {}, bidderId: {}, productId: {}, score: {}", 
+                sellerId, bidderId, productId, score);
+
+        AddUserRatingRequest grpcRequest = AddUserRatingRequest.newBuilder()
+                .setFromUserId(bidderId)
+                .setToUserId(sellerId)
+                .setProductId(productId)
+                .setScore(score)
+                .setComment(comment)
+                .build();
+
+        try {
+            var response = ratingGrpcClient.addUserRating(grpcRequest).block();
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", response.getSuccess());
+            result.put("message", response.getMessage());
+            result.put("reviewId", response.getReviewId());
+
+            if (response.getSuccess()) {
+                log.info("Rate seller successful - sellerId: {}, reviewId: {}", sellerId, response.getReviewId());
+                return ResponseEntity.ok(result);
+            } else {
+                return ResponseEntity.badRequest().body(result);
+            }
+        } catch (Exception e) {
+            log.error("Rate seller error: {}", e.getMessage(), e);
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "Failed to rate seller: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }

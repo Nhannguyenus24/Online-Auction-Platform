@@ -50,6 +50,8 @@ import com.auctionplatform.seller.grpc.Transaction;
 import com.auctionplatform.seller.grpc.UpdateOrderStatusRequest;
 
 import gateway.grpc.SellerGrpcClient;
+import gateway.grpc.RatingGrpcClient;
+import com.auction.proto.rating.*;
 import gateway.service.CloudinaryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -67,10 +69,12 @@ import jakarta.validation.constraints.Positive;
 public class SellerController {
     private static final Logger log = LoggerFactory.getLogger(SellerController.class);
     private final SellerGrpcClient sellerGrpcClient;
+    private final RatingGrpcClient ratingGrpcClient;
     private final CloudinaryService cloudinaryService;
 
-    public SellerController(SellerGrpcClient sellerGrpcClient, CloudinaryService cloudinaryService) {
+    public SellerController(SellerGrpcClient sellerGrpcClient, RatingGrpcClient ratingGrpcClient, CloudinaryService cloudinaryService) {
         this.sellerGrpcClient = sellerGrpcClient;
+        this.ratingGrpcClient = ratingGrpcClient;
         this.cloudinaryService = cloudinaryService;
     }
 
@@ -705,17 +709,23 @@ public class SellerController {
             @RequestBody com.auction.entities.dto.RateBidderRequest requestBody) {
 
         int sellerId = getUserId();
-        int orderId = requestBody.getOrderId();
-        int score = requestBody.getScore();
+        Integer orderId = requestBody.getOrderId();
+        Integer productId = requestBody.getProductId();
+        Integer score = requestBody.getScore();
         String comment = requestBody.getComment();
         
         // Validate orderId
-        if (orderId <= 0) {
+        if (orderId != null && orderId <= 0) {
             return badRequestResponse("Order ID must be greater than 0");
         }
         
+        // Validate productId
+        if (productId == null || productId <= 0) {
+            return badRequestResponse("Product ID is required and must be greater than 0");
+        }
+        
         // Validate score (1-5)
-        if (score < 1 || score > 5) {
+        if (score == null || score < 1 || score > 5) {
             return badRequestResponse("Score must be between 1 and 5");
         }
         
@@ -724,25 +734,26 @@ public class SellerController {
             return badRequestResponse("Comment must not exceed 1000 characters");
         }
         
-        log.info("Rate bidder request - bidderId: {}, sellerId: {}, orderId: {}, score: {}", 
-                bidderId, sellerId, orderId, score);
+        log.info("Rate bidder request - bidderId: {}, sellerId: {}, productId: {}, orderId: {}, score: {}", 
+                bidderId, sellerId, productId, orderId, score);
 
-        RateBidderRequest grpcRequest = RateBidderRequest.newBuilder()
-                .setSellerId(sellerId)
-                .setBidderId(bidderId)
-                .setOrderId(orderId)
+        AddUserRatingRequest grpcRequest = AddUserRatingRequest.newBuilder()
+                .setFromUserId(sellerId)
+                .setToUserId(bidderId)
+                .setProductId(productId)
                 .setScore(score)
                 .setComment(comment != null ? comment : "")
                 .build();
 
         try {
-            var response = sellerGrpcClient.rateBidder(grpcRequest).block();
+            var response = ratingGrpcClient.addUserRating(grpcRequest).block();
             Map<String, Object> result = new HashMap<>();
             result.put("success", response.getSuccess());
             result.put("message", response.getMessage());
+            result.put("reviewId", response.getReviewId());
 
             if (response.getSuccess()) {
-                log.info("Rate bidder successful - bidderId: {}", bidderId);
+                log.info("Rate bidder successful - bidderId: {}, reviewId: {}", bidderId, response.getReviewId());
                 return ResponseEntity.ok(result);
             } else {
                 return ResponseEntity.badRequest().body(result);

@@ -1,10 +1,14 @@
 package user.service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.auction.entities.database.Review;
+import com.auction.entities.database.User;
 import com.auction.proto.rating.*;
 
 import reactor.core.publisher.Flux;
@@ -27,6 +31,7 @@ public class RatingService {
 
     /**
      * Add or update user rating (1-5 stars)
+     * Also updates rating_percent, positive_reviews, negative_reviews in users table
      */
     public Mono<AddUserRatingResponse> addUserRating(AddUserRatingRequest request) {
         log.info("Processing rating from user {} to user {} for product {} with score {}",
@@ -61,11 +66,13 @@ public class RatingService {
         )
         .flatMap(savedReview -> {
             log.info("Rating saved successfully with id {}", savedReview.getId());
-            return Mono.just(AddUserRatingResponse.newBuilder()
-                    .setSuccess(true)
-                    .setMessage("Rating added successfully")
-                    .setReviewId(savedReview.getId())
-                    .build());
+            // Recalculate and update user rating statistics from all reviews
+            return recalculateUserRatingStats(request.getToUserId())
+                    .then(Mono.just(AddUserRatingResponse.newBuilder()
+                            .setSuccess(true)
+                            .setMessage("Rating added successfully")
+                            .setReviewId(savedReview.getId())
+                            .build()));
         })
         .onErrorResume(error -> {
             log.error("Error saving rating", error);
@@ -74,6 +81,59 @@ public class RatingService {
                     .setMessage("Failed to save rating: " + error.getMessage())
                     .build());
         });
+    }
+
+    /**
+     * Recalculate user rating statistics from all reviews
+     * Updates positive_reviews, negative_reviews, rating_percent in users table
+     */
+    private Mono<Void> recalculateUserRatingStats(Integer toUserId) {
+        return reviewRepository.findByToUserIdOrderByCreatedAtDesc(toUserId)
+                .collectList()
+                .flatMap(reviews -> {
+                    // Count positive (score >= 4) and negative (score < 4) reviews
+                    int positiveCount = 0;
+                    int negativeCount = 0;
+                    
+                    for (Review review : reviews) {
+                        if (review.getScore() >= 4) {
+                            positiveCount++;
+                        } else {
+                            negativeCount++;
+                        }
+                    }
+                    
+                    // Store in final variables for use in lambda
+                    final int positiveReviews = positiveCount;
+                    final int negativeReviews = negativeCount;
+                    final int totalReviews = positiveReviews + negativeReviews;
+                    
+                    // Calculate rating percent
+                    final BigDecimal ratingPercent;
+                    if (totalReviews > 0) {
+                        double percent = (double) positiveReviews / totalReviews * 100.0;
+                        ratingPercent = BigDecimal.valueOf(percent).setScale(2, RoundingMode.HALF_UP);
+                    } else {
+                        ratingPercent = BigDecimal.ZERO;
+                    }
+                    
+                    log.info("Recalculated user {} rating stats: positive={}, negative={}, total={}, ratingPercent={}", 
+                            toUserId, positiveReviews, negativeReviews, totalReviews, ratingPercent);
+                    
+                    // Update user
+                    return userRepository.findByUserId(toUserId)
+                            .flatMap(user -> {
+                                user.setPositiveReviews(positiveReviews);
+                                user.setNegativeReviews(negativeReviews);
+                                user.setRatingPercent(ratingPercent);
+                                return userRepository.save(user);
+                            })
+                            .then();
+                })
+                .onErrorResume(error -> {
+                    log.error("Error recalculating user rating stats for user {}", toUserId, error);
+                    return Mono.empty();
+                });
     }
 
     /**
