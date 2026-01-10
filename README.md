@@ -68,7 +68,7 @@ A comprehensive online auction platform built with microservices architecture, f
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/yourusername/Online-Auction-Platform.git
+git clone https://github.com/Nhannguyenus24/Online-Auction-Platform.git
 cd Online-Auction-Platform
 ```
 
