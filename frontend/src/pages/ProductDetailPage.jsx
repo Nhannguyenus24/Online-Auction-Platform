@@ -92,6 +92,7 @@ function ProductDetailPage() {
   const relatedProductsRef = useRef(null);
   const [isSeller, setIsSeller] = useState(false);
   const [timeLeft, setTimeLeft] = useState('');
+  const [hasStarted, setHasStarted] = useState(true);
   // Loading and error states
   const [loading, setLoading] = useState({
     product: true,
@@ -144,6 +145,7 @@ function ProductDetailPage() {
                 }
               : null,
             postedTime: apiProduct.createdAt ? normalizeTimestamp(apiProduct.createdAt) : new Date(),
+            startsAt: apiProduct.startsAt ? normalizeTimestamp(apiProduct.startsAt) : null,
             endTime: apiProduct.endsAt ? normalizeTimestamp(apiProduct.endsAt) : new Date(),
             status: apiProduct.status || "ACTIVE",
             category: apiProduct.category
@@ -320,14 +322,32 @@ function ProductDetailPage() {
 
   // Update countdown timer every second
   useEffect(() => {
-    if (!product || !product.endTime) return;
+    if (!product) return;
+
+    // Check if auction has started
+    const now = new Date();
+    const startsAt = product.startsAt ? (product.startsAt instanceof Date ? product.startsAt : normalizeTimestamp(product.startsAt)) : null;
+    const hasStartedAuction = !startsAt || now >= startsAt;
+    setHasStarted(hasStartedAuction);
 
     // Update immediately
-    setTimeLeft(getTimeLeft(product.endTime));
+    if (!hasStartedAuction && startsAt) {
+      setTimeLeft(getTimeLeft(startsAt, true));
+    } else if (product.endTime) {
+      setTimeLeft(getTimeLeft(product.endTime, false));
+    }
 
     // Then update every second
     const timer = setInterval(() => {
-      setTimeLeft(getTimeLeft(product.endTime));
+      const currentNow = new Date();
+      const currentHasStarted = !startsAt || currentNow >= startsAt;
+      setHasStarted(currentHasStarted);
+      
+      if (!currentHasStarted && startsAt) {
+        setTimeLeft(getTimeLeft(startsAt, true));
+      } else if (product.endTime) {
+        setTimeLeft(getTimeLeft(product.endTime, false));
+      }
     }, 1000);
 
     return () => clearInterval(timer);
@@ -382,17 +402,19 @@ function ProductDetailPage() {
 
     return () => clearInterval(slideInterval);
   }, [product]);
-  const getTimeLeft = (endTime) => {
-    // Check if product has ended
-    if (product?.status?.toLowerCase() === 'ended') {
+  const getTimeLeft = (targetTime, isStartTime = false) => {
+    // Check if product has ended (only for end time)
+    if (!isStartTime && product?.status?.toLowerCase() === 'ended') {
       return 'Ended';
     }
     
     const now = new Date();
-    const normalizedEndTime = endTime instanceof Date ? endTime : normalizeTimestamp(endTime);
-    const diff = normalizedEndTime - now;
+    const normalizedTime = targetTime instanceof Date ? targetTime : normalizeTimestamp(targetTime);
+    const diff = normalizedTime - now;
     
-    if (diff <= 0) return 'Ended';
+    if (diff <= 0) {
+      return isStartTime ? 'Started' : 'Ended';
+    }
     
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
@@ -432,6 +454,10 @@ function ProductDetailPage() {
   const handlePlaceBid = () => {
     if (!isAuthenticated) {
       navigate('/auth/login');
+      return;
+    }
+    if (!hasStarted) {
+      enqueueSnackbar('Auction has not started yet. Please wait for the auction to begin.', { variant: 'warning' });
       return;
     }
     setOpenBidDialog(true);
@@ -953,12 +979,12 @@ function ProductDetailPage() {
                       </Stack>
                     </Box>
 
-                    {/* Time Left */}
-                    <Box sx={{ mb: 3, p: 2, bgcolor: "warning.light", borderRadius: 1 }}>
+                    {/* Time Left / Starts At */}
+                    <Box sx={{ mb: 3, p: 2, bgcolor: hasStarted ? "warning.light" : "info.light", borderRadius: 1 }}>
                       <Stack direction="row" spacing={1} alignItems="center">
                         <AccessTime fontSize="small" />
                         <Typography variant="body1" fontWeight="medium">
-                          Time Left: {timeLeft}
+                          {hasStarted ? `Time Left: ${timeLeft}` : `Starts In: ${timeLeft}`}
                         </Typography>
                       </Stack>
                     </Box>
@@ -1014,9 +1040,9 @@ function ProductDetailPage() {
                           onClick={handlePlaceBid}
                           fullWidth
                           sx={{ py: 1.5 }}
-                          disabled={product.status?.toLowerCase() === 'ended'}
+                          disabled={product.status?.toLowerCase() === 'ended' || !hasStarted}
                         >
-                          Place Bid
+                          {hasStarted ? 'Place Bid' : 'Auction Not Started'}
                         </Button>
                         {product.buyNowPrice && (
                           <Button
@@ -1026,7 +1052,7 @@ function ProductDetailPage() {
                             onClick={handleBuyNow}
                             fullWidth
                             sx={{ py: 1.5 }}
-                            disabled={product.status?.toLowerCase() === 'ended'}
+                            disabled={product.status?.toLowerCase() === 'ended' || !hasStarted}
                           >
                             Buy Now
                           </Button>
