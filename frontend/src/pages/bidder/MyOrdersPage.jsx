@@ -32,7 +32,9 @@ import Page from '../../components/Page';
 import { formatPrice } from '../../utils/formatNumber';
 import { fVNDate, normalizeTimestamp } from '../../utils/formatTime';
 import { orderApi } from '../../services/orderApi';
+import { authApi } from '../../utils/api';
 import PaymentModal from '../../components/PaymentModal';
+import { set } from 'date-fns';
 
 const BidderMyOrdersPage = () => {
   const [loading, setLoading] = useState(true);
@@ -51,6 +53,18 @@ const BidderMyOrdersPage = () => {
   });
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [user, setUser] = useState(null);
+  useEffect(() => {
+    const fetchProfile = async () => {
+        try {
+          const profileResponse = await authApi.getProfile();
+          setUser(profileResponse.data.profile);
+        } catch (err) {
+          console.error('Error fetching profile:', err);
+        }
+    };
+    fetchProfile();
+  }, []);
 
   useEffect(() => {
     fetchOrders();
@@ -359,6 +373,7 @@ const BidderMyOrdersPage = () => {
             order={selectedOrder}
             onSuccess={handlePaymentSuccess}
             onError={handlePaymentError}
+            userProfile={user}
           />
         )}
       </Container>

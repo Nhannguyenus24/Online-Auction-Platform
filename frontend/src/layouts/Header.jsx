@@ -26,7 +26,6 @@ import {
   ShoppingCart,
   Gavel,
   Person,
-  Settings,
   Logout,
   Dashboard,
   AttachMoney,
@@ -213,7 +212,7 @@ const Header = () => {
     } finally {
       authLogout();
       handleCloseUserMenu();
-      navigate('/auth/login');
+      navigate('/');
     }
   };
 

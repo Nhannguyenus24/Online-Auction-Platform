@@ -277,14 +277,17 @@ public class BidderService {
                 }
                 
                 // Insert bid into database and fetch user info for Redis
-                return Mono.zip(
-                    productRepository.getUserEmail(userId).defaultIfEmpty(""),
-                    productRepository.getUserFullName(userId).defaultIfEmpty("")
-                )
-                .flatMap(userInfo -> {
-                    String email = userInfo.getT1();
-                    String userName = userInfo.getT2();
-                    
+                return productRepository.findUserById(userId)
+                .flatMap(user -> {
+                    String email = user.getEmail();
+                    String userName = user.getFullName();
+                    int positive = user.getPositiveReviews();
+                    int negative = user.getNegativeReviews();
+                    int total = positive + negative;
+
+                    if (total > 0 && (double) positive / total > 0.8) {
+                        return Mono.error(new IllegalArgumentException("User rating is too low to participate in this auction"));
+                    }
                     return productRepository.insertBid(productId, userId, bidAmount, false)
                         .then(saveBidderProfileToRedis(productId, userId, bidAmount, email, userName))
                         .then(redisService.zAdd("auction:" + productId + ":bids", String.valueOf(userId), bidAmount))
@@ -407,18 +410,6 @@ public class BidderService {
                 return Mono.error(new IllegalStateException("Auction has ended"));
             }
 
-            // Check user eligibility: positive_reviews > 4 * negative_reviews
-//            int positiveReviews = reviewCounts.positiveReviews();
-//            int negativeReviews = reviewCounts.negativeReviews();
-//
-//            log.info("User {} review counts - positive: {}, negative: {}", userId, positiveReviews, negativeReviews);
-
-//            if (positiveReviews <= 4 * negativeReviews) {
-//                return Mono.error(new IllegalStateException(
-//                    String.format("User not eligible for buy now. Positive reviews (%d) must be > 4 × negative reviews (%d)",
-//                        positiveReviews, negativeReviews)));
-//            }
-
             double buyNowPrice = product.getBuyNowPrice().doubleValue();
 
             // Update product status to ended
@@ -430,6 +421,14 @@ public class BidderService {
                     product.getSellerId(),
                     buyNowPrice
                 ))
+                .then(Mono.fromRunnable(() -> {
+                        // Reschedule auction end
+                        auctionService.scheduleEndAuction(
+                                (long) productId,
+                                TimeUtils.toInstant(LocalDateTime.now().plusMinutes(1)),
+                                () -> {}
+                        );
+                }))
                 .then(Mono.defer(() -> {
                     log.info("Buy now successful - Order created: productId={}, buyerId={}, sellerId={}, price={}",
                         productId, userId, product.getSellerId(), buyNowPrice);
@@ -447,8 +446,8 @@ public class BidderService {
                     return Mono.just(result);
                 }));
         })
-        .doOnSuccess(result -> log.info("Buy now completed successfully: product={}, user={}, orderId={}",
-            productId, userId, result.orderId()))
+        .doOnSuccess(result -> log.info("Buy now completed successfully: product={}, user={}",
+            productId, userId))
         .doOnError(e -> log.error("Error in buy now: product={}, user={}, error={}",
             productId, userId, e.getMessage()));
     }
@@ -957,7 +956,7 @@ public class BidderService {
      * @param amount the order amount
      * @return Mono<Void>
      */
-    private Mono<Void> createConversationForOrder(com.auction.entities.database.Product product, int buyerId, double amount) {
+    private Mono<Void>  createConversationForOrder(com.auction.entities.database.Product product, int buyerId, double amount) {
         log.info("Creating conversation for buyer={}, seller={}, product={}", buyerId, product.getSellerId(), product.getId());
         
         // Get buyer and seller information
@@ -1002,7 +1001,6 @@ public class BidderService {
     public static record QuestionsResult(List<Question> questions, PageInfo pageInfo) {}
     public static record BidsResult(List<Bid> bids, PageInfo pageInfo) {}
     public static record PlaceBidResult(int bidId, double currentPrice, double nextMinBid, long createdAt, boolean isHighestBidder) {}
-    public static record AutoBidResult(int autoBidId, double maxAmount, double currentBid, long createdAt) {}
     public static record MyBidsResult(List<BidHistoryItem> bids, PageInfo pageInfo) {}
     public static record NotificationsResult(List<UserNotification> notifications, long unreadCount) {}
     public static record BuyNowResult(int orderId, double price, long createdAt) {}

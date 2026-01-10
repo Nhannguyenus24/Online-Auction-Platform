@@ -33,15 +33,15 @@ const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 
  * @param {Function} props.onSuccess - Callback when payment succeeds
  * @param {Function} props.onError - Callback when payment fails
  */
-const PaymentModal = ({ open, onClose, order, onSuccess, onError }) => {
+const PaymentModal = ({ open, onClose, order, onSuccess, onError, userProfile }) => {
   const [error, setError] = useState(null);
   const [shippingInfo, setShippingInfo] = useState({
-    fullName: '',
-    phone: '',
-    address: '',
-    city: '',
-    state: '',
-    postalCode: '',
+    fullName: userProfile?.fullName || '',
+    phone: userProfile?.phoneNumber || '',
+    address: userProfile?.address || '',
+    city: userProfile?.city || '',
+    state: userProfile?.state || '',
+    postalCode: userProfile?.postalCode || '',
     country: 'US',
   });
 

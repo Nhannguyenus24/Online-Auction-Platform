@@ -10,6 +10,13 @@ import {
   Stack,
   Skeleton,
   Alert,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
 } from "@mui/material";
 import {
   AccessTime,
@@ -188,7 +195,9 @@ const HomePage = () => {
 
         // Process highest price products
         if (highestPriceRes.success) {
-          const mappedProducts = (highestPriceRes.products || []).map(mapProductFromAPI);
+          const mappedProducts = (highestPriceRes.products || [])
+            .map(mapProductFromAPI)
+            .sort((a, b) => b.currentPrice - a.currentPrice); // Sort by price: highest to lowest
           setHighestPriceProducts(mappedProducts);
           setLoading(prev => ({ ...prev, highestPrice: false }));
           setErrors(prev => ({ ...prev, highestPrice: null }));
@@ -208,7 +217,14 @@ const HomePage = () => {
       }
     };
 
+    // Fetch immediately on mount
     fetchTopProducts();
+
+    // Set up interval to fetch every 1 minute (60000ms)
+    const interval = setInterval(fetchTopProducts, 60000);
+
+    // Cleanup interval on unmount
+    return () => clearInterval(interval);
   }, []);
 
   // Calculate time left
@@ -456,156 +472,86 @@ const HomePage = () => {
               </Box>
             </Box>
           </Box>
-          <Box
+          <TableContainer
+            component={Paper}
             sx={{
-              bgcolor: "white",
-              borderRadius: 2,
-              overflow: "hidden",
               boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
               border: "1px solid",
               borderColor: "grey.200",
             }}
           >
-            <Box sx={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr
-                    style={{
-                      backgroundColor: "#f5f5f5",
-                      borderBottom: "2px solid #e0e0e0",
-                    }}
-                  >
-                    <th
-                      style={{
-                        padding: "16px",
-                        textAlign: "left",
-                        fontWeight: 600,
-                        fontSize: "0.875rem",
-                        color: "#666",
-                      }}
-                    >
-                      Product
-                    </th>
-                    <th
-                      style={{
-                        padding: "16px",
-                        textAlign: "left",
-                        fontWeight: 600,
-                        fontSize: "0.875rem",
-                        color: "#666",
-                      }}
-                    >
-                      Condition
-                    </th>
-                    <th
-                      style={{
-                        padding: "16px",
-                        textAlign: "right",
-                        fontWeight: 600,
-                        fontSize: "0.875rem",
-                        color: "#666",
-                      }}
-                    >
-                      Current Bid
-                    </th>
-                    <th
-                      style={{
-                        padding: "16px",
-                        textAlign: "center",
-                        fontWeight: 600,
-                        fontSize: "0.875rem",
-                        color: "#666",
-                      }}
-                    >
-                      Bids
-                    </th>
-                    <th
-                      style={{
-                        padding: "16px",
-                        textAlign: "center",
-                        fontWeight: 600,
-                        fontSize: "0.875rem",
-                        color: "#666",
-                      }}
-                    >
-                      Time Left
-                    </th>
-                    <th
-                      style={{
-                        padding: "16px",
-                        textAlign: "center",
-                        fontWeight: 600,
-                        fontSize: "0.875rem",
-                        color: "#666",
-                      }}
-                    >
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading.endingSoon ? (
-                    [...Array(5)].map((_, index) => (
-                      <tr key={`skeleton-ending-${index}`} style={{ borderBottom: '1px solid #e0e0e0' }}>
-                        <td style={{ padding: '16px' }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                            <Skeleton variant="rectangular" width={60} height={60} />
-                            <Skeleton variant="text" width={250} height={20} />
-                          </Box>
-                        </td>
-                        <td style={{ padding: '16px' }}>
-                          <Skeleton variant="text" width={80} height={32} />
-                        </td>
-                        <td style={{ padding: '16px', textAlign: 'right' }}>
-                          <Skeleton variant="text" width={100} height={24} />
-                        </td>
-                        <td style={{ padding: '16px', textAlign: 'center' }}>
-                          <Skeleton variant="text" width={50} height={24} />
-                        </td>
-                        <td style={{ padding: '16px', textAlign: 'center' }}>
-                          <Skeleton variant="text" width={85} height={24} />
-                        </td>
-                        <td style={{ padding: '16px', textAlign: 'center' }}>
-                          <Skeleton variant="text" width={80} height={36} />
-                        </td>
-                      </tr>
-                    ))
-                  ) : errors.endingSoon ? (
-                    <tr>
-                      <td colSpan={6} style={{ padding: '20px' }}>
-                        <Alert severity="error">{errors.endingSoon}</Alert>
-                      </td>
-                    </tr>
-                  ) : endingSoonProducts.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} style={{ padding: '40px', textAlign: 'center' }}>
-                        <Typography color="text.secondary">No products available</Typography>
-                      </td>
-                    </tr>
-                  ) : (
-                    endingSoonProducts.map((product, index) => (
-                    <tr
+            <Table>
+              <TableHead>
+                <TableRow sx={{ bgcolor: "grey.100" }}>
+                  <TableCell sx={{ fontWeight: 600, color: "text.secondary" }}>
+                    Product
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: "text.secondary" }}>
+                    Condition
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 600, color: "text.secondary" }}>
+                    Current Bid
+                  </TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 600, color: "text.secondary" }}>
+                    Bids
+                  </TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 600, color: "text.secondary" }}>
+                    Time Left
+                  </TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 600, color: "text.secondary" }}>
+                    Action
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {loading.endingSoon ? (
+                  [...Array(5)].map((_, index) => (
+                    <TableRow key={`skeleton-ending-${index}`}>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <Skeleton variant="rectangular" width={60} height={60} />
+                          <Skeleton variant="text" width={250} height={20} />
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton variant="text" width={80} height={32} />
+                      </TableCell>
+                      <TableCell align="right">
+                        <Skeleton variant="text" width={100} height={24} />
+                      </TableCell>
+                      <TableCell align="center">
+                        <Skeleton variant="text" width={50} height={24} />
+                      </TableCell>
+                      <TableCell align="center">
+                        <Skeleton variant="text" width={85} height={24} />
+                      </TableCell>
+                      <TableCell align="center">
+                        <Skeleton variant="text" width={80} height={36} />
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : errors.endingSoon ? (
+                  <TableRow>
+                    <TableCell colSpan={6}>
+                      <Alert severity="error">{errors.endingSoon}</Alert>
+                    </TableCell>
+                  </TableRow>
+                ) : endingSoonProducts.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} align="center" sx={{ py: 5 }}>
+                      <Typography color="text.secondary">No products available</Typography>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  endingSoonProducts.map((product, index) => (
+                    <TableRow
                       key={`ending-soon-${product.id}-${index}`}
-                      style={{
-                        borderBottom:
-                          index < endingSoonProducts.length - 1
-                            ? "1px solid #e0e0e0"
-                            : "none",
-                        cursor: "pointer",
-                        transition: "background-color 0.2s",
-                      }}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.backgroundColor = "#f9f9f9")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.backgroundColor = "transparent")
-                      }
+                      hover
+                      sx={{ cursor: "pointer" }}
                       onClick={() => navigate(`/product/${product.id}`)}
                     >
-                      <td style={{ padding: "16px" }}>
-                        <Box
-                          sx={{ display: "flex", alignItems: "center", gap: 2 }}
-                        >
+                      <TableCell>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                           <Box
                             component="img"
                             src={product.image}
@@ -627,27 +573,21 @@ const HomePage = () => {
                             {product.title}
                           </Typography>
                         </Box>
-                      </td>
-                      <td style={{ padding: "16px" }}>
+                      </TableCell>
+                      <TableCell>
                         <Chip
                           label={product.condition}
                           size="small"
-                          color={
-                            product.condition === "New" ? "success" : "default"
-                          }
+                          color={product.condition === "New" ? "success" : "default"}
                           sx={{ fontWeight: 600 }}
                         />
-                      </td>
-                      <td style={{ padding: "16px", textAlign: "right" }}>
-                        <Typography
-                          variant="body1"
-                          fontWeight="bold"
-                          color="primary"
-                        >
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography variant="body1" fontWeight="bold" color="primary">
                           {formatPrice(product.currentPrice)}
                         </Typography>
-                      </td>
-                      <td style={{ padding: "16px", textAlign: "center" }}>
+                      </TableCell>
+                      <TableCell align="center">
                         <Box
                           sx={{
                             display: "flex",
@@ -656,15 +596,13 @@ const HomePage = () => {
                             gap: 0.5,
                           }}
                         >
-                          <LocalOffer
-                            sx={{ fontSize: 16, color: "primary.main" }}
-                          />
+                          <LocalOffer sx={{ fontSize: 16, color: "primary.main" }} />
                           <Typography variant="body2" fontWeight={600}>
                             {product.bidCount}
                           </Typography>
                         </Box>
-                      </td>
-                      <td style={{ padding: "16px", textAlign: "center" }}>
+                      </TableCell>
+                      <TableCell align="center">
                         <Box
                           sx={{
                             display: "flex",
@@ -673,9 +611,7 @@ const HomePage = () => {
                             gap: 0.5,
                           }}
                         >
-                          <AccessTime
-                            sx={{ fontSize: 16, color: "error.main" }}
-                          />
+                          <AccessTime sx={{ fontSize: 16, color: "error.main" }} />
                           <Typography
                             variant="body2"
                             color="error.main"
@@ -688,8 +624,8 @@ const HomePage = () => {
                             {getTimeLeft(product.endTime)}
                           </Typography>
                         </Box>
-                      </td>
-                      <td style={{ padding: "16px", textAlign: "center" }}>
+                      </TableCell>
+                      <TableCell align="center">
                         <Button
                           variant="contained"
                           size="small"
@@ -702,13 +638,13 @@ const HomePage = () => {
                         >
                           {getTimeLeft(product.endTime) === "Ended" ? "Ended" : "Bid Now"}
                         </Button>
-                      </td>
-                    </tr>
-                  )))}
-                </tbody>
-              </table>
-            </Box>
-          </Box>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
         </Container>
 
         {/* Most Bids Products */}
@@ -733,156 +669,86 @@ const HomePage = () => {
               </Box>
             </Box>
           </Box>
-          <Box
+          <TableContainer
+            component={Paper}
             sx={{
-              bgcolor: "white",
-              borderRadius: 2,
-              overflow: "hidden",
               boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
               border: "1px solid",
               borderColor: "grey.200",
             }}
           >
-            <Box sx={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr
-                    style={{
-                      backgroundColor: "#f5f5f5",
-                      borderBottom: "2px solid #e0e0e0",
-                    }}
-                  >
-                    <th
-                      style={{
-                        padding: "16px",
-                        textAlign: "left",
-                        fontWeight: 600,
-                        fontSize: "0.875rem",
-                        color: "#666",
-                      }}
-                    >
-                      Product
-                    </th>
-                    <th
-                      style={{
-                        padding: "16px",
-                        textAlign: "left",
-                        fontWeight: 600,
-                        fontSize: "0.875rem",
-                        color: "#666",
-                      }}
-                    >
-                      Condition
-                    </th>
-                    <th
-                      style={{
-                        padding: "16px",
-                        textAlign: "right",
-                        fontWeight: 600,
-                        fontSize: "0.875rem",
-                        color: "#666",
-                      }}
-                    >
-                      Current Bid
-                    </th>
-                    <th
-                      style={{
-                        padding: "16px",
-                        textAlign: "center",
-                        fontWeight: 600,
-                        fontSize: "0.875rem",
-                        color: "#666",
-                      }}
-                    >
-                      Bids
-                    </th>
-                    <th
-                      style={{
-                        padding: "16px",
-                        textAlign: "center",
-                        fontWeight: 600,
-                        fontSize: "0.875rem",
-                        color: "#666",
-                      }}
-                    >
-                      Time Left
-                    </th>
-                    <th
-                      style={{
-                        padding: "16px",
-                        textAlign: "center",
-                        fontWeight: 600,
-                        fontSize: "0.875rem",
-                        color: "#666",
-                      }}
-                    >
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading.mostBids ? (
-                    [...Array(5)].map((_, index) => (
-                      <tr key={`skeleton-bids-${index}`} style={{ borderBottom: '1px solid #e0e0e0' }}>
-                        <td style={{ padding: '16px' }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                            <Skeleton variant="rectangular" width={60} height={60} />
-                            <Skeleton variant="text" width={250} height={20} />
-                          </Box>
-                        </td>
-                        <td style={{ padding: '16px' }}>
-                          <Skeleton variant="text" width={80} height={32} />
-                        </td>
-                        <td style={{ padding: '16px', textAlign: 'right' }}>
-                          <Skeleton variant="text" width={100} height={24} />
-                        </td>
-                        <td style={{ padding: '16px', textAlign: 'center' }}>
-                          <Skeleton variant="text" width={50} height={24} />
-                        </td>
-                        <td style={{ padding: '16px', textAlign: 'center' }}>
-                          <Skeleton variant="text" width={85} height={24} />
-                        </td>
-                        <td style={{ padding: '16px', textAlign: 'center' }}>
-                          <Skeleton variant="text" width={80} height={36} />
-                        </td>
-                      </tr>
-                    ))
-                  ) : errors.mostBids ? (
-                    <tr>
-                      <td colSpan={6} style={{ padding: '20px' }}>
-                        <Alert severity="error">{errors.mostBids}</Alert>
-                      </td>
-                    </tr>
-                  ) : mostBidsProducts.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} style={{ padding: '40px', textAlign: 'center' }}>
-                        <Typography color="text.secondary">No products available</Typography>
-                      </td>
-                    </tr>
-                  ) : (
-                    mostBidsProducts.map((product, index) => (
-                    <tr
+            <Table>
+              <TableHead>
+                <TableRow sx={{ bgcolor: "grey.100" }}>
+                  <TableCell sx={{ fontWeight: 600, color: "text.secondary" }}>
+                    Product
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: "text.secondary" }}>
+                    Condition
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 600, color: "text.secondary" }}>
+                    Current Bid
+                  </TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 600, color: "text.secondary" }}>
+                    Bids
+                  </TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 600, color: "text.secondary" }}>
+                    Time Left
+                  </TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 600, color: "text.secondary" }}>
+                    Action
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {loading.mostBids ? (
+                  [...Array(5)].map((_, index) => (
+                    <TableRow key={`skeleton-bids-${index}`}>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <Skeleton variant="rectangular" width={60} height={60} />
+                          <Skeleton variant="text" width={250} height={20} />
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton variant="text" width={80} height={32} />
+                      </TableCell>
+                      <TableCell align="right">
+                        <Skeleton variant="text" width={100} height={24} />
+                      </TableCell>
+                      <TableCell align="center">
+                        <Skeleton variant="text" width={50} height={24} />
+                      </TableCell>
+                      <TableCell align="center">
+                        <Skeleton variant="text" width={85} height={24} />
+                      </TableCell>
+                      <TableCell align="center">
+                        <Skeleton variant="text" width={80} height={36} />
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : errors.mostBids ? (
+                  <TableRow>
+                    <TableCell colSpan={6}>
+                      <Alert severity="error">{errors.mostBids}</Alert>
+                    </TableCell>
+                  </TableRow>
+                ) : mostBidsProducts.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} align="center" sx={{ py: 5 }}>
+                      <Typography color="text.secondary">No products available</Typography>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  mostBidsProducts.map((product, index) => (
+                    <TableRow
                       key={`most-bids-${product.id}-${index}`}
-                      style={{
-                        borderBottom:
-                          index < mostBidsProducts.length - 1
-                            ? "1px solid #e0e0e0"
-                            : "none",
-                        cursor: "pointer",
-                        transition: "background-color 0.2s",
-                      }}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.backgroundColor = "#f9f9f9")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.backgroundColor = "transparent")
-                      }
+                      hover
+                      sx={{ cursor: "pointer" }}
                       onClick={() => navigate(`/product/${product.id}`)}
                     >
-                      <td style={{ padding: "16px" }}>
-                        <Box
-                          sx={{ display: "flex", alignItems: "center", gap: 2 }}
-                        >
+                      <TableCell>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                           <Box
                             component="img"
                             src={product.image}
@@ -904,27 +770,21 @@ const HomePage = () => {
                             {product.title}
                           </Typography>
                         </Box>
-                      </td>
-                      <td style={{ padding: "16px" }}>
+                      </TableCell>
+                      <TableCell>
                         <Chip
                           label={product.condition}
                           size="small"
-                          color={
-                            product.condition === "New" ? "success" : "default"
-                          }
+                          color={product.condition === "New" ? "success" : "default"}
                           sx={{ fontWeight: 600 }}
                         />
-                      </td>
-                      <td style={{ padding: "16px", textAlign: "right" }}>
-                        <Typography
-                          variant="body1"
-                          fontWeight="bold"
-                          color="primary"
-                        >
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography variant="body1" fontWeight="bold" color="primary">
                           {formatPrice(product.currentPrice)}
                         </Typography>
-                      </td>
-                      <td style={{ padding: "16px", textAlign: "center" }}>
+                      </TableCell>
+                      <TableCell align="center">
                         <Box
                           sx={{
                             display: "flex",
@@ -933,15 +793,13 @@ const HomePage = () => {
                             gap: 0.5,
                           }}
                         >
-                          <LocalOffer
-                            sx={{ fontSize: 16, color: "primary.main" }}
-                          />
+                          <LocalOffer sx={{ fontSize: 16, color: "primary.main" }} />
                           <Typography variant="body2" fontWeight={600}>
                             {product.bidCount}
                           </Typography>
                         </Box>
-                      </td>
-                      <td style={{ padding: "16px", textAlign: "center" }}>
+                      </TableCell>
+                      <TableCell align="center">
                         <Box
                           sx={{
                             display: "flex",
@@ -950,9 +808,7 @@ const HomePage = () => {
                             gap: 0.5,
                           }}
                         >
-                          <AccessTime
-                            sx={{ fontSize: 16, color: "text.secondary" }}
-                          />
+                          <AccessTime sx={{ fontSize: 16, color: "text.secondary" }} />
                           <Typography
                             variant="body2"
                             color="text.secondary"
@@ -965,8 +821,8 @@ const HomePage = () => {
                             {getTimeLeft(product.endTime)}
                           </Typography>
                         </Box>
-                      </td>
-                      <td style={{ padding: "16px", textAlign: "center" }}>
+                      </TableCell>
+                      <TableCell align="center">
                         <Button
                           variant="contained"
                           size="small"
@@ -979,14 +835,13 @@ const HomePage = () => {
                         >
                           {getTimeLeft(product.endTime) === "Ended" ? "Ended" : "Bid Now"}
                         </Button>
-                      </td>
-                    </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </Box>
-          </Box>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
         </Container>
 
         {/* Top Price Products Section */}
@@ -1015,257 +870,185 @@ const HomePage = () => {
               </Button>
             </Box>
 
-            <Box
+            <TableContainer
+              component={Paper}
               sx={{
-                bgcolor: "white",
-                borderRadius: 2,
-                overflow: "hidden",
                 boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
               }}
             >
-              <table
-                style={{
-                  width: "100%",
-                  borderCollapse: "collapse",
-                }}
-              >
-                <thead style={{ backgroundColor: "#fafafa" }}>
-                  <tr>
-                    <th
-                      style={{
-                        padding: "16px",
-                        textAlign: "left",
-                        fontWeight: 600,
-                        fontSize: "0.875rem",
-                        color: "#666",
-                      }}
-                    >
+              <Table>
+                <TableHead>
+                  <TableRow sx={{ bgcolor: "grey.50" }}>
+                    <TableCell sx={{ fontWeight: 600, color: "text.secondary" }}>
                       Product
-                    </th>
-                    <th
-                      style={{
-                        padding: "16px",
-                        fontWeight: 600,
-                        fontSize: "0.875rem",
-                        color: "#666",
-                      }}
-                    >
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 600, color: "text.secondary" }}>
                       Condition
-                    </th>
-                    <th
-                      style={{
-                        padding: "16px",
-                        textAlign: "right",
-                        fontWeight: 600,
-                        fontSize: "0.875rem",
-                        color: "#666",
-                      }}
-                    >
+                    </TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 600, color: "text.secondary" }}>
                       Current Price
-                    </th>
-                    <th
-                      style={{
-                        padding: "16px",
-                        textAlign: "center",
-                        fontWeight: 600,
-                        fontSize: "0.875rem",
-                        color: "#666",
-                      }}
-                    >
+                    </TableCell>
+                    <TableCell align="center" sx={{ fontWeight: 600, color: "text.secondary" }}>
                       Bids
-                    </th>
-                    <th
-                      style={{
-                        padding: "16px",
-                        textAlign: "center",
-                        fontWeight: 600,
-                        fontSize: "0.875rem",
-                        color: "#666",
-                      }}
-                    >
+                    </TableCell>
+                    <TableCell align="center" sx={{ fontWeight: 600, color: "text.secondary" }}>
                       Time Left
-                    </th>
-                    <th
-                      style={{
-                        padding: "16px",
-                        textAlign: "center",
-                        fontWeight: 600,
-                        fontSize: "0.875rem",
-                        color: "#666",
-                      }}
-                    >
+                    </TableCell>
+                    <TableCell align="center" sx={{ fontWeight: 600, color: "text.secondary" }}>
                       Action
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
+                    </TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
                   {loading.highestPrice ? (
                     [...Array(5)].map((_, index) => (
-                      <tr key={`skeleton-price-${index}`} style={{ borderBottom: '1px solid #e0e0e0' }}>
-                        <td style={{ padding: '16px' }}>
+                      <TableRow key={`skeleton-price-${index}`}>
+                        <TableCell>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                             <Skeleton variant="rectangular" width={60} height={60} />
                             <Skeleton variant="text" width={250} height={20} />
                           </Box>
-                        </td>
-                        <td style={{ padding: '16px' }}>
+                        </TableCell>
+                        <TableCell>
                           <Skeleton variant="text" width={80} height={32} />
-                        </td>
-                        <td style={{ padding: '16px', textAlign: 'right' }}>
+                        </TableCell>
+                        <TableCell align="right">
                           <Skeleton variant="text" width={100} height={24} />
-                        </td>
-                        <td style={{ padding: '16px', textAlign: 'center' }}>
+                        </TableCell>
+                        <TableCell align="center">
                           <Skeleton variant="text" width={50} height={24} />
-                        </td>
-                        <td style={{ padding: '16px', textAlign: 'center' }}>
+                        </TableCell>
+                        <TableCell align="center">
                           <Skeleton variant="text" width={85} height={24} />
-                        </td>
-                        <td style={{ padding: '16px', textAlign: 'center' }}>
+                        </TableCell>
+                        <TableCell align="center">
                           <Skeleton variant="text" width={80} height={36} />
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ))
                   ) : errors.highestPrice ? (
-                    <tr>
-                      <td colSpan={6} style={{ padding: '20px' }}>
+                    <TableRow>
+                      <TableCell colSpan={6}>
                         <Alert severity="error">{errors.highestPrice}</Alert>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ) : highestPriceProducts.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} style={{ padding: '40px', textAlign: 'center' }}>
+                    <TableRow>
+                      <TableCell colSpan={6} align="center" sx={{ py: 5 }}>
                         <Typography color="text.secondary">No products available</Typography>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ) : (
                     highestPriceProducts.map((product, index) => (
-                    <tr
-                      key={`highest-price-${product.id}-${index}`}
-                      style={{
-                        borderBottom:
-                          index < highestPriceProducts.length - 1
-                            ? "1px solid #e0e0e0"
-                            : "none",
-                        cursor: "pointer",
-                        transition: "background-color 0.2s",
-                      }}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.backgroundColor = "#f9f9f9")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.backgroundColor = "transparent")
-                      }
-                      onClick={() => navigate(`/product/${product.id}`)}
-                    >
-                      <td style={{ padding: "16px" }}>
-                        <Box
-                          sx={{ display: "flex", alignItems: "center", gap: 2 }}
-                        >
-                          <Box
-                            component="img"
-                            src={product.image}
-                            alt={product.title}
-                            sx={{
-                              width: 60,
-                              height: 60,
-                              objectFit: "cover",
-                              borderRadius: 1,
-                              border: "1px solid",
-                              borderColor: "grey.200",
-                            }}
+                      <TableRow
+                        key={`highest-price-${product.id}-${index}`}
+                        hover
+                        sx={{ cursor: "pointer" }}
+                        onClick={() => navigate(`/product/${product.id}`)}
+                      >
+                        <TableCell>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                            <Box
+                              component="img"
+                              src={product.image}
+                              alt={product.title}
+                              sx={{
+                                width: 60,
+                                height: 60,
+                                objectFit: "cover",
+                                borderRadius: 1,
+                                border: "1px solid",
+                                borderColor: "grey.200",
+                              }}
+                            />
+                            <Typography
+                              variant="body2"
+                              fontWeight={500}
+                              sx={{ maxWidth: 300 }}
+                            >
+                              {product.title}
+                            </Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={product.condition}
+                            size="small"
+                            color={product.condition === "New" ? "success" : "default"}
                           />
+                        </TableCell>
+                        <TableCell align="right">
                           <Typography
-                            variant="body2"
-                            fontWeight={500}
-                            sx={{ maxWidth: 300 }}
-                          >
-                            {product.title}
-                          </Typography>
-                        </Box>
-                      </td>
-                      <td style={{ padding: "16px" }}>
-                        <Chip
-                          label={product.condition}
-                          size="small"
-                          color={
-                            product.condition === "New" ? "success" : "default"
-                          }
-                        />
-                      </td>
-                      <td style={{ padding: "16px", textAlign: "right" }}>
-                        <Typography
-                          variant="h6"
-                          fontWeight={700}
-                          color="warning.main"
-                          sx={{ fontVariantNumeric: "tabular-nums" }}
-                        >
-                          {formatPrice(product.currentPrice)}
-                        </Typography>
-                      </td>
-                      <td style={{ padding: "16px", textAlign: "center" }}>
-                        <Box
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            gap: 0.5,
-                          }}
-                        >
-                          <Gavel sx={{ fontSize: 16, color: "text.secondary" }} />
-                          <Typography
-                            variant="body2"
-                            color="text.secondary"
+                            variant="h6"
+                            fontWeight={700}
+                            color="warning.main"
                             sx={{ fontVariantNumeric: "tabular-nums" }}
                           >
-                            {product.bidCount}
+                            {formatPrice(product.currentPrice)}
                           </Typography>
-                        </Box>
-                      </td>
-                      <td style={{ padding: "16px", textAlign: "center" }}>
-                        <Box
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            gap: 0.5,
-                          }}
-                        >
-                          <AccessTime
-                            sx={{ fontSize: 16, color: "text.secondary" }}
-                          />
-                          <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            fontWeight={600}
+                        </TableCell>
+                        <TableCell align="center">
+                          <Box
                             sx={{
-                              minWidth: "85px",
-                              fontVariantNumeric: "tabular-nums",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              gap: 0.5,
                             }}
                           >
-                            {getTimeLeft(product.endTime)}
-                          </Typography>
-                        </Box>
-                      </td>
-                      <td style={{ padding: "16px", textAlign: "center" }}>
-                        <Button
-                          variant="contained"
-                          size="small"
-                          disabled={getTimeLeft(product.endTime) === "Ended"}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/product/${product.id}`);
-                          }}
-                          sx={{ textTransform: "none", fontWeight: 600 }}
-                        >
-                          {getTimeLeft(product.endTime) === "Ended" ? "Ended" : "Bid Now"}
-                        </Button>
-                      </td>
-                    </tr>
+                            <Gavel sx={{ fontSize: 16, color: "text.secondary" }} />
+                            <Typography
+                              variant="body2"
+                              color="text.secondary"
+                              sx={{ fontVariantNumeric: "tabular-nums" }}
+                            >
+                              {product.bidCount}
+                            </Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell align="center">
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              gap: 0.5,
+                            }}
+                          >
+                            <AccessTime sx={{ fontSize: 16, color: "text.secondary" }} />
+                            <Typography
+                              variant="body2"
+                              color="text.secondary"
+                              fontWeight={600}
+                              sx={{
+                                minWidth: "85px",
+                                fontVariantNumeric: "tabular-nums",
+                              }}
+                            >
+                              {getTimeLeft(product.endTime)}
+                            </Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell align="center">
+                          <Button
+                            variant="contained"
+                            size="small"
+                            disabled={getTimeLeft(product.endTime) === "Ended"}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/product/${product.id}`);
+                            }}
+                            sx={{ textTransform: "none", fontWeight: 600 }}
+                          >
+                            {getTimeLeft(product.endTime) === "Ended" ? "Ended" : "Bid Now"}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
                     ))
                   )}
-                </tbody>
-              </table>
-            </Box>
+                </TableBody>
+              </Table>
+            </TableContainer>
           </Box>
         </Container>
       </Box>

@@ -313,40 +313,6 @@ const BidderChatPage = () => {
     return date.toLocaleDateString('vi-VN', { day: 'numeric', month: 'short' });
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'pending_payment':
-        return 'warning';
-      case 'paid':
-        return 'info';
-      case 'shipping':
-        return 'primary';
-      case 'completed':
-        return 'success';
-      case 'cancelled':
-        return 'error';
-      default:
-        return 'default';
-    }
-  };
-
-  const getStatusLabel = (status) => {
-    switch (status) {
-      case 'pending_payment':
-        return 'Pending Payment';
-      case 'paid':
-        return 'Paid';
-      case 'shipping':
-        return 'Shipping';
-      case 'completed':
-        return 'Completed';
-      case 'cancelled':
-        return 'Cancelled';
-      default:
-        return status;
-    }
-  };
-
   const handleSelectConversation = (orderId) => {
     // Don't clear messages here - let useEffect handle loading
     setError(null);
@@ -434,12 +400,6 @@ const BidderChatPage = () => {
                             <Typography component="span" variant="caption" color="text.secondary">
                               {getTimeDisplay(conversation.lastMessage.time)}
                             </Typography>
-                            <Chip
-                              label={getStatusLabel(conversation.status)}
-                              size="small"
-                              color={getStatusColor(conversation.status)}
-                              sx={{ height: 18, fontSize: '0.65rem' }}
-                            />
                           </Box>
                         </Box>
                       }
@@ -499,13 +459,6 @@ const BidderChatPage = () => {
                 Order: {selectedConversation.orderId} • {formatPrice(selectedConversation.amount)}
               </Typography>
             </Box>
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Chip
-                label={getStatusLabel(selectedConversation.status)}
-                size="small"
-                color={getStatusColor(selectedConversation.status)}
-              />
-            </Stack>
           </Box>
 
           {/* Messages */}

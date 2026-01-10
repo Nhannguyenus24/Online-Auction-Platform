@@ -121,11 +121,9 @@ const BidderProfilePage = () => {
         try {
           const [profileResponse, ratingsResponse] = await Promise.all([
             authApi.getProfile(),
-            bidderApi.getRatings(1, 20).catch(() => null), // Fetch ratings, but don't fail if it errors
+            bidderApi.getRatings(1, 99).catch(() => null), // Fetch ratings, but don't fail if it errors
           ]);
-          
           const apiProfile = profileResponse.data?.profile || {};
-          
           // Update profile data with ratings if available
           let ratingData = {
             rating: apiProfile.rating || 0,
@@ -297,7 +295,6 @@ const BidderProfilePage = () => {
         try {
           // Fetch ratings from real API
           const ratingsRes = await bidderApi.getRatings(1, 20);
-          
           // Map API response to component format
           const mappedReceived = (ratingsRes.reviews || []).map((review) => {
             // Determine rating: check like field first, then score, default to positive if neither available

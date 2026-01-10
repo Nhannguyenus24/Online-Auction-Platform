@@ -30,7 +30,6 @@ import {
   Skeleton,
   Breadcrumbs,
   Link,
-  Rating,
   Tooltip,
 } from '@mui/material';
 import {
@@ -57,7 +56,6 @@ import { formatPrice } from '../utils/formatNumber';
 import { normalizeTimestamp, fVNDateTime } from '../utils/formatTime';
 import { productApi } from '../services/productApi';
 import { watchlistApi } from '../services/watchlistApi';
-import { bidderApi } from '../services/bidderApi';
 
 
 function ProductDetailPage() {
@@ -71,7 +69,6 @@ function ProductDetailPage() {
   const [questions, setQuestions] = useState([]);
   const [relatedProducts, setRelatedProducts] = useState([]);
   const [myBidHistory, setMyBidHistory] = useState([]);
-  const [myBidHistoryPageInfo, setMyBidHistoryPageInfo] = useState({});
   // UI state
   const [selectedImage, setSelectedImage] = useState(0);
   const [isWatchlisted, setIsWatchlisted] = useState(false);
@@ -189,7 +186,14 @@ function ProductDetailPage() {
       }
     };
 
+    // Fetch immediately on mount
     fetchProduct();
+
+    // Set up interval to fetch every 10 seconds (10000ms)
+    const interval = setInterval(fetchProduct, 10000);
+
+    // Cleanup interval on unmount
+    return () => clearInterval(interval);
   }, [productId, isAuthenticated]);
 
   // Fetch top bidders, questions, and related products
@@ -297,7 +301,14 @@ function ProductDetailPage() {
       }
     };
 
+    // Fetch immediately on mount
     fetchAdditionalData();
+
+    // Set up interval to fetch every 10 seconds (10000ms)
+    const interval = setInterval(fetchAdditionalData, 10000);
+
+    // Cleanup interval on unmount
+    return () => clearInterval(interval);
   }, [productId]);
 
   // Polling for top bidders if product is active
@@ -373,7 +384,6 @@ function ProductDetailPage() {
           // Filter to only show current user's bids
           const userBids = (response.bids || []).filter(bid => bid.isCurrentUser);
           setMyBidHistory(userBids);
-          setMyBidHistoryPageInfo(response.pageInfo || {});
           setError((prev) => ({ ...prev, myBidHistory: null }));
         } else {
           setError((prev) => ({ ...prev, myBidHistory: response.message || 'Failed to load bid history' }));
@@ -797,7 +807,6 @@ function ProductDetailPage() {
       </Page>
     );
   }
-  console.log(myBidHistory);
   return (
     <Page title={`${product.title} - Product Detail`}>
       <Box sx={{ bgcolor: "grey.50", minHeight: "100vh" }}>
