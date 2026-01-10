@@ -286,17 +286,32 @@ const BidderOrderCompletionPage = () => {
       return;
     }
 
-    if (!orderId) {
-      alert('Order ID is missing');
+    if (!order) {
+      alert('Order information is missing');
+      return;
+    }
+
+    if (!order.sellerId || !order.productId) {
+      alert('Seller ID or Product ID is missing');
       return;
     }
 
     setSubmitting(true);
     setError(null);
     try {
-      const response = await orderApi.rateSeller(orderId, buyerRating, buyerComment);
-      if (response.success && response.order) {
-        setOrder(response.order);
+      const response = await orderApi.rateSeller(
+        order.sellerId,
+        order.productId,
+        orderId,
+        buyerRating,
+        buyerComment
+      );
+      if (response.success) {
+        // Refresh order to get updated data
+        const orderResponse = await orderApi.getOrder(orderId);
+        if (orderResponse.success && orderResponse.order) {
+          setOrder(orderResponse.order);
+        }
         setActiveStep(5);
       } else {
         throw new Error(response.message || 'Failed to submit rating');

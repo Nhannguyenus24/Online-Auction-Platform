@@ -164,20 +164,27 @@ export const orderApi = {
   /**
    * Rate seller for an order
    * Requires bidder authentication
-   * @param {number|string} orderId - Order ID
-   * @param {number} rating - Rating value (1-5)
+   * @param {number|string} sellerId - Seller ID
+   * @param {number|string} productId - Product ID (required)
+   * @param {number|string} orderId - Order ID (optional)
+   * @param {number} score - Rating score (1-5)
    * @param {string} comment - Optional comment
-   * @returns {Promise} - { success, message, order: {...} }
+   * @returns {Promise} - { success, message, reviewId }
    */
-  rateSeller: (orderId, rating, comment = '') => {
+  rateSeller: (sellerId, productId, orderId = null, score, comment = '') => {
     return axiosInstance
-      .post(`/api/bidder/orders/${orderId}/rate`, { rating, comment })
+      .post(`/api/bidder/sellers/${sellerId}/rate`, {
+        productId,
+        orderId,
+        score,
+        comment,
+      })
       .then((response) => {
         if (response.data.success) {
           return {
             success: true,
             message: response.data.message || 'Rating submitted successfully',
-            order: response.data.order || response.data,
+            reviewId: response.data.reviewId,
           };
         } else {
           throw new Error(response.data.message || 'Failed to submit rating');

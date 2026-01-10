@@ -20,6 +20,8 @@ import {
   InputAdornment,
   Chip,
   CircularProgress,
+  Rating,
+  Skeleton,
 } from '@mui/material';
 import {
   Person,
@@ -40,6 +42,7 @@ import { formatPrice } from '../../utils/formatNumber';
 import { fVNDate, normalizeTimestamp } from '../../utils/formatTime';
 import { authApi } from '../../utils/api';
 import { bidderApi } from '../../services/bidderApi';
+import { orderApi } from '../../services/orderApi';
 
 // Default profile data structure
 const defaultProfileData = {
@@ -67,7 +70,7 @@ const BidderProfilePage = () => {
 
   // Data states for tabs
   const [ratingsReceived, setRatingsReceived] = useState([]);
-  const [ratingsGiven, setRatingsGiven] = useState([]);
+  // ratingsGiven is used internally to check if items are already rated, not displayed
   const [itemsNeedingRating, setItemsNeedingRating] = useState([]);
   const [ratingPercent, setRatingPercent] = useState(0);
   const [loading, setLoading] = useState({
@@ -76,8 +79,8 @@ const BidderProfilePage = () => {
     saving: false,
     changingPassword: false,
   });
-  const [ratingSubTab, setRatingSubTab] = useState(0); // 0: Received, 1: Given, 2: Rate Sellers
-  const [ratingForm, setRatingForm] = useState({}); // { productId: { rating: 1/-1, comment: '' } }
+  const [ratingSubTab, setRatingSubTab] = useState(0); // 0: Received, 1: Rate Sellers
+  const [ratingForm, setRatingForm] = useState({}); // { productId: { score: 1-5, comment: '', sellerId: number, orderId: number } }
 
   // Form states
   const [profileData, setProfileData] = useState(defaultProfileData);
@@ -319,17 +322,54 @@ const BidderProfilePage = () => {
           setRatingPercent(ratingsRes.ratingPercent || 0);
           setRatingsReceived(mappedReceived);
           
-          // Still fetch given and pending from other endpoints (if they exist)
+          // Fetch given ratings and completed orders
           try {
-            const [givenRes, needingRes] = await Promise.all([
+            const [givenRes, ordersRes] = await Promise.all([
               bidderApi.getRatingsGiven().catch(() => ({ data: [] })),
-              bidderApi.getItemsNeedingRating().catch(() => ({ data: [] })),
+              orderApi.getOrders(1, 50, 'all').catch(() => ({ orders: [] })),
             ]);
-            setRatingsGiven(givenRes.data || []);
-            setItemsNeedingRating(needingRes.data || []);
+            
+            const ratingsGiven = givenRes.data || [];
+            const completedOrders = (ordersRes.orders || []).filter(
+              (order) => {
+                const status = (order.status || '').toLowerCase();
+                return (status === 'completed' || status === 'delivered') && 
+                       order.sellerId && 
+                       order.productId;
+              }
+            );
+            
+            // Create a map of productId -> rating for quick lookup
+            const ratingsMap = new Map();
+            ratingsGiven.forEach((rating) => {
+              if (rating.productId) {
+                ratingsMap.set(rating.productId, rating);
+              }
+            });
+            
+            // Map orders to items, checking if already rated
+            const itemsNeedingRating = completedOrders.map((order) => {
+              const existingRating = ratingsMap.get(order.productId);
+              return {
+                id: order.id,
+                productId: order.productId,
+                orderId: order.id,
+                sellerId: order.sellerId,
+                title: order.productTitle || 'Product',
+                image: order.productImage || '/placeholder-image.jpg',
+                sellerName: order.sellerName || order.seller?.name || 'Seller',
+                completedDate: order.createdAt || order.updatedAt,
+                isRated: !!existingRating,
+                existingRating: existingRating ? {
+                  score: existingRating.score || existingRating.rating || 0,
+                  comment: existingRating.comment || '',
+                } : null,
+              };
+            });
+            
+            setItemsNeedingRating(itemsNeedingRating);
           } catch (err) {
-            // If these endpoints don't exist yet, just set empty arrays
-            setRatingsGiven([]);
+            console.error('Error fetching orders needing rating:', err);
             setItemsNeedingRating([]);
           }
         } catch (err) {
@@ -804,8 +844,9 @@ const BidderProfilePage = () => {
             {tabValue === 2 && (
               <Box>
                 {loading.ratings ? (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-                    <CircularProgress />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, py: 2 }}>
+                    <Skeleton variant="rectangular" height={150} />
+                    <Skeleton variant="rectangular" height={300} />
                   </Box>
                 ) : (
                   <>
@@ -888,22 +929,7 @@ const BidderProfilePage = () => {
                       sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}
                     >
                       <Tab label={`Received (${ratingsReceived.length})`} />
-                      <Tab label={`Given (${ratingsGiven.length})`} />
-                      <Tab
-                        label={
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            Rate Sellers
-                            {itemsNeedingRating.length > 0 && (
-                              <Chip
-                                label={itemsNeedingRating.length}
-                                size="small"
-                                color="error"
-                                sx={{ height: 20, minWidth: 20 }}
-                              />
-                            )}
-                          </Box>
-                        }
-                      />
+                      <Tab label={`Rate Sellers (${itemsNeedingRating.length})`} />
                     </Tabs>
 
                     {/* Sub Tab 0: Ratings Received */}
@@ -951,61 +977,16 @@ const BidderProfilePage = () => {
                       </Box>
                     )}
 
-                    {/* Sub Tab 1: Ratings Given */}
+                    {/* Sub Tab 1: Rate Sellers */}
                     {ratingSubTab === 1 && (
-                      <Box>
-                        {ratingsGiven.length === 0 ? (
-                          <Box sx={{ textAlign: 'center', py: 8 }}>
-                            <Star sx={{ fontSize: 64, color: 'grey.300', mb: 2 }} />
-                            <Typography variant="h6" color="text.secondary" gutterBottom>
-                              No Ratings Given Yet
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              Rate sellers after completing transactions
-                            </Typography>
-                          </Box>
-                        ) : (
-                          <Stack spacing={2}>
-                            {ratingsGiven.map((rating) => (
-                              <Card key={rating.id} elevation={0} sx={{ border: '1px solid', borderColor: 'divider' }}>
-                                <CardContent>
-                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 2 }}>
-                                    <Box>
-                                      <Typography variant="subtitle1" fontWeight={600}>
-                                        {rating.toUser}
-                                      </Typography>
-                                      <Typography variant="caption" color="text.secondary">
-                                        {fVNDate(rating.date)}
-                                      </Typography>
-                                    </Box>
-                                    <Chip
-                                      label={rating.rating === 1 ? '+1' : '-1'}
-                                      color={rating.rating === 1 ? 'success' : 'error'}
-                                      size="small"
-                                    />
-                                  </Box>
-                                  <Typography variant="body2" sx={{ mb: 1 }}>
-                                    {rating.comment}
-                                  </Typography>
-                                </CardContent>
-                              </Card>
-                            ))}
-                          </Stack>
-                        )}
-                      </Box>
-                    )}
-
-                    {/* Sub Tab 2: Rate Sellers */}
-                    {ratingSubTab === 2 && (
                       <Box>
                         {itemsNeedingRating.length === 0 ? (
                           <Box sx={{ textAlign: 'center', py: 8 }}>
-                            <CheckCircle sx={{ fontSize: 64, color: 'success.main', mb: 2 }} />
                             <Typography variant="h6" color="text.secondary" gutterBottom>
-                              All Caught Up!
+                              No completed transactions yet
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
-                              You've rated all completed transactions
+                              Completed transactions will appear here for rating
                             </Typography>
                           </Box>
                         ) : (
@@ -1013,21 +994,27 @@ const BidderProfilePage = () => {
                             {itemsNeedingRating.map((item) => (
                               <Card key={item.id} elevation={0} sx={{ border: '1px solid', borderColor: 'divider' }}>
                                 <CardContent>
-                                  <Grid container spacing={3} alignItems="center">
-                                    <Grid item xs={12} sm={3}>
+                                  <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 3, alignItems: { xs: 'stretch', sm: 'center' } }}>
+                                    <Box
+                                      sx={{
+                                        flexShrink: 0,
+                                        width: { xs: '100%', sm: 150 },
+                                        height: { xs: 200, sm: 120 },
+                                      }}
+                                    >
                                       <Box
                                         component="img"
                                         src={item.image}
                                         alt={item.title}
                                         sx={{
                                           width: '100%',
-                                          height: 120,
+                                          height: '100%',
                                           objectFit: 'cover',
                                           borderRadius: 1,
                                         }}
                                       />
-                                    </Grid>
-                                    <Grid item xs={12} sm={6}>
+                                    </Box>
+                                    <Box sx={{ flex: 1, minWidth: 0 }}>
                                       <Typography variant="subtitle1" fontWeight={600} gutterBottom>
                                         {item.title}
                                       </Typography>
@@ -1037,88 +1024,166 @@ const BidderProfilePage = () => {
                                       <Typography variant="caption" color="text.secondary">
                                         Completed: {fVNDate(item.completedDate)}
                                       </Typography>
-                                    </Grid>
-                                    <Grid item xs={12} sm={3}>
+                                    </Box>
+                                    <Box sx={{ flexShrink: 0, width: { xs: '100%', sm: 250 } }}>
                                       <Stack spacing={2}>
-                                        <Box>
-                                          <Typography variant="body2" gutterBottom>
-                                            Rate Seller
-                                          </Typography>
-                                          <Stack direction="row" spacing={1}>
-                                            <Button
-                                              variant={
-                                                ratingForm[item.productId]?.rating === 1
-                                                  ? 'contained'
-                                                  : 'outlined'
-                                              }
+                                        {item.isRated ? (
+                                          <>
+                                            <Box>
+                                              <Typography variant="body2" gutterBottom>
+                                                Your Rating
+                                              </Typography>
+                                              <Rating
+                                                value={item.existingRating?.score || 0}
+                                                readOnly
+                                                size="large"
+                                              />
+                                            </Box>
+                                            {item.existingRating?.comment && (
+                                              <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                                                "{item.existingRating.comment}"
+                                              </Typography>
+                                            )}
+                                            <Chip
+                                              label="Rated"
                                               color="success"
                                               size="small"
-                                              onClick={() =>
+                                              sx={{ alignSelf: 'flex-start' }}
+                                            />
+                                          </>
+                                        ) : (
+                                          <>
+                                            <Box>
+                                              <Typography variant="body2" gutterBottom>
+                                                Rate Seller
+                                              </Typography>
+                                              <Rating
+                                                value={ratingForm[item.productId]?.score || 0}
+                                                onChange={(e, newValue) => {
+                                                  setRatingForm({
+                                                    ...ratingForm,
+                                                    [item.productId]: {
+                                                      ...ratingForm[item.productId],
+                                                      score: newValue || 0,
+                                                      sellerId: item.sellerId,
+                                                      orderId: item.orderId,
+                                                    },
+                                                  });
+                                                }}
+                                                size="large"
+                                              />
+                                            </Box>
+                                            <TextField
+                                              fullWidth
+                                              multiline
+                                              rows={3}
+                                              placeholder="Leave a comment (optional)"
+                                              value={ratingForm[item.productId]?.comment || ''}
+                                              onChange={(e) =>
                                                 setRatingForm({
                                                   ...ratingForm,
                                                   [item.productId]: {
                                                     ...ratingForm[item.productId],
-                                                    rating: 1,
+                                                    comment: e.target.value,
                                                   },
                                                 })
                                               }
-                                            >
-                                              +1
-                                            </Button>
-                                            <Button
-                                              variant={
-                                                ratingForm[item.productId]?.rating === -1
-                                                  ? 'contained'
-                                                  : 'outlined'
-                                              }
-                                              color="error"
                                               size="small"
-                                              onClick={() =>
-                                                setRatingForm({
-                                                  ...ratingForm,
-                                                  [item.productId]: {
-                                                    ...ratingForm[item.productId],
-                                                    rating: -1,
-                                                  },
-                                                })
-                                              }
+                                            />
+                                            <Button
+                                              variant="contained"
+                                              size="small"
+                                              disabled={!ratingForm[item.productId]?.score || loading.saving}
+                                              onClick={async () => {
+                                                const formData = ratingForm[item.productId];
+                                                if (!formData || !formData.score || !formData.sellerId || !item.productId) {
+                                                  setErrorMessage('Please provide a rating');
+                                                  return;
+                                                }
+
+                                                setLoading((prev) => ({ ...prev, saving: true }));
+                                                setErrorMessage('');
+                                                try {
+                                                  await orderApi.rateSeller(
+                                                    formData.sellerId,
+                                                    item.productId,
+                                                    formData.orderId,
+                                                    formData.score,
+                                                    formData.comment || ''
+                                                  );
+                                                  setSuccessMessage('Rating submitted successfully!');
+                                                  setTimeout(() => setSuccessMessage(''), 3000);
+                                                  
+                                                  // Update item to mark as rated instead of removing
+                                                  setItemsNeedingRating((prev) =>
+                                                    prev.map((i) =>
+                                                      i.id === item.id
+                                                        ? {
+                                                            ...i,
+                                                            isRated: true,
+                                                            existingRating: {
+                                                              score: formData.score,
+                                                              comment: formData.comment || '',
+                                                            },
+                                                          }
+                                                        : i
+                                                    )
+                                                  );
+                                                  
+                                                  // Clear form
+                                                  setRatingForm((prev) => {
+                                                    const newForm = { ...prev };
+                                                    delete newForm[item.productId];
+                                                    return newForm;
+                                                  });
+                                                  
+                                                  // Refresh ratings
+                                                  const ratingsRes = await bidderApi.getRatings(1, 20);
+                                                  const ratingFromPercent = (ratingsRes.ratingPercent || 0) / 20;
+                                                  setProfileData((prev) => ({
+                                                    ...prev,
+                                                    rating: ratingFromPercent,
+                                                    totalRatings: ratingsRes.totalCount || 0,
+                                                    positiveRatings: ratingsRes.positiveReviews || 0,
+                                                    negativeRatings: ratingsRes.negativeReviews || 0,
+                                                  }));
+                                                  
+                                                  // Refresh to update isRated status
+                                                  const givenRes = await bidderApi.getRatingsGiven().catch(() => ({ data: [] }));
+                                                  const updatedRatingsGiven = givenRes.data || [];
+                                                  // Update items with new rating status
+                                                  const updatedItems = itemsNeedingRating.map((item) => {
+                                                    const existingRating = updatedRatingsGiven.find(r => r.productId === item.productId);
+                                                    return {
+                                                      ...item,
+                                                      isRated: !!existingRating,
+                                                      existingRating: existingRating ? {
+                                                        score: existingRating.score || existingRating.rating || 0,
+                                                        comment: existingRating.comment || '',
+                                                      } : null,
+                                                    };
+                                                  });
+                                                  setItemsNeedingRating(updatedItems);
+                                                } catch (err) {
+                                                  console.error('Error submitting rating:', err);
+                                                  const errorMsg =
+                                                    err.response?.data?.message ||
+                                                    err.message ||
+                                                    'Failed to submit rating. Please try again.';
+                                                  setErrorMessage(errorMsg);
+                                                  setTimeout(() => setErrorMessage(''), 5000);
+                                                } finally {
+                                                  setLoading((prev) => ({ ...prev, saving: false }));
+                                                }
+                                              }}
                                             >
-                                              -1
+                                              {loading.saving ? <CircularProgress size={20} /> : 'Submit Rating'}
                                             </Button>
-                                          </Stack>
-                                        </Box>
-                                        <TextField
-                                          fullWidth
-                                          multiline
-                                          rows={3}
-                                          placeholder="Leave a comment (optional)"
-                                          value={ratingForm[item.productId]?.comment || ''}
-                                          onChange={(e) =>
-                                            setRatingForm({
-                                              ...ratingForm,
-                                              [item.productId]: {
-                                                ...ratingForm[item.productId],
-                                                comment: e.target.value,
-                                              },
-                                            })
-                                          }
-                                          size="small"
-                                        />
-                                        <Button
-                                          variant="contained"
-                                          size="small"
-                                          disabled={!ratingForm[item.productId]?.rating}
-                                          onClick={() => {
-                                            // Will be implemented with API call later
-                                            setSuccessMessage('Rating submitted successfully!');
-                                            setTimeout(() => setSuccessMessage(''), 3000);
-                                          }}
-                                        >
-                                          Submit Rating
-                                        </Button>
+                                          </>
+                                        )}
                                       </Stack>
-                                    </Grid>
-                                  </Grid>
+                                    </Box>
+                                  </Box>
                                 </CardContent>
                               </Card>
                             ))}

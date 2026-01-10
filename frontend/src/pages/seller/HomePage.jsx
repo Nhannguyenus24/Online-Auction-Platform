@@ -47,16 +47,18 @@ const SellerHomePage = () => {
   });
 
   // Helper function to map API product to frontend format
-  const mapProduct = (product, isWonItem = false) => ({
+  const mapProduct = (product, isSoldItem = false) => ({
     ...product,
     views: product.viewsCount || product.views || 0,
     bidCount: product.bidsCount || product.bidCount || 0,
     image: product.primaryImageUrl || product.image || '/placeholder-image.jpg',
     endTime: product.endsAt ? (typeof product.endsAt === 'string' ? parseInt(product.endsAt) : product.endsAt) : null,
-    // For won items, map currentPrice to winningPrice for display
-    winningPrice: isWonItem ? (product.currentPrice || product.winningPrice || 0) : (product.winningPrice || 0),
+    // For sold items, map currentPrice to winningPrice for display
+    winningPrice: isSoldItem ? (product.currentPrice || product.winningPrice || 0) : (product.winningPrice || 0),
     // Keep currentPrice for active listings
     currentPrice: product.currentPrice || 0,
+    // Ensure status is set for sold items
+    status: product.status || (isSoldItem ? 'ended' : 'active'),
   });
 
   // Fetch all data on mount to calculate complete stats
@@ -68,21 +70,43 @@ const SellerHomePage = () => {
         const active = (activeRes.products || []).map(mapProduct);
         setActiveListings(active);
         
-        // Fetch won items
-        const wonRes = await sellerApi.getWinnerItems(1, 99);
-        const wonData = (wonRes.products || []).map(p => mapProduct(p, true));
-        setWonItems(wonData);
+        // Fetch sold items from completed/delivered orders
+        const ordersRes = await sellerApi.getOrders(1, 99, 'all');
+        const completedOrders = (ordersRes.orders || []).filter(
+          (order) => {
+            const status = (order.status || '').toLowerCase();
+            return status === 'completed' || status === 'delivered';
+          }
+        );
+        
+        // Map orders to products format for display
+        const soldItems = completedOrders.map((order) => ({
+          id: order.productId || order.id,
+          productId: order.productId,
+          title: order.productTitle || 'Product',
+          image: order.productImage || '/placeholder-image.jpg',
+          winningPrice: order.amount || 0,
+          currentPrice: order.amount || 0,
+          status: (order.status || 'completed').toLowerCase(),
+          views: 0,
+          bidCount: 0,
+          endTime: order.createdAt ? (typeof order.createdAt === 'string' ? parseInt(order.createdAt) : order.createdAt) : null,
+          buyerName: order.buyerName || 'Buyer',
+          orderId: order.id,
+          createdAt: order.createdAt,
+        }));
+        
+        setWonItems(soldItems);
         
         // Calculate all stats
         const activeViews = active.reduce((sum, p) => sum + (p.views || 0), 0);
-        const wonViews = wonData.reduce((sum, item) => sum + (item.views || 0), 0);
-        const totalRevenue = wonData.reduce((sum, item) => sum + (item.winningPrice || 0), 0);
+        const totalRevenue = soldItems.reduce((sum, item) => sum + (item.winningPrice || 0), 0);
         
         setStats({
           activeListings: active.length,
-          wonItems: wonData.length,
+          wonItems: soldItems.length,
           totalRevenue,
-          totalViews: activeViews + wonViews,
+          totalViews: activeViews,
         });
       } catch (err) {
         console.error('Error fetching data:', err);
@@ -109,14 +133,37 @@ const SellerHomePage = () => {
           setLoading((prev) => ({ ...prev, active: false }));
         }
       } else {
-        // Won Items
+        // Sold Items (from completed orders)
         try {
           setLoading((prev) => ({ ...prev, won: true }));
-          const response = await sellerApi.getWinnerItems(1, 99);
-          const wonData = (response.products || []).map(p => mapProduct(p, true));
-          setWonItems(wonData);
+          const ordersRes = await sellerApi.getOrders(1, 99, 'all');
+          const completedOrders = (ordersRes.orders || []).filter(
+            (order) => {
+              const status = (order.status || '').toLowerCase();
+              return status === 'completed' || status === 'delivered';
+            }
+          );
+          
+          // Map orders to products format for display
+          const soldItems = completedOrders.map((order) => ({
+            id: order.productId || order.id,
+            productId: order.productId,
+            title: order.productTitle || 'Product',
+            image: order.productImage || '/placeholder-image.jpg',
+            winningPrice: order.amount || 0,
+            currentPrice: order.amount || 0,
+            status: (order.status || 'completed').toLowerCase(),
+            views: 0,
+            bidCount: 0,
+            endTime: order.createdAt ? (typeof order.createdAt === 'string' ? parseInt(order.createdAt) : order.createdAt) : null,
+            buyerName: order.buyerName || 'Buyer',
+            orderId: order.id,
+            createdAt: order.createdAt,
+          }));
+          
+          setWonItems(soldItems);
         } catch (err) {
-          console.error('Error fetching won items:', err);
+          console.error('Error fetching sold items:', err);
           setWonItems([]);
         } finally {
           setLoading((prev) => ({ ...prev, won: false }));
@@ -129,14 +176,13 @@ const SellerHomePage = () => {
   // Recalculate stats whenever activeListings or wonItems change
   useEffect(() => {
     const activeViews = activeListings.reduce((sum, p) => sum + (p.views || 0), 0);
-    const wonViews = wonItems.reduce((sum, item) => sum + (item.views || 0), 0);
     const totalRevenue = wonItems.reduce((sum, item) => sum + (item.winningPrice || 0), 0);
     
     setStats({
       activeListings: activeListings.length,
       wonItems: wonItems.length,
       totalRevenue,
-      totalViews: activeViews + wonViews,
+      totalViews: activeViews,
     });
   }, [activeListings, wonItems]);
 
@@ -315,7 +361,7 @@ const SellerHomePage = () => {
               </Box>
             )}
 
-            {/* Won Items Tab */}
+            {/* Sold Items Tab */}
             {tabValue === 1 && (
               <Box>
                 {loading.won ? (
@@ -326,12 +372,12 @@ const SellerHomePage = () => {
                   <Box sx={{ textAlign: 'center', py: 8 }}>
                     <EmojiEvents sx={{ fontSize: 64, color: 'grey.300', mb: 2 }} />
                     <Typography variant="h6" color="text.secondary" gutterBottom>
-                      {searchQuery ? 'No items found' : 'No Won Items Yet'}
+                      {searchQuery ? 'No items found' : 'No Sold Items Yet'}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       {searchQuery
                         ? 'Try adjusting your search query'
-                        : 'Items with winners will appear here'}
+                        : 'Items that have been sold will appear here'}
                     </Typography>
                   </Box>
                 ) : (
@@ -339,9 +385,13 @@ const SellerHomePage = () => {
                     {filteredWonItems.map((product) => (
                       <Grid item xs={12} sm={6} md={4} lg={3} key={product.id}>
                         <ProductCard 
-                          product={product} 
+                          product={{
+                            ...product,
+                            // For sold items, show currentPrice as final price
+                            currentPrice: product.winningPrice || product.currentPrice,
+                          }} 
                           showViews 
-                          showWinner 
+                          showStatus
                         />
                       </Grid>
                     ))}

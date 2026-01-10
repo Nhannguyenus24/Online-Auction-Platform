@@ -26,6 +26,8 @@ import {
   TableHead,
   TableRow,
   Paper,
+  Rating,
+  CircularProgress,
 } from '@mui/material';
 import {
   Person,
@@ -57,15 +59,17 @@ const SellerProfilePage = () => {
 
   // Data states for tabs
   const [ratingsReceived, setRatingsReceived] = useState([]);
-  const [ratingsGiven, setRatingsGiven] = useState([]);
+  // ratingsGiven is used internally to check if items are already rated, not displayed
   const [itemsNeedingRating, setItemsNeedingRating] = useState([]);
   const [ratingPercent, setRatingPercent] = useState(0);
   const [loading, setLoading] = useState({
     profile: false,
     ratings: false,
+    saving: false,
+    changingPassword: false,
   });
-  const [ratingSubTab, setRatingSubTab] = useState(0); // 0: Received, 1: Given, 2: Rate Winners
-  const [ratingForm, setRatingForm] = useState({}); // { productId: { rating: 1/-1, comment: '' } }
+  const [ratingSubTab, setRatingSubTab] = useState(0); // 0: Received, 1: Rate Winners
+  const [ratingForm, setRatingForm] = useState({}); // { productId: { score: 1-5, comment: '', bidderId: number, orderId: number } }
 
   // Form states
   const [profileData, setProfileData] = useState({
@@ -107,41 +111,84 @@ const SellerProfilePage = () => {
     });
   };
 
-  const handleSaveProfile = () => {
-    // Will be implemented with API call later
-    setIsEditing(false);
-    setSuccessMessage('Profile updated successfully!');
-    setTimeout(() => setSuccessMessage(''), 3000);
-  };
+  const handleSaveProfile = async () => {
+    setLoading((prev) => ({ ...prev, saving: true }));
+    setErrorMessage('');
+    setSuccessMessage('');
 
-  const handleCancelEdit = async () => {
     try {
-      setLoading((prev) => ({ ...prev, profile: true }));
-      const response = await authApi.getProfile();
-      const profile = response.data?.profile || {};
-      setProfileData({
-        id: profile.userId || profile.id || null,
-        name: profile.fullName || '',
-        email: profile.email || '',
-        phone: profile.phoneNumber || '',
-        address: profile.address || '',
-        avatar: profile.avatar || profile.profilePicture || '',
-        rating: profile.rating || 0,
-        totalRatings: profile.totalRatings || 0,
-        positiveRatings: profile.positiveRatings || 0,
-        negativeRatings: profile.negativeRatings || 0,
-      });
+      // Prepare data for API (only fields that can be updated)
+      const updateData = {
+        fullName: profileData.name,
+        phoneNumber: profileData.phone,
+        address: profileData.address,
+      };
+
+      const response = await authApi.updateProfile(updateData);
+      
+      if (response.data?.success) {
+        // Update profile data with response if available
+        const updatedProfile = response.data?.profile;
+        if (updatedProfile) {
+          const mappedProfile = {
+            id: updatedProfile.userId || updatedProfile.id,
+            name: updatedProfile.fullName || profileData.name,
+            email: updatedProfile.email || profileData.email,
+            phone: updatedProfile.phoneNumber || profileData.phone,
+            address: typeof updatedProfile.address === 'string' 
+              ? updatedProfile.address 
+              : updatedProfile.address 
+                ? `${updatedProfile.address.street || ''}, ${updatedProfile.address.city || ''}, ${updatedProfile.address.country || ''}`.replace(/^,\s*|,\s*$/g, '')
+                : profileData.address,
+            avatar: updatedProfile.avatar || profileData.avatar,
+            rating: updatedProfile.rating || profileData.rating,
+            totalRatings: updatedProfile.totalRatings || profileData.totalRatings,
+            positiveRatings: updatedProfile.positiveRatings || profileData.positiveRatings,
+            negativeRatings: updatedProfile.negativeRatings || profileData.negativeRatings,
+          };
+          setProfileData(mappedProfile);
+        }
+        
+        setIsEditing(false);
+        setSuccessMessage('Profile updated successfully!');
+        setTimeout(() => setSuccessMessage(''), 3000);
+      } else {
+        throw new Error(response.data?.message || 'Failed to update profile');
+      }
     } catch (err) {
-      console.error('Error fetching profile:', err);
+      console.error('Error updating profile:', err);
+      const errorMsg = err.response?.data?.message || err.message || 'Failed to update profile. Please try again.';
+      setErrorMessage(errorMsg);
+      setTimeout(() => setErrorMessage(''), 5000);
     } finally {
-      setLoading((prev) => ({ ...prev, profile: false }));
-      setIsEditing(false);
-      setErrorMessage('');
+      setLoading((prev) => ({ ...prev, saving: false }));
     }
   };
 
+  const handleCancelEdit = () => {
+    // Reset to original profile data
+    setProfileData({
+      id: profileData.id,
+      name: profileData.name,
+      email: profileData.email,
+      phone: profileData.phone,
+      address: profileData.address,
+      avatar: profileData.avatar,
+      rating: profileData.rating,
+      totalRatings: profileData.totalRatings,
+      positiveRatings: profileData.positiveRatings,
+      negativeRatings: profileData.negativeRatings,
+    });
+    setIsEditing(false);
+    setErrorMessage('');
+  };
 
-  const handleChangePassword = () => {
+
+  const handleChangePassword = async () => {
+    // Clear previous messages
+    setErrorMessage('');
+    setSuccessMessage('');
+
     // Validation
     if (!passwordData.oldPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
       setErrorMessage('Please fill in all fields');
@@ -158,15 +205,34 @@ const SellerProfilePage = () => {
       return;
     }
 
-    // Will be implemented with API call later
-    setPasswordData({
-      oldPassword: '',
-      newPassword: '',
-      confirmPassword: '',
-    });
-    setSuccessMessage('Password changed successfully!');
-    setErrorMessage('');
-    setTimeout(() => setSuccessMessage(''), 3000);
+    setLoading((prev) => ({ ...prev, changingPassword: true }));
+
+    try {
+      const response = await authApi.changePassword({
+        oldPassword: passwordData.oldPassword,
+        newPassword: passwordData.newPassword,
+      });
+
+      if (response.data?.success) {
+        // Clear form on success
+        setPasswordData({
+          oldPassword: '',
+          newPassword: '',
+          confirmPassword: '',
+        });
+        setSuccessMessage('Password changed successfully!');
+        setTimeout(() => setSuccessMessage(''), 5000);
+      } else {
+        throw new Error(response.data?.message || 'Failed to change password');
+      }
+    } catch (err) {
+      console.error('Error changing password:', err);
+      const errorMsg = err.response?.data?.message || err.message || 'Failed to change password. Please check your current password and try again.';
+      setErrorMessage(errorMsg);
+      setTimeout(() => setErrorMessage(''), 5000);
+    } finally {
+      setLoading((prev) => ({ ...prev, changingPassword: false }));
+    }
   };
 
   // Fetch profile data on mount
@@ -253,17 +319,54 @@ const SellerProfilePage = () => {
           setRatingPercent(ratingsRes.ratingPercent || 0);
           setRatingsReceived(mappedReceived);
           
-          // Still fetch given and pending from other endpoints (if they exist)
+          // Fetch given ratings and completed orders
           try {
-            const [givenRes, needingRes] = await Promise.all([
+            const [givenRes, ordersRes] = await Promise.all([
               sellerApi.getRatingsGiven().catch(() => ({ data: [] })),
-              sellerApi.getItemsNeedingRating().catch(() => ({ data: [] })),
+              sellerApi.getOrders(1, 50, 'all').catch(() => ({ orders: [] })),
             ]);
-            setRatingsGiven(givenRes.data || []);
-            setItemsNeedingRating(needingRes.data || []);
+            
+            const ratingsGiven = givenRes.data || [];
+            const completedOrders = (ordersRes.orders || []).filter(
+              (order) => {
+                const status = (order.status || '').toLowerCase();
+                return (status === 'completed' || status === 'delivered') && 
+                       order.buyerId && 
+                       order.productId;
+              }
+            );
+            
+            // Create a map of productId -> rating for quick lookup
+            const ratingsMap = new Map();
+            ratingsGiven.forEach((rating) => {
+              if (rating.productId) {
+                ratingsMap.set(rating.productId, rating);
+              }
+            });
+            
+            // Map orders to items, checking if already rated
+            const itemsNeedingRating = completedOrders.map((order) => {
+              const existingRating = ratingsMap.get(order.productId);
+              return {
+                id: order.id,
+                productId: order.productId,
+                orderId: order.id,
+                bidderId: order.buyerId,
+                title: order.productTitle || 'Product',
+                image: order.productImage || '/placeholder-image.jpg',
+                winnerName: order.buyerName || order.buyer?.name || 'Buyer',
+                completedDate: order.createdAt || order.updatedAt,
+                isRated: !!existingRating,
+                existingRating: existingRating ? {
+                  score: existingRating.score || existingRating.rating || 0,
+                  comment: existingRating.comment || '',
+                } : null,
+              };
+            });
+            
+            setItemsNeedingRating(itemsNeedingRating);
           } catch (err) {
-            // If these endpoints don't exist yet, just set empty arrays
-            setRatingsGiven([]);
+            console.error('Error fetching orders needing rating:', err);
             setItemsNeedingRating([]);
           }
         } catch (err) {
@@ -336,96 +439,110 @@ const SellerProfilePage = () => {
             {/* Tab 0: Personal Info */}
             {tabValue === 0 && (
               <Box>
-                <Stack direction="row" spacing={3} alignItems="center" sx={{ mb: 4 }}>
-                  <Avatar
-                    src={profileData.avatar}
-                    sx={{ width: 100, height: 100 }}
-                  />
-                  <Box>
-                    <Typography variant="h5" fontWeight={600}>
-                      {profileData.name}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {profileData.email}
-                    </Typography>
-                    <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Star sx={{ color: 'warning.main', fontSize: 18 }} />
-                      <Typography variant="body2" fontWeight={500}>
-                        {profileData.rating} ({profileData.totalRatings} ratings)
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-                        • {profileData.positiveRatings}+ / {profileData.negativeRatings}-
-                      </Typography>
-                    </Box>
+                {loading.profile ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+                    <CircularProgress />
                   </Box>
-                  <Box sx={{ flexGrow: 1 }} />
-                  {!isEditing && (
-                    <Button
-                      variant="outlined"
-                      startIcon={<Edit />}
-                      onClick={() => setIsEditing(true)}
-                    >
-                      Edit Profile
-                    </Button>
-                  )}
-                </Stack>
-
-                <Divider sx={{ mb: 4 }} />
-
-                <Box sx={{ maxWidth: 600 }}>
-                  <Stack spacing={3}>
-                    <TextField
-                      fullWidth
-                      label="Full Name"
-                      value={profileData.name}
-                      onChange={handleProfileChange('name')}
-                      disabled={!isEditing}
-                    />
-                    <TextField
-                      fullWidth
-                      label="Email"
-                      type="email"
-                      value={profileData.email}
-                      onChange={handleProfileChange('email')}
-                      disabled={!isEditing}
-                    />
-                    <TextField
-                      fullWidth
-                      label="Phone Number"
-                      value={profileData.phone}
-                      onChange={handleProfileChange('phone')}
-                      disabled={!isEditing}
-                    />
-                    <TextField
-                      fullWidth
-                      label="Address"
-                      multiline
-                      rows={3}
-                      value={profileData.address}
-                      onChange={handleProfileChange('address')}
-                      disabled={!isEditing}
-                    />
-                  </Stack>
-
-                  {isEditing && (
-                    <Stack direction="row" spacing={2} sx={{ mt: 4 }}>
-                      <Button
-                        variant="contained"
-                        startIcon={<Save />}
-                        onClick={handleSaveProfile}
+                ) : (
+                  <>
+                    <Stack direction="row" spacing={3} alignItems="center" sx={{ mb: 4 }}>
+                      <Avatar
+                        src={profileData.avatar}
+                        sx={{ width: 100, height: 100 }}
                       >
-                        Save Changes
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        startIcon={<Cancel />}
-                        onClick={handleCancelEdit}
-                      >
-                        Cancel
-                      </Button>
+                        {profileData.name ? profileData.name.charAt(0).toUpperCase() : 'U'}
+                      </Avatar>
+                      <Box>
+                        <Typography variant="h5" fontWeight={600}>
+                          {profileData.name || 'No name'}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {profileData.email || 'No email'}
+                        </Typography>
+                        {profileData.totalRatings > 0 && (
+                          <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Star sx={{ color: 'warning.main', fontSize: 18 }} />
+                            <Typography variant="body2" fontWeight={500}>
+                              {profileData.rating} ({profileData.totalRatings} ratings)
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                              • {profileData.positiveRatings}+ / {profileData.negativeRatings}-
+                            </Typography>
+                          </Box>
+                        )}
+                      </Box>
+                      <Box sx={{ flexGrow: 1 }} />
+                      {!isEditing && (
+                        <Button
+                          variant="outlined"
+                          startIcon={<Edit />}
+                          onClick={() => setIsEditing(true)}
+                        >
+                          Edit Profile
+                        </Button>
+                      )}
                     </Stack>
-                  )}
-                </Box>
+
+                    <Divider sx={{ mb: 4 }} />
+
+                    <Box sx={{ maxWidth: 600 }}>
+                      <Stack spacing={3}>
+                        <TextField
+                          fullWidth
+                          label="Full Name"
+                          value={profileData.name}
+                          onChange={handleProfileChange('name')}
+                          disabled={!isEditing || loading.saving}
+                        />
+                        <TextField
+                          fullWidth
+                          label="Email"
+                          type="email"
+                          value={profileData.email}
+                          disabled
+                          helperText="Email cannot be changed"
+                        />
+                        <TextField
+                          fullWidth
+                          label="Phone Number"
+                          value={profileData.phone}
+                          onChange={handleProfileChange('phone')}
+                          disabled={!isEditing || loading.saving}
+                        />
+                        <TextField
+                          fullWidth
+                          label="Address"
+                          multiline
+                          rows={3}
+                          value={profileData.address}
+                          onChange={handleProfileChange('address')}
+                          disabled={!isEditing || loading.saving}
+                        />
+                      </Stack>
+
+                      {isEditing && (
+                        <Stack direction="row" spacing={2} sx={{ mt: 4 }}>
+                          <Button
+                            variant="contained"
+                            startIcon={<Save />}
+                            onClick={handleSaveProfile}
+                            disabled={loading.saving}
+                          >
+                            {loading.saving ? 'Saving...' : 'Save Changes'}
+                          </Button>
+                          <Button
+                            variant="outlined"
+                            startIcon={<Cancel />}
+                            onClick={handleCancelEdit}
+                            disabled={loading.saving}
+                          >
+                            Cancel
+                          </Button>
+                        </Stack>
+                      )}
+                    </Box>
+                  </>
+                )}
               </Box>
             )}
 
@@ -446,12 +563,14 @@ const SellerProfilePage = () => {
                     type={showOldPassword ? 'text' : 'password'}
                     value={passwordData.oldPassword}
                     onChange={handlePasswordChange('oldPassword')}
+                    disabled={loading.changingPassword}
                     InputProps={{
                       endAdornment: (
                         <InputAdornment position="end">
                           <IconButton
                             onClick={() => setShowOldPassword(!showOldPassword)}
                             edge="end"
+                            disabled={loading.changingPassword}
                           >
                             {showOldPassword ? <VisibilityOff /> : <Visibility />}
                           </IconButton>
@@ -465,6 +584,7 @@ const SellerProfilePage = () => {
                     type={showNewPassword ? 'text' : 'password'}
                     value={passwordData.newPassword}
                     onChange={handlePasswordChange('newPassword')}
+                    disabled={loading.changingPassword}
                     helperText="Password must be at least 6 characters"
                     InputProps={{
                       endAdornment: (
@@ -472,6 +592,7 @@ const SellerProfilePage = () => {
                           <IconButton
                             onClick={() => setShowNewPassword(!showNewPassword)}
                             edge="end"
+                            disabled={loading.changingPassword}
                           >
                             {showNewPassword ? <VisibilityOff /> : <Visibility />}
                           </IconButton>
@@ -485,12 +606,14 @@ const SellerProfilePage = () => {
                     type={showConfirmPassword ? 'text' : 'password'}
                     value={passwordData.confirmPassword}
                     onChange={handlePasswordChange('confirmPassword')}
+                    disabled={loading.changingPassword}
                     InputProps={{
                       endAdornment: (
                         <InputAdornment position="end">
                           <IconButton
                             onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                             edge="end"
+                            disabled={loading.changingPassword}
                           >
                             {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
                           </IconButton>
@@ -502,9 +625,10 @@ const SellerProfilePage = () => {
                     variant="contained"
                     size="large"
                     onClick={handleChangePassword}
+                    disabled={loading.changingPassword}
                     sx={{ mt: 2 }}
                   >
-                    Change Password
+                    {loading.changingPassword ? 'Changing Password...' : 'Change Password'}
                   </Button>
                 </Stack>
               </Box>
@@ -599,22 +723,7 @@ const SellerProfilePage = () => {
                       sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}
                     >
                       <Tab label={`Received (${ratingsReceived.length})`} />
-                      <Tab label={`Given (${ratingsGiven.length})`} />
-                      <Tab
-                        label={
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            Rate Winners
-                            {itemsNeedingRating.length > 0 && (
-                              <Chip
-                                label={itemsNeedingRating.length}
-                                size="small"
-                                color="error"
-                                sx={{ height: 20, minWidth: 20 }}
-                              />
-                            )}
-                          </Box>
-                        }
-                      />
+                      <Tab label={`Rate Winners (${itemsNeedingRating.length})`} />
                     </Tabs>
 
                     {/* Sub Tab 0: Ratings Received */}
@@ -661,61 +770,16 @@ const SellerProfilePage = () => {
                       </Box>
                     )}
 
-                    {/* Sub Tab 1: Ratings Given */}
+                    {/* Sub Tab 1: Rate Winners */}
                     {ratingSubTab === 1 && (
-                      <Box>
-                        {ratingsGiven.length === 0 ? (
-                          <Box sx={{ textAlign: 'center', py: 8 }}>
-                            <Star sx={{ fontSize: 64, color: 'grey.300', mb: 2 }} />
-                            <Typography variant="h6" color="text.secondary" gutterBottom>
-                              No Ratings Given Yet
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              Rate winners after completing transactions
-                            </Typography>
-                          </Box>
-                        ) : (
-                          <Stack spacing={2}>
-                            {ratingsGiven.map((rating) => (
-                              <Card key={rating.id} elevation={0} sx={{ border: '1px solid', borderColor: 'divider' }}>
-                                <CardContent>
-                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 2 }}>
-                                    <Box>
-                                      <Typography variant="subtitle1" fontWeight={600}>
-                                        {rating.toUser}
-                                      </Typography>
-                                      <Typography variant="caption" color="text.secondary">
-                                        {fVNDate(rating.date)}
-                                      </Typography>
-                                    </Box>
-                                    <Chip
-                                      label={rating.rating === 1 ? '+1' : '-1'}
-                                      color={rating.rating === 1 ? 'success' : 'error'}
-                                      size="small"
-                                    />
-                                  </Box>
-                                  <Typography variant="body2" sx={{ mb: 1 }}>
-                                    {rating.comment}
-                                  </Typography>
-                                </CardContent>
-                              </Card>
-                            ))}
-                          </Stack>
-                        )}
-                      </Box>
-                    )}
-
-                    {/* Sub Tab 2: Rate Winners */}
-                    {ratingSubTab === 2 && (
                       <Box>
                         {itemsNeedingRating.length === 0 ? (
                           <Box sx={{ textAlign: 'center', py: 8 }}>
-                            <CheckCircle sx={{ fontSize: 64, color: 'success.main', mb: 2 }} />
                             <Typography variant="h6" color="text.secondary" gutterBottom>
-                              All Caught Up!
+                              No completed transactions yet
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
-                              You've rated all completed transactions
+                              Completed transactions will appear here for rating
                             </Typography>
                           </Box>
                         ) : (
@@ -723,21 +787,27 @@ const SellerProfilePage = () => {
                             {itemsNeedingRating.map((item) => (
                               <Card key={item.id} elevation={0} sx={{ border: '1px solid', borderColor: 'divider' }}>
                                 <CardContent>
-                                  <Grid container spacing={3} alignItems="center">
-                                    <Grid item xs={12} sm={3}>
+                                  <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 3, alignItems: { xs: 'stretch', sm: 'center' } }}>
+                                    <Box
+                                      sx={{
+                                        flexShrink: 0,
+                                        width: { xs: '100%', sm: 150 },
+                                        height: { xs: 200, sm: 120 },
+                                      }}
+                                    >
                                       <Box
                                         component="img"
                                         src={item.image}
                                         alt={item.title}
                                         sx={{
                                           width: '100%',
-                                          height: 120,
+                                          height: '100%',
                                           objectFit: 'cover',
                                           borderRadius: 1,
                                         }}
                                       />
-                                    </Grid>
-                                    <Grid item xs={12} sm={6}>
+                                    </Box>
+                                    <Box sx={{ flex: 1, minWidth: 0 }}>
                                       <Typography variant="subtitle1" fontWeight={600} gutterBottom>
                                         {item.title}
                                       </Typography>
@@ -747,107 +817,166 @@ const SellerProfilePage = () => {
                                       <Typography variant="caption" color="text.secondary">
                                         Completed: {fVNDate(item.completedDate)}
                                       </Typography>
-                                    </Grid>
-                                    <Grid item xs={12} sm={3}>
+                                    </Box>
+                                    <Box sx={{ flexShrink: 0, width: { xs: '100%', sm: 250 } }}>
                                       <Stack spacing={2}>
-                                        <Box>
-                                          <Typography variant="body2" gutterBottom>
-                                            Rate Winner
-                                          </Typography>
-                                          <Stack direction="row" spacing={1}>
-                                            <Button
-                                              variant={
-                                                ratingForm[item.productId]?.rating === 1
-                                                  ? 'contained'
-                                                  : 'outlined'
-                                              }
+                                        {item.isRated ? (
+                                          <>
+                                            <Box>
+                                              <Typography variant="body2" gutterBottom>
+                                                Your Rating
+                                              </Typography>
+                                              <Rating
+                                                value={item.existingRating?.score || 0}
+                                                readOnly
+                                                size="large"
+                                              />
+                                            </Box>
+                                            {item.existingRating?.comment && (
+                                              <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                                                "{item.existingRating.comment}"
+                                              </Typography>
+                                            )}
+                                            <Chip
+                                              label="Rated"
                                               color="success"
                                               size="small"
-                                              onClick={() =>
+                                              sx={{ alignSelf: 'flex-start' }}
+                                            />
+                                          </>
+                                        ) : (
+                                          <>
+                                            <Box>
+                                              <Typography variant="body2" gutterBottom>
+                                                Rate Winner
+                                              </Typography>
+                                              <Rating
+                                                value={ratingForm[item.productId]?.score || 0}
+                                                onChange={(e, newValue) => {
+                                                  setRatingForm({
+                                                    ...ratingForm,
+                                                    [item.productId]: {
+                                                      ...ratingForm[item.productId],
+                                                      score: newValue || 0,
+                                                      bidderId: item.bidderId,
+                                                      orderId: item.orderId,
+                                                    },
+                                                  });
+                                                }}
+                                                size="large"
+                                              />
+                                            </Box>
+                                            <TextField
+                                              fullWidth
+                                              multiline
+                                              rows={3}
+                                              placeholder="Leave a comment (optional)"
+                                              value={ratingForm[item.productId]?.comment || ''}
+                                              onChange={(e) =>
                                                 setRatingForm({
                                                   ...ratingForm,
                                                   [item.productId]: {
                                                     ...ratingForm[item.productId],
-                                                    rating: 1,
+                                                    comment: e.target.value,
                                                   },
                                                 })
                                               }
-                                            >
-                                              +1
-                                            </Button>
-                                            <Button
-                                              variant={
-                                                ratingForm[item.productId]?.rating === -1
-                                                  ? 'contained'
-                                                  : 'outlined'
-                                              }
-                                              color="error"
                                               size="small"
-                                              onClick={() =>
-                                                setRatingForm({
-                                                  ...ratingForm,
-                                                  [item.productId]: {
-                                                    ...ratingForm[item.productId],
-                                                    rating: -1,
-                                                  },
-                                                })
-                                              }
+                                            />
+                                            <Button
+                                              variant="contained"
+                                              size="small"
+                                              disabled={!ratingForm[item.productId]?.score || loading.ratings}
+                                              onClick={async () => {
+                                                const formData = ratingForm[item.productId];
+                                                if (!formData || !formData.score || !formData.bidderId || !item.productId) {
+                                                  setErrorMessage('Please provide a rating');
+                                                  return;
+                                                }
+
+                                                setLoading((prev) => ({ ...prev, ratings: true }));
+                                                setErrorMessage('');
+                                                try {
+                                                  await sellerApi.rateBidder(
+                                                    formData.bidderId,
+                                                    item.productId,
+                                                    formData.orderId,
+                                                    formData.score,
+                                                    formData.comment || ''
+                                                  );
+                                                  setSuccessMessage('Rating submitted successfully!');
+                                                  setTimeout(() => setSuccessMessage(''), 3000);
+                                                  
+                                                  // Update item to mark as rated instead of removing
+                                                  setItemsNeedingRating((prev) =>
+                                                    prev.map((i) =>
+                                                      i.id === item.id
+                                                        ? {
+                                                            ...i,
+                                                            isRated: true,
+                                                            existingRating: {
+                                                              score: formData.score,
+                                                              comment: formData.comment || '',
+                                                            },
+                                                          }
+                                                        : i
+                                                    )
+                                                  );
+                                                  
+                                                  // Clear form
+                                                  setRatingForm((prev) => {
+                                                    const newForm = { ...prev };
+                                                    delete newForm[item.productId];
+                                                    return newForm;
+                                                  });
+                                                  
+                                                  // Refresh ratings
+                                                  const ratingsRes = await sellerApi.getRatings(1, 20);
+                                                  const ratingFromPercent = (ratingsRes.ratingPercent || 0) / 20;
+                                                  setProfileData((prev) => ({
+                                                    ...prev,
+                                                    rating: ratingFromPercent,
+                                                    totalRatings: ratingsRes.totalCount || 0,
+                                                    positiveRatings: ratingsRes.positiveReviews || 0,
+                                                    negativeRatings: ratingsRes.negativeReviews || 0,
+                                                  }));
+                                                  
+                                                  // Refresh to update isRated status
+                                                  const givenRes = await sellerApi.getRatingsGiven().catch(() => ({ data: [] }));
+                                                  const updatedRatingsGiven = givenRes.data || [];
+                                                  // Update items with new rating status
+                                                  const updatedItems = itemsNeedingRating.map((item) => {
+                                                    const existingRating = updatedRatingsGiven.find(r => r.productId === item.productId);
+                                                    return {
+                                                      ...item,
+                                                      isRated: !!existingRating,
+                                                      existingRating: existingRating ? {
+                                                        score: existingRating.score || existingRating.rating || 0,
+                                                        comment: existingRating.comment || '',
+                                                      } : null,
+                                                    };
+                                                  });
+                                                  setItemsNeedingRating(updatedItems);
+                                                } catch (err) {
+                                                  console.error('Error submitting rating:', err);
+                                                  const errorMsg =
+                                                    err.response?.data?.message ||
+                                                    err.message ||
+                                                    'Failed to submit rating. Please try again.';
+                                                  setErrorMessage(errorMsg);
+                                                  setTimeout(() => setErrorMessage(''), 5000);
+                                                } finally {
+                                                  setLoading((prev) => ({ ...prev, ratings: false }));
+                                                }
+                                              }}
                                             >
-                                              -1
+                                              {loading.ratings ? <CircularProgress size={20} /> : 'Submit Rating'}
                                             </Button>
-                                          </Stack>
-                                        </Box>
-                                        <TextField
-                                          fullWidth
-                                          multiline
-                                          rows={3}
-                                          placeholder="Leave a comment (optional)"
-                                          value={ratingForm[item.productId]?.comment || ''}
-                                          onChange={(e) =>
-                                            setRatingForm({
-                                              ...ratingForm,
-                                              [item.productId]: {
-                                                ...ratingForm[item.productId],
-                                                comment: e.target.value,
-                                              },
-                                            })
-                                          }
-                                          size="small"
-                                        />
-                                        <Button
-                                          variant="contained"
-                                          size="small"
-                                          disabled={!ratingForm[item.productId]?.rating}
-                                          onClick={async () => {
-                                            try {
-                                              const orderId = item.orderId || item.id;
-                                              const rating = ratingForm[item.productId]?.rating;
-                                              const comment = ratingForm[item.productId]?.comment || '';
-                                              await sellerApi.rateBidder(orderId, rating, comment);
-                                              setSuccessMessage('Rating submitted successfully!');
-                                              setTimeout(() => setSuccessMessage(''), 3000);
-                                              // Remove item from list
-                                              setItemsNeedingRating((prev) =>
-                                                prev.filter((i) => i.id !== item.id)
-                                              );
-                                              // Clear form
-                                              setRatingForm((prev) => {
-                                                const newForm = { ...prev };
-                                                delete newForm[item.productId];
-                                                return newForm;
-                                              });
-                                            } catch (err) {
-                                              console.error('Error submitting rating:', err);
-                                              setErrorMessage(err.response?.data?.message || 'Failed to submit rating');
-                                              setTimeout(() => setErrorMessage(''), 5000);
-                                            }
-                                          }}
-                                        >
-                                          Submit Rating
-                                        </Button>
+                                          </>
+                                        )}
                                       </Stack>
-                                    </Grid>
-                                  </Grid>
+                                    </Box>
+                                  </Box>
                                 </CardContent>
                               </Card>
                             ))}
