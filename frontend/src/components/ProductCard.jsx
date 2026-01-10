@@ -36,6 +36,9 @@ const ProductCard = ({
   onCompleteOrder,
 }) => {
   const navigate = useNavigate();
+  
+  // Check if user is highest bidder (for active bids)
+  const isHighestBidder = product.isHighestBidder || product.isWinning;
 
   const getTimeLeft = (endTime) => {
     if (!endTime) return 'N/A';
@@ -66,16 +69,19 @@ const ProductCard = ({
         width: 350,
         display: 'flex',
         flexDirection: 'column',
-        border: '1px solid',
-        borderColor: 'grey.200',
+        border: '2px solid',
+        borderColor: isHighestBidder && !isWonItem ? 'success.main' : 'grey.200',
         borderRadius: 2,
         overflow: 'hidden',
         transition: 'all 0.3s',
         position: 'relative',
+        bgcolor: isHighestBidder && !isWonItem ? 'success.50' : 'background.paper',
         '&:hover': {
-          boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+          boxShadow: isHighestBidder && !isWonItem 
+            ? '0 8px 24px rgba(76, 175, 80, 0.2)' 
+            : '0 8px 24px rgba(0,0,0,0.12)',
           transform: 'translateY(-4px)',
-          borderColor: 'primary.main',
+          borderColor: isHighestBidder && !isWonItem ? 'success.dark' : 'primary.main',
         },
       }}
       onClick={() => navigate(`/product/${product.productId || product.id}`)}
@@ -166,6 +172,23 @@ const ProductCard = ({
             }}
           />
         )}
+        {!isWonItem && isHighestBidder && (
+          <Chip
+            icon={<CheckCircle />}
+            label="Leading"
+            size="small"
+            color="success"
+            sx={{
+              position: 'absolute',
+              top: 12,
+              left: 12,
+              fontWeight: 'bold',
+              bgcolor: 'success.main',
+              color: 'white',
+              boxShadow: 2,
+            }}
+          />
+        )}
         {showStatus && product.status && (() => {
           const status = product.status?.toLowerCase() || 'active';
           const statusMap = {
@@ -251,11 +274,11 @@ const ProductCard = ({
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                 <Box>
                   <Typography variant="body2" color="text.secondary" gutterBottom>
-                    {product.isHighestBidder ? 'Your Bid (Leading)' : 'Current Bid'}
+                    {isHighestBidder ? 'Your Bid (Leading)' : 'Current Bid'}
                   </Typography>
                   <Typography
                     variant="h6"
-                    color={product.isHighestBidder ? 'success.main' : 'primary'}
+                    color={isHighestBidder ? 'success.main' : 'primary'}
                     fontWeight="bold"
                   >
                     {formatPrice(product.currentPrice || product.winningPrice || 0)}

@@ -90,6 +90,7 @@ function ProductDetailPage() {
   const [openRejectDialog, setOpenRejectDialog] = useState(false);
   const [bidToReject, setBidToReject] = useState(null);
   const [rejectingBid, setRejectingBid] = useState(null);
+  const [rejectReason, setRejectReason] = useState('');
   const [activeTab, setActiveTab] = useState(0);
   const relatedProductsRef = useRef(null);
   const [isSeller, setIsSeller] = useState(false);
@@ -709,20 +710,28 @@ function ProductDetailPage() {
 
   const handleOpenRejectDialog = (bid) => {
     setBidToReject(bid);
+    setRejectReason('');
     setOpenRejectDialog(true);
   };
 
   const handleCloseRejectDialog = () => {
     setOpenRejectDialog(false);
     setBidToReject(null);
+    setRejectReason('');
   };
 
   const handleConfirmReject = async () => {
     if (!bidToReject || !productId || !bidToReject.bidderId) return;
+    
+    // Validate reason
+    if (!rejectReason || !rejectReason.trim()) {
+      enqueueSnackbar('Reason is required', { variant: 'error' });
+      return;
+    }
 
     setRejectingBid(bidToReject.id);
     try {
-      const response = await productApi.rejectBid(productId, bidToReject.bidderId);
+      const response = await productApi.rejectBid(productId, bidToReject.bidderId, rejectReason.trim());
       if (response.success) {
         // Mark bid as rejected
         setRejectedBids((prev) => new Set([...prev, bidToReject.id]));
@@ -1822,18 +1831,31 @@ function ProductDetailPage() {
                 Are you sure you want to reject this bid? This action cannot be undone.
               </Alert>
               {bidToReject && (
-                <Box>
-                  <Typography variant="body2" color="text.secondary">
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
                     Bidder: <strong>{bidToReject.bidder}</strong>
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
                     Amount: <strong>{formatPrice(bidToReject.amount)}</strong>
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
                     Time: <strong>{fVNDateTime(bidToReject.time)}</strong>
                   </Typography>
                 </Box>
               )}
+              <TextField
+                fullWidth
+                label="Reason"
+                placeholder="Please provide a reason for rejecting this bid..."
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                multiline
+                rows={4}
+                required
+                error={!rejectReason.trim() && rejectReason !== ''}
+                helperText={!rejectReason.trim() && rejectReason !== '' ? 'Reason is required' : 'Please explain why you are rejecting this bid'}
+                sx={{ mt: 2 }}
+              />
             </DialogContent>
             <DialogActions>
               <Button onClick={handleCloseRejectDialog} disabled={rejectingBid}>
@@ -1843,7 +1865,7 @@ function ProductDetailPage() {
                 variant="contained"
                 color="error"
                 onClick={handleConfirmReject}
-                disabled={rejectingBid}
+                disabled={rejectingBid || !rejectReason.trim()}
                 startIcon={<Block />}
               >
                 {rejectingBid ? "Rejecting..." : "Reject Bid"}
