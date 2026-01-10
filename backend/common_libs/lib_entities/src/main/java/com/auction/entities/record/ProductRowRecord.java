@@ -25,6 +25,7 @@ public record ProductRowRecord(
     ZonedDateTime updatedAt,
     String sellerName,
     int sellerPositiveReviews,
-    int sellerNegativeReviews
+    int sellerNegativeReviews,
+    String highestBidderMasked
 ) {
 }

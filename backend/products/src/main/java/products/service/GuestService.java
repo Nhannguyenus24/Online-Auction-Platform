@@ -176,7 +176,11 @@ public class GuestService {
     }
 
     private Product mapRowToProductWithImages(ProductRowRecord dto, List<ProductImage> images) {
-        return Product.newBuilder()
+        long now = TimeUtils.toEpochSecond(TimeUtils.now());
+        long endsAt = dto.endsAt().toEpochSecond();
+        long timeRemaining = Math.max(0, endsAt - now);
+        
+        Product.Builder builder = Product.newBuilder()
             .setId(dto.id())
             .setSellerId(dto.sellerId())
             .setCategoryId(dto.categoryId())
@@ -188,7 +192,7 @@ public class GuestService {
             .setStepPrice(dto.stepPrice())
             .setBuyNowPrice(dto.buyNowPrice())
             .setStartsAt(dto.startsAt().toEpochSecond())
-            .setEndsAt(dto.endsAt().toEpochSecond())
+            .setEndsAt(endsAt)
             .setCreatedAt(dto.createdAt().toEpochSecond())
             .setUpdatedAt(dto.updatedAt().toEpochSecond())
             .setIsAutoExtend(dto.isAutoExtend())
@@ -196,11 +200,17 @@ public class GuestService {
             .setStatus(dto.status())
             .setViewsCount(dto.viewsCount())
             .setBidsCount(dto.bidsCount())
-            .setSellerName(dto.sellerName())
+            .setSellerName(dto.sellerName() != null ? dto.sellerName() : "")
             .setSellerPositiveReviews(dto.sellerPositiveReviews())
             .setSellerNegativeReviews(dto.sellerNegativeReviews())
-            .addAllImages(images)
-            .build();
+            .setTimeRemaining(timeRemaining)
+            .addAllImages(images);
+        
+        if (dto.highestBidderMasked() != null && !dto.highestBidderMasked().isEmpty()) {
+            builder.setHighestBidderMasked(dto.highestBidderMasked());
+        }
+        
+        return builder.build();
     }
 
     private ProductImage mapToProductImage(ImageRowRecord dto) {

@@ -122,14 +122,35 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
                p.is_auto_extend, p.auto_extend_seconds, p.status, p.views_count,
                p.bids_count, p.created_at, p.updated_at, u.full_name as seller_name,
                u.positive_reviews as seller_positive_reviews,
-               u.negative_reviews as seller_negative_reviews
+               u.negative_reviews as seller_negative_reviews,
+               CASE 
+                   WHEN MAX_BID.bidder_id IS NOT NULL THEN
+                       CONCAT(SUBSTRING(u2.email, 1, 3), '***@', SUBSTRING(u2.email, LOCATE('@', u2.email) + 1))
+                   ELSE NULL
+               END as highest_bidder_masked
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
         LEFT JOIN users u ON p.seller_id = u.id
+        LEFT JOIN (
+            SELECT b1.product_id, b1.bidder_id
+            FROM bids b1
+            WHERE b1.id = (
+                SELECT MIN(b2.id)
+                FROM bids b2
+                WHERE b2.product_id = b1.product_id 
+                AND b2.amount = (SELECT MAX(amount) FROM bids WHERE product_id = b1.product_id)
+            )
+        ) MAX_BID ON p.id = MAX_BID.product_id
+        LEFT JOIN users u2 ON MAX_BID.bidder_id = u2.id
         WHERE (COALESCE(:status, '') = '' OR p.status = :status)
               AND p.current_price >= COALESCE(:minPrice, 0)
               AND p.current_price <= COALESCE(:maxPrice, 999999999)
               AND (COALESCE(:searchKeyword, '') = '' OR MATCH(p.title) AGAINST(:searchKeyword IN BOOLEAN MODE))
+        GROUP BY p.id, p.seller_id, p.category_id, c.name, p.title, p.description, 
+                 p.starting_price, p.current_price, p.step_price, p.buy_now_price, 
+                 p.starts_at, p.ends_at, p.is_auto_extend, p.auto_extend_seconds, 
+                 p.status, p.views_count, p.bids_count, p.created_at, p.updated_at, 
+                 u.full_name, u.positive_reviews, u.negative_reviews, MAX_BID.bidder_id, u2.email
         ORDER BY
             CASE WHEN :sortOrder = 'ENDING_SOON_DESC' THEN p.ends_at END ASC,
             CASE WHEN :sortOrder = 'ENDING_SOON_ASC' THEN p.ends_at END DESC,
@@ -174,15 +195,36 @@ public interface ProductRepository extends R2dbcRepository<Product, Integer>{
                p.is_auto_extend, p.auto_extend_seconds, p.status, p.views_count,
                p.bids_count, p.created_at, p.updated_at, u.full_name as seller_name,
                u.positive_reviews as seller_positive_reviews,
-               u.negative_reviews as seller_negative_reviews
+               u.negative_reviews as seller_negative_reviews,
+               CASE 
+                   WHEN MAX_BID.bidder_id IS NOT NULL THEN
+                       CONCAT(SUBSTRING(u2.email, 1, 3), '***@', SUBSTRING(u2.email, LOCATE('@', u2.email) + 1))
+                   ELSE NULL
+               END as highest_bidder_masked
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
         LEFT JOIN users u ON p.seller_id = u.id
+        LEFT JOIN (
+            SELECT b1.product_id, b1.bidder_id
+            FROM bids b1
+            WHERE b1.id = (
+                SELECT MIN(b2.id)
+                FROM bids b2
+                WHERE b2.product_id = b1.product_id 
+                AND b2.amount = (SELECT MAX(amount) FROM bids WHERE product_id = b1.product_id)
+            )
+        ) MAX_BID ON p.id = MAX_BID.product_id
+        LEFT JOIN users u2 ON MAX_BID.bidder_id = u2.id
         WHERE p.category_id = :categoryId
               AND (COALESCE(:status, '') = '' OR p.status = :status)
               AND p.current_price >= COALESCE(:minPrice, 0)
               AND p.current_price <= COALESCE(:maxPrice, 999999999)
               AND (COALESCE(:searchKeyword, '') = '' OR MATCH(p.title) AGAINST(:searchKeyword IN BOOLEAN MODE))
+        GROUP BY p.id, p.seller_id, p.category_id, c.name, p.title, p.description, 
+                 p.starting_price, p.current_price, p.step_price, p.buy_now_price, 
+                 p.starts_at, p.ends_at, p.is_auto_extend, p.auto_extend_seconds, 
+                 p.status, p.views_count, p.bids_count, p.created_at, p.updated_at, 
+                 u.full_name, u.positive_reviews, u.negative_reviews, MAX_BID.bidder_id, u2.email
         ORDER BY
             CASE WHEN :sortOrder = 'ENDING_SOON_DESC' THEN p.ends_at END ASC,
             CASE WHEN :sortOrder = 'ENDING_SOON_ASC' THEN p.ends_at END DESC,

@@ -477,22 +477,29 @@ const SearchResultsPage = () => {
 
                         {/* Stats */}
                         <Stack spacing={1} sx={{ mb: 2 }}>
+                          {/* Highest Bidder */}
+                          {product.bidsCount > 0 && product.highestBidderMasked && (
+                            <Stack direction="row" alignItems="center" spacing={1}>
+                              <Typography variant="caption" color="text.secondary" fontWeight="medium">
+                                Highest Bidder:
+                              </Typography>
+                              <Typography variant="caption" color="text.primary" fontWeight="600">
+                                {product.highestBidderMasked}
+                              </Typography>
+                            </Stack>
+                          )}
+                          {/* Time Left */}
                           <Stack direction="row" alignItems="center" spacing={1}>
                             <AccessTime sx={{ fontSize: 16, color: 'text.secondary' }} />
                             <Typography variant="caption" color="text.secondary">
                               {getTimeLeft(product.endsAt)}
                             </Typography>
                           </Stack>
+                          {/* Bid Count */}
                           <Stack direction="row" alignItems="center" spacing={1}>
                             <Gavel sx={{ fontSize: 16, color: 'text.secondary' }} />
                             <Typography variant="caption" color="text.secondary">
                               {product.bidsCount || 0} bids
-                            </Typography>
-                          </Stack>
-                          <Stack direction="row" alignItems="center" spacing={1}>
-                            <Visibility sx={{ fontSize: 16, color: 'text.secondary' }} />
-                            <Typography variant="caption" color="text.secondary">
-                              {product.viewsCount || 0} views
                             </Typography>
                           </Stack>
                         </Stack>
