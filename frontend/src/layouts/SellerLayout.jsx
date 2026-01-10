@@ -22,6 +22,7 @@ import {
   Inventory as InventoryIcon,
   ArrowBack as ArrowBackIcon,
 } from '@mui/icons-material';
+import Header from './Header';
 
 const DRAWER_WIDTH = 260;
 const COLLAPSED_WIDTH = 70;
@@ -48,22 +49,25 @@ const SellerLayout = () => {
   ];
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: '#fafafa' }}>
-      {/* Sidebar */}
-      <Box
-        sx={{
-          width: collapsed ? COLLAPSED_WIDTH : DRAWER_WIDTH,
-          flexShrink: 0,
-          transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          position: 'fixed',
-          height: '100vh',
-          bgcolor: 'white',
-          borderRight: '1px solid',
-          borderColor: 'divider',
-          overflow: 'hidden',
-          zIndex: 1000,
-        }}
-      >
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      <Header />
+      <Box sx={{ display: 'flex', flexGrow: 1, bgcolor: '#fafafa' }}>
+        {/* Sidebar */}
+        <Box
+          sx={{
+            width: collapsed ? COLLAPSED_WIDTH : DRAWER_WIDTH,
+            flexShrink: 0,
+            transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            position: 'fixed',
+            height: 'calc(100vh - 64px)',
+            top: 64,
+            bgcolor: 'white',
+            borderRight: '1px solid',
+            borderColor: 'divider',
+            overflow: 'hidden',
+            zIndex: 1000,
+          }}
+        >
         {/* Header */}
         <Box
           sx={{
@@ -128,7 +132,7 @@ const SellerLayout = () => {
         </Box>
 
         {/* Menu */}
-        <List sx={{ px: collapsed ? 1 : 2, py: 2, overflow: 'auto', height: 'calc(100vh - 64px)' }}>
+        <List sx={{ px: collapsed ? 1 : 2, py: 2, overflow: 'auto', height: '100%' }}>
           {menuItems.map((item) => {
             const active = isActive(item.path);
             return (
@@ -190,18 +194,18 @@ const SellerLayout = () => {
         </List>
       </Box>
 
-      {/* Main Content */}
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          ml: collapsed ? `${COLLAPSED_WIDTH}px` : `${DRAWER_WIDTH}px`,
-          transition: 'margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          p: 3,
-          minHeight: '100vh',
-        }}
-      >
-        <Outlet />
+        {/* Main Content */}
+        <Box
+          component="main"
+          sx={{
+            flexGrow: 1,
+            ml: collapsed ? `${COLLAPSED_WIDTH}px` : `${DRAWER_WIDTH}px`,
+            transition: 'margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            p: 3,
+          }}
+        >
+          <Outlet />
+        </Box>
       </Box>
     </Box>
   );

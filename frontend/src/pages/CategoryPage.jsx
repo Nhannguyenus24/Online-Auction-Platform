@@ -7,7 +7,6 @@ import {
   Card,
   CardContent,
   CardMedia,
-  Grid,
   Chip,
   Breadcrumbs,
   Link,
@@ -360,9 +359,15 @@ const CategoryPage = () => {
 
               {/* Products Grid */}
               {loading ? (
-                <Grid container spacing={3}>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
                   {[...Array(12)].map((_, index) => (
-                    <Grid item xs={12} sm={6} lg={4} key={`skeleton-${index}`}>
+                    <Box 
+                      key={`skeleton-${index}`}
+                      sx={{
+                        flex: { xs: '1 1 100%', sm: '1 1 calc(50% - 12px)', lg: '1 1 calc(33.333% - 16px)' },
+                        minWidth: 0,
+                      }}
+                    >
                       <Card
                         elevation={0}
                         sx={{
@@ -388,9 +393,9 @@ const CategoryPage = () => {
                           </Box>
                         </CardContent>
                       </Card>
-                    </Grid>
+                    </Box>
                   ))}
-                </Grid>
+                </Box>
               ) : error ? (
                 <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>
               ) : products.length === 0 ? (
@@ -400,9 +405,15 @@ const CategoryPage = () => {
                   </Typography>
                 </Box>
               ) : (
-                <Grid container spacing={3}>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
                   {products.map((product) => (
-                    <Grid item xs={12} sm={6} lg={4} key={product.id}>
+                    <Box 
+                      key={product.id}
+                      sx={{
+                        flex: { xs: '1 1 100%', sm: '1 1 calc(50% - 12px)', lg: '1 1 calc(33.333% - 16px)' },
+                        minWidth: 0,
+                      }}
+                    >
                       <Card
                         elevation={0}
                         sx={{
@@ -501,9 +512,9 @@ const CategoryPage = () => {
                           </Box>
                         </CardContent>
                       </Card>
-                    </Grid>
+                    </Box>
                   ))}
-                </Grid>
+                </Box>
               )}
 
               {/* Pagination */}
