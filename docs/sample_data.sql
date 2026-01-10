@@ -28,14 +28,14 @@ SET FOREIGN_KEY_CHECKS = 1;
 -- password: String1234
 -- =====================
 INSERT INTO `users` (`id`, `email`, `password_hash`, `full_name`, `role`, `phone`, `address`, `is_email_verified`, `positive_reviews`, `negative_reviews`) VALUES
-(1, 'nhannguyentrong355@gmail.com', '$2a$10$B9Nb3RVgybru2vvyVNRqrejtZG0V1o9XK8QUlm4lcwybozRwzbYEe', 'Admin User', 'admin', '+84901234567', '123 Admin Street, Ho Chi Minh City', 1, 50, 1),
-(2, 'seller1@example.com', '$2a$10$B9Nb3RVgybru2vvyVNRqrejtZG0V1o9XK8QUlm4lcwybozRwzbYEe', 'Nguyen Van A', 'seller', '+84912345678', '456 Seller Avenue, Ho Chi Minh City', 1, 45, 2),
-(3, 'seller2@example.com', '$2a$10$B9Nb3RVgybru2vvyVNRqrejtZG0V1o9XK8QUlm4lcwybozRwzbYEe', 'Tran Thi B', 'seller', '+84923456789', '789 Merchant Road, Hanoi', 1, 38, 1),
-(4, 'bidder1@example.com', '$2a$10$B9Nb3RVgybru2vvyVNRqrejtZG0V1o9XK8QUlm4lcwybozRwzbYEe', 'Pham Van C', 'bidder', '+84934567890', '321 Buyer Lane, Da Nang', 1, 15, 0),
-(5, 'bidder2@example.com', '$2a$10$B9Nb3RVgybru2vvyVNRqrejtZG0V1o9XK8QUlm4lcwybozRwzbYEe', 'Le Thi D', 'bidder', '+84945678901', '654 Customer Street, Can Tho', 1, 22, 1),
-(6, 'bidder3@example.com', '$2a$10$B9Nb3RVgybru2vvyVNRqrejtZG0V1o9XK8QUlm4lcwybozRwzbYEe', 'Hoang Van E', 'bidder', '+84956789012', '987 Shopper Court, Hai Phong', 1, 18, 0),
-(7, 'seller3@example.com', '$2a$10$B9Nb3RVgybru2vvyVNRqrejtZG0V1o9XK8QUlm4lcwybozRwzbYEe', 'Ngo Thi F', 'seller', '+84967890123', '111 Shop Place, Nha Trang', 1, 52, 3),
-(8, 'bidder4@example.com', '$2a$10$B9Nb3RVgybru2vvyVNRqrejtZG0V1o9XK8QUlm4lcwybozRwzbYEe', 'Do Van G', 'bidder', '+84978901234', '222 Auction Street, Vung Tau', 0, 5, 0);
+(1, 'nhannguyentrong355@gmail.com', '$2a$10$8I9V3skpLoJGgFIo4zRVg.w.sc11oSMyB5NGlt/cPEB./j1PejJNW', 'Admin User', 'admin', '+84901234567', '123 Admin Street, Ho Chi Minh City', 1, 50, 1),
+(2, 'seller1@example.com', '$2a$10$8I9V3skpLoJGgFIo4zRVg.w.sc11oSMyB5NGlt/cPEB./j1PejJNW', 'Nguyen Van A', 'seller', '+84912345678', '456 Seller Avenue, Ho Chi Minh City', 1, 45, 2),
+(3, 'seller2@example.com', '$2a$10$8I9V3skpLoJGgFIo4zRVg.w.sc11oSMyB5NGlt/cPEB./j1PejJNW', 'Tran Thi B', 'seller', '+84923456789', '789 Merchant Road, Hanoi', 1, 38, 1),
+(4, 'bidder1@example.com', '$2a$10$8I9V3skpLoJGgFIo4zRVg.w.sc11oSMyB5NGlt/cPEB./j1PejJNW', 'Pham Van C', 'bidder', '+84934567890', '321 Buyer Lane, Da Nang', 1, 15, 0),
+(5, 'bidder2@example.com', '$2a$10$8I9V3skpLoJGgFIo4zRVg.w.sc11oSMyB5NGlt/cPEB./j1PejJNW', 'Le Thi D', 'bidder', '+84945678901', '654 Customer Street, Can Tho', 1, 22, 1),
+(6, 'bidder3@example.com', '$2a$10$8I9V3skpLoJGgFIo4zRVg.w.sc11oSMyB5NGlt/cPEB./j1PejJNW', 'Hoang Van E', 'bidder', '+84956789012', '987 Shopper Court, Hai Phong', 1, 18, 0),
+(7, 'seller3@example.com', '$2a$10$8I9V3skpLoJGgFIo4zRVg.w.sc11oSMyB5NGlt/cPEB./j1PejJNW', 'Ngo Thi F', 'seller', '+84967890123', '111 Shop Place, Nha Trang', 1, 52, 3),
+(8, 'bidder4@example.com', '$2a$10$8I9V3skpLoJGgFIo4zRVg.w.sc11oSMyB5NGlt/cPEB./j1PejJNW', 'Do Van G', 'bidder', '+84978901234', '222 Auction Street, Vung Tau', 0, 5, 10);
 
 -- =====================
 -- INSERT CATEGORIES
@@ -96,50 +96,50 @@ INSERT INTO `products` (`id`, `seller_id`, `category_id`, `title`, `description`
 -- INSERT PRODUCT IMAGES
 -- =====================
 INSERT INTO `product_images` (`id`, `product_id`, `url`, `is_primary`) VALUES
-(1, 1, 'https://example.com/images/iphone14pro_1.jpg', 1),
-(2, 1, 'https://example.com/images/iphone14pro_2.jpg', 0),
-(3, 1, 'https://example.com/images/iphone14pro_3.jpg', 0),
-(4, 2, 'https://example.com/images/macbook_m2_1.jpg', 1),
-(5, 2, 'https://example.com/images/macbook_m2_2.jpg', 0),
-(6, 3, 'https://example.com/images/canon_eos_r5_1.jpg', 1),
-(7, 3, 'https://example.com/images/canon_eos_r5_2.jpg', 0),
-(8, 4, 'https://example.com/images/dining_table_1.jpg', 1),
-(9, 4, 'https://example.com/images/dining_table_2.jpg', 0),
-(10, 5, 'https://example.com/images/lg_fridge_1.jpg', 1),
-(11, 6, 'https://example.com/images/winter_jacket_1.jpg', 1),
-(12, 7, 'https://example.com/images/watch_1.jpg', 1),
-(13, 8, 'https://example.com/images/trek_bike_1.jpg', 1),
-(14, 8, 'https://example.com/images/trek_bike_2.jpg', 0),
-(15, 9, 'https://example.com/images/samsung_s24_1.jpg', 1),
-(16, 10, 'https://example.com/images/vintage_books_1.jpg', 1),
-(17, 11, 'https://example.com/images/dell_xps_1.jpg', 1),
-(18, 11, 'https://example.com/images/dell_xps_2.jpg', 0),
-(19, 12, 'https://example.com/images/pixel8_1.jpg', 1),
-(20, 13, 'https://example.com/images/sony_a7iii_1.jpg', 1),
-(21, 13, 'https://example.com/images/sony_a7iii_2.jpg', 0),
-(22, 14, 'https://example.com/images/kitchenaid_1.jpg', 1),
-(23, 15, 'https://example.com/images/office_desk_1.jpg', 1),
-(24, 16, 'https://example.com/images/designer_bag_1.jpg', 1),
-(25, 16, 'https://example.com/images/designer_bag_2.jpg', 0),
-(26, 17, 'https://example.com/images/rayban_1.jpg', 1),
-(27, 18, 'https://example.com/images/tennis_racket_1.jpg', 1),
-(28, 19, 'https://example.com/images/samsung_tv_1.jpg', 1),
-(29, 19, 'https://example.com/images/samsung_tv_2.jpg', 0),
-(30, 20, 'https://example.com/images/bose_headphones_1.jpg', 1),
-(31, 21, 'https://example.com/images/harry_potter_1.jpg', 1),
-(32, 22, 'https://example.com/images/pokemon_cards_1.jpg', 1),
-(33, 22, 'https://example.com/images/pokemon_cards_2.jpg', 0),
-(34, 23, 'https://example.com/images/hp_gaming_1.jpg', 1),
-(35, 24, 'https://example.com/images/leather_jacket_1.jpg', 1),
-(36, 25, 'https://example.com/images/apple_watch_1.jpg', 1),
-(37, 25, 'https://example.com/images/apple_watch_2.jpg', 0),
-(38, 26, 'https://example.com/images/gopro_1.jpg', 1),
-(39, 27, 'https://example.com/images/velvet_sofa_1.jpg', 1),
-(40, 27, 'https://example.com/images/velvet_sofa_2.jpg', 0),
-(41, 28, 'https://example.com/images/dyson_1.jpg', 1),
-(42, 29, 'https://example.com/images/yoga_mat_1.jpg', 1),
-(43, 30, 'https://example.com/images/vinyl_records_1.jpg', 1),
-(44, 30, 'https://example.com/images/vinyl_records_2.jpg', 0);
+(1, 1, 'https://cdn2.cellphones.com.vn/insecure/rs:fill:0:358/q:90/plain/https://cellphones.com.vn/media/catalog/product/t/_/t_m_20_2_1_2_1.png', 1),
+(2, 1, 'https://cdn2.cellphones.com.vn/insecure/rs:fill:0:358/q:90/plain/https://cellphones.com.vn/media/catalog/product/b/_/b_c_1_11_2_1_1_1.png', 0),
+(3, 1, 'https://cdn2.cellphones.com.vn/insecure/rs:fill:0:358/q:90/plain/https://cellphones.com.vn/media/catalog/product/v/_/v_ng_20_2_1_2_1.png', 0),
+(4, 2, 'https://cdn2.cellphones.com.vn/insecure/rs:fill:0:358/q:90/plain/https://cellphones.com.vn/media/catalog/product/v/n/vn0d33_1.jpg', 1),
+(5, 2, 'https://cdn2.cellphones.com.vn/insecure/rs:fill:0:358/q:90/plain/https://cellphones.com.vn/media/catalog/product/v/n/vn_mac_1_2.jpg', 0),
+(6, 3, 'https://vn.canon/media/image/2020/07/06/edc3e033d44e450bb018b766c324ff27_R5_FrontSlantLeft_BODYCableprotector.png', 1),
+(7, 3, 'https://vn.canon/media/image/2020/07/06/edc3e033d44e450bb018b766c324ff27_R5_FrontSlantLeft_BODYCableprotector.png', 0),
+(8, 4, 'https://m.media-amazon.com/images/I/91j1bz3BuTL._AC_SX679_.jpg', 1),
+(9, 4, 'https://sofatuanphat.com/wp-content/uploads/2025/04/3-9-510x424.jpg', 0),
+(10, 5, 'https://www.lg.com/content/dam/channel/wcms/vn/f61bmd/basic/Basic.jpg/jcr:content/renditions/thum-350x350.jpeg', 1),
+(11, 6, 'https://encrypted-tbn0.gstatic.com/shopping?q=tbn:ANd9GcQoPEqAAngNY0thSFpbxy_8D2dIaCuxqSo_VaJn22LkHVJKGat7CXiMnfFKtdpPi363925QkRF0gI1nJJ5uPa-bB0jET_5bvRhfiz_DfGY5sdSY7CX3UR02DQ&usqp=CAc', 1),
+(12, 7, 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSnD_PN_fkuF1y4y6uuU5cQo-9GZtUztk-NEwCmMlOULVcr_hPDToh4Wmg&s', 1),
+(13, 8, 'https://file.hstatic.net/200000887845/file/x_caliber_grande.jpg', 1),
+(14, 8, 'https://product.hstatic.net/200000887845/product/xcaliber8_23_primary_blu_efdf510c87224fe9b79c6c75b5dc57d3_grande.jpg', 0),
+(15, 9, 'https://cdn2.cellphones.com.vn/insecure/rs:fill:0:358/q:90/plain/https://cellphones.com.vn/media/catalog/product/s/a/samsung_galaxy_s25_ultra_-_1.png', 1),
+(16, 10, 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTtIVs_32mlKauyiMk2BDJLQy6XX4c3860cxDKIGdC1MmLwJsQH7Y9hg0g&s', 1),
+(17, 11, 'https://cdn2.cellphones.com.vn/insecure/rs:fill:0:358/q:90/plain/https://cellphones.com.vn/media/catalog/product/l/a/laptop_dell_xps_13_9350_71058714_-_1.png', 1),
+(18, 11, 'https://cdn2.cellphones.com.vn/insecure/rs:fill:0:358/q:90/plain/https://cellphones.com.vn/media/catalog/product/l/a/laptop_dell_xps_13_9350_71058714_-_2.png', 0),
+(19, 12, 'https://cdn2.cellphones.com.vn/insecure/rs:fill:0:358/q:90/plain/https://cellphones.com.vn/media/catalog/product/g/o/google-pixel-8-pro_7_.png', 1),
+(20, 13, 'https://zshop.vn/images/thumbnails/624/460/detailed/208/Sony_A7III_1a.jpg', 1),
+(21, 13, 'https://zshop.vn/images/thumbnails/624/460/detailed/87/Sony-Alpha-a7-III-zshop-2.jpg', 0),
+(22, 14, 'https://kitchenaid.com.vn/wp-content/uploads/2025/09/image.jpg', 1),
+(23, 15, 'https://encrypted-tbn3.gstatic.com/shopping?q=tbn:ANd9GcTQ0cS2aULHZC3JgOPdkmHJSSQLnyngKg6NStA2d8ftT0phr21XUV7jnGESZ-QlEKBN5GEyLuv7Qfm6WU8Dbq_0Ct_fYJiyfpbsLm8AuGNK9j4dV0uiWoR1SFmr5nLL&usqp=CAc', 1),
+(24, 16, 'https://chautfifth.com/cdn/shop/files/2.C5_CRESENTMOONBAG_DARKRED_SIDEcopy.jpg?v=1752226823&width=600', 1),
+(25, 16, 'https://chautfifth.com/cdn/shop/files/2.C5_CRESENTMOONBAG_DENIM_SIDEcopy.jpg?v=1752226742&width=600', 0),
+(26, 17, 'https://images2.ray-ban.com//cdn-record-files-pi/1e9db685-09ab-49f6-b402-b2e300f5c112/a470e70e-007d-432f-a96c-b2e300f5c3f2/0RBR0102S__003_11__P21__shad__qt.png?impolicy=RB_Product_clone&width=720&bgc=%23f2f2f2', 1),
+(27, 18, 'https://theme.hstatic.net/200000931671/1001296384/14/frame_1.png?v=2139', 1),
+(28, 19, 'https://images.samsung.com/is/image/samsung/p6pim/vn/qa65qef1akxxv/gallery/vn-qled-tv-qa65qef1akxxv-m-t-tr--c-m-u-x-m-547801204?$Q90_1920_1280_F_PNG$', 1),
+(29, 19, 'https://images.samsung.com/is/image/samsung/p6pim/vn/qa65qef1akxxv/gallery/vn-qled-tv-qa65qef1akxxv-r-perspective-titanium-gray-547801206?$Q90_1368_1094_F_JPG$', 0),
+(30, 20, 'https://cdn2.cellphones.com.vn/insecure/rs:fill:358:358/q:90/plain/https://cellphones.com.vn/media/catalog/product/u/l/ultra2_3.png', 1),
+(31, 21, 'https://www.harrypotter.com/_next/image?url=%2Fimages%2Fproducts%2Fbooks%2FUK%2Frectangle-2.jpg&w=1320&q=75', 1),
+(32, 22, 'https://cdn.hstatic.net/products/1000231532/g_me01_mega_evolution_booster_pack_tieng_anh_hinh_mega_lucario_gia_tot_3a125802dd0b410bab80f5ca189c2d8d_grande.jpg', 1),
+(33, 22, 'https://product.hstatic.net/1000231532/product/_paradise_dragona_booster_pack_ti_ng_nh_t_t_m_c_c_th__b_i_hi_m_v__m_nh_b8a3f8434206415e96d2665c91bcc7b1_grande.jpg', 0),
+(34, 23, 'https://cdn2.cellphones.com.vn/insecure/rs:fill:358:358/q:90/plain/https://cellphones.com.vn/media/catalog/product/t/e/text_d_i_7_78.png', 1),
+(35, 24, 'https://fttleather.com/uploads/1026/product/2025/10/11/ad319wolad319-0337.webp?v=1.0.01', 1),
+(36, 25, 'https://cdn2.cellphones.com.vn/insecure/rs:fill:0:358/q:90/plain/https://cellphones.com.vn/media/catalog/product/h/o/hong_3_11.png', 1),
+(37, 25, 'https://cdn2.cellphones.com.vn/insecure/rs:fill:0:358/q:90/plain/https://cellphones.com.vn/media/catalog/product/a/w/aw_1__1_1.png', 0),
+(38, 26, 'https://cdn2.cellphones.com.vn/insecure/rs:fill:358:358/q:90/plain/https://cellphones.com.vn/media/catalog/product/g/r/group_573.png', 1),
+(39, 27, 'https://jysk.vn/media/catalog/product/cache/d95cc4c902c5b3900111a1da906a2990/3/6/3670511-sofa-giuong-holsted-xam-jysk-1.webp', 1),
+(40, 27, 'https://jysk.vn/media/catalog/product/cache/d95cc4c902c5b3900111a1da906a2990/3/6/3640169-sofa-giuong-paradis-xam-nhat-jysk-1.webp', 0),
+(41, 28, 'https://dyson-h.assetsadobe2.com/is/image/content/dam/dyson/leap-petite-global/markets/malaysia/products/fc-sticks/v12/abs-hepa/V12-hepa_yellow-attachments.png', 1),
+(42, 29, 'https://thephinbox.com/cdn/shop/files/23_e4f5d411-5014-476a-b482-0577e23aac60.jpg?v=1767329636&width=360', 1),
+(43, 30, 'https://m.media-amazon.com/images/I/81Jr6DEe02L._SX425_.jpg', 1),
+(44, 30, 'https://m.media-amazon.com/images/I/A125zY9aA-L._SX425_.jpg', 0);
 
 -- =====================
 -- INSERT BIDS
@@ -260,21 +260,3 @@ INSERT INTO `messages` (`id`, `order_id`, `sender_role`, `sender_name`, `sender_
 (10, '4', 'SELLER', 'Ngo Thi F', 'seller3@example.com', 'Your order has been shipped. Tracking: TRK123456'),
 (11, '5', 'SELLER', 'Tran Thi B', 'seller2@example.com', 'Your books are carefully packaged and ready to ship.'),
 (12, '5', 'BIDDER', 'Pham Van C', 'bidder1@example.com', 'Perfect condition books! Thank you.');
-
--- =====================
--- SUMMARY OF TEST DATA
--- =====================
--- Users: 8 users (1 admin, 3 sellers, 4 bidders)
--- Categories: 15 categories (with parent-child relationships)
--- Products: 30 active auction products
--- Product Images: 44 images
--- Bids: 20 bids (mix of manual and auto bids)
--- Auto Bids: 10 auto bids
--- Watchlists: 11 watchlist entries
--- Questions: 5 Q&A entries
--- Upgrade Requests: 4 seller upgrade requests
--- Reviews: 5 reviews
--- Orders: 5 orders in various statuses
--- Notifications: 8 notifications
--- Conversations: 5 chat conversations
--- Messages: 12 chat messages

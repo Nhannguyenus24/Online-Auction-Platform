@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Description Updated</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: #ffffff;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+        }
+        .info-icon {
+            font-size: 50px;
+            margin: 10px 0 0 0;
+        }
+        .content {
+            padding: 30px;
+            color: #333333;
+        }
+        .product-info {
+            background-color: #eff6ff;
+            border: 1px solid #93c5fd;
+            border-radius: 6px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .product-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: #3b82f6;
+            margin-bottom: 15px;
+        }
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        .detail-label {
+            font-weight: bold;
+            color: #666666;
+        }
+        .detail-value {
+            color: #3b82f6;
+            font-weight: bold;
+        }
+        .description-box {
+            background-color: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .description-box h3 {
+            margin: 0 0 10px 0;
+            color: #f59e0b;
+            font-size: 16px;
+        }
+        .description-content {
+            color: #333333;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .alert-info {
+            background-color: #dbeafe;
+            border-left: 4px solid #3b82f6;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .footer {
+            background-color: #f9f9f9;
+            padding: 20px;
+            text-align: center;
+            color: #666666;
+            font-size: 12px;
+            border-top: 1px solid #eeeeee;
+        }
+        .button {
+            display: inline-block;
+            background-color: #3b82f6;
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+        .button:hover {
+            background-color: #2563eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="info-icon">ℹ️</div>
+            <h1>Product Description Updated</h1>
+        </div>
+        
+        <div class="content">
+            <p>Hello <strong th:text="${userName}">User</strong>,</p>
+            
+            <p>The seller has updated the description for a product you're bidding on:</p>
+            
+            <div class="product-info">
+                <div class="product-name" th:text="${productName}">Product Name</div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">Product ID:</span>
+                    <span class="detail-value" th:text="${productId}">12345</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">Updated At:</span>
+                    <span class="detail-value" th:text="${changeTime}">2024-01-11 10:30:00</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">Auction Ends:</span>
+                    <span class="detail-value" th:text="${auctionEndTime}">2024-01-15 18:00:00</span>
+                </div>
+            </div>
+            
+            <div class="description-box">
+                <h3>📝 New Description Added:</h3>
+                <div class="description-content" th:text="${newDescription}">
+                    Additional product information has been added by the seller.
+                </div>
+            </div>
+            
+            <div class="alert-info">
+                <p style="margin: 0;">
+                    <strong>💡 What does this mean?</strong><br>
+                    The seller has provided additional information about this product. 
+                    Please review the updated description to make an informed bidding decision.
+                </p>
+            </div>
+            
+            <p style="text-align: center;">
+                <a th:href="@{'http://localhost:5173/product/' + ${productId}}" 
+                   class="button" 
+                   style="color: white; text-decoration: none;">
+                    View Product Details
+                </a>
+            </p>
+            
+            <p style="margin-top: 30px; color: #666;">
+                If you have any questions about this update, please contact the seller or our support team.
+            </p>
+        </div>
+        
+        <div class="footer">
+            <p>© 2024 Online Auction Platform. All rights reserved.</p>
+            <p>This is an automated notification. Please do not reply to this email.</p>
+        </div>
+    </div>
+</body>
+</html>

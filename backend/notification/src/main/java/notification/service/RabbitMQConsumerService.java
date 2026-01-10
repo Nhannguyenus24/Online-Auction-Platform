@@ -78,6 +78,7 @@ public class RabbitMQConsumerService {
             case TASK_SEND_MAIL_ACCOUNT_VIOLATION -> handleAccountViolationEvent(message);
             case TASK_SEND_MAIL_PRODUCT_BANNED_USER -> handleProductBannedUserEvent(message);
             case TASK_SEND_MAIL_ENDED_AUCTION -> handleAuctionEndedEvent(message);
+            case TASK_SEND_MAIL_CHANGE_DESCRIPTION -> handleDescriptionChangeEvent(message);
             case TASK_SEND_NOTIFICATION, TASK_DELETE_NOTIFICATION, TASK_READ_NOTIFICATION -> Mono.empty().then();
         })
         .doOnError(e -> log.error("Error processing RabbitMessage: eventId={}, error={}", 
@@ -391,6 +392,45 @@ public class RabbitMQConsumerService {
             return Mono.error(new IllegalArgumentException("Invalid userId format", e));
         } catch (Exception e) {
             log.error("Unexpected error in AuctionEnded bidder event handler: eventId={}, error={}", 
+                message.getEventId(), e.getMessage(), e);
+            return Mono.error(e);
+        }
+    }
+
+    /**
+     * Xử lý event thay đổi mô tả sản phẩm
+     */
+    private Mono<Void> handleDescriptionChangeEvent(RabbitMessage message) {
+        try {
+            Map<String, String> payload = message.getPayload();
+            
+            String productId = payload.get("productId");
+            String productName = payload.get("productName");
+            String newDescription = payload.get("newDescription");
+            String changeTime = payload.get("changeTime");
+            String auctionEndTime = payload.get("auctionEndTime");
+
+            if (productId == null || productName == null || 
+                newDescription == null || changeTime == null || auctionEndTime == null) {
+                log.error("Missing required fields in DescriptionChange event: eventId={}", message.getEventId());
+                return Mono.error(new IllegalArgumentException("Missing required fields in DescriptionChange event"));
+            }
+
+            Integer userId = Integer.parseInt(message.getUserId());
+
+            log.debug("Sending description change email: userId={}, productId={}", userId, productId);
+            
+            return emailService.sendDescriptionChangeEmailWithNotification(
+                    userId, productName, productId, newDescription, changeTime, auctionEndTime
+            )
+            .doOnSuccess(v -> log.info("Description change email sent: eventId={}, userId={}, productId={}", 
+                message.getEventId(), userId, productId));
+        } catch (NumberFormatException e) {
+            log.error("Invalid number format in DescriptionChange event: eventId={}, error={}", 
+                message.getEventId(), e.getMessage());
+            return Mono.error(new IllegalArgumentException("Invalid userId format", e));
+        } catch (Exception e) {
+            log.error("Unexpected error in DescriptionChange event handler: eventId={}, error={}", 
                 message.getEventId(), e.getMessage(), e);
             return Mono.error(e);
         }

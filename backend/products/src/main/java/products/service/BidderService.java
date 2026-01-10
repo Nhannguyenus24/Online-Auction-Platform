@@ -285,7 +285,7 @@ public class BidderService {
                     int negative = user.getNegativeReviews();
                     int total = positive + negative;
 
-                    if (total > 0 && (double) positive / total > 0.8) {
+                    if (total > 0 && (double) positive / total < 0.8) {
                         return Mono.error(new IllegalArgumentException("User rating is too low to participate in this auction"));
                     }
                     return productRepository.insertBid(productId, userId, bidAmount, false)
@@ -614,7 +614,7 @@ public class BidderService {
         payload.put("outbidTime", TimeUtils.now().toString());
         payload.put("auctionEndTime", auctionEndTime.toString());
         payload.put("timeRemaining", timeRemaining);
-        payload.put("auctionLink", "http://localhost:3000/products/" + productId);
+        payload.put("auctionLink", "http://localhost:5173/products/" + productId);
         
         RabbitMessage message = RabbitMessage.builder()
             

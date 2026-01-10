@@ -7,21 +7,25 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import com.auction.entities.database.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.auction.entities.database.Product;
+import com.auction.entities.database.User;
 import com.auction.entities.msg.EventType;
 import com.auction.entities.msg.RabbitMessage;
-import com.auction.rabbitmq.services.ReactiveRabbitProducer;
-import com.auction.utils.TimeUtils;
-import com.auctionplatform.seller.grpc.*;
-
 import com.auction.entities.record.ImageRowRecord;
+import com.auction.rabbitmq.services.ReactiveRabbitProducer;
 import com.auction.redis.service.ReactiveRedisService;
+import com.auction.utils.TimeUtils;
+import com.auctionplatform.seller.grpc.ListingDetail;
+import com.auctionplatform.seller.grpc.OrderDetail;
+import com.auctionplatform.seller.grpc.ProductDetailsResponse;
+import com.auctionplatform.seller.grpc.ProductSummary;
+import com.auctionplatform.seller.grpc.Review;
+
 import products.repository.OrderRepository;
 import products.repository.ProductRepository;
 import products.repository.ReviewRepository;
@@ -298,8 +302,42 @@ public class SellerService {
                 String newDesc = currentDesc + "\n\n" + additionalDescription;
                 
                 return sellerRepository.updateProductDescription(productId, sellerId, newDesc)
+                    .then(sellerRepository.findDistinctBiddersByProductId(productId)
+                        .flatMap(bidderId -> sendDescriptionChangeNotification(product, bidderId, additionalDescription))
+                        .collectList()
+                    )
                     .thenReturn(newDesc);
             });
+    }
+    
+    /**
+     * Send notification to bidder when product description changes
+     */
+    private Mono<Void> sendDescriptionChangeNotification(Product product, int bidderId, String additionalDescription) {
+        log.info("Sending description change notification to bidder: userId={}, productId={}", 
+            bidderId, product.getId());
+        
+        Map<String, String> payload = new HashMap<>();
+        payload.put("recipientType", "bidder");
+        payload.put("userId", String.valueOf(bidderId));
+        payload.put("productId", String.valueOf(product.getId()));
+        payload.put("productName", product.getTitle());
+        payload.put("newDescription", additionalDescription);
+        payload.put("changeTime", TimeUtils.now().toString());
+        payload.put("auctionEndTime", product.getEndsAt().toString());
+        
+        RabbitMessage message = RabbitMessage.builder()
+            .eventType(EventType.TASK_SEND_MAIL_CHANGE_DESCRIPTION)
+            .userId(String.valueOf(bidderId))
+            .payload(payload)
+            .build();
+        
+        return rabbitProducer.sendToQueue(NOTIFICATION_QUEUE, message)
+            .doOnSuccess(v -> log.info("Description change notification sent to bidder: userId={}, productId={}", 
+                bidderId, product.getId()))
+            .doOnError(e -> log.error("Failed to send description change notification: userId={}, productId={}, error={}", 
+                bidderId, product.getId(), e.getMessage(), e))
+            .onErrorResume(e -> Mono.empty()); // Fire and forget
     }
 
     // ============================================================================

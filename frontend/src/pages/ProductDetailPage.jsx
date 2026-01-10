@@ -190,7 +190,7 @@ function ProductDetailPage() {
     fetchProduct();
 
     // Set up interval to fetch every 10 seconds (10000ms)
-    const interval = setInterval(fetchProduct, 10000);
+    const interval = setInterval(fetchProduct, 1000000);
 
     // Cleanup interval on unmount
     return () => clearInterval(interval);
@@ -305,7 +305,7 @@ function ProductDetailPage() {
     fetchAdditionalData();
 
     // Set up interval to fetch every 10 seconds (10000ms)
-    const interval = setInterval(fetchAdditionalData, 10000);
+    const interval = setInterval(fetchAdditionalData, 200000);
 
     // Cleanup interval on unmount
     return () => clearInterval(interval);

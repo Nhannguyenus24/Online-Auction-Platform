@@ -209,6 +209,24 @@ public class EmailService {
     }
 
     /**
+     * Gửi email thông báo thay đổi mô tả sản phẩm (Reactive)
+     */
+    public Mono<Void> sendDescriptionChangeEmail(String to, String userName, String productName,
+                                                  String productId, String newDescription, 
+                                                  String changeTime, String auctionEndTime) {
+        Map<String, Object> variables = Map.of(
+                "userName", userName,
+                "productName", productName,
+                "productId", productId,
+                "newDescription", newDescription,
+                "changeTime", changeTime,
+                "auctionEndTime", auctionEndTime
+        );
+
+        return sendHtmlEmail(to, "Product Description Updated", "description-change", variables);
+    }
+
+    /**
      * Gửi email thông báo sản phẩm bị cấm (Reactive)
      */
     public Mono<Void> sendProductBannedUserEmail(String to, String userName, String productName,
@@ -370,6 +388,31 @@ public class EmailService {
                 .then(saveNotificationToDatabase(userId, notificationType, notificationPayload))
                 .doOnSuccess(v -> log.info("Auction ended notification sent and saved: userId={}, productId={}, isWinner={}", 
                     userId, productId, isWinner));
+    }
+
+    /**
+     * Gửi description change email và lưu notification vào DB
+     */
+    public Mono<Void> sendDescriptionChangeEmailWithNotification(Integer userId, String productName,
+                                                                  String productId, String newDescription,
+                                                                  String changeTime, String auctionEndTime) {
+        Map<String, Object> notificationPayload = Map.of(
+                "productName", productName,
+                "productId", productId,
+                "newDescription", newDescription,
+                "changeTime", changeTime,
+                "auctionEndTime", auctionEndTime,
+                "type", "description_change"
+        );
+
+        log.info("Sending description change email to bidder: userId={}, productId={}", userId, productId);
+        
+        return userRepository.findById(userId)
+                .flatMap(user -> sendDescriptionChangeEmail(user.getEmail(), user.getFullName(), productName,
+                        productId, newDescription, changeTime, auctionEndTime))
+                .then(saveNotificationToDatabase(userId, "DESCRIPTION_CHANGE", notificationPayload))
+                .doOnSuccess(v -> log.info("Description change notification sent and saved: userId={}, productId={}", 
+                    userId, productId));
     }
 
     /**

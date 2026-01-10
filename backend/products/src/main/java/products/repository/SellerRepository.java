@@ -128,4 +128,10 @@ public interface SellerRepository extends R2dbcRepository<Product, Integer> {
      */
     @Query("SELECT COUNT(*) FROM product_bans WHERE product_id = :productId AND user_id = :userId")
     Mono<Long> countProductBan(Integer productId, Integer userId);
+
+    /**
+     * Get all distinct bidder IDs for a product
+     */
+    @Query("SELECT DISTINCT bidder_id FROM bids WHERE product_id = :productId")
+    Flux<Integer> findDistinctBiddersByProductId(Integer productId);
 }
