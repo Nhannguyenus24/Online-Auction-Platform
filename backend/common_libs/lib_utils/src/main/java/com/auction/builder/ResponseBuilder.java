@@ -1,214 +1,373 @@
 package com.auction.builder;
 
+import com.auction.constants.AppConstants;
 import com.auction.dto.ApiResponse;
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import reactor.core.publisher.Mono;
 
 /**
- * Centralized response builder for consistent API responses
- * Provides helper methods to construct ApiResponse<T> and Mono<ResponseEntity<ApiResponse<T>>>
+ * Fluent builder for constructing API responses with proper HTTP status codes and messages.
+ * Provides convenient factory methods for common response scenarios and supports method chaining
+ * for advanced customization.
+ *
+ * @author Claude
+ * @version 1.0.0
  */
-public class ResponseBuilder {
+public class ResponseBuilder<T> {
+
+    private ApiResponse<T> response;
+    private HttpStatus httpStatus;
+    private Map<String, String> headers;
+
+    // ==================== Constructors ====================
 
     /**
-     * Creates a successful response with data
-     * @param data The response data
-     * @param <T> Type of data
-     * @return ApiResponse with success=true and status 200
+     * Constructs a new ResponseBuilder with an empty ApiResponse.
      */
-    public static <T> ApiResponse<T> ok(T data) {
-        return ApiResponse.ok(data);
+    public ResponseBuilder() {
+        this.response = new ApiResponse<>();
+        this.httpStatus = HttpStatus.OK;
+        this.headers = new HashMap<>();
     }
 
     /**
-     * Creates a successful response with custom message and data
-     * @param message Custom message
-     * @param data The response data
-     * @param <T> Type of data
-     * @return ApiResponse with success=true and status 200
+     * Constructs a new ResponseBuilder with an initial ApiResponse.
+     *
+     * @param response the initial ApiResponse
      */
-    public static <T> ApiResponse<T> ok(String message, T data) {
-        return ApiResponse.ok(message, data);
+    public ResponseBuilder(ApiResponse<T> response) {
+        this.response = response;
+        this.httpStatus = HttpStatus.OK;
+        this.headers = new HashMap<>();
+    }
+
+    // ==================== Success Response Methods ====================
+
+    /**
+     * Builds a successful response (HTTP 200 OK) with data.
+     *
+     * @param data the response data
+     * @param <T> the type of the response data
+     * @return ResponseEntity with 200 status
+     */
+    public static <T> ResponseEntity<ApiResponse<T>> ok(T data) {
+        ApiResponse<T> response = new ApiResponse<>(true, 200, AppConstants.HTTP_SUCCESS, data);
+        return ResponseEntity.ok(response);
     }
 
     /**
-     * Creates a success response (201 Created)
-     * @param data The response data
-     * @param <T> Type of data
-     * @return ApiResponse with success=true and status 201
+     * Builds a successful response (HTTP 200 OK) with data and custom message.
+     *
+     * @param message the response message
+     * @param data the response data
+     * @param <T> the type of the response data
+     * @return ResponseEntity with 200 status
      */
-    public static <T> ApiResponse<T> created(T data) {
-        return ApiResponse.created(data);
+    public static <T> ResponseEntity<ApiResponse<T>> ok(String message, T data) {
+        ApiResponse<T> response = new ApiResponse<>(true, 200, message, data);
+        return ResponseEntity.ok(response);
     }
 
     /**
-     * Creates a bad request response (400)
-     * @param message Error message
-     * @param <T> Type of data
-     * @return ApiResponse with success=false and status 400
+     * Builds a resource created response (HTTP 201 CREATED).
+     *
+     * @param data the created resource data
+     * @param <T> the type of the resource
+     * @return ResponseEntity with 201 status
      */
-    public static <T> ApiResponse<T> badRequest(String message) {
-        return ApiResponse.badRequest(message);
+    public static <T> ResponseEntity<ApiResponse<T>> created(T data) {
+        ApiResponse<T> response = new ApiResponse<>(true, 201, AppConstants.HTTP_CREATED, data);
+        return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
     /**
-     * Creates an unauthorized response (401)
-     * @param message Error message
-     * @param <T> Type of data
-     * @return ApiResponse with success=false and status 401
+     * Builds a resource created response (HTTP 201 CREATED) with custom message.
+     *
+     * @param message the response message
+     * @param data the created resource data
+     * @param <T> the type of the resource
+     * @return ResponseEntity with 201 status
      */
-    public static <T> ApiResponse<T> unauthorized(String message) {
-        return ApiResponse.unauthorized(message);
+    public static <T> ResponseEntity<ApiResponse<T>> created(String message, T data) {
+        ApiResponse<T> response = new ApiResponse<>(true, 201, message, data);
+        return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
     /**
-     * Creates a forbidden response (403)
-     * @param message Error message
-     * @param <T> Type of data
-     * @return ApiResponse with success=false and status 403
+     * Builds a no-content response (HTTP 204 NO_CONTENT).
+     *
+     * @param <T> the type of the response
+     * @return ResponseEntity with 204 status
      */
-    public static <T> ApiResponse<T> forbidden(String message) {
-        return ApiResponse.forbidden(message);
+    public static <T> ResponseEntity<ApiResponse<T>> noContent() {
+        ApiResponse<T> response = new ApiResponse<>(true, 204, "No content");
+        return new ResponseEntity<>(response, HttpStatus.NO_CONTENT);
+    }
+
+    // ==================== Error Response Methods ====================
+
+    /**
+     * Builds a bad request response (HTTP 400 BAD_REQUEST).
+     *
+     * @param message the error message
+     * @param <T> the type of the response
+     * @return ResponseEntity with 400 status
+     */
+    public static <T> ResponseEntity<ApiResponse<T>> badRequest(String message) {
+        ApiResponse<T> response = new ApiResponse<>(false, 400, message);
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
 
     /**
-     * Creates a not found response (404)
-     * @param message Error message
-     * @param <T> Type of data
-     * @return ApiResponse with success=false and status 404
+     * Builds a validation error response (HTTP 400 BAD_REQUEST).
+     *
+     * @param message the error message
+     * @param validationErrors map of field names to validation errors
+     * @param <T> the type of the response
+     * @return ResponseEntity with 400 status
      */
-    public static <T> ApiResponse<T> notFound(String message) {
-        return ApiResponse.notFound(message);
+    public static <T> ResponseEntity<ApiResponse<T>> validationError(
+            String message, Map<String, Object> validationErrors) {
+        ApiResponse<T> response = new ApiResponse<>(false, 400, message);
+        response.setData(null);
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
 
     /**
-     * Creates a conflict response (409)
-     * @param message Error message
-     * @param <T> Type of data
-     * @return ApiResponse with success=false and status 409
+     * Builds an unauthorized response (HTTP 401 UNAUTHORIZED).
+     *
+     * @param message the error message
+     * @param <T> the type of the response
+     * @return ResponseEntity with 401 status
      */
-    public static <T> ApiResponse<T> conflict(String message) {
-        return ApiResponse.conflict(message);
+    public static <T> ResponseEntity<ApiResponse<T>> unauthorized(String message) {
+        ApiResponse<T> response = new ApiResponse<>(false, 401, message);
+        return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
     }
 
     /**
-     * Creates an internal server error response (500)
-     * @param message Error message
-     * @param <T> Type of data
-     * @return ApiResponse with success=false and status 500
+     * Builds a forbidden response (HTTP 403 FORBIDDEN).
+     *
+     * @param message the error message
+     * @param <T> the type of the response
+     * @return ResponseEntity with 403 status
      */
-    public static <T> ApiResponse<T> internalServerError(String message) {
-        return ApiResponse.internalServerError(message);
+    public static <T> ResponseEntity<ApiResponse<T>> forbidden(String message) {
+        ApiResponse<T> response = new ApiResponse<>(false, 403, message);
+        return new ResponseEntity<>(response, HttpStatus.FORBIDDEN);
     }
 
     /**
-     * Creates a custom error response
-     * @param statusCode HTTP status code
-     * @param message Error message
-     * @param <T> Type of data
-     * @return ApiResponse with success=false and specified status code
+     * Builds a not found response (HTTP 404 NOT_FOUND).
+     *
+     * @param message the error message
+     * @param <T> the type of the response
+     * @return ResponseEntity with 404 status
      */
-    public static <T> ApiResponse<T> error(int statusCode, String message) {
-        return ApiResponse.error(statusCode, message);
-    }
-
-    // Mono<ResponseEntity<ApiResponse<T>>> helpers for reactive endpoints
-
-    /**
-     * Creates a Mono response with OK status
-     * @param data The response data
-     * @param <T> Type of data
-     * @return Mono of ResponseEntity with OK status
-     */
-    public static <T> Mono<ResponseEntity<ApiResponse<T>>> monoOk(T data) {
-        return Mono.just(ResponseEntity.ok(ApiResponse.ok(data)));
+    public static <T> ResponseEntity<ApiResponse<T>> notFound(String message) {
+        ApiResponse<T> response = new ApiResponse<>(false, 404, message);
+        return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
     }
 
     /**
-     * Creates a Mono response with OK status and custom message
-     * @param message Custom message
-     * @param data The response data
-     * @param <T> Type of data
-     * @return Mono of ResponseEntity with OK status
+     * Builds a conflict response (HTTP 409 CONFLICT).
+     *
+     * @param message the error message
+     * @param <T> the type of the response
+     * @return ResponseEntity with 409 status
      */
-    public static <T> Mono<ResponseEntity<ApiResponse<T>>> monoOk(String message, T data) {
-        return Mono.just(ResponseEntity.ok(ApiResponse.ok(message, data)));
+    public static <T> ResponseEntity<ApiResponse<T>> conflict(String message) {
+        ApiResponse<T> response = new ApiResponse<>(false, 409, message);
+        return new ResponseEntity<>(response, HttpStatus.CONFLICT);
     }
 
     /**
-     * Creates a Mono response with CREATED status
-     * @param data The response data
-     * @param <T> Type of data
-     * @return Mono of ResponseEntity with CREATED status
+     * Builds an internal server error response (HTTP 500 INTERNAL_SERVER_ERROR).
+     *
+     * @param message the error message
+     * @param <T> the type of the response
+     * @return ResponseEntity with 500 status
      */
-    public static <T> Mono<ResponseEntity<ApiResponse<T>>> monoCreated(T data) {
-        return Mono.just(ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(data)));
+    public static <T> ResponseEntity<ApiResponse<T>> internalServerError(String message) {
+        ApiResponse<T> response = new ApiResponse<>(false, 500, message);
+        return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
     /**
-     * Creates a Mono response with BAD_REQUEST status
-     * @param message Error message
-     * @param <T> Type of data
-     * @return Mono of ResponseEntity with BAD_REQUEST status
+     * Builds a service unavailable response (HTTP 503 SERVICE_UNAVAILABLE).
+     *
+     * @param message the error message
+     * @param <T> the type of the response
+     * @return ResponseEntity with 503 status
      */
-    public static <T> Mono<ResponseEntity<ApiResponse<T>>> monoBadRequest(String message) {
-        return Mono.just(ResponseEntity.badRequest().body(ApiResponse.badRequest(message)));
+    public static <T> ResponseEntity<ApiResponse<T>> serviceUnavailable(String message) {
+        ApiResponse<T> response = new ApiResponse<>(false, 503, message);
+        return new ResponseEntity<>(response, HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
+    // ==================== Builder Methods ====================
+
+    /**
+     * Sets the response as successful.
+     *
+     * @param success whether the response is successful
+     * @return this ResponseBuilder for method chaining
+     */
+    public ResponseBuilder<T> success(boolean success) {
+        response.setSuccess(success);
+        return this;
     }
 
     /**
-     * Creates a Mono response with UNAUTHORIZED status
-     * @param message Error message
-     * @param <T> Type of data
-     * @return Mono of ResponseEntity with UNAUTHORIZED status
+     * Sets the response status code.
+     *
+     * @param statusCode the HTTP status code
+     * @return this ResponseBuilder for method chaining
      */
-    public static <T> Mono<ResponseEntity<ApiResponse<T>>> monoUnauthorized(String message) {
-        return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.unauthorized(message)));
+    public ResponseBuilder<T> statusCode(int statusCode) {
+        response.setStatusCode(statusCode);
+        this.httpStatus = HttpStatus.valueOf(statusCode);
+        return this;
     }
 
     /**
-     * Creates a Mono response with FORBIDDEN status
-     * @param message Error message
-     * @param <T> Type of data
-     * @return Mono of ResponseEntity with FORBIDDEN status
+     * Sets the HTTP status using HttpStatus enum.
+     *
+     * @param status the HTTP status
+     * @return this ResponseBuilder for method chaining
      */
-    public static <T> Mono<ResponseEntity<ApiResponse<T>>> monoForbidden(String message) {
-        return Mono.just(ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.forbidden(message)));
+    public ResponseBuilder<T> status(HttpStatus status) {
+        this.httpStatus = status;
+        response.setStatusCode(status.value());
+        return this;
     }
 
     /**
-     * Creates a Mono response with NOT_FOUND status
-     * @param message Error message
-     * @param <T> Type of data
-     * @return Mono of ResponseEntity with NOT_FOUND status
+     * Sets the response message.
+     *
+     * @param message the response message
+     * @return this ResponseBuilder for method chaining
      */
-    public static <T> Mono<ResponseEntity<ApiResponse<T>>> monoNotFound(String message) {
-        return Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.notFound(message)));
+    public ResponseBuilder<T> message(String message) {
+        response.setMessage(message);
+        return this;
     }
 
     /**
-     * Creates a Mono response with INTERNAL_SERVER_ERROR status
-     * @param message Error message
-     * @param <T> Type of data
-     * @return Mono of ResponseEntity with INTERNAL_SERVER_ERROR status
+     * Sets the response data.
+     *
+     * @param data the response data
+     * @return this ResponseBuilder for method chaining
      */
-    public static <T> Mono<ResponseEntity<ApiResponse<T>>> monoInternalServerError(String message) {
-        return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.internalServerError(message)));
+    public ResponseBuilder<T> data(T data) {
+        response.setData(data);
+        return this;
     }
 
     /**
-     * Creates a Mono response with custom status
-     * @param status HTTP status
-     * @param apiResponse ApiResponse object
-     * @param <T> Type of data
-     * @return Mono of ResponseEntity with specified status
+     * Sets the response timestamp.
+     *
+     * @param timestamp the timestamp
+     * @return this ResponseBuilder for method chaining
      */
-    public static <T> Mono<ResponseEntity<ApiResponse<T>>> monoWithStatus(HttpStatus status, ApiResponse<T> apiResponse) {
-        return Mono.just(ResponseEntity.status(status).body(apiResponse));
+    public ResponseBuilder<T> timestamp(LocalDateTime timestamp) {
+        response.setTimestamp(timestamp);
+        return this;
     }
 
-    // Private constructor to prevent instantiation
-    private ResponseBuilder() {
-        throw new AssertionError("Cannot instantiate ResponseBuilder");
+    /**
+     * Sets the request path.
+     *
+     * @param path the request path
+     * @return this ResponseBuilder for method chaining
+     */
+    public ResponseBuilder<T> path(String path) {
+        response.setPath(path);
+        return this;
+    }
+
+    /**
+     * Adds a custom header to the response.
+     *
+     * @param name the header name
+     * @param value the header value
+     * @return this ResponseBuilder for method chaining
+     */
+    public ResponseBuilder<T> header(String name, String value) {
+        this.headers.put(name, value);
+        return this;
+    }
+
+    /**
+     * Adds multiple custom headers to the response.
+     *
+     * @param headersMap a map of header names to values
+     * @return this ResponseBuilder for method chaining
+     */
+    public ResponseBuilder<T> headers(Map<String, String> headersMap) {
+        if (headersMap != null) {
+            this.headers.putAll(headersMap);
+        }
+        return this;
+    }
+
+    /**
+     * Adds the Content-Type JSON header.
+     *
+     * @return this ResponseBuilder for method chaining
+     */
+    public ResponseBuilder<T> contentTypeJson() {
+        this.headers.put("Content-Type", "application/json");
+        return this;
+    }
+
+    /**
+     * Adds the Content-Type header.
+     *
+     * @param contentType the content type value
+     * @return this ResponseBuilder for method chaining
+     */
+    public ResponseBuilder<T> contentType(String contentType) {
+        this.headers.put("Content-Type", contentType);
+        return this;
+    }
+
+    // ==================== Build Methods ====================
+
+    /**
+     * Builds the ResponseEntity with the configured settings.
+     *
+     * @return a ResponseEntity with the configured ApiResponse and HTTP status
+     */
+    public ResponseEntity<ApiResponse<T>> build() {
+        ResponseEntity.BodyBuilder bodyBuilder = ResponseEntity.status(httpStatus);
+        
+        // Add all custom headers
+        for (Map.Entry<String, String> entry : headers.entrySet()) {
+            bodyBuilder = bodyBuilder.header(entry.getKey(), entry.getValue());
+        }
+        
+        return bodyBuilder.body(response);
+    }
+
+    /**
+     * Builds the ResponseEntity as a ResponseEntity with ApiResponse.
+     *
+     * @return a ResponseEntity with the configured ApiResponse
+     */
+    public ResponseEntity<? extends ApiResponse<T>> buildAsResponse() {
+        return build();
+    }
+
+    /**
+     * Gets the ApiResponse without wrapping it in a ResponseEntity.
+     *
+     * @return the ApiResponse
+     */
+    public ApiResponse<T> buildAsApiResponse() {
+        return response;
     }
 }

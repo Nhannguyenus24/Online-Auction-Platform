@@ -89,6 +89,20 @@
             <version>4.32.1</version>
             <scope>compile</scope>
         </dependency>
+
+        <!-- Spring Framework (provided scope for response builders) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Project Reactor (for reactive utilities) -->
+        <dependency>
+            <groupId>io.projectreactor</groupId>
+            <artifactId>reactor-core</artifactId>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
 
     <build>
