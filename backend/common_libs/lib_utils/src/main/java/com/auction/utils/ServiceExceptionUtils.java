@@ -147,6 +147,70 @@ public final class ServiceExceptionUtils {
         return Mono.error(new IllegalStateException(message));
     }
 
+    // Auth-specific exceptions
+    /**
+     * Create error for email already exists
+     */
+    public static Mono<Void> emailAlreadyExists() {
+        return Mono.error(new IllegalArgumentException(ServiceConstants.ERROR_EMAIL_ALREADY_EXISTS));
+    }
+
+    /**
+     * Create error for invalid credentials
+     */
+    public static Mono<Void> invalidCredentials() {
+        return Mono.error(new IllegalArgumentException(ServiceConstants.ERROR_INVALID_CREDENTIALS));
+    }
+
+    /**
+     * Create error for email not verified
+     */
+    public static Mono<Void> emailNotVerified() {
+        return Mono.error(new IllegalStateException(ServiceConstants.ERROR_EMAIL_NOT_VERIFIED));
+    }
+
+    /**
+     * Create error for OTP expired
+     */
+    public static Mono<Void> otpExpired() {
+        return Mono.error(new IllegalArgumentException(ServiceConstants.ERROR_OTP_EXPIRED));
+    }
+
+    /**
+     * Create error for invalid OTP
+     */
+    public static Mono<Void> invalidOTP() {
+        return Mono.error(new IllegalArgumentException(ServiceConstants.ERROR_INVALID_OTP));
+    }
+
+    /**
+     * Create error for invalid refresh token
+     */
+    public static Mono<Void> invalidRefreshToken() {
+        return Mono.error(new IllegalArgumentException(ServiceConstants.ERROR_INVALID_REFRESH_TOKEN));
+    }
+
+    /**
+     * Create error for invalid old password
+     */
+    public static Mono<Void> invalidOldPassword() {
+        return Mono.error(new IllegalArgumentException(ServiceConstants.ERROR_INVALID_OLD_PASSWORD));
+    }
+
+    /**
+     * Create error for empty message content
+     */
+    public static Mono<Void> emptyMessageContent() {
+        return Mono.error(new IllegalArgumentException(ServiceConstants.ERROR_MESSAGE_CONTENT_EMPTY));
+    }
+
+    /**
+     * Create error for invalid user role
+     */
+    public static Mono<Void> invalidUserRole() {
+        return Mono.error(new IllegalArgumentException(ServiceConstants.ERROR_INVALID_USER_ROLE));
+    }
+
     /**
      * Handle authorization check - returns Mono.error if not authorized
      */

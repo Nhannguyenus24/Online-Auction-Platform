@@ -48,24 +48,25 @@ public class GuestController {
 
     @GetMapping("/categories")
     @Operation(summary = "Get categories", description = "Get all categories with 2 levels (parent and children). No authentication required.")
-    public Mono<ResponseEntity<Map<String, Object>>> getCategories() {
+    public Mono<ResponseEntity<ApiResponse<Map<String, Object>>>> getCategories() {
         log.info("Get categories request");
 
-        GetCategoriesRequest grpcRequest = GetCategoriesRequest.newBuilder().build();
+        try {
+            GetCategoriesRequest grpcRequest = GetCategoriesRequest.newBuilder().build();
 
-        return guestGrpcClient.getCategories(grpcRequest)
-                .map(response -> {
-                    Map<String, Object> result = new HashMap<>();
-                    result.put("success", response.getSuccess());
-                    result.put("message", response.getMessage());
+            return guestGrpcClient.getCategories(grpcRequest)
+                    .map(response -> {
+                        if (!response.getSuccess()) {
+                            log.warn("Get categories returned false");
+                            return ResponseEntity.badRequest().body(ApiResponse.badRequest(response.getMessage()));
+                        }
 
-                    if (response.getSuccess()) {
                         List<Map<String, Object>> categories = new ArrayList<>();
                         // Only process top-level categories (parentId == 0), they already have children attached
                         response.getCategoriesList().forEach(category -> {
                             // Skip non-top-level categories (these are children, already included in parent's children list)
                             if (category.getParentId() != 0) return;
-                            
+
                             Map<String, Object> categoryMap = new HashMap<>();
                             categoryMap.put("id", category.getId());
                             categoryMap.put("name", category.getName());
@@ -83,21 +84,23 @@ public class GuestController {
                             categoryMap.put("children", children);
                             categories.add(categoryMap);
                         });
+
+                        Map<String, Object> result = new HashMap<>();
                         result.put("categories", categories);
 
-                        log.info("Get categories successful: {}", JsonUtils.toJson(response));
-                        return ResponseEntity.ok(result);
-                    } else {
-                        return ResponseEntity.badRequest().body(result);
-                    }
-                })
-                .onErrorResume(e -> {
-                    log.error("Get categories error: {}", e.getMessage(), e);
-                    Map<String, Object> error = new HashMap<>();
-                    error.put("success", false);
-                    error.put("message", "Failed to get categories: " + e.getMessage());
-                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error));
-                });
+                        log.info("Get categories successful - count: {}", categories.size());
+                        return ResponseEntity.ok(ApiResponse.ok(result));
+                    })
+                    .onErrorResume(e -> {
+                        log.error("Get categories error: {}", e.getMessage(), e);
+                        return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                            .body(ApiResponse.internalServerError("Failed to fetch categories: " + e.getMessage())));
+                    });
+        } catch (Exception e) {
+            log.error("Error processing categories request: {}", e.getMessage(), e);
+            return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.internalServerError("Error: " + e.getMessage())));
+        }
     }
 
     @GetMapping("/products/top-ending")

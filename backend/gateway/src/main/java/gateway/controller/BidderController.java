@@ -969,7 +969,7 @@ public class BidderController {
 
     @GetMapping("/orders")
     @Operation(summary = "Get bidder orders", description = "Get list of orders for the authenticated bidder. Requires authentication.")
-    public ResponseEntity<Map<String, Object>> getBidderListOrder(
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getBidderListOrder(
             @Parameter(description = "Page number (1-based)")
             @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "Number of items per page (max 100)")
@@ -978,183 +978,176 @@ public class BidderController {
             @RequestParam(defaultValue = "all") String status) {
         try {
             int userId = getUserId();
-            log.info("Getting orders for user {} with status={}, page={}, limit={}", userId, status, page, limit);
-            
+            log.info("Get bidder orders [userId={}] - status: {}, page: {}, limit: {}", userId, status, page, limit);
+
+            // Validate pagination
+            if (page <= 0 || limit <= 0 || limit > 100) {
+                log.warn("Invalid pagination [userId={}] - page: {}, limit: {}", userId, page, limit);
+                return ResponseEntity.badRequest().body(ApiResponse.badRequest(INVALID_PAGINATION));
+            }
+
             var request = GetBidderListOrderRequest.newBuilder()
                 .setUserId(userId)
                 .setPage(page)
                 .setLimit(limit)
                 .setStatus(status)
                 .build();
-            
+
             var response = bidderGrpcClient.getBidderListOrder(request)
                 .block(Duration.ofSeconds(10));
-            
-            if (response != null && response.getSuccess()) {
-                Map<String, Object> result = new HashMap<>();
-                result.put("success", true);
-                result.put("message", response.getMessage());
-                
-                List<Map<String, Object>> orders = new ArrayList<>();
-                for (OrderItem order : response.getOrdersList()) {
-                    Map<String, Object> orderMap = new HashMap<>();
-                    orderMap.put("id", order.getId());
-                    orderMap.put("productId", order.getProductId());
-                    orderMap.put("productTitle", order.getProductTitle());
-                    orderMap.put("productImage", order.getProductImage());
-                    orderMap.put("amount", order.getAmount());
-                    orderMap.put("status", order.getStatus());
-                    orderMap.put("sellerId", order.getSellerId());
-                    orderMap.put("sellerName", order.getSellerName());
-                    orderMap.put("createdAt", order.getCreatedAt());
-                    orderMap.put("updatedAt", order.getUpdatedAt());
-                    orderMap.put("paymentStatus", order.getPaymentStatus());
-                    orders.add(orderMap);
-                }
-                
-                result.put("orders", orders);
-                result.put("pageInfo", mapPageInfo(response.getPageInfo()));
-                
-                log.info("Successfully retrieved {} orders for user {}", orders.size(), userId);
-                return ResponseEntity.ok(result);
-            } else {
-                Map<String, Object> error = new HashMap<>();
-                error.put("success", false);
-                error.put("message", response != null ? response.getMessage() : "Failed to get orders");
-                
-                log.warn("Failed to get orders for user {}: {}", userId, 
-                    response != null ? response.getMessage() : "Unknown error");
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+
+            if (response == null || !response.getSuccess()) {
+                log.warn("Get bidder orders failed [userId={}]", userId);
+                return ResponseEntity.badRequest()
+                    .body(ApiResponse.badRequest(response != null ? response.getMessage() : "Failed to fetch orders"));
             }
+
+            List<Map<String, Object>> orders = new ArrayList<>();
+            for (OrderItem order : response.getOrdersList()) {
+                Map<String, Object> orderMap = new HashMap<>();
+                orderMap.put("id", order.getId());
+                orderMap.put("productId", order.getProductId());
+                orderMap.put("productTitle", order.getProductTitle());
+                orderMap.put("productImage", order.getProductImage());
+                orderMap.put("amount", order.getAmount());
+                orderMap.put("status", order.getStatus());
+                orderMap.put("sellerId", order.getSellerId());
+                orderMap.put("sellerName", order.getSellerName());
+                orderMap.put("createdAt", order.getCreatedAt());
+                orderMap.put("updatedAt", order.getUpdatedAt());
+                orderMap.put("paymentStatus", order.getPaymentStatus());
+                orders.add(orderMap);
+            }
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("orders", orders);
+            result.put("pageInfo", mapPageInfo(response.getPageInfo()));
+
+            log.info("Get bidder orders successful [userId={}, count={}, totalItems={}]", userId, orders.size(), response.getPageInfo().getTotalItems());
+            return ResponseEntity.ok(ApiResponse.ok(result));
         } catch (Exception e) {
-            log.error("Error getting bidder orders: {}", e.getMessage(), e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("success", false);
-            error.put("message", "Error: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+            log.error("Get bidder orders error: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.internalServerError("Failed to fetch orders: " + e.getMessage()));
         }
     }
 
     @GetMapping("/banned-products")
     @Operation(summary = "Get banned products", description = "Get list of products that the bidder is banned from. Requires authentication.")
-    public ResponseEntity<Map<String, Object>> getBannedProducts(
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getBannedProducts(
             @Parameter(description = "Page number (1-based)")
             @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "Number of items per page (max 100)")
             @RequestParam(defaultValue = "20") int limit) {
         try {
             int userId = getUserId();
-            log.info("Getting banned products for user {} with page={}, limit={}", userId, page, limit);
-            
+            log.info("Get banned products [userId={}] - page: {}, limit: {}", userId, page, limit);
+
+            // Validate pagination
+            if (page <= 0 || limit <= 0 || limit > 100) {
+                log.warn("Invalid pagination [userId={}] - page: {}, limit: {}", userId, page, limit);
+                return ResponseEntity.badRequest().body(ApiResponse.badRequest(INVALID_PAGINATION));
+            }
+
             var request = GetBannedProductsRequest.newBuilder()
                 .setUserId(userId)
                 .setPage(page)
                 .setLimit(limit)
                 .build();
-            
+
             var response = bidderGrpcClient.getBannedProducts(request)
                 .block(Duration.ofSeconds(10));
-            
-            if (response != null && response.getSuccess()) {
-                Map<String, Object> result = new HashMap<>();
-                result.put("success", true);
-                result.put("message", response.getMessage());
-                
-                List<Map<String, Object>> bannedProducts = new ArrayList<>();
-                for (BannedProduct banned : response.getBannedProductsList()) {
-                    Map<String, Object> bannedMap = new HashMap<>();
-                    bannedMap.put("id", banned.getId());
-                    bannedMap.put("productId", banned.getProductId());
-                    bannedMap.put("bidderId", banned.getBidderId());
-                    bannedMap.put("sellerId", banned.getSellerId());
-                    bannedMap.put("productTitle", banned.getProductTitle());
-                    bannedMap.put("productImage", banned.getProductImage());
-                    bannedMap.put("sellerName", banned.getSellerName());
-                    bannedMap.put("reason", banned.getReason());
-                    bannedMap.put("bannedAt", banned.getBannedAt());
-                    bannedMap.put("bannedUntil", banned.getBannedUntil());
-                    bannedProducts.add(bannedMap);
-                }
-                
-                result.put("bannedProducts", bannedProducts);
-                result.put("pageInfo", mapPageInfo(response.getPageInfo()));
-                
-                log.info("Successfully retrieved {} banned products for user {}", bannedProducts.size(), userId);
-                return ResponseEntity.ok(result);
-            } else {
-                Map<String, Object> error = new HashMap<>();
-                error.put("success", false);
-                error.put("message", response != null ? response.getMessage() : "Failed to get banned products");
-                
-                log.warn("Failed to get banned products for user {}: {}", userId, 
-                    response != null ? response.getMessage() : "Unknown error");
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+
+            if (response == null || !response.getSuccess()) {
+                log.warn("Get banned products failed [userId={}]", userId);
+                return ResponseEntity.badRequest()
+                    .body(ApiResponse.badRequest(response != null ? response.getMessage() : "Failed to fetch banned products"));
             }
+
+            List<Map<String, Object>> bannedProducts = new ArrayList<>();
+            for (BannedProduct banned : response.getBannedProductsList()) {
+                Map<String, Object> bannedMap = new HashMap<>();
+                bannedMap.put("id", banned.getId());
+                bannedMap.put("productId", banned.getProductId());
+                bannedMap.put("bidderId", banned.getBidderId());
+                bannedMap.put("sellerId", banned.getSellerId());
+                bannedMap.put("productTitle", banned.getProductTitle());
+                bannedMap.put("productImage", banned.getProductImage());
+                bannedMap.put("sellerName", banned.getSellerName());
+                bannedMap.put("reason", banned.getReason());
+                bannedMap.put("bannedAt", banned.getBannedAt());
+                bannedMap.put("bannedUntil", banned.getBannedUntil());
+                bannedProducts.add(bannedMap);
+            }
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("bannedProducts", bannedProducts);
+            result.put("pageInfo", mapPageInfo(response.getPageInfo()));
+
+            log.info("Get banned products successful [userId={}, count={}, totalItems={}]", userId, bannedProducts.size(), response.getPageInfo().getTotalItems());
+            return ResponseEntity.ok(ApiResponse.ok(result));
         } catch (Exception e) {
-            log.error("Error getting banned products: {}", e.getMessage(), e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("success", false);
-            error.put("message", "Error: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+            log.error("Get banned products error: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.internalServerError("Failed to fetch banned products: " + e.getMessage()));
         }
     }
 
     @PostMapping("/sellers/{sellerId}/rate")
     @Operation(summary = "Rate seller", description = "Rate a seller after transaction. Requires authentication.")
-    public ResponseEntity<Map<String, Object>> rateSeller(
+    public ResponseEntity<ApiResponse<Map<String, Object>>> rateSeller(
             @Parameter(description = "Seller ID", required = true)
             @PathVariable int sellerId,
             @RequestBody com.auction.entities.dto.RateSellerRequest requestBody) {
 
+        int bidderId = getUserId();
+        log.info("Rate seller request [userId={}] - sellerId: {}, productId: {}",
+                bidderId, sellerId, requestBody != null ? requestBody.getProductId() : "null");
+
+        // Validate input
         if (sellerId <= 0) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("success", false);
-            error.put("message", "Invalid sellerId");
-            return ResponseEntity.badRequest().body(error);
+            log.warn("Invalid sellerId: {} [userId={}]", sellerId, bidderId);
+            return ResponseEntity.badRequest().body(ApiResponse.badRequest("Invalid seller ID"));
         }
 
         if (requestBody == null || requestBody.getProductId() == null || requestBody.getProductId() <= 0) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("success", false);
-            error.put("message", "Product ID is required");
-            return ResponseEntity.badRequest().body(error);
+            log.warn("Invalid request body [userId={}]", bidderId);
+            return ResponseEntity.badRequest().body(ApiResponse.badRequest(INVALID_PRODUCT_ID));
         }
 
-        int bidderId = getUserId();
         int productId = requestBody.getProductId();
         boolean like = requestBody.getLike();
         String comment = requestBody.getComment() != null ? requestBody.getComment() : "";
 
-        log.info("Rate seller request - sellerId: {}, bidderId: {}, productId: {}",
-                sellerId, bidderId, productId);
-
-        AddUserRatingRequest grpcRequest = AddUserRatingRequest.newBuilder()
-                .setFromUserId(bidderId)
-                .setToUserId(sellerId)
-                .setProductId(productId)
-                .setLike(like)
-                .setComment(comment)
-                .build();
-
         try {
+            AddUserRatingRequest grpcRequest = AddUserRatingRequest.newBuilder()
+                    .setFromUserId(bidderId)
+                    .setToUserId(sellerId)
+                    .setProductId(productId)
+                    .setLike(like)
+                    .setComment(comment)
+                    .build();
+
             var response = ratingGrpcClient.addUserRating(grpcRequest).block();
-            Map<String, Object> result = new HashMap<>();
-            result.put("success", response.getSuccess());
-            result.put("message", response.getMessage());
-            result.put("reviewId", response.getReviewId());
+            if (response == null) {
+                log.error("gRPC response is null [userId={}]", bidderId);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.internalServerError("Failed to rate seller"));
+            }
 
             if (response.getSuccess()) {
-                log.info("Rate seller successful - sellerId: {}, reviewId: {}", sellerId, response.getReviewId());
-                return ResponseEntity.ok(result);
+                Map<String, Object> result = new HashMap<>();
+                result.put("reviewId", response.getReviewId());
+                log.info("Rate seller successful [userId={}, sellerId={}, reviewId={}]", bidderId, sellerId, response.getReviewId());
+                return ResponseEntity.ok(ApiResponse.ok(result));
             } else {
-                return ResponseEntity.badRequest().body(result);
+                log.warn("Rate seller failed [userId={}, sellerId={}, message={}]", bidderId, sellerId, response.getMessage());
+                return ResponseEntity.badRequest().body(ApiResponse.badRequest(response.getMessage()));
             }
         } catch (Exception e) {
-            log.error("Rate seller error: {}", e.getMessage(), e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("success", false);
-            error.put("message", "Failed to rate seller: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+            log.error("Rate seller error [userId={}, sellerId={}]: {}", bidderId, sellerId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.internalServerError("Failed to rate seller: " + e.getMessage()));
         }
     }
 }

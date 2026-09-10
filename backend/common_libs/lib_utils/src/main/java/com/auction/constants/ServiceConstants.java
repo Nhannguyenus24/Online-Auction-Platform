@@ -33,6 +33,14 @@ public final class ServiceConstants {
     public static final String ROLE_BIDDER = "bidder";
     public static final String ROLE_SELLER = "seller";
     public static final String ROLE_ADMIN = "admin";
+    public static final String ROLE_BIDDER_UPPER = "BIDDER";
+    public static final String ROLE_SELLER_UPPER = "SELLER";
+
+    // ============================================================================
+    // CHAT STATUSES
+    // ============================================================================
+    public static final String CHAT_STATUS_PENDING_PAYMENT = "pending_payment";
+    public static final String CHAT_STATUS_COMPLETED = "completed";
 
     // ============================================================================
     // PAYMENT STATUSES
@@ -90,6 +98,23 @@ public final class ServiceConstants {
     public static final int MAX_CATEGORY_NAME_LENGTH = 100;
 
     // ============================================================================
+    // MESSAGE LIMITS
+    // ============================================================================
+    public static final int MAX_MESSAGE_LENGTH = 5000;
+    public static final int MIN_MESSAGE_LENGTH = 1;
+
+    // ============================================================================
+    // NOTIFICATION LIMITS
+    // ============================================================================
+    public static final int NOTIFICATION_PAGE_SIZE = 100;
+
+    // ============================================================================
+    // RETRY CONFIGURATION
+    // ============================================================================
+    public static final int MAX_RETRIES = 3;
+    public static final int RETRY_DELAY_MS = 1000;
+
+    // ============================================================================
     // PRICE LIMITS
     // ============================================================================
     public static final double MAX_PRICE = 1_000_000_000; // 1 billion
@@ -124,6 +149,17 @@ public final class ServiceConstants {
     public static final String ERROR_DUPLICATE_CONVERSATION = "Conversation with orderId %s already exists";
     public static final String ERROR_MISSING_REQUIRED_FIELD = "%s is required";
 
+    // Auth-specific error messages
+    public static final String ERROR_EMAIL_ALREADY_EXISTS = "Email already exists";
+    public static final String ERROR_INVALID_CREDENTIALS = "Invalid email or password";
+    public static final String ERROR_EMAIL_NOT_VERIFIED = "Email not verified. Please verify your email first.";
+    public static final String ERROR_OTP_EXPIRED = "OTP expired or not found";
+    public static final String ERROR_INVALID_OTP = "Invalid OTP";
+    public static final String ERROR_INVALID_REFRESH_TOKEN = "Invalid or expired refresh token";
+    public static final String ERROR_INVALID_OLD_PASSWORD = "Invalid old password";
+    public static final String ERROR_MESSAGE_CONTENT_EMPTY = "Message content cannot be empty";
+    public static final String ERROR_INVALID_USER_ROLE = "Invalid userRole. Must be SELLER or BIDDER";
+
     // ============================================================================
     // SUCCESS MESSAGES
     // ============================================================================
@@ -142,6 +178,15 @@ public final class ServiceConstants {
     public static final String SUCCESS_NOTIFICATION_MARKED_READ = "Notification marked as read successfully";
     public static final String SUCCESS_UPGRADE_REQUEST_SUBMITTED = "Upgrade request submitted successfully. Admin will review your request.";
     public static final String SUCCESS_NO_UPGRADE_REQUEST = "No upgrade request found";
+
+    // Auth-specific success messages
+    public static final String SUCCESS_REGISTRATION = "Registration successful. OTP sent to email. Expires in 10 minutes.";
+    public static final String SUCCESS_EMAIL_VERIFIED = "Email verified successfully";
+    public static final String SUCCESS_OTP_RESENT = "OTP resent to email. Expires in 10 minutes.";
+    public static final String SUCCESS_FORGOT_PASSWORD_OTP = "OTP sent to email successfully. Expires in 10 minutes.";
+    public static final String SUCCESS_PASSWORD_RESET = "Password reset successfully";
+    public static final String SUCCESS_PASSWORD_CHANGED = "Password changed successfully";
+    public static final String SUCCESS_MESSAGE_SAVED = "Message saved successfully";
 
     // ============================================================================
     // WARNING MESSAGES

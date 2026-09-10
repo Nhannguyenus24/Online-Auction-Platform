@@ -103,108 +103,117 @@ public class SellerController {
 
     @GetMapping("/profile")
     @Operation(summary = "Get seller profile", description = "Get seller profile information. Requires authentication.")
-    public ResponseEntity<Map<String, Object>> getSellerProfile() {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getSellerProfile() {
         int sellerId = getUserId();
-        log.info("Get seller profile request - sellerId: {}", sellerId);
-
-        GetSellerProfileRequest grpcRequest = GetSellerProfileRequest.newBuilder()
-                .setSellerId(sellerId)
-                .build();
+        log.info("Get seller profile request [sellerId={}]", sellerId);
 
         try {
-            var response = sellerGrpcClient.getSellerProfile(grpcRequest).block();
-            Map<String, Object> result = new HashMap<>();
-            result.put("success", true);
-            result.put("profile", mapSellerProfile(response));
+            GetSellerProfileRequest grpcRequest = GetSellerProfileRequest.newBuilder()
+                    .setSellerId(sellerId)
+                    .build();
 
-            log.info("Get seller profile successful - sellerId: {}", sellerId);
-            return ResponseEntity.ok(result);
+            var response = sellerGrpcClient.getSellerProfile(grpcRequest).block();
+            if (response == null) {
+                log.error("gRPC response is null [sellerId={}]", sellerId);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.internalServerError("Failed to fetch profile"));
+            }
+
+            Map<String, Object> profileData = new HashMap<>();
+            profileData.put("profile", mapSellerProfile(response));
+
+            log.info("Get seller profile successful [sellerId={}]", sellerId);
+            return ResponseEntity.ok(ApiResponse.ok(profileData));
         } catch (Exception e) {
-            log.error("Get seller profile error: {}", e.getMessage(), e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("success", false);
-            error.put("message", "Failed to get seller profile: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+            log.error("Get seller profile error [sellerId={}]: {}", sellerId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.internalServerError("Failed to fetch profile: " + e.getMessage()));
         }
     }
 
     @GetMapping("/active-listings")
     @Operation(summary = "Get active listings", description = "Get seller's active product listings. Requires authentication.")
-    public ResponseEntity<Map<String, Object>> getActiveListings(
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getActiveListings(
             @Parameter(description = "Page number (1-based)")
             @RequestParam(defaultValue = "1") @Positive(message = "Page must be greater than 0") int page,
             @Parameter(description = "Number of items per page")
             @RequestParam(defaultValue = "20") @Positive(message = "PageSize must be greater than 0") @Max(value = 100, message = "PageSize must not exceed 100") int pageSize) {
 
         int sellerId = getUserId();
-        log.info("Get active listings request - sellerId: {}, page: {}, pageSize: {}", sellerId, page, pageSize);
-
-        GetActiveListingsRequest grpcRequest = GetActiveListingsRequest.newBuilder()
-                .setSellerId(sellerId)
-                .setPage(page)
-                .setPageSize(pageSize)
-                .build();
+        log.info("Get active listings request [sellerId={}] - page: {}, pageSize: {}", sellerId, page, pageSize);
 
         try {
+            GetActiveListingsRequest grpcRequest = GetActiveListingsRequest.newBuilder()
+                    .setSellerId(sellerId)
+                    .setPage(page)
+                    .setPageSize(pageSize)
+                    .build();
+
             var response = sellerGrpcClient.getActiveListings(grpcRequest).block();
+            if (response == null) {
+                log.error("gRPC response is null [sellerId={}]", sellerId);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.internalServerError("Failed to fetch listings"));
+            }
+
             Map<String, Object> result = new HashMap<>();
-            result.put("success", true);
             result.put("products", mapProductList(response.getProductsList()));
             result.put("totalCount", response.getTotalCount());
             result.put("page", response.getPage());
             result.put("pageSize", response.getPageSize());
 
-            log.info("Get active listings successful, count: {}", response.getProductsCount());
-            return ResponseEntity.ok(result);
+            log.info("Get active listings successful [sellerId={}, count={}]", sellerId, response.getProductsCount());
+            return ResponseEntity.ok(ApiResponse.ok(result));
         } catch (Exception e) {
-            log.error("Get active listings error: {}", e.getMessage(), e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("success", false);
-            error.put("message", "Failed to get active listings: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+            log.error("Get active listings error [sellerId={}]: {}", sellerId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.internalServerError("Failed to fetch listings: " + e.getMessage()));
         }
     }
 
     @GetMapping("/winner-items")
     @Operation(summary = "Get winner items", description = "Get products where winner has been determined. Requires authentication.")
-    public ResponseEntity<Map<String, Object>> getWinnerItems(
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getWinnerItems(
             @Parameter(description = "Page number (1-based)")
             @RequestParam(defaultValue = "1") @Positive(message = "Page must be greater than 0") int page,
             @Parameter(description = "Number of items per page")
             @RequestParam(defaultValue = "20") @Positive(message = "PageSize must be greater than 0") @Max(value = 100, message = "PageSize must not exceed 100") int pageSize) {
 
         int sellerId = getUserId();
-        log.info("Get winner items request - sellerId: {}, page: {}, pageSize: {}", sellerId, page, pageSize);
-
-        GetWinnerItemsRequest grpcRequest = GetWinnerItemsRequest.newBuilder()
-                .setSellerId(sellerId)
-                .setPage(page)
-                .setPageSize(pageSize)
-                .build();
+        log.info("Get winner items request [sellerId={}] - page: {}, pageSize: {}", sellerId, page, pageSize);
 
         try {
+            GetWinnerItemsRequest grpcRequest = GetWinnerItemsRequest.newBuilder()
+                    .setSellerId(sellerId)
+                    .setPage(page)
+                    .setPageSize(pageSize)
+                    .build();
+
             var response = sellerGrpcClient.getWinnerItems(grpcRequest).block();
+            if (response == null) {
+                log.error("gRPC response is null [sellerId={}]", sellerId);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.internalServerError("Failed to fetch winner items"));
+            }
+
             Map<String, Object> result = new HashMap<>();
-            result.put("success", true);
             result.put("products", mapProductList(response.getProductsList()));
             result.put("totalCount", response.getTotalCount());
             result.put("page", response.getPage());
             result.put("pageSize", response.getPageSize());
 
-            log.info("Get winner items successful, count: {}", response.getProductsCount());
-            return ResponseEntity.ok(result);
+            log.info("Get winner items successful [sellerId={}, count={}]", sellerId, response.getProductsCount());
+            return ResponseEntity.ok(ApiResponse.ok(result));
         } catch (Exception e) {
-            log.error("Get winner items error: {}", e.getMessage(), e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("success", false);
-            error.put("message", "Failed to get winner items: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+            log.error("Get winner items error [sellerId={}]: {}", sellerId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.internalServerError("Failed to fetch winner items: " + e.getMessage()));
         }
     }
 
     @GetMapping("/transactions")
     @Operation(summary = "Get transaction history", description = "Get seller's transaction history. Requires authentication.")
-    public ResponseEntity<Map<String, Object>> getTransactionHistory(
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getTransactionHistory(
             @Parameter(description = "Page number (1-based)")
             @RequestParam(defaultValue = "1") @Positive(message = "Page must be greater than 0") int page,
             @Parameter(description = "Number of items per page")
@@ -213,76 +222,82 @@ public class SellerController {
             @RequestParam(defaultValue = "") String filter) {
 
         int sellerId = getUserId();
-        log.info("Get transaction history request - sellerId: {}, page: {}, pageSize: {}, filter: {}", 
+        log.info("Get transaction history request [sellerId={}] - page: {}, pageSize: {}, filter: {}",
                 sellerId, page, pageSize, filter);
 
         // Validate filter if provided
         if (!filter.isEmpty() && !filter.matches("^(completed|pending|cancelled)$")) {
-            log.error("Invalid filter value: {}", filter);
-            return badRequestResponse("Invalid filter. Must be: completed, pending, or cancelled");
+            log.warn("Invalid filter value: {} [sellerId={}]", filter, sellerId);
+            return badRequestResponse(INVALID_TRANSACTION_FILTER);
         }
 
-        GetTransactionHistoryRequest grpcRequest = GetTransactionHistoryRequest.newBuilder()
-                .setSellerId(sellerId)
-                .setPage(page)
-                .setPageSize(pageSize)
-                .setFilter(filter)
-                .build();
-
         try {
+            GetTransactionHistoryRequest grpcRequest = GetTransactionHistoryRequest.newBuilder()
+                    .setSellerId(sellerId)
+                    .setPage(page)
+                    .setPageSize(pageSize)
+                    .setFilter(filter)
+                    .build();
+
             var response = sellerGrpcClient.getTransactionHistory(grpcRequest).block();
+            if (response == null) {
+                log.error("gRPC response is null [sellerId={}]", sellerId);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.internalServerError("Failed to fetch transactions"));
+            }
+
             Map<String, Object> result = new HashMap<>();
-            result.put("success", true);
             result.put("transactions", mapTransactionList(response.getTransactionsList()));
             result.put("totalCount", response.getTotalCount());
             result.put("page", response.getPage());
             result.put("pageSize", response.getPageSize());
 
-            log.info("Get transaction history successful, count: {}", response.getTransactionsCount());
-            return ResponseEntity.ok(result);
+            log.info("Get transaction history successful [sellerId={}, count={}]", sellerId, response.getTransactionsCount());
+            return ResponseEntity.ok(ApiResponse.ok(result));
         } catch (Exception e) {
-            log.error("Get transaction history error: {}", e.getMessage(), e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("success", false);
-            error.put("message", "Failed to get transaction history: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+            log.error("Get transaction history error [sellerId={}]: {}", sellerId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.internalServerError("Failed to fetch transactions: " + e.getMessage()));
         }
     }
 
     @GetMapping("/ratings")
     @Operation(summary = "Get seller ratings", description = "Get seller's ratings and reviews. Requires authentication.")
-    public ResponseEntity<Map<String, Object>> getSellerRatings(
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getSellerRatings(
             @Parameter(description = "Page number (1-based)")
             @RequestParam(defaultValue = "1") @Positive(message = "Page must be greater than 0") int page,
             @Parameter(description = "Number of items per page")
             @RequestParam(defaultValue = "20") @Positive(message = "PageSize must be greater than 0") @Max(value = 100, message = "PageSize must not exceed 100") int pageSize) {
 
         int sellerId = getUserId();
-        log.info("Get seller ratings request - sellerId: {}, page: {}, pageSize: {}", sellerId, page, pageSize);
-
-        GetSellerRatingsRequest grpcRequest = GetSellerRatingsRequest.newBuilder()
-                .setSellerId(sellerId)
-                .setPage(page)
-                .setPageSize(pageSize)
-                .build();
+        log.info("Get seller ratings request [sellerId={}] - page: {}, pageSize: {}", sellerId, page, pageSize);
 
         try {
+            GetSellerRatingsRequest grpcRequest = GetSellerRatingsRequest.newBuilder()
+                    .setSellerId(sellerId)
+                    .setPage(page)
+                    .setPageSize(pageSize)
+                    .build();
+
             var response = sellerGrpcClient.getSellerRatings(grpcRequest).block();
+            if (response == null) {
+                log.error("gRPC response is null [sellerId={}]", sellerId);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.internalServerError("Failed to fetch ratings"));
+            }
+
             Map<String, Object> result = new HashMap<>();
-            result.put("success", true);
             result.put("positiveReviews", response.getPositiveReviews());
             result.put("negativeReviews", response.getNegativeReviews());
             result.put("reviews", mapReviewList(response.getReviewsList()));
             result.put("totalCount", response.getTotalCount());
 
-            log.info("Get seller ratings successful, count: {}", response.getReviewsCount());
-            return ResponseEntity.ok(result);
+            log.info("Get seller ratings successful [sellerId={}, count={}]", sellerId, response.getReviewsCount());
+            return ResponseEntity.ok(ApiResponse.ok(result));
         } catch (Exception e) {
-            log.error("Get seller ratings error: {}", e.getMessage(), e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("success", false);
-            error.put("message", "Failed to get seller ratings: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+            log.error("Get seller ratings error [sellerId={}]: {}", sellerId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.internalServerError("Failed to fetch ratings: " + e.getMessage()));
         }
     }
 
@@ -292,7 +307,7 @@ public class SellerController {
 
     @PostMapping(value = "/listings", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Create auction listing", description = "Create a new auction listing with up to 4 images. Requires authentication. Date format: yyyy-MM-dd'T'HH:mm:ss")
-    public ResponseEntity<Map<String, Object>> createAuctionListing(
+    public ResponseEntity<ApiResponse<Map<String, Object>>> createAuctionListing(
             @Parameter(description = "Product title", required = true)
             @RequestParam("title") String title,
             @Parameter(description = "Product description", required = true)
@@ -320,21 +335,27 @@ public class SellerController {
             @RequestPart(value = "images", required = false) List<MultipartFile> images
     ) {
         int sellerId = getUserId();
-        
+
+        log.info("Create auction listing request [sellerId={}] - title: {}", sellerId, title);
+
         try {
             // Validate title
             if (title == null || title.trim().isEmpty()) {
-                return badRequestResponse("Title is required");
+                log.warn("Title is empty [sellerId={}]", sellerId);
+                return badRequestResponse(TITLE_REQUIRED);
             }
             if (title.trim().length() > 255) {
+                log.warn("Title exceeds max length [sellerId={}]", sellerId);
                 return badRequestResponse("Title must not exceed 255 characters");
             }
 
             // Validate description
             if (description == null || description.trim().isEmpty()) {
-                return badRequestResponse("Description is required");
+                log.warn("Description is empty [sellerId={}]", sellerId);
+                return badRequestResponse(DESCRIPTION_REQUIRED);
             }
             if (description.trim().length() > 5000) {
+                log.warn("Description exceeds max length [sellerId={}]", sellerId);
                 return badRequestResponse("Description must not exceed 5000 characters");
             }
 
@@ -487,37 +508,37 @@ public class SellerController {
 
             // Call gRPC service - blocking
             var response = sellerGrpcClient.createAuctionListing(builder.build()).block();
-            
+
+            if (response == null) {
+                log.error("gRPC response is null [sellerId={}]", sellerId);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.internalServerError("Failed to create listing"));
+            }
+
             Map<String, Object> result = new HashMap<>();
-            result.put("success", response.getSuccess());
-            result.put("message", response.getMessage());
             result.put("productId", response.getProductId());
             result.put("imageUrls", imageUrls);
+            result.put("message", response.getMessage());
 
             if (response.getSuccess()) {
-                log.info("Create auction listing successful - productId: {}", response.getProductId());
-                return ResponseEntity.ok(result);
+                log.info("Create auction listing successful [sellerId={}, productId={}]", sellerId, response.getProductId());
+                return ResponseEntity.ok(ApiResponse.ok(result));
             } else {
-                return ResponseEntity.badRequest().body(result);
+                log.warn("Create auction listing failed [sellerId={}, message={}]", sellerId, response.getMessage());
+                return ResponseEntity.badRequest().body(ApiResponse.badRequest(response.getMessage()));
             }
         } catch (NumberFormatException e) {
-            log.error("Invalid number format in parameters: {}", e.getMessage());
-            Map<String, Object> error = new HashMap<>();
-            error.put("success", false);
-            error.put("message", "Invalid number format: " + e.getMessage());
-            return ResponseEntity.badRequest().body(error);
+            log.error("Invalid number format in parameters [sellerId={}]: {}", sellerId, e.getMessage());
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.badRequest("Invalid number format: " + e.getMessage()));
         } catch (java.time.format.DateTimeParseException e) {
-            log.error("Invalid date format: {}", e.getMessage());
-            Map<String, Object> error = new HashMap<>();
-            error.put("success", false);
-            error.put("message", "Invalid date format. Expected format: yyyy-MM-dd'T'HH:mm:ss");
-            return ResponseEntity.badRequest().body(error);
+            log.error("Invalid date format [sellerId={}]: {}", sellerId, e.getMessage());
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.badRequest("Invalid date format. Expected format: yyyy-MM-dd'T'HH:mm:ss"));
         } catch (Exception e) {
-            log.error("Create auction listing error: {}", e.getMessage(), e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("success", false);
-            error.put("message", "Failed to create auction listing: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+            log.error("Create auction listing error [sellerId={}]: {}", sellerId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.internalServerError("Failed to create listing: " + e.getMessage()));
         }
     }
 
@@ -527,38 +548,41 @@ public class SellerController {
 
     @GetMapping("/products/{productId}")
     @Operation(summary = "Get product details (owner view)", description = "Get detailed product information for seller. Requires authentication.")
-    public ResponseEntity<Map<String, Object>> getProductDetails(
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getProductDetails(
             @Parameter(description = "Product ID", required = true)
             @PathVariable @Positive(message = "Product ID must be greater than 0") int productId) {
 
         int sellerId = getUserId();
-        log.info("Get product details request - productId: {}, sellerId: {}", productId, sellerId);
-
-        GetProductDetailsRequest grpcRequest = GetProductDetailsRequest.newBuilder()
-                .setProductId(productId)
-                .setSellerId(sellerId)
-                .build();
+        log.info("Get product details request [sellerId={}] - productId: {}", sellerId, productId);
 
         try {
+            GetProductDetailsRequest grpcRequest = GetProductDetailsRequest.newBuilder()
+                    .setProductId(productId)
+                    .setSellerId(sellerId)
+                    .build();
+
             var response = sellerGrpcClient.getProductDetails(grpcRequest).block();
+            if (response == null) {
+                log.error("gRPC response is null [sellerId={}]", sellerId);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.internalServerError("Failed to fetch product"));
+            }
+
             Map<String, Object> result = new HashMap<>();
-            result.put("success", true);
             result.put("product", mapProductDetails(response));
 
-            log.info("Get product details successful - productId: {}", productId);
-            return ResponseEntity.ok(result);
+            log.info("Get product details successful [sellerId={}, productId={}]", sellerId, productId);
+            return ResponseEntity.ok(ApiResponse.ok(result));
         } catch (Exception e) {
-            log.error("Get product details error: {}", e.getMessage(), e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("success", false);
-            error.put("message", "Failed to get product details: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+            log.error("Get product details error [sellerId={}, productId={}]: {}", sellerId, productId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.internalServerError("Failed to fetch product: " + e.getMessage()));
         }
     }
 
     @PostMapping("/products/{productId}/questions/{questionId}/answer")
     @Operation(summary = "Answer question", description = "Answer a question about a product. Requires authentication.")
-    public ResponseEntity<Map<String, Object>> answerQuestion(
+    public ResponseEntity<ApiResponse<Map<String, Object>>> answerQuestion(
             @Parameter(description = "Product ID", required = true)
             @PathVariable @Positive(message = "Product ID must be greater than 0") int productId,
             @Parameter(description = "Question ID", required = true)
@@ -567,47 +591,53 @@ public class SellerController {
 
         int sellerId = getUserId();
         String answer = requestBody.getAnswer();
-        
+
+        log.info("Answer question request [sellerId={}] - questionId: {}, productId: {}", sellerId, questionId, productId);
+
         // Validate answer
         if (answer == null || answer.trim().isEmpty()) {
-            return badRequestResponse("Answer is required");
+            log.warn("Answer is empty [sellerId={}]", sellerId);
+            return badRequestResponse(ANSWER_REQUIRED);
         }
         if (answer.trim().length() > 5000) {
+            log.warn("Answer exceeds max length [sellerId={}]", sellerId);
             return badRequestResponse("Answer must not exceed 5000 characters");
         }
-        
-        log.info("Answer question request - questionId: {}, sellerId: {}", questionId, sellerId);
-
-        AnswerQuestionRequest grpcRequest = AnswerQuestionRequest.newBuilder()
-                .setSellerId(sellerId)
-                .setQuestionId(questionId)
-                .setAnswer(answer)
-                .build();
 
         try {
+            AnswerQuestionRequest grpcRequest = AnswerQuestionRequest.newBuilder()
+                    .setSellerId(sellerId)
+                    .setQuestionId(questionId)
+                    .setAnswer(answer)
+                    .build();
+
             var response = sellerGrpcClient.answerQuestion(grpcRequest).block();
+            if (response == null) {
+                log.error("gRPC response is null [sellerId={}]", sellerId);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.internalServerError("Failed to answer question"));
+            }
+
             Map<String, Object> result = new HashMap<>();
-            result.put("success", response.getSuccess());
             result.put("message", response.getMessage());
 
             if (response.getSuccess()) {
-                log.info("Answer question successful - questionId: {}", questionId);
-                return ResponseEntity.ok(result);
+                log.info("Answer question successful [sellerId={}, questionId={}]", sellerId, questionId);
+                return ResponseEntity.ok(ApiResponse.ok(result));
             } else {
-                return ResponseEntity.badRequest().body(result);
+                log.warn("Answer question failed [sellerId={}, questionId={}, message={}]", sellerId, questionId, response.getMessage());
+                return ResponseEntity.badRequest().body(ApiResponse.badRequest(response.getMessage()));
             }
         } catch (Exception e) {
-            log.error("Answer question error: {}", e.getMessage(), e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("success", false);
-            error.put("message", "Failed to answer question: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+            log.error("Answer question error [sellerId={}, questionId={}]: {}", sellerId, questionId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.internalServerError("Failed to answer question: " + e.getMessage()));
         }
     }
 
     @PostMapping("/products/{productId}/reject-bidder")
     @Operation(summary = "Reject bidder", description = "Reject a bidder from participating in the auction. Requires authentication.")
-    public ResponseEntity<Map<String, Object>> rejectBidder(
+    public ResponseEntity<ApiResponse<Map<String, Object>>> rejectBidder(
             @Parameter(description = "Product ID", required = true)
             @PathVariable @Positive(message = "Product ID must be greater than 0") int productId,
             @RequestBody com.auction.entities.dto.RejectBidderRequest requestBody) {
@@ -615,101 +645,114 @@ public class SellerController {
         int sellerId = getUserId();
         int bidderId = requestBody.getBidderId();
         String reason = requestBody.getReason();
-        
+
+        log.info("Reject bidder request [sellerId={}] - productId: {}, bidderId: {}", sellerId, productId, bidderId);
+
         // Validate bidderId
         if (bidderId <= 0) {
+            log.warn("Invalid bidderId: {} [sellerId={}]", bidderId, sellerId);
             return badRequestResponse("Bidder ID must be greater than 0");
         }
-        
+
         // Validate reason
         if (reason == null || reason.trim().isEmpty()) {
-            return badRequestResponse("Reason is required");
+            log.warn("Reason is empty [sellerId={}]", sellerId);
+            return badRequestResponse(REASON_REQUIRED);
         }
         if (reason.trim().length() > 500) {
+            log.warn("Reason exceeds max length [sellerId={}]", sellerId);
             return badRequestResponse("Reason must not exceed 500 characters");
         }
-        
-        log.info("Reject bidder request - productId: {}, bidderId: {}, sellerId: {}", productId, bidderId, sellerId);
-
-        RejectBidderRequest grpcRequest = RejectBidderRequest.newBuilder()
-                .setSellerId(sellerId)
-                .setProductId(productId)
-                .setBidderId(bidderId)
-                .setReason(reason)
-                .build();
 
         try {
+            RejectBidderRequest grpcRequest = RejectBidderRequest.newBuilder()
+                    .setSellerId(sellerId)
+                    .setProductId(productId)
+                    .setBidderId(bidderId)
+                    .setReason(reason)
+                    .build();
+
             var response = sellerGrpcClient.rejectBidder(grpcRequest).block();
+            if (response == null) {
+                log.error("gRPC response is null [sellerId={}]", sellerId);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.internalServerError("Failed to reject bidder"));
+            }
+
             Map<String, Object> result = new HashMap<>();
-            result.put("success", response.getSuccess());
             result.put("message", response.getMessage());
 
             if (response.getSuccess()) {
-                log.info("Reject bidder successful - productId: {}, bidderId: {}", productId, bidderId);
-                return ResponseEntity.ok(result);
+                log.info("Reject bidder successful [sellerId={}, productId={}, bidderId={}]", sellerId, productId, bidderId);
+                return ResponseEntity.ok(ApiResponse.ok(result));
             } else {
-                return ResponseEntity.badRequest().body(result);
+                log.warn("Reject bidder failed [sellerId={}, bidderId={}, message={}]", sellerId, bidderId, response.getMessage());
+                return ResponseEntity.badRequest().body(ApiResponse.badRequest(response.getMessage()));
             }
         } catch (Exception e) {
-            log.error("Reject bidder error: {}", e.getMessage(), e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("success", false);
-            error.put("message", "Failed to reject bidder: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+            log.error("Reject bidder error [sellerId={}, bidderId={}]: {}", sellerId, bidderId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.internalServerError("Failed to reject bidder: " + e.getMessage()));
         }
     }
 
     @PutMapping("/products/{productId}/description")
     @Operation(summary = "Append product description", description = "Append additional description to a product. Requires authentication.")
-    public ResponseEntity<Map<String, Object>> appendProductDescription(
+    public ResponseEntity<ApiResponse<Map<String, Object>>> appendProductDescription(
             @Parameter(description = "Product ID", required = true)
             @PathVariable @Positive(message = "Product ID must be greater than 0") int productId,
             @RequestBody com.auction.entities.dto.AppendProductDescriptionRequest requestBody) {
 
         int sellerId = getUserId();
         String additionalDescription = requestBody.getAdditionalDescription();
-        
+
+        log.info("Append product description request [sellerId={}] - productId: {}", sellerId, productId);
+
         // Validate additional description
         if (additionalDescription == null || additionalDescription.trim().isEmpty()) {
-            return badRequestResponse("Additional description is required");
+            log.warn("Additional description is empty [sellerId={}]", sellerId);
+            return badRequestResponse(DESCRIPTION_REQUIRED);
         }
         if (additionalDescription.trim().length() > 5000) {
+            log.warn("Additional description exceeds max length [sellerId={}]", sellerId);
             return badRequestResponse("Additional description must not exceed 5000 characters");
         }
-        
-        log.info("Append product description request - productId: {}, sellerId: {}", productId, sellerId);
-
-        AppendProductDescriptionRequest grpcRequest = AppendProductDescriptionRequest.newBuilder()
-                .setSellerId(sellerId)
-                .setProductId(productId)
-                .setAdditionalDescription(additionalDescription)
-                .build();
 
         try {
+            AppendProductDescriptionRequest grpcRequest = AppendProductDescriptionRequest.newBuilder()
+                    .setSellerId(sellerId)
+                    .setProductId(productId)
+                    .setAdditionalDescription(additionalDescription)
+                    .build();
+
             var response = sellerGrpcClient.appendProductDescription(grpcRequest).block();
+            if (response == null) {
+                log.error("gRPC response is null [sellerId={}]", sellerId);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.internalServerError("Failed to append description"));
+            }
+
             Map<String, Object> result = new HashMap<>();
-            result.put("success", response.getSuccess());
             result.put("message", response.getMessage());
             result.put("updatedDescription", response.getUpdatedDescription());
 
             if (response.getSuccess()) {
-                log.info("Append product description successful - productId: {}", productId);
-                return ResponseEntity.ok(result);
+                log.info("Append product description successful [sellerId={}, productId={}]", sellerId, productId);
+                return ResponseEntity.ok(ApiResponse.ok(result));
             } else {
-                return ResponseEntity.badRequest().body(result);
+                log.warn("Append product description failed [sellerId={}, productId={}, message={}]", sellerId, productId, response.getMessage());
+                return ResponseEntity.badRequest().body(ApiResponse.badRequest(response.getMessage()));
             }
         } catch (Exception e) {
-            log.error("Append product description error: {}", e.getMessage(), e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("success", false);
-            error.put("message", "Failed to append product description: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+            log.error("Append product description error [sellerId={}, productId={}]: {}", sellerId, productId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.internalServerError("Failed to append description: " + e.getMessage()));
         }
     }
 
     @PostMapping("/bidders/{bidderId}/rate")
     @Operation(summary = "Rate bidder", description = "Rate a bidder after transaction. Requires authentication.")
-    public ResponseEntity<Map<String, Object>> rateBidder(
+    public ResponseEntity<ApiResponse<Map<String, Object>>> rateBidder(
             @Parameter(description = "Bidder ID", required = true)
             @PathVariable @Positive(message = "Bidder ID must be greater than 0") int bidderId,
             @RequestBody com.auction.entities.dto.RateBidderRequest requestBody) {
@@ -719,51 +762,58 @@ public class SellerController {
         Integer productId = requestBody.getProductId();
         boolean like = requestBody.getLike();
         String comment = requestBody.getComment();
-        
+
+        log.info("Rate bidder request [sellerId={}] - bidderId: {}, productId: {}", sellerId, bidderId, productId);
+
         // Validate orderId
         if (orderId != null && orderId <= 0) {
+            log.warn("Invalid orderId: {} [sellerId={}]", orderId, sellerId);
             return badRequestResponse("Order ID must be greater than 0");
         }
-        
+
         // Validate productId
         if (productId == null || productId <= 0) {
+            log.warn("Invalid or missing productId [sellerId={}]", sellerId);
             return badRequestResponse("Product ID is required and must be greater than 0");
         }
+
         // Validate comment
         if (comment != null && comment.trim().length() > 1000) {
+            log.warn("Comment exceeds max length [sellerId={}]", sellerId);
             return badRequestResponse("Comment must not exceed 1000 characters");
         }
-        
-        log.info("Rate bidder request - bidderId: {}, sellerId: {}, productId: {}, orderId: {}",
-                bidderId, sellerId, productId, orderId);
-
-        AddUserRatingRequest grpcRequest = AddUserRatingRequest.newBuilder()
-                .setFromUserId(sellerId)
-                .setToUserId(bidderId)
-                .setProductId(productId)
-                .setLike(like)
-                .setComment(comment != null ? comment : "")
-                .build();
 
         try {
+            AddUserRatingRequest grpcRequest = AddUserRatingRequest.newBuilder()
+                    .setFromUserId(sellerId)
+                    .setToUserId(bidderId)
+                    .setProductId(productId)
+                    .setLike(like)
+                    .setComment(comment != null ? comment : "")
+                    .build();
+
             var response = ratingGrpcClient.addUserRating(grpcRequest).block();
+            if (response == null) {
+                log.error("gRPC response is null [sellerId={}]", sellerId);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.internalServerError("Failed to rate bidder"));
+            }
+
             Map<String, Object> result = new HashMap<>();
-            result.put("success", response.getSuccess());
             result.put("message", response.getMessage());
             result.put("reviewId", response.getReviewId());
 
             if (response.getSuccess()) {
-                log.info("Rate bidder successful - bidderId: {}, reviewId: {}", bidderId, response.getReviewId());
-                return ResponseEntity.ok(result);
+                log.info("Rate bidder successful [sellerId={}, bidderId={}, reviewId={}]", sellerId, bidderId, response.getReviewId());
+                return ResponseEntity.ok(ApiResponse.ok(result));
             } else {
-                return ResponseEntity.badRequest().body(result);
+                log.warn("Rate bidder failed [sellerId={}, bidderId={}, message={}]", sellerId, bidderId, response.getMessage());
+                return ResponseEntity.badRequest().body(ApiResponse.badRequest(response.getMessage()));
             }
         } catch (Exception e) {
-            log.error("Rate bidder error: {}", e.getMessage(), e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("success", false);
-            error.put("message", "Failed to rate bidder: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+            log.error("Rate bidder error [sellerId={}, bidderId={}]: {}", sellerId, bidderId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.internalServerError("Failed to rate bidder: " + e.getMessage()));
         }
     }
 
@@ -773,7 +823,7 @@ public class SellerController {
 
     @GetMapping("/listings")
     @Operation(summary = "Get listings", description = "Get seller's product listings with filter. Requires authentication.")
-    public ResponseEntity<Map<String, Object>> getListings(
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getListings(
             @Parameter(description = "Status filter (active, expired, all)")
             @RequestParam(defaultValue = "all") String filter,
             @Parameter(description = "Page number (1-based)")
@@ -782,40 +832,43 @@ public class SellerController {
             @RequestParam(defaultValue = "20") @Positive(message = "Page size must be greater than 0") @Max(value = 100, message = "Page size must not exceed 100") int pageSize) {
 
         int sellerId = getUserId();
-        
-        // Validate filter
-        if (!filter.isEmpty() && !filter.matches("^(active|expired|all)$")) {
-            log.error("Invalid filter value: {}", filter);
-            return badRequestResponse("Invalid filter. Must be: active, expired, or all");
-        }
-        
-        log.info("Get listings request - sellerId: {}, filter: {}, page: {}, pageSize: {}", 
+
+        log.info("Get listings request [sellerId={}] - filter: {}, page: {}, pageSize: {}",
                 sellerId, filter, page, pageSize);
 
-        GetListingsRequest grpcRequest = GetListingsRequest.newBuilder()
-                .setSellerId(sellerId)
-                .setFilter(filter)
-                .setPage(page)
-                .setPageSize(pageSize)
-                .build();
+        // Validate filter
+        if (!filter.isEmpty() && !filter.matches("^(active|expired|all)$")) {
+            log.warn("Invalid filter value: {} [sellerId={}]", filter, sellerId);
+            return badRequestResponse(INVALID_FILTER);
+        }
 
         try {
+            GetListingsRequest grpcRequest = GetListingsRequest.newBuilder()
+                    .setSellerId(sellerId)
+                    .setFilter(filter)
+                    .setPage(page)
+                    .setPageSize(pageSize)
+                    .build();
+
             var response = sellerGrpcClient.getListings(grpcRequest).block();
+            if (response == null) {
+                log.error("gRPC response is null [sellerId={}]", sellerId);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.internalServerError("Failed to fetch listings"));
+            }
+
             Map<String, Object> result = new HashMap<>();
-            result.put("success", true);
             result.put("listings", mapListingDetailList(response.getListingsList()));
             result.put("totalCount", response.getTotalCount());
             result.put("page", response.getPage());
             result.put("pageSize", response.getPageSize());
 
-            log.info("Get listings successful, count: {}", response.getListingsCount());
-            return ResponseEntity.ok(result);
+            log.info("Get listings successful [sellerId={}, count={}]", sellerId, response.getListingsCount());
+            return ResponseEntity.ok(ApiResponse.ok(result));
         } catch (Exception e) {
-            log.error("Get listings error: {}", e.getMessage(), e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("success", false);
-            error.put("message", "Failed to get listings: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+            log.error("Get listings error [sellerId={}]: {}", sellerId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.internalServerError("Failed to fetch listings: " + e.getMessage()));
         }
     }
 
@@ -825,7 +878,7 @@ public class SellerController {
 
     @GetMapping("/orders")
     @Operation(summary = "Get orders", description = "Get seller's orders with status filter. Requires authentication.")
-    public ResponseEntity<Map<String, Object>> getOrders(
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getOrders(
             @Parameter(description = "Status filter (pending, completed, cancelled, all)")
             @RequestParam(defaultValue = "all") String statusFilter,
             @Parameter(description = "Page number (1-based)")
@@ -834,46 +887,49 @@ public class SellerController {
             @RequestParam(defaultValue = "20") @Positive(message = "Page size must be greater than 0") @Max(value = 100, message = "Page size must not exceed 100") int pageSize) {
 
         int sellerId = getUserId();
-        
-        // Validate statusFilter
-        if (!statusFilter.isEmpty() && !statusFilter.matches("^(pending|completed|cancelled|all)$")) {
-            log.error("Invalid status filter value: {}", statusFilter);
-            return badRequestResponse("Invalid status filter. Must be: pending, completed, cancelled, or all");
-        }
-        
-        log.info("Get orders request - sellerId: {}, statusFilter: {}, page: {}, pageSize: {}", 
+
+        log.info("Get orders request [sellerId={}] - statusFilter: {}, page: {}, pageSize: {}",
                 sellerId, statusFilter, page, pageSize);
 
-        GetOrdersRequest grpcRequest = GetOrdersRequest.newBuilder()
-                .setSellerId(sellerId)
-                .setStatusFilter(statusFilter)
-                .setPage(page)
-                .setPageSize(pageSize)
-                .build();
+        // Validate statusFilter
+        if (!statusFilter.isEmpty() && !statusFilter.matches("^(pending|completed|cancelled|all)$")) {
+            log.warn("Invalid status filter value: {} [sellerId={}]", statusFilter, sellerId);
+            return badRequestResponse(INVALID_STATUS_FILTER);
+        }
 
         try {
+            GetOrdersRequest grpcRequest = GetOrdersRequest.newBuilder()
+                    .setSellerId(sellerId)
+                    .setStatusFilter(statusFilter)
+                    .setPage(page)
+                    .setPageSize(pageSize)
+                    .build();
+
             var response = sellerGrpcClient.getOrders(grpcRequest).block();
+            if (response == null) {
+                log.error("gRPC response is null [sellerId={}]", sellerId);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.internalServerError("Failed to fetch orders"));
+            }
+
             Map<String, Object> result = new HashMap<>();
-            result.put("success", true);
             result.put("orders", mapOrderDetailList(response.getOrdersList()));
             result.put("totalCount", response.getTotalCount());
             result.put("page", response.getPage());
             result.put("pageSize", response.getPageSize());
 
-            log.info("Get orders successful, count: {}", response.getOrdersCount());
-            return ResponseEntity.ok(result);
+            log.info("Get orders successful [sellerId={}, count={}]", sellerId, response.getOrdersCount());
+            return ResponseEntity.ok(ApiResponse.ok(result));
         } catch (Exception e) {
-            log.error("Get orders error: {}", e.getMessage(), e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("success", false);
-            error.put("message", "Failed to get orders: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+            log.error("Get orders error [sellerId={}]: {}", sellerId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.internalServerError("Failed to fetch orders: " + e.getMessage()));
         }
     }
 
     @PostMapping("/orders/{orderId}/confirm-payment")
     @Operation(summary = "Confirm payment receipt", description = "Confirm payment receipt for an order. Requires authentication.")
-    public ResponseEntity<Map<String, Object>> confirmPaymentReceipt(
+    public ResponseEntity<ApiResponse<Map<String, Object>>> confirmPaymentReceipt(
             @Parameter(description = "Order ID", required = true)
             @PathVariable @Positive(message = "Order ID must be greater than 0") int orderId,
             @RequestBody ConfirmPaymentReceiptRequest requestBody) {
@@ -881,100 +937,112 @@ public class SellerController {
         int sellerId = getUserId();
         String invoiceNumber = requestBody.getInvoiceNumber();
         String paymentConfirmationNotes = requestBody.getPaymentConfirmationNotes();
-        
+
+        log.info("Confirm payment receipt request [sellerId={}] - orderId: {}", sellerId, orderId);
+
         // Validate invoiceNumber
         if (invoiceNumber.trim().length() > 100) {
+            log.warn("Invoice number exceeds max length [sellerId={}]", sellerId);
             return badRequestResponse("Invoice number must not exceed 100 characters");
         }
-        
+
         // Validate paymentConfirmationNotes
         if (paymentConfirmationNotes.trim().length() > 1000) {
+            log.warn("Payment confirmation notes exceed max length [sellerId={}]", sellerId);
             return badRequestResponse("Payment confirmation notes must not exceed 1000 characters");
         }
-        
-        log.info("Confirm payment receipt request - orderId: {}, sellerId: {}", orderId, sellerId);
-
-        ConfirmPaymentReceiptRequest grpcRequest = ConfirmPaymentReceiptRequest.newBuilder()
-                .setSellerId(sellerId)
-                .setOrderId(orderId)
-                .setInvoiceNumber(invoiceNumber)
-                .setPaymentConfirmationNotes(paymentConfirmationNotes)
-                .build();
 
         try {
+            ConfirmPaymentReceiptRequest grpcRequest = ConfirmPaymentReceiptRequest.newBuilder()
+                    .setSellerId(sellerId)
+                    .setOrderId(orderId)
+                    .setInvoiceNumber(invoiceNumber)
+                    .setPaymentConfirmationNotes(paymentConfirmationNotes)
+                    .build();
+
             var response = sellerGrpcClient.confirmPaymentReceipt(grpcRequest).block();
+            if (response == null) {
+                log.error("gRPC response is null [sellerId={}]", sellerId);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.internalServerError("Failed to confirm payment"));
+            }
+
             Map<String, Object> result = new HashMap<>();
-            result.put("success", response.getSuccess());
             result.put("message", response.getMessage());
 
             if (response.getSuccess()) {
-                log.info("Confirm payment receipt successful - orderId: {}", orderId);
-                return ResponseEntity.ok(result);
+                log.info("Confirm payment receipt successful [sellerId={}, orderId={}]", sellerId, orderId);
+                return ResponseEntity.ok(ApiResponse.ok(result));
             } else {
-                return ResponseEntity.badRequest().body(result);
+                log.warn("Confirm payment receipt failed [sellerId={}, orderId={}, message={}]", sellerId, orderId, response.getMessage());
+                return ResponseEntity.badRequest().body(ApiResponse.badRequest(response.getMessage()));
             }
         } catch (Exception e) {
-            log.error("Confirm payment receipt error: {}", e.getMessage(), e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("success", false);
-            error.put("message", "Failed to confirm payment receipt: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+            log.error("Confirm payment receipt error [sellerId={}, orderId={}]: {}", sellerId, orderId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.internalServerError("Failed to confirm payment: " + e.getMessage()));
         }
     }
     
     @PatchMapping("/orders/{orderId}/status")
     @Operation(summary = "Update order status", description = "Update the status of an order. Only the seller who owns the product can update. Requires authentication.")
-    public ResponseEntity<Map<String, Object>> updateOrderStatus(
+    public ResponseEntity<ApiResponse<Map<String, Object>>> updateOrderStatus(
             @Parameter(description = "Order ID", required = true)
             @PathVariable @Positive(message = "Order ID must be greater than 0") int orderId,
             @RequestBody Map<String, Object> requestBody) {
-        
+
         int sellerId = getUserId();
         String status = (String) requestBody.get("status");
-        
-        log.info("Update order status request - orderId: {}, sellerId: {}, status: {}", orderId, sellerId, status);
-        
+
+        log.info("Update order status request [sellerId={}] - orderId: {}, status: {}", sellerId, orderId, status);
+
         if (status == null || status.trim().isEmpty()) {
+            log.warn("Status is missing [sellerId={}]", sellerId);
             return badRequestResponse("Status is required");
         }
-        
+
         // Normalize status to lowercase to match database expectations
         String normalizedStatus = status.trim().toLowerCase();
-        
+
         // Validate status before sending to service
         List<String> validStatuses = List.of("pending", "processing", "shipped", "delivered", "cancelled");
         if (!validStatuses.contains(normalizedStatus)) {
-            return badRequestResponse("Invalid status: " + status + ". Valid statuses: " + validStatuses);
+            log.warn("Invalid status: {} [sellerId={}]", status, sellerId);
+            return badRequestResponse("Invalid status. Valid values: " + validStatuses);
         }
-        
-        UpdateOrderStatusRequest grpcRequest = UpdateOrderStatusRequest.newBuilder()
-            .setSellerId(sellerId)
-            .setOrderId(orderId)
-            .setStatus(normalizedStatus)
-            .build();
-        
+
         try {
+            UpdateOrderStatusRequest grpcRequest = UpdateOrderStatusRequest.newBuilder()
+                .setSellerId(sellerId)
+                .setOrderId(orderId)
+                .setStatus(normalizedStatus)
+                .build();
+
             var response = sellerGrpcClient.updateOrderStatus(grpcRequest).block();
+            if (response == null) {
+                log.error("gRPC response is null [sellerId={}]", sellerId);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.internalServerError("Failed to update order status"));
+            }
+
             Map<String, Object> result = new HashMap<>();
-            result.put("success", response.getSuccess());
             result.put("message", response.getMessage());
-            
+
             if (response.getSuccess() && response.hasOrder()) {
                 result.put("order", mapOrderDetail(response.getOrder()));
             }
-            
+
             if (response.getSuccess()) {
-                log.info("Update order status successful - orderId: {}, status: {}", orderId, status);
-                return ResponseEntity.ok(result);
+                log.info("Update order status successful [sellerId={}, orderId={}, status={}]", sellerId, orderId, normalizedStatus);
+                return ResponseEntity.ok(ApiResponse.ok(result));
             } else {
-                return ResponseEntity.badRequest().body(result);
+                log.warn("Update order status failed [sellerId={}, orderId={}, message={}]", sellerId, orderId, response.getMessage());
+                return ResponseEntity.badRequest().body(ApiResponse.badRequest(response.getMessage()));
             }
         } catch (Exception e) {
-            log.error("Update order status error: {}", e.getMessage(), e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("success", false);
-            error.put("message", "Failed to update order status: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+            log.error("Update order status error [sellerId={}, orderId={}]: {}", sellerId, orderId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.internalServerError("Failed to update order status: " + e.getMessage()));
         }
     }
 
