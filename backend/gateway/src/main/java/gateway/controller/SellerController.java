@@ -48,6 +48,8 @@ import com.auctionplatform.seller.grpc.SellerProfileResponse;
 import com.auctionplatform.seller.grpc.Transaction;
 import com.auctionplatform.seller.grpc.UpdateOrderStatusRequest;
 
+import com.auction.dto.ApiResponse;
+import com.auction.utils.ValidationUtils;
 import gateway.grpc.SellerGrpcClient;
 import gateway.grpc.RatingGrpcClient;
 import com.auction.proto.rating.*;
@@ -67,6 +69,14 @@ import jakarta.validation.constraints.Positive;
 @SecurityRequirement(name = "bearerAuth")
 public class SellerController {
     private static final Logger log = LoggerFactory.getLogger(SellerController.class);
+    private static final String INVALID_FILTER = "Invalid filter. Must be: active, expired, or all";
+    private static final String INVALID_STATUS_FILTER = "Invalid status filter. Must be: pending, completed, cancelled, or all";
+    private static final String INVALID_TRANSACTION_FILTER = "Invalid filter. Must be: completed, pending, or cancelled";
+    private static final String TITLE_REQUIRED = "Title is required";
+    private static final String DESCRIPTION_REQUIRED = "Description is required";
+    private static final String ANSWER_REQUIRED = "Answer is required";
+    private static final String REASON_REQUIRED = "Reason is required";
+
     private final SellerGrpcClient sellerGrpcClient;
     private final RatingGrpcClient ratingGrpcClient;
     private final CloudinaryService cloudinaryService;
@@ -82,11 +92,9 @@ public class SellerController {
         return Integer.parseInt(authentication.getName());
     }
 
-    private ResponseEntity<Map<String, Object>> badRequestResponse(String message) {
-        Map<String, Object> error = new HashMap<>();
-        error.put("success", false);
-        error.put("message", message);
-        return ResponseEntity.badRequest().body(error);
+    private ResponseEntity<ApiResponse<Map<String, Object>>> badRequestResponse(String message) {
+        log.warn("Bad request: {}", message);
+        return ResponseEntity.badRequest().body(ApiResponse.badRequest(message));
     }
 
     // ============================================================================

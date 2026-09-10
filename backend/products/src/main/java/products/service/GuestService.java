@@ -2,8 +2,11 @@ package products.service;
 
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import com.auction.constants.ServiceConstants;
 import com.auction.entities.record.ImageRowRecord;
 import com.auction.entities.record.ProductListByNameRecord;
 import com.auction.entities.record.ProductListRecord;
@@ -18,8 +21,10 @@ import reactor.core.publisher.Mono;
 
 @Service
 public class GuestService {
+    private static final Logger log = LoggerFactory.getLogger(GuestService.class);
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
+
     public GuestService(ProductRepository productRepository, CategoryRepository categoryRepository) {
         this.productRepository = productRepository;
         this.categoryRepository = categoryRepository;
@@ -31,8 +36,9 @@ public class GuestService {
     }
 
     public Flux<Product> getTopEndingProducts(int limit) {
+        log.info("Getting top {} ending products", limit);
         return productRepository.getTopEndingProducts(limit)
-            .flatMap(dto -> 
+            .flatMap(dto ->
                 productRepository.getProductImages(dto.id())
                     .map(this::mapToProductImage)
                     .collectList()
@@ -41,8 +47,9 @@ public class GuestService {
     }
 
     public Flux<Product> getTopBidCountProducts(int limit) {
+        log.info("Getting top {} bid count products", limit);
         return productRepository.getTopBidCountProducts(limit)
-            .flatMap(dto -> 
+            .flatMap(dto ->
                 productRepository.getProductImages(dto.id())
                     .map(this::mapToProductImage)
                     .collectList()
@@ -51,8 +58,9 @@ public class GuestService {
     }
 
     public Flux<Product> getTopPriceProducts(int limit) {
+        log.info("Getting top {} price products", limit);
         return productRepository.getTopPriceProducts(limit)
-            .flatMap(dto -> 
+            .flatMap(dto ->
                 productRepository.getProductImages(dto.id())
                     .map(this::mapToProductImage)
                     .collectList()
@@ -61,11 +69,15 @@ public class GuestService {
     }
 
     public Mono<ProductListRecord> listProductsByCategory(int categoryId, String searchKeyword,
-                                                           double minPrice, double maxPrice, 
-                                                           String status, String sortOrder, 
+                                                           double minPrice, double maxPrice,
+                                                           String status, String sortOrder,
                                                            int page, int limit) {
-        int offset = (page - 1) * limit;
-        
+        log.info("Listing products by category: categoryId={}, page={}, limit={}", categoryId, page, limit);
+        // Validate pagination
+        int validPage = Math.max(ServiceConstants.MIN_PAGE, page);
+        int validLimit = Math.min(Math.max(ServiceConstants.MIN_PAGE_SIZE, limit), ServiceConstants.MAX_PAGE_SIZE);
+        int offset = (validPage - 1) * validLimit;
+
         return Mono.zip(
             categoryRepository.findById(categoryId),
             productRepository.listProductsByCategoryAdvanced(
@@ -75,7 +87,7 @@ public class GuestService {
                 maxPrice,
                 status.isEmpty() ? null : status,
                 sortOrder,
-                limit,
+                validLimit,
                 offset
             ).collectList(),
             productRepository.countProductsByCategory(
@@ -89,25 +101,26 @@ public class GuestService {
             var categoryEntity = tuple.getT1();
             var productRows = tuple.getT2();
             int totalCount = tuple.getT3();
-            
+
             // Fetch images for all products and collect into List<Product>
             var productsMono = Flux.fromIterable(productRows)
-                .flatMap(productRowDto -> 
+                .flatMap(productRowDto ->
                     productRepository.getProductImages(productRowDto.id())
                         .map(this::mapToProductImage)
                         .collectList()
                         .map(images -> mapRowToProductWithImages(productRowDto, images))
                 )
                 .collectList();
-            
+
             return productsMono.map(products -> {
+                int totalPages = (int) Math.ceil((double) totalCount / validLimit);
                 var pageInfo = PageInfo.newBuilder()
-                        .setCurrentPage(page)
-                        .setPageSize(limit)
+                        .setCurrentPage(validPage)
+                        .setPageSize(validLimit)
                         .setTotalItems(totalCount)
-                        .setTotalPages((totalCount + limit - 1) / limit)
-                        .setHasNext(page * limit < totalCount)
-                        .setHasPrevious(page > 1)
+                        .setTotalPages(totalPages)
+                        .setHasNext(validPage < totalPages)
+                        .setHasPrevious(validPage > 1)
                         .build();
                 var category = mapEntityToCategory(categoryEntity);
                 return new ProductListRecord(products, pageInfo, category);
@@ -116,11 +129,15 @@ public class GuestService {
     }
 
     public Mono<ProductListByNameRecord> listProductsByName(String searchKeyword,
-                                                              double minPrice, double maxPrice, 
-                                                              String status, String sortOrder, 
+                                                              double minPrice, double maxPrice,
+                                                              String status, String sortOrder,
                                                               int page, int limit) {
-        int offset = (page - 1) * limit;
-        
+        log.info("Listing products by name: keyword={}, page={}, limit={}", searchKeyword, page, limit);
+        // Validate pagination
+        int validPage = Math.max(ServiceConstants.MIN_PAGE, page);
+        int validLimit = Math.min(Math.max(ServiceConstants.MIN_PAGE_SIZE, limit), ServiceConstants.MAX_PAGE_SIZE);
+        int offset = (validPage - 1) * validLimit;
+
         return Mono.zip(
             productRepository.listProductsByNameAdvanced(
                 searchKeyword,
@@ -128,7 +145,7 @@ public class GuestService {
                 maxPrice,
                 status.isEmpty() ? null : status,
                 sortOrder,
-                limit,
+                validLimit,
                 offset
             ).collectList(),
             productRepository.countProductsByName(
@@ -140,25 +157,26 @@ public class GuestService {
         ).flatMap(tuple -> {
             var productRows = tuple.getT1();
             int totalCount = tuple.getT2();
-            
+
             // Fetch images for all products and collect into List<Product>
             var productsMono = Flux.fromIterable(productRows)
-                .flatMap(productRowDto -> 
+                .flatMap(productRowDto ->
                     productRepository.getProductImages(productRowDto.id())
                         .map(this::mapToProductImage)
                         .collectList()
                         .map(images -> mapRowToProductWithImages(productRowDto, images))
                 )
                 .collectList();
-            
+
             return productsMono.map(products -> {
+                int totalPages = (int) Math.ceil((double) totalCount / validLimit);
                 var pageInfo = PageInfo.newBuilder()
-                        .setCurrentPage(page)
-                        .setPageSize(limit)
+                        .setCurrentPage(validPage)
+                        .setPageSize(validLimit)
                         .setTotalItems(totalCount)
-                        .setTotalPages((totalCount + limit - 1) / limit)
-                        .setHasNext(page * limit < totalCount)
-                        .setHasPrevious(page > 1)
+                        .setTotalPages(totalPages)
+                        .setHasNext(validPage < totalPages)
+                        .setHasPrevious(validPage > 1)
                         .build();
                 return new ProductListByNameRecord(products, pageInfo);
             });

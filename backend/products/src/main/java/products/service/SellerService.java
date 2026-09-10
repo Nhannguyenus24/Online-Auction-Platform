@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.auction.constants.ServiceConstants;
 import com.auction.entities.database.Product;
 import com.auction.entities.database.User;
 import com.auction.entities.msg.EventType;
@@ -19,6 +20,7 @@ import com.auction.entities.msg.RabbitMessage;
 import com.auction.entities.record.ImageRowRecord;
 import com.auction.rabbitmq.services.ReactiveRabbitProducer;
 import com.auction.redis.service.ReactiveRedisService;
+import com.auction.utils.ServiceExceptionUtils;
 import com.auction.utils.TimeUtils;
 import com.auctionplatform.seller.grpc.ListingDetail;
 import com.auctionplatform.seller.grpc.OrderDetail;
@@ -43,8 +45,6 @@ public class SellerService {
     private final AuctionService auctionService;
     private final ReactiveRabbitProducer rabbitProducer;
     private final ReactiveRedisService redisService;
-    
-    private static final String NOTIFICATION_QUEUE = "dev";
 
     public SellerService(SellerRepository sellerRepository, ProductRepository productRepository, 
                         OrderRepository orderRepository, ReviewRepository reviewRepository,
@@ -173,7 +173,7 @@ public class SellerService {
         product.setEndsAt(request.endsAt());
         product.setIsAutoExtend(request.isAutoExtend());
         product.setAutoExtendSeconds(request.autoExtendSeconds());
-        product.setStatus("active");
+        product.setStatus(ServiceConstants.PRODUCT_STATUS_ACTIVE);
         
         return sellerRepository.save(product)
             .flatMap(saved -> {
@@ -209,10 +209,10 @@ public class SellerService {
      */
     private void handleAuctionEnd(int productId) {
         log.info("Handling auction end for product {} (no bids)", productId);
-        
+
         // Update product status to ended
         // Send notification to seller that auction ended with no bids
-        productRepository.updateStatus(productId, "ended")
+        productRepository.updateStatus(productId, ServiceConstants.PRODUCT_STATUS_ENDED)
             .then(productRepository.findById(productId))
             .flatMap(this::sendAuctionEndedSellerNotification)
             .doOnSuccess(v -> log.info("Auction ended notification sent to seller for product {} (no bids)", productId))
@@ -243,7 +243,7 @@ public class SellerService {
         log.info("Sending auction ended notification to seller: sellerId={}, productId={}, no bids", 
             product.getSellerId(), product.getId());
         
-        return rabbitProducer.sendToQueue(NOTIFICATION_QUEUE, message)
+        return rabbitProducer.sendToQueue(ServiceConstants.NOTIFICATION_QUEUE, message)
             .doOnSuccess(v -> log.info("Auction ended notification sent to seller successfully: sellerId={}, productId={}", 
                 product.getSellerId(), product.getId()))
             .doOnError(e -> log.error("Failed to send auction ended notification to seller: sellerId={}, productId={}, error={}", 
@@ -332,7 +332,7 @@ public class SellerService {
             .payload(payload)
             .build();
         
-        return rabbitProducer.sendToQueue(NOTIFICATION_QUEUE, message)
+        return rabbitProducer.sendToQueue(ServiceConstants.NOTIFICATION_QUEUE, message)
             .doOnSuccess(v -> log.info("Description change notification sent to bidder: userId={}, productId={}", 
                 bidderId, product.getId()))
             .doOnError(e -> log.error("Failed to send description change notification: userId={}, productId={}, error={}", 
@@ -438,35 +438,28 @@ public class SellerService {
     @Transactional
     public Mono<OrderDetail> updateOrderStatus(int sellerId, int orderId, String status) {
         log.info("Updating order status - sellerId: {}, orderId: {}, status: {}", sellerId, orderId, status);
-        
+
         // Validate status - normalize to lowercase for comparison
         String normalizedStatus = status.trim().toLowerCase();
-        List<String> validStatuses = List.of("pending", "processing", "shipped", "delivered", "cancelled");
-        if (!validStatuses.contains(normalizedStatus)) {
-            log.warn("Invalid status provided: {}. Valid statuses: {}", status, validStatuses);
-            return Mono.error(new IllegalArgumentException("Invalid status: " + status + ". Valid statuses: " + validStatuses));
+        if (!ServiceConstants.VALID_ORDER_STATUSES.contains(normalizedStatus)) {
+            log.warn("Invalid status provided: {}. Valid statuses: {}", status, ServiceConstants.VALID_ORDER_STATUSES);
+            return ServiceExceptionUtils.invalidStatus(status, ServiceConstants.VALID_ORDER_STATUSES);
         }
-        
+
         // Use normalized status for database update
         String statusToUpdate = normalizedStatus;
-        
+
         return orderRepository.findById(orderId)
-            .switchIfEmpty(Mono.defer(() -> {
-                log.warn("Order not found with id: {}", orderId);
-                return Mono.error(new IllegalArgumentException("Order not found with id: " + orderId));
-            }))
+            .switchIfEmpty(ServiceExceptionUtils.orderNotFound(orderId))
             .flatMap(order -> {
                 // Verify seller owns the product
                 return productRepository.findById(order.getProductId())
-                    .switchIfEmpty(Mono.defer(() -> {
-                        log.warn("Product not found with id: {}", order.getProductId());
-                        return Mono.error(new IllegalArgumentException("Product not found"));
-                    }))
+                    .switchIfEmpty(ServiceExceptionUtils.productNotFound(order.getProductId()))
                     .flatMap(product -> {
                         if (!product.getSellerId().equals(sellerId)) {
-                            log.warn("Seller {} is not authorized to update order {} (product seller: {})", 
+                            log.warn("Seller {} is not authorized to update order {} (product seller: {})",
                                 sellerId, orderId, product.getSellerId());
-                            return Mono.error(new IllegalArgumentException("Unauthorized: You don't own this product"));
+                            return ServiceExceptionUtils.unauthorizedAccess();
                         }
                         
                         return orderRepository.updateOrderStatus(orderId, statusToUpdate)
@@ -537,7 +530,7 @@ public class SellerService {
     @Transactional
     public Mono<String> rejectBidder(int productId, int sellerId, int bidderId, String reason) {
         log.info("Seller {} rejecting bidder {} from product {} with reason: {}", sellerId, bidderId, productId, reason);
-        
+
         // First verify the product belongs to the seller
         return sellerRepository.findByIdAndSellerId(productId, sellerId)
             .switchIfEmpty(Mono.error(new IllegalArgumentException("Product not found or you don't have permission")))
@@ -546,7 +539,7 @@ public class SellerService {
                 return sellerRepository.countProductBan(productId, bidderId)
                     .flatMap(count -> {
                         if (count > 0) {
-                            return Mono.error(new IllegalStateException("Bidder is already banned from this product"));
+                            return ServiceExceptionUtils.bidderAlreadyBanned();
                         }
                         // Insert ban record
                         return sellerRepository.insertProductBan(productId, bidderId, reason)
@@ -555,7 +548,7 @@ public class SellerService {
             })
             .flatMap(product -> {
                 // Remove bidder from Redis and recalculate price
-                String redisKey = "auction:" + productId + ":bids";
+                String redisKey = String.format(ServiceConstants.REDIS_KEY_AUCTION_BIDS_PATTERN, productId);
                 return redisService.zRemove(redisKey, String.valueOf(bidderId))
                     .then(recalculateCurrentPrice(productId, product))
                         .then(sendBannedUserNotification(bidderId, product, reason))
@@ -573,7 +566,7 @@ public class SellerService {
      * Recalculate current price after removing a bidder (same logic as placeBid)
      */
     private Mono<Void> recalculateCurrentPrice(int productId, Product product) {
-        String redisKey = "auction:" + productId + ":bids";
+        String redisKey = String.format(ServiceConstants.REDIS_KEY_AUCTION_BIDS_PATTERN, productId);
         return redisService.zRevRange(redisKey, 0, 1)
             .collectList()
             .flatMap(topBidderIds -> {
@@ -642,7 +635,7 @@ public class SellerService {
         log.info("Sending ban notification to RabbitMQ: userId={}, productId={}, queue={}", 
             bidderId, product.getId(), NOTIFICATION_QUEUE);
         
-        return rabbitProducer.sendToQueue(NOTIFICATION_QUEUE, message)
+        return rabbitProducer.sendToQueue(ServiceConstants.NOTIFICATION_QUEUE, message)
             .doOnSuccess(v -> log.info("Ban notification sent successfully: userId={}, productId={}", bidderId, product.getId()))
             .doOnError(e -> log.error("Failed to send ban notification: userId={}, productId={}, error={}", 
                 bidderId, product.getId(), e.getMessage(), e))

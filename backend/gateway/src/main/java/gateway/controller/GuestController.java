@@ -15,7 +15,9 @@ import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Max;
 
 import com.auction.proto.guest.*;
+import com.auction.dto.ApiResponse;
 import com.auction.utils.JsonUtils;
+import com.auction.utils.ValidationUtils;
 
 import gateway.grpc.GuestGrpcClient;
 import io.swagger.v3.oas.annotations.Operation;
@@ -28,17 +30,20 @@ import reactor.core.publisher.Mono;
 @Tag(name = "Guest", description = "Public product endpoints - calls product service via gRPC")
 public class GuestController {
     private static final Logger log = LoggerFactory.getLogger(GuestController.class);
+    private static final String INVALID_STATUS = "Invalid status. Must be: active, ended, or all";
+    private static final String INVALID_SORT_ORDER = "Invalid sortOrder. Must be one of: ENDING_SOON_DESC, ENDING_SOON_ASC, PRICE_ASC, PRICE_DESC, NEWEST_FIRST, OLDEST_FIRST, MOST_BIDS, MOST_VIEWS";
+    private static final String INVALID_PRICE_RANGE = "Minimum price must be <= maximum price";
+    private static final String INVALID_CATEGORY_ID = "Category ID must be greater than 0";
+
     private final GuestGrpcClient guestGrpcClient;
 
     public GuestController(GuestGrpcClient guestGrpcClient) {
         this.guestGrpcClient = guestGrpcClient;
     }
 
-    private Mono<ResponseEntity<Map<String, Object>>> badRequestError(String message) {
-        Map<String, Object> error = new HashMap<>();
-        error.put("success", false);
-        error.put("message", message);
-        return Mono.just(ResponseEntity.badRequest().body(error));
+    private Mono<ResponseEntity<ApiResponse<Map<String, Object>>>> badRequestError(String message) {
+        log.warn("Bad request: {}", message);
+        return Mono.just(ResponseEntity.badRequest().body(ApiResponse.badRequest(message)));
     }
 
     @GetMapping("/categories")
@@ -97,143 +102,160 @@ public class GuestController {
 
     @GetMapping("/products/top-ending")
     @Operation(summary = "Get top ending products", description = "Get top products ending soon. Default limit is 5.")
-    public Mono<ResponseEntity<Map<String, Object>>> getTopEndingProducts(
-            @Parameter(description = "Number of products to return (max 20)") 
+    public Mono<ResponseEntity<ApiResponse<Map<String, Object>>>> getTopEndingProducts(
+            @Parameter(description = "Number of products to return (max 20)")
             @RequestParam(defaultValue = "5") @Positive(message = "Limit must be greater than 0") @Max(value = 20, message = "Limit must not exceed 20") int limit) {
-        
-        log.info("Get top ending products request, limit: {}", limit);
 
-        GetTopEndingProductsRequest grpcRequest = GetTopEndingProductsRequest.newBuilder()
-                .setLimit(limit)
-                .build();
+        log.info("Get top ending products request - limit: {}", limit);
 
-        return guestGrpcClient.getTopEndingProducts(grpcRequest)
-                .map(response -> {
-                    Map<String, Object> result = new HashMap<>();
-                    result.put("success", response.getSuccess());
-                    result.put("message", response.getMessage());
-                    result.put("products", mapProductsList(response));
-                    
-                    log.info("Get top ending products successful, count: {}", response.getProductsCount());
-                    return ResponseEntity.ok(result);
-                })
-                .onErrorResume(e -> {
-                    log.error("Get top ending products error: {}", e.getMessage(), e);
-                    Map<String, Object> error = new HashMap<>();
-                    error.put("success", false);
-                    error.put("message", "Failed to get top ending products: " + e.getMessage());
-                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error));
-                });
+        try {
+            GetTopEndingProductsRequest grpcRequest = GetTopEndingProductsRequest.newBuilder()
+                    .setLimit(limit)
+                    .build();
+
+            return guestGrpcClient.getTopEndingProducts(grpcRequest)
+                    .map(response -> {
+                        if (!response.getSuccess()) {
+                            log.warn("Get top ending products returned false");
+                            return ResponseEntity.badRequest().body(ApiResponse.badRequest(response.getMessage()));
+                        }
+
+                        Map<String, Object> result = new HashMap<>();
+                        result.put("products", mapProductsList(response));
+
+                        log.info("Get top ending products successful, count: {}", response.getProductsCount());
+                        return ResponseEntity.ok(ApiResponse.ok(result));
+                    })
+                    .onErrorResume(e -> {
+                        log.error("Get top ending products error: {}", e.getMessage(), e);
+                        return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                            .body(ApiResponse.internalServerError("Failed to get top ending products: " + e.getMessage())));
+                    });
+        } catch (Exception e) {
+            log.error("Error processing top ending products request: {}", e.getMessage(), e);
+            return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.internalServerError("Error: " + e.getMessage())));
+        }
     }
 
     @GetMapping("/products/top-bids")
     @Operation(summary = "Get top bid count products", description = "Get top products with most bids. Default limit is 5.")
-    public Mono<ResponseEntity<Map<String, Object>>> getTopBidCountProducts(
-            @Parameter(description = "Number of products to return (max 20)") 
+    public Mono<ResponseEntity<ApiResponse<Map<String, Object>>>> getTopBidCountProducts(
+            @Parameter(description = "Number of products to return (max 20)")
             @RequestParam(defaultValue = "5") @Positive(message = "Limit must be greater than 0") @Max(value = 20, message = "Limit must not exceed 20") int limit) {
-        
-        log.info("Get top bid count products request, limit: {}", limit);
 
-        GetTopBidCountProductsRequest grpcRequest = GetTopBidCountProductsRequest.newBuilder()
-                .setLimit(limit)
-                .build();
+        log.info("Get top bid count products request - limit: {}", limit);
 
-        return guestGrpcClient.getTopBidCountProducts(grpcRequest)
-                .map(response -> {
-                    Map<String, Object> result = new HashMap<>();
-                    result.put("success", response.getSuccess());
-                    result.put("message", response.getMessage());
-                    result.put("products", mapProductsList(response));
-                    
-                    log.info("Get top bid count products successful, count: {}", response.getProductsCount());
-                    return ResponseEntity.ok(result);
-                })
-                .onErrorResume(e -> {
-                    log.error("Get top bid count products error: {}", e.getMessage(), e);
-                    Map<String, Object> error = new HashMap<>();
-                    error.put("success", false);
-                    error.put("message", "Failed to get top bid count products: " + e.getMessage());
-                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error));
-                });
+        try {
+            GetTopBidCountProductsRequest grpcRequest = GetTopBidCountProductsRequest.newBuilder()
+                    .setLimit(limit)
+                    .build();
+
+            return guestGrpcClient.getTopBidCountProducts(grpcRequest)
+                    .map(response -> {
+                        if (!response.getSuccess()) {
+                            log.warn("Get top bid count products returned false");
+                            return ResponseEntity.badRequest().body(ApiResponse.badRequest(response.getMessage()));
+                        }
+
+                        Map<String, Object> result = new HashMap<>();
+                        result.put("products", mapProductsList(response));
+
+                        log.info("Get top bid count products successful, count: {}", response.getProductsCount());
+                        return ResponseEntity.ok(ApiResponse.ok(result));
+                    })
+                    .onErrorResume(e -> {
+                        log.error("Get top bid count products error: {}", e.getMessage(), e);
+                        return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                            .body(ApiResponse.internalServerError("Failed to get top bid count products: " + e.getMessage())));
+                    });
+        } catch (Exception e) {
+            log.error("Error processing top bid count products request: {}", e.getMessage(), e);
+            return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.internalServerError("Error: " + e.getMessage())));
+        }
     }
 
     @GetMapping("/products/top-price")
     @Operation(summary = "Get top price products", description = "Get top products with highest current price. Default limit is 5.")
-    public Mono<ResponseEntity<Map<String, Object>>> getTopPriceProducts(
-            @Parameter(description = "Number of products to return (max 20)") 
+    public Mono<ResponseEntity<ApiResponse<Map<String, Object>>>> getTopPriceProducts(
+            @Parameter(description = "Number of products to return (max 20)")
             @RequestParam(defaultValue = "5") @Positive(message = "Limit must be greater than 0") @Max(value = 20, message = "Limit must not exceed 20") int limit) {
-        
-        log.info("Get top price products request, limit: {}", limit);
 
-        GetTopPriceProductsRequest grpcRequest = GetTopPriceProductsRequest.newBuilder()
-                .setLimit(limit)
-                .build();
+        log.info("Get top price products request - limit: {}", limit);
 
-        return guestGrpcClient.getTopPriceProducts(grpcRequest)
-                .map(response -> {
-                    Map<String, Object> result = new HashMap<>();
-                    result.put("success", response.getSuccess());
-                    result.put("message", response.getMessage());
-                    result.put("products", mapProductsList(response));
-                    
-                    log.info("Get top price products successful, count: {}", response.getProductsCount());
-                    return ResponseEntity.ok(result);
-                })
-                .onErrorResume(e -> {
-                    log.error("Get top price products error: {}", e.getMessage(), e);
-                    Map<String, Object> error = new HashMap<>();
-                    error.put("success", false);
-                    error.put("message", "Failed to get top price products: " + e.getMessage());
-                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error));
-                });
+        try {
+            GetTopPriceProductsRequest grpcRequest = GetTopPriceProductsRequest.newBuilder()
+                    .setLimit(limit)
+                    .build();
+
+            return guestGrpcClient.getTopPriceProducts(grpcRequest)
+                    .map(response -> {
+                        if (!response.getSuccess()) {
+                            log.warn("Get top price products returned false");
+                            return ResponseEntity.badRequest().body(ApiResponse.badRequest(response.getMessage()));
+                        }
+
+                        Map<String, Object> result = new HashMap<>();
+                        result.put("products", mapProductsList(response));
+
+                        log.info("Get top price products successful, count: {}", response.getProductsCount());
+                        return ResponseEntity.ok(ApiResponse.ok(result));
+                    })
+                    .onErrorResume(e -> {
+                        log.error("Get top price products error: {}", e.getMessage(), e);
+                        return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                            .body(ApiResponse.internalServerError("Failed to get top price products: " + e.getMessage())));
+                    });
+        } catch (Exception e) {
+            log.error("Error processing top price products request: {}", e.getMessage(), e);
+            return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.internalServerError("Error: " + e.getMessage())));
+        }
     }
 
     @GetMapping("/products/by-category")
     @Operation(summary = "List products by category", description = "List products by category with filters and pagination. Supports search, price range, sorting, and status filtering.")
-    public Mono<ResponseEntity<Map<String, Object>>> listProductsByCategory(
-            @Parameter(description = "Category ID (level 2)", required = true) 
+    public Mono<ResponseEntity<ApiResponse<Map<String, Object>>>> listProductsByCategory(
+            @Parameter(description = "Category ID (level 2)", required = true)
             @RequestParam @Positive(message = "Category ID must be greater than 0") int categoryId,
-            @Parameter(description = "Search keyword for product title") 
+            @Parameter(description = "Search keyword for product title")
             @RequestParam(required = false) String searchKeyword,
-            @Parameter(description = "Minimum price") 
+            @Parameter(description = "Minimum price")
             @RequestParam(required = false) Double minPrice,
-            @Parameter(description = "Maximum price") 
+            @Parameter(description = "Maximum price")
             @RequestParam(required = false) Double maxPrice,
-            @Parameter(description = "Product status filter (active, ended, all)") 
+            @Parameter(description = "Product status filter (active, ended, all)")
             @RequestParam(defaultValue = "active") String status,
-            @Parameter(description = "Sort order (ENDING_SOON_DESC, ENDING_SOON_ASC, PRICE_ASC, PRICE_DESC, NEWEST_FIRST, OLDEST_FIRST, MOST_BIDS, MOST_VIEWS)") 
+            @Parameter(description = "Sort order (ENDING_SOON_DESC, ENDING_SOON_ASC, PRICE_ASC, PRICE_DESC, NEWEST_FIRST, OLDEST_FIRST, MOST_BIDS, MOST_VIEWS)")
             @RequestParam(defaultValue = "ENDING_SOON_DESC") String sortOrder,
-            @Parameter(description = "Page number (1-based)") 
+            @Parameter(description = "Page number (1-based)")
             @RequestParam(defaultValue = "1") @Positive(message = "Page must be greater than 0") int page,
-            @Parameter(description = "Number of items per page (max 100)") 
+            @Parameter(description = "Number of items per page (max 100)")
             @RequestParam(defaultValue = "20") @Positive(message = "Limit must be greater than 0") @Max(value = 100, message = "Limit must not exceed 100") int limit) {
-        
+
         log.info("List products by category request - categoryId: {}, page: {}, limit: {}", categoryId, page, limit);
 
         // Validate status
         if (!status.matches("^(active|ended|all)$")) {
-            log.error("Invalid status value: {}. Must be: active, ended, or all", status);
-            return badRequestError("Invalid status. Must be: active, ended, or all");
+            log.warn("Invalid status value: {}", status);
+            return badRequestError(INVALID_STATUS);
         }
 
         // Validate sortOrder
         SortOrder sortOrderEnum = validateAndParseSortOrder(sortOrder);
         if (sortOrderEnum == null) {
-            return badRequestError("Invalid sortOrder. Must be one of: ENDING_SOON_DESC, ENDING_SOON_ASC, PRICE_ASC, PRICE_DESC, NEWEST_FIRST, OLDEST_FIRST, MOST_BIDS, MOST_VIEWS");
+            log.warn("Invalid sortOrder value: {}", sortOrder);
+            return badRequestError(INVALID_SORT_ORDER);
         }
 
         // Validate price range
         double minPriceVal = Objects.requireNonNullElse(minPrice, 0.0);
         double maxPriceVal = Objects.requireNonNullElse(maxPrice, 99999999.0);
-        
-        if (minPriceVal < 0) {
-            return badRequestError("Minimum price must be >= 0");
-        }
-        if (maxPriceVal < 0) {
-            return badRequestError("Maximum price must be >= 0");
-        }
-        if (minPriceVal > maxPriceVal) {
-            return badRequestError("Minimum price must be <= maximum price");
+
+        if (minPriceVal < 0 || maxPriceVal < 0 || minPriceVal > maxPriceVal) {
+            log.warn("Invalid price range - minPrice: {}, maxPrice: {}", minPrice, maxPrice);
+            return badRequestError(INVALID_PRICE_RANGE);
         }
 
         // Build request
@@ -252,15 +274,15 @@ public class GuestController {
 
         return guestGrpcClient.listProductsByCategory(requestBuilder.build())
                 .map(response -> {
-                    Map<String, Object> result = new HashMap<>();
-                    result.put("success", response.getSuccess());
-                    result.put("message", response.getMessage());
-                    
+                    if (!response.getSuccess()) {
+                        log.warn("List products by category returned false");
+                        return ResponseEntity.badRequest().body(ApiResponse.badRequest(response.getMessage()));
+                    }
+
                     // Map products
                     List<Map<String, Object>> products = new ArrayList<>();
                     response.getProductsList().forEach(product -> products.add(mapProduct(product)));
-                    result.put("products", products);
-                    
+
                     // Map page info
                     Map<String, Object> pageInfo = new HashMap<>();
                     pageInfo.put("currentPage", response.getPageInfo().getCurrentPage());
@@ -269,73 +291,73 @@ public class GuestController {
                     pageInfo.put("totalPages", response.getPageInfo().getTotalPages());
                     pageInfo.put("hasNext", response.getPageInfo().getHasNext());
                     pageInfo.put("hasPrevious", response.getPageInfo().getHasPrevious());
-                    result.put("pageInfo", pageInfo);
-                    
+
                     // Map category
+                    Map<String, Object> categoryMap = null;
                     if (response.hasCategory()) {
-                        Map<String, Object> categoryMap = new HashMap<>();
+                        categoryMap = new HashMap<>();
                         categoryMap.put("id", response.getCategory().getId());
                         categoryMap.put("name", response.getCategory().getName());
                         categoryMap.put("parentId", response.getCategory().getParentId());
+                    }
+
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("products", products);
+                    result.put("pageInfo", pageInfo);
+                    if (categoryMap != null) {
                         result.put("category", categoryMap);
                     }
-                    
-                    log.info("List products by category successful, count: {}", products.size());
-                    return ResponseEntity.ok(result);
+
+                    log.info("List products by category successful - categoryId: {}, count: {}", categoryId, products.size());
+                    return ResponseEntity.ok(ApiResponse.ok(result));
                 })
                 .onErrorResume(e -> {
-                    log.error("List products by category error: {}", e.getMessage(), e);
-                    Map<String, Object> error = new HashMap<>();
-                    error.put("success", false);
-                    error.put("message", "Failed to list products: " + e.getMessage());
-                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error));
+                    log.error("List products by category error - categoryId: {}: {}", categoryId, e.getMessage(), e);
+                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(ApiResponse.internalServerError("Failed to list products: " + e.getMessage())));
                 });
     }
 
     @GetMapping("/products/search")
     @Operation(summary = "Search products by name", description = "Search products by name with full text search, filters and pagination. Supports price range, sorting, and status filtering.")
-    public Mono<ResponseEntity<Map<String, Object>>> listProductsByName(
-            @Parameter(description = "Search keyword for product title") 
+    public Mono<ResponseEntity<ApiResponse<Map<String, Object>>>> listProductsByName(
+            @Parameter(description = "Search keyword for product title")
             @RequestParam(required = false) String searchKeyword,
-            @Parameter(description = "Minimum price") 
+            @Parameter(description = "Minimum price")
             @RequestParam(required = false) Double minPrice,
-            @Parameter(description = "Maximum price") 
+            @Parameter(description = "Maximum price")
             @RequestParam(required = false) Double maxPrice,
-            @Parameter(description = "Product status filter (active, ended, all)") 
+            @Parameter(description = "Product status filter (active, ended, all)")
             @RequestParam(defaultValue = "active") String status,
-            @Parameter(description = "Sort order (ENDING_SOON_DESC, ENDING_SOON_ASC, PRICE_ASC, PRICE_DESC, NEWEST_FIRST, OLDEST_FIRST, MOST_BIDS, MOST_VIEWS)") 
+            @Parameter(description = "Sort order (ENDING_SOON_DESC, ENDING_SOON_ASC, PRICE_ASC, PRICE_DESC, NEWEST_FIRST, OLDEST_FIRST, MOST_BIDS, MOST_VIEWS)")
             @RequestParam(defaultValue = "ENDING_SOON_DESC") String sortOrder,
-            @Parameter(description = "Page number (1-based)") 
+            @Parameter(description = "Page number (1-based)")
             @RequestParam(defaultValue = "1") @Positive(message = "Page must be greater than 0") int page,
-            @Parameter(description = "Number of items per page (max 100)") 
+            @Parameter(description = "Number of items per page (max 100)")
             @RequestParam(defaultValue = "20") @Positive(message = "Limit must be greater than 0") @Max(value = 100, message = "Limit must not exceed 100") int limit) {
-        
+
         log.info("Search products by name request - searchKeyword: {}, page: {}, limit: {}", searchKeyword, page, limit);
 
         // Validate status
         if (!status.matches("^(active|ended|all)$")) {
-            log.error("Invalid status value: {}. Must be: active, ended, or all", status);
-            return badRequestError("Invalid status. Must be: active, ended, or all");
+            log.warn("Invalid status value: {}", status);
+            return badRequestError(INVALID_STATUS);
         }
 
         // Validate sortOrder
         SortOrder sortOrderEnum = validateAndParseSortOrder(sortOrder);
         if (sortOrderEnum == null) {
-            return badRequestError("Invalid sortOrder. Must be one of: ENDING_SOON_DESC, ENDING_SOON_ASC, PRICE_ASC, PRICE_DESC, NEWEST_FIRST, OLDEST_FIRST, MOST_BIDS, MOST_VIEWS");
+            log.warn("Invalid sortOrder value: {}", sortOrder);
+            return badRequestError(INVALID_SORT_ORDER);
         }
 
         // Validate price range
         double minPriceVal = Objects.requireNonNullElse(minPrice, 0.0);
         double maxPriceVal = Objects.requireNonNullElse(maxPrice, 999999999.0);
-        
-        if (minPriceVal < 0) {
-            return badRequestError("Minimum price must be >= 0");
-        }
-        if (maxPriceVal < 0) {
-            return badRequestError("Maximum price must be >= 0");
-        }
-        if (minPriceVal > maxPriceVal) {
-            return badRequestError("Minimum price must be <= maximum price");
+
+        if (minPriceVal < 0 || maxPriceVal < 0 || minPriceVal > maxPriceVal) {
+            log.warn("Invalid price range - minPrice: {}, maxPrice: {}", minPrice, maxPrice);
+            return badRequestError(INVALID_PRICE_RANGE);
         }
 
         // Build request
@@ -344,41 +366,39 @@ public class GuestController {
                 .setStatus(status)
                 .setSortOrder(sortOrderEnum)
                 .setPage(page)
-                .setLimit(limit);
-
-        requestBuilder.setMinPrice(minPriceVal);
-        requestBuilder.setMaxPrice(maxPriceVal);
+                .setLimit(limit)
+                .setMinPrice(minPriceVal)
+                .setMaxPrice(maxPriceVal);
 
         return guestGrpcClient.listProductsByName(requestBuilder.build())
                 .map(response -> {
-                    Map<String, Object> result = new HashMap<>();
-                    result.put("success", response.getSuccess());
-                    result.put("message", response.getMessage());
-                    
-                    if (response.getSuccess()) {
-                        List<Map<String, Object>> products = new ArrayList<>();
-                        response.getProductsList().forEach(product -> products.add(mapProduct(product)));
-                        
-                        Map<String, Object> pageInfo = new HashMap<>();
-                        pageInfo.put("currentPage", response.getPageInfo().getCurrentPage());
-                        pageInfo.put("pageSize", response.getPageInfo().getPageSize());
-                        pageInfo.put("totalItems", response.getPageInfo().getTotalItems());
-                        pageInfo.put("totalPages", response.getPageInfo().getTotalPages());
-                        pageInfo.put("hasNext", response.getPageInfo().getHasNext());
-                        pageInfo.put("hasPrevious", response.getPageInfo().getHasPrevious());
-                        
-                        result.put("products", products);
-                        result.put("pageInfo", pageInfo);
+                    if (!response.getSuccess()) {
+                        log.warn("Search products by name returned false");
+                        return ResponseEntity.badRequest().body(ApiResponse.badRequest(response.getMessage()));
                     }
-                    
-                    return ResponseEntity.ok(result);
+
+                    List<Map<String, Object>> products = new ArrayList<>();
+                    response.getProductsList().forEach(product -> products.add(mapProduct(product)));
+
+                    Map<String, Object> pageInfo = new HashMap<>();
+                    pageInfo.put("currentPage", response.getPageInfo().getCurrentPage());
+                    pageInfo.put("pageSize", response.getPageInfo().getPageSize());
+                    pageInfo.put("totalItems", response.getPageInfo().getTotalItems());
+                    pageInfo.put("totalPages", response.getPageInfo().getTotalPages());
+                    pageInfo.put("hasNext", response.getPageInfo().getHasNext());
+                    pageInfo.put("hasPrevious", response.getPageInfo().getHasPrevious());
+
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("products", products);
+                    result.put("pageInfo", pageInfo);
+
+                    log.info("Search products by name successful - keyword: {}, count: {}", searchKeyword, products.size());
+                    return ResponseEntity.ok(ApiResponse.ok(result));
                 })
                 .onErrorResume(e -> {
                     log.error("Search products by name error: {}", e.getMessage(), e);
-                    Map<String, Object> error = new HashMap<>();
-                    error.put("success", false);
-                    error.put("message", "Failed to search products: " + e.getMessage());
-                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error));
+                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(ApiResponse.internalServerError("Failed to search products: " + e.getMessage())));
                 });
     }
 

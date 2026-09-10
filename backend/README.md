@@ -271,35 +271,24 @@ curl http://localhost:8080/actuator/prometheus | grep jvm_memory
 
 Database migrations run automatically via Flyway on application startup.
 
-## 🔄 Development Workflow
+## 📋 Code Quality & Development Standards
 
-1. **Create Feature Branch**
-   ```bash
-   git checkout -b feature/new-feature
-   ```
+### Development Standards
+Follow our comprehensive development guidelines for consistent, high-quality code:
+- **[CONTRIBUTING.md](./CONTRIBUTING.md)** - Contribution guidelines, Git workflow, commit message format, PR process, and code review checklist
+- **[CODE_STANDARDS.md](./CODE_STANDARDS.md)** - Naming conventions, code organization, error handling, validation patterns, and testing requirements
 
-2. **Make Changes**
-   - Follow code style guidelines
-   - Write unit tests
-   - Update documentation
+### Architecture & Design
+Understand the system architecture and design decisions:
+- **[ARCHITECTURE.md](./ARCHITECTURE.md)** - Microservices architecture, service design, communication patterns, data flow, error propagation, and security boundaries
 
-3. **Test Locally**
-   ```bash
-   mvn clean test
-   mvn spring-boot:run
-   ```
+### API Design
+Guidelines for REST API and gRPC implementation:
+- **[API_GUIDELINES.md](./API_GUIDELINES.md)** - REST design principles, HTTP status codes, error response formats, pagination, versioning strategy, and API documentation
 
-4. **Commit with Conventional Commits**
-   ```bash
-   git commit -m "feat(products): add product filtering"
-   ```
-
-5. **Create Pull Request**
-   - Include test coverage
-   - Update CHANGELOG
-   - Link related issues
-
-## 📝 Code Standards
+### Logging & Observability
+Best practices for logging, monitoring, and troubleshooting:
+- **[LOGGING_GUIDE.md](./LOGGING_GUIDE.md)** - Log levels, structured logging, correlation IDs, sensitive data handling, performance considerations, and monitoring integration
 
 ### Naming Conventions
 - Classes: PascalCase (`ProductService`, `AuthController`)
@@ -313,18 +302,63 @@ Database migrations run automatically via Flyway on application startup.
 - Single Responsibility Principle
 - Dependency Injection (Constructor-based)
 
-### Comments
-- Only for WHY, not WHAT
-- Keep documentation up-to-date
-- Use JavaDoc for public APIs
+## 🔄 Development Workflow
+
+1. **Create Feature Branch** - See [CONTRIBUTING.md](./CONTRIBUTING.md#branch-naming)
+   ```bash
+   git checkout -b feature/new-feature
+   ```
+
+2. **Make Changes**
+   - Follow [CODE_STANDARDS.md](./CODE_STANDARDS.md) guidelines
+   - Write unit tests (>80% coverage)
+   - Update documentation and Swagger annotations
+
+3. **Test Locally**
+   ```bash
+   mvn clean test
+   mvn clean compile
+   mvn spring-boot:run -Dspring-boot.run.profiles=dev
+   ```
+
+4. **Commit with Conventional Commits** - See [CONTRIBUTING.md](./CONTRIBUTING.md#commit-message-format)
+   ```bash
+   git commit -m "feat(products): add product filtering
+   
+   Implement product filtering by category and price range
+   to improve user search experience.
+   
+   Fixes #123"
+   ```
+
+5. **Create Pull Request** - See [CONTRIBUTING.md](./CONTRIBUTING.md#pull-request-process)
+   - Include test coverage proof
+   - Reference related issues
+   - Get 2 approvals before merging
+   - Squash commits if requested
+
+## 📚 Complete Documentation Index
+
+**Essential Reading (Start Here):**
+1. [CONTRIBUTING.md](./CONTRIBUTING.md) - How to contribute code
+2. [CODE_STANDARDS.md](./CODE_STANDARDS.md) - Code style and best practices
+3. [ARCHITECTURE.md](./ARCHITECTURE.md) - System design and components
+
+**Reference Guides:**
+4. [API_GUIDELINES.md](./API_GUIDELINES.md) - REST API and gRPC standards
+5. [LOGGING_GUIDE.md](./LOGGING_GUIDE.md) - Logging and observability
+6. [DEPLOYMENT.md](./DEPLOYMENT.md) - Deployment and operations
+7. [IMPROVEMENTS.md](./IMPROVEMENTS.md) - Project improvements and future work
 
 ## 📞 Support & Contact
 
 For issues or questions:
-1. Check [DEPLOYMENT.md](./DEPLOYMENT.md)
-2. Review Swagger documentation
-3. Check application logs in Grafana
-4. Open an issue on GitHub
+1. Check relevant documentation files (see index above)
+2. Review [CONTRIBUTING.md](./CONTRIBUTING.md#questions-or-need-help) for FAQs
+3. Check [ARCHITECTURE.md](./ARCHITECTURE.md) for system design questions
+4. Review Swagger documentation at http://localhost:8080/swagger-ui.html
+5. Check application logs for errors (see [LOGGING_GUIDE.md](./LOGGING_GUIDE.md))
+6. Open an issue on GitHub with detailed information
 
 ## 📄 License
 
@@ -332,11 +366,13 @@ For issues or questions:
 
 ## 🎯 Next Steps
 
-- [ ] Set up CI/CD pipeline
-- [ ] Configure monitoring alerts
+- [ ] Read [CONTRIBUTING.md](./CONTRIBUTING.md) for development workflow
+- [ ] Review [CODE_STANDARDS.md](./CODE_STANDARDS.md) for coding guidelines
+- [ ] Understand [ARCHITECTURE.md](./ARCHITECTURE.md) system design
+- [ ] Set up CI/CD pipeline with quality gates
+- [ ] Configure monitoring alerts (see [LOGGING_GUIDE.md](./LOGGING_GUIDE.md))
 - [ ] Implement circuit breakers for resilience
-- [ ] Add comprehensive integration tests
+- [ ] Add comprehensive integration tests (>80% coverage)
 - [ ] Set up database backup strategy
-- [ ] Configure SSL/TLS certificates
-- [ ] Implement API rate limiting per user
-- [ ] Add request/response encryption
+- [ ] Configure SSL/TLS certificates for production
+- [ ] Implement per-user API rate limiting

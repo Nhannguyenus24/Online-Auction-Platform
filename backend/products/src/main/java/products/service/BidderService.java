@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.auction.constants.ServiceConstants;
 import com.auction.entities.msg.EventType;
 import com.auction.entities.msg.RabbitMessage;
 import com.auction.entities.record.BidHistoryRowRecord;
@@ -33,6 +34,7 @@ import com.auction.proto.user.Question;
 import com.auction.proto.user.SellerInfo;
 import com.auction.proto.user.UserNotification;
 import com.auction.rabbitmq.services.ReactiveRabbitProducer;
+import com.auction.utils.ServiceExceptionUtils;
 import com.auction.utils.TimeUtils;
 
 import products.repository.ProductRepository;
@@ -44,7 +46,6 @@ import reactor.core.scheduler.Schedulers;
 @Service
 public class BidderService {
     private static final Logger log = LoggerFactory.getLogger(BidderService.class);
-    private static final String NOTIFICATION_QUEUE = "dev";
     
     private final ProductRepository productRepository;
     private final com.auction.redis.service.ReactiveRedisService redisService;
@@ -83,7 +84,7 @@ public class BidderService {
             })
             .switchIfEmpty(Mono.defer(() -> {
                 log.warn("Product not found with id: {}", productId);
-                return Mono.error(new IllegalArgumentException("Product not found with id: " + productId));
+                return ServiceExceptionUtils.productNotFound(productId);
             }))
             .flatMap(productDto ->
                 Mono.zip(
@@ -245,35 +246,34 @@ public class BidderService {
         });
     }
 
-    @Transactional(rollbackFor = Exception.class, timeout = 10)
+    @Transactional(rollbackFor = Exception.class, timeout = ServiceConstants.PLACE_BID_TIMEOUT_SECONDS)
     public Mono<PlaceBidResult> placeBid(int productId, int userId, double bidAmount) {
         log.info("User {} placing bid {} on product {}", userId, bidAmount, productId);
-        
+
         // Use pessimistic lock to prevent race conditions
         // Lock is automatically released when transaction commits or rolls back
         return productRepository.findByIdForUpdate(productId)
-            .switchIfEmpty(Mono.error(new IllegalArgumentException("Product not found")))
+            .switchIfEmpty(ServiceExceptionUtils.productNotFound(productId))
             .flatMap(product -> {
                 // Validate product status
-                if (!"active".equals(product.getStatus())) {
-                    return Mono.error(new IllegalStateException("Product is not active"));
+                if (!ServiceConstants.PRODUCT_STATUS_ACTIVE.equals(product.getStatus())) {
+                    return ServiceExceptionUtils.productNotActive();
                 }
-                
+
                 // Validate bid time
                 LocalDateTime now = TimeUtils.now();
                 if (now.isBefore(product.getStartsAt())) {
-                    return Mono.error(new IllegalStateException("Auction has not started yet"));
+                    return ServiceExceptionUtils.auctionNotStarted();
                 }
                 if (now.isAfter(product.getEndsAt())) {
-                    return Mono.error(new IllegalStateException("Auction has ended"));
+                    return ServiceExceptionUtils.auctionHasEnded();
                 }
-                
+
                 // Validate bid amount
                 double minBid = product.getCurrentPrice().add(product.getStepPrice()).doubleValue();
 
                 if (bidAmount < minBid) {
-                    return Mono.error(new IllegalArgumentException(
-                        String.format("Max bid amount must be at least %.2f", minBid)));
+                    return ServiceExceptionUtils.bidTooLow(minBid);
                 }
                 
                 // Insert bid into database and fetch user info for Redis
@@ -285,15 +285,15 @@ public class BidderService {
                     int negative = user.getNegativeReviews();
                     int total = positive + negative;
 
-                    if (total > 0 && (double) positive / total < 0.8) {
-                        return Mono.error(new IllegalArgumentException("User rating is too low to participate in this auction"));
+                    if (total > 0 && (double) positive / total < ServiceConstants.MIN_BIDDER_RATING) {
+                        return ServiceExceptionUtils.userRatingTooLow();
                     }
                     return productRepository.insertBid(productId, userId, bidAmount, false)
                         .then(saveBidderProfileToRedis(productId, userId, bidAmount, email, userName))
-                        .then(redisService.zAdd("auction:" + productId + ":bids", String.valueOf(userId), bidAmount))
+                        .then(redisService.zAdd(String.format(ServiceConstants.REDIS_KEY_AUCTION_BIDS_PATTERN, productId), String.valueOf(userId), bidAmount))
                         .then(Mono.defer(() -> {
                             // Auto-bidding logic: Get top 2 bidders from Redis
-                            String redisKey = "auction:" + productId + ":bids";
+                            String redisKey = String.format(ServiceConstants.REDIS_KEY_AUCTION_BIDS_PATTERN, productId);
                             return redisService.zRevRange(redisKey, 0, 1)
                                 .collectList()
                                 .flatMap(topBidderIds -> {
@@ -381,39 +381,39 @@ public class BidderService {
                 productId, userId, bidAmount, e.getMessage()));
     }
 
-    @Transactional(rollbackFor = Exception.class, timeout = 15)
+    @Transactional(rollbackFor = Exception.class, timeout = ServiceConstants.BUY_NOW_TIMEOUT_SECONDS)
     public Mono<BuyNowResult> buyNowProduct(int productId, int userId) {
         log.info("User {} attempting to buy now product {}", userId, productId);
-        
+
         // Use pessimistic lock to prevent race conditions
         // Lock is automatically released when transaction commits or rolls back
         return productRepository.findByIdForUpdate(productId)
-        .switchIfEmpty(Mono.error(new IllegalArgumentException("Product not found")))
+        .switchIfEmpty(ServiceExceptionUtils.productNotFound(productId))
         .flatMap(product -> {
 
             // Check product status
-            if (!"active".equals(product.getStatus())) {
-                return Mono.error(new IllegalStateException("Product is not active"));
+            if (!ServiceConstants.PRODUCT_STATUS_ACTIVE.equals(product.getStatus())) {
+                return ServiceExceptionUtils.productNotActive();
             }
 
             // Check if buy now price is set
             if (product.getBuyNowPrice() == null || product.getBuyNowPrice().doubleValue() <= 0) {
-                return Mono.error(new IllegalStateException("Buy now is not available for this product"));
+                return ServiceExceptionUtils.buyNowNotAvailable();
             }
 
             // Check auction time
             LocalDateTime now = TimeUtils.now();
             if (now.isBefore(product.getStartsAt())) {
-                return Mono.error(new IllegalStateException("Auction has not started yet"));
+                return ServiceExceptionUtils.auctionNotStarted();
             }
             if (now.isAfter(product.getEndsAt())) {
-                return Mono.error(new IllegalStateException("Auction has ended"));
+                return ServiceExceptionUtils.auctionHasEnded();
             }
 
             double buyNowPrice = product.getBuyNowPrice().doubleValue();
 
             // Update product status to ended
-            return productRepository.updateStatus(productId, "ended")
+            return productRepository.updateStatus(productId, ServiceConstants.PRODUCT_STATUS_ENDED)
                 .then(productRepository.updateProductPrice(productId, buyNowPrice))
                 .then(orderRepository.createOrder(
                     productId,
@@ -458,21 +458,21 @@ public class BidderService {
     @Transactional
     protected void handleAuctionEnd(int productId) {
         log.info("Handling auction end for product {}", productId);
-        
-        String redisKey = "auction:" + productId + ":bids";
-        
+
+        String redisKey = String.format(ServiceConstants.REDIS_KEY_AUCTION_BIDS_PATTERN, productId);
+
         // Get banned users and top bidders in parallel
         Mono.zip(
             productRepository.getBannedUserIds(productId).collectList(),
-            redisService.zRevRange(redisKey, 0, 4).collectList()
+            redisService.zRevRange(redisKey, 0, ServiceConstants.TOP_BIDDERS_LIMIT - 1).collectList()
         )
         .flatMap(tuple -> {
             var bannedUserIds = tuple.getT1();
             var topBidders = tuple.getT2();
-            
-            log.info("Top 5 bidders for product {}: {}", productId, topBidders);
+
+            log.info("Top {} bidders for product {}: {}", ServiceConstants.TOP_BIDDERS_LIMIT, productId, topBidders);
             log.info("Banned users for product {}: {}", productId, bannedUserIds);
-            
+
             // Filter out banned users from top bidders
             var eligibleWinners = topBidders.stream()
                 .filter(bidder -> {
@@ -489,9 +489,9 @@ public class BidderService {
                     }
                 })
                 .toList();
-            
+
             // Update product status to ended
-            return productRepository.updateStatus(productId, "ended")
+            return productRepository.updateStatus(productId, ServiceConstants.PRODUCT_STATUS_ENDED)
                 .then(Mono.defer(() -> {
                     if (eligibleWinners.isEmpty()) {
                         log.warn("No eligible winner for product {} - all top bidders are banned", productId);
@@ -540,9 +540,9 @@ public class BidderService {
     /**
      * Check if previous bidder was outbid and send notification
      */
-    private Mono<Void> checkAndNotifyOutbid(int productId, int currentBidderId, double newBidAmount, 
+    private Mono<Void> checkAndNotifyOutbid(int productId, int currentBidderId, double newBidAmount,
                                             String productName, LocalDateTime auctionEndTime) {
-        String redisKey = "auction:" + productId + ":bids";
+        String redisKey = String.format(ServiceConstants.REDIS_KEY_AUCTION_BIDS_PATTERN, productId);
         
         log.debug("Checking for outbid on product {}", productId);
         
@@ -567,9 +567,9 @@ public class BidderService {
                 }
                 
                 log.info("User {} was outbid on product {} by user {}", outbidUserId, productId, currentBidderId);
-                
+
                 // Get outbid bidder's profile from Redis
-                String profileKey = "profile:" + outbidUserId + ":" + productId;
+                String profileKey = String.format(ServiceConstants.REDIS_KEY_BIDDER_PROFILE_PATTERN, outbidUserId, productId);
                 return redisService.hGetAll(profileKey)
                     .flatMap(profileData -> {
                         if (profileData.isEmpty()) {
@@ -625,8 +625,8 @@ public class BidderService {
         
         log.info("Sending outbid notification: userId={}, productId={}, yourBid={}, newBid={}",
             outbidUserId, productId, yourBidAmount, newHighestBid);
-        
-        return rabbitProducer.sendToQueue(NOTIFICATION_QUEUE, message)
+
+        return rabbitProducer.sendToQueue(ServiceConstants.NOTIFICATION_QUEUE, message)
             .doOnSuccess(v -> log.info("Outbid notification sent successfully: userId={}, productId={}",
                 outbidUserId, productId))
             .doOnError(e -> log.error("Failed to send outbid notification: userId={}, productId={}, error={}",
@@ -639,11 +639,11 @@ public class BidderService {
      * Key format: profile:{userId}:{productId}
      */
     private Mono<Void> saveBidderProfileToRedis(int productId, int userId, double bidAmount, String email, String userName) {
-        String profileKey = "profile:" + userId + ":" + productId;
-        
-        log.debug("Saving bidder profile to Redis: key={}, bidAmount={}, email={}, userName={}", 
+        String profileKey = String.format(ServiceConstants.REDIS_KEY_BIDDER_PROFILE_PATTERN, userId, productId);
+
+        log.debug("Saving bidder profile to Redis: key={}, bidAmount={}, email={}, userName={}",
             profileKey, bidAmount, email, userName);
-        
+
         // Save each field individually using hSet
         return Mono.when(
             redisService.hSet(profileKey, "userId", String.valueOf(userId)),
@@ -652,7 +652,7 @@ public class BidderService {
             redisService.hSet(profileKey, "email", email != null ? email : ""),
             redisService.hSet(profileKey, "userName", userName != null ? userName : "")
         )
-        .then(redisService.expire(profileKey, Duration.ofSeconds(86400 * 15))) // Expire after 15 days
+        .then(redisService.expire(profileKey, Duration.ofSeconds(ServiceConstants.BIDDER_PROFILE_EXPIRY_SECONDS)))
         .doOnSuccess(v -> log.debug("Bidder profile saved to Redis: userId={}, productId={}, email={}", 
             userId, productId, email))
         .doOnError(e -> log.error("Failed to save bidder profile to Redis: userId={}, productId={}, error={}", 
@@ -688,7 +688,7 @@ public class BidderService {
         log.info("Sending auction ended notification to winner: userId={}, productId={}",
             winnerId, product.getId());
         
-        return rabbitProducer.sendToQueue(NOTIFICATION_QUEUE, message)
+        return rabbitProducer.sendToQueue(ServiceConstants.NOTIFICATION_QUEUE, message)
             .doOnSuccess(v -> log.info("Auction ended notification sent to winner successfully: userId={}, productId={}",
                 winnerId, product.getId()))
             .doOnError(e -> log.error("Failed to send auction ended notification to winner: userId={}, productId={}, error={}",
@@ -723,7 +723,7 @@ public class BidderService {
         log.info("Sending auction ended notification to seller: sellerId={}, productId={}",
             product.getSellerId(), product.getId());
         
-        return rabbitProducer.sendToQueue(NOTIFICATION_QUEUE, message)
+        return rabbitProducer.sendToQueue(ServiceConstants.NOTIFICATION_QUEUE, message)
             .doOnSuccess(v -> log.info("Auction ended notification sent to seller successfully: sellerId={}, productId={}",
                 product.getSellerId(), product.getId()))
             .doOnError(e -> log.error("Failed to send auction ended notification to seller: sellerId={}, productId={}, error={}",
@@ -757,7 +757,7 @@ public class BidderService {
         log.info("Sending buy now notification to buyer: userId={}, productId={}",
             buyerId, product.getId());
         
-        return rabbitProducer.sendToQueue(NOTIFICATION_QUEUE, message)
+        return rabbitProducer.sendToQueue(ServiceConstants.NOTIFICATION_QUEUE, message)
             .doOnSuccess(v -> log.info("Buy now notification sent to buyer successfully"))
             .doOnError(e -> log.error("Failed to send buy now notification to buyer: {}", e.getMessage()));
     }
@@ -792,7 +792,7 @@ public class BidderService {
         log.info("Sending buy now notification to seller: sellerId={}, productId={}",
             product.getSellerId(), product.getId());
         
-        return rabbitProducer.sendToQueue(NOTIFICATION_QUEUE, message)
+        return rabbitProducer.sendToQueue(ServiceConstants.NOTIFICATION_QUEUE, message)
             .doOnSuccess(v -> log.info("Buy now notification sent to seller successfully"))
             .doOnError(e -> log.error("Failed to send buy now notification to seller: {}", e.getMessage()));
     }
@@ -1131,12 +1131,15 @@ public class BidderService {
      */
     public Mono<TopBiddersResult> getTopBidders(int productId, int limit) {
         log.info("Getting top {} bidders for product {}", limit, productId);
-        
-        // Limit to max 10
-        int actualLimit = Math.min(limit > 0 ? limit : 5, 10);
-        
-        // Sử dụng key giống như trong placeBid
-        String redisKey = "auction:" + productId + ":bids";
+
+        // Limit to max configured limit
+        int actualLimit = Math.min(
+            limit > 0 ? limit : ServiceConstants.TOP_BIDDERS_DEFAULT_LIMIT,
+            ServiceConstants.TOP_BIDDERS_MAX_LIMIT
+        );
+
+        // Use key same as in placeBid
+        String redisKey = String.format(ServiceConstants.REDIS_KEY_AUCTION_BIDS_PATTERN, productId);
         
         // Get top bidders from Redis sorted set (highest score first)
         return redisService.zRevRange(redisKey, 0, actualLimit - 1)
@@ -1217,31 +1220,27 @@ public class BidderService {
      */
     public Mono<RequestRoleUpgradeResult> requestRoleUpgrade(int userId) {
         log.info("User {} requesting role upgrade to seller", userId);
-        
+
         // Check if user already has a pending request
         return productRepository.countPendingUpgradeRequests(userId)
             .flatMap(count -> {
                 if (count > 0) {
                     log.warn("User {} already has a pending upgrade request", userId);
-                    return Mono.just(new RequestRoleUpgradeResult(
-                        false,
-                        "You already have a pending upgrade request",
-                        0
-                    ));
+                    return ServiceExceptionUtils.duplicateUpgradeRequest();
                 }
-                
+
                 // Create new upgrade request
                 return productRepository.insertUpgradeRequest(userId)
                     .then(Mono.defer(() -> {
                         log.info("Upgrade request created successfully for user {}", userId);
                         return Mono.just(new RequestRoleUpgradeResult(
                             true,
-                            "Upgrade request submitted successfully. Admin will review your request.",
+                            ServiceConstants.SUCCESS_UPGRADE_REQUEST_SUBMITTED,
                             1
                         ));
                     }));
             })
-            .doOnError(e -> log.error("Error creating upgrade request for user {}: {}", 
+            .doOnError(e -> log.error("Error creating upgrade request for user {}: {}",
                 userId, e.getMessage(), e));
     }
     
@@ -1250,7 +1249,7 @@ public class BidderService {
      */
     public Mono<GetRoleUpgradeRequestStatusResult> getRoleUpgradeRequestStatus(int userId) {
         log.info("Getting role upgrade request status for user {}", userId);
-        
+
         return productRepository.getRoleUpgradeRequest(userId)
             .map(request -> {
                 log.info("Found upgrade request for user {}: status={}", userId, request.status());
@@ -1266,13 +1265,13 @@ public class BidderService {
                 log.info("No upgrade request found for user {}", userId);
                 return Mono.just(new GetRoleUpgradeRequestStatusResult(
                     true,
-                    "No upgrade request found",
+                    ServiceConstants.SUCCESS_NO_UPGRADE_REQUEST,
                     false,
                     "not_found",
                     0
                 ));
             }))
-            .doOnError(e -> log.error("Error getting upgrade request status for user {}: {}", 
+            .doOnError(e -> log.error("Error getting upgrade request status for user {}: {}",
                 userId, e.getMessage(), e));
     }
     
@@ -1295,10 +1294,10 @@ public class BidderService {
      */
     public Mono<BidderOrdersResult> getBidderListOrder(int userId, int page, int limit, String status) {
         log.info("Getting orders for user {} with status={}, page={}, limit={}", userId, status, page, limit);
-        
+
         // Validate pagination
-        int validPage = Math.max(1, page);
-        int validLimit = Math.min(Math.max(1, limit), 100); // Max 100
+        int validPage = Math.max(ServiceConstants.MIN_PAGE, page);
+        int validLimit = Math.min(Math.max(ServiceConstants.MIN_PAGE_SIZE, limit), ServiceConstants.MAX_PAGE_SIZE);
         int offset = (validPage - 1) * validLimit;
         
         return orderRepository.findOrdersByBuyerId(userId, status, validLimit, offset)
@@ -1399,10 +1398,10 @@ public class BidderService {
      */
     public Mono<BannedProductsResult> getBannedProducts(int userId, int page, int limit) {
         log.info("Getting banned products for user {} with page={}, limit={}", userId, page, limit);
-        
+
         // Validate pagination
-        int validPage = Math.max(1, page);
-        int validLimit = Math.min(Math.max(1, limit), 100); // Max 100
+        int validPage = Math.max(ServiceConstants.MIN_PAGE, page);
+        int validLimit = Math.min(Math.max(ServiceConstants.MIN_PAGE_SIZE, limit), ServiceConstants.MAX_PAGE_SIZE);
         int offset = (validPage - 1) * validLimit;
         
         return productRepository.getBannedProductsByUserId(userId, validLimit, offset)
@@ -1470,17 +1469,14 @@ public class BidderService {
      */
     public Mono<OrderDetail> getOrderById(int orderId, int userId) {
         log.info("Getting order by ID - orderId: {}, userId: {}", orderId, userId);
-        
+
         return orderRepository.findById(orderId)
-            .switchIfEmpty(Mono.defer(() -> {
-                log.warn("Order not found with id: {}", orderId);
-                return Mono.error(new IllegalArgumentException("Order not found with id: " + orderId));
-            }))
+            .switchIfEmpty(ServiceExceptionUtils.orderNotFound(orderId))
             .flatMap(order -> {
                 // Authorization check: user must be buyer or seller
                 if (!order.getBuyerId().equals(userId) && !order.getSellerId().equals(userId)) {
                     log.warn("User {} is not authorized to access order {}", userId, orderId);
-                    return Mono.error(new IllegalArgumentException("Unauthorized: You don't have access to this order"));
+                    return ServiceExceptionUtils.unauthorizedAccess();
                 }
                 
                 return Mono.just(OrderDetail.newBuilder()
@@ -1513,22 +1509,19 @@ public class BidderService {
      * @return the updated order details
      */
     @Transactional
-    public Mono<OrderDetail> updateOrderPaymentIntent(int orderId, int userId, 
+    public Mono<OrderDetail> updateOrderPaymentIntent(int orderId, int userId,
                                                        String stripePaymentIntentId, String paymentStatus,
                                                        String shippingAddress) {
-        log.info("Updating order payment intent - orderId: {}, userId: {}, paymentIntentId: {}, status: {}, shippingAddress: {}", 
+        log.info("Updating order payment intent - orderId: {}, userId: {}, paymentIntentId: {}, status: {}, shippingAddress: {}",
             orderId, userId, stripePaymentIntentId, paymentStatus, shippingAddress != null ? "provided" : "not provided");
-        
+
         return orderRepository.findById(orderId)
-            .switchIfEmpty(Mono.defer(() -> {
-                log.warn("Order not found with id: {}", orderId);
-                return Mono.error(new IllegalArgumentException("Order not found with id: " + orderId));
-            }))
+            .switchIfEmpty(ServiceExceptionUtils.orderNotFound(orderId))
             .flatMap(order -> {
                 // Authorization check: user must be buyer
                 if (!order.getBuyerId().equals(userId)) {
                     log.warn("User {} is not authorized to update payment for order {}", userId, orderId);
-                    return Mono.error(new IllegalArgumentException("Unauthorized: Only the buyer can update payment"));
+                    return ServiceExceptionUtils.unauthorizedOrderUpdate();
                 }
                 
                 Mono<Void> updateMono;
@@ -1565,24 +1558,21 @@ public class BidderService {
     @Transactional
     public Mono<OrderDetail> confirmPayment(int orderId, int userId, String paymentIntentId) {
         log.info("Confirming payment - orderId: {}, userId: {}, paymentIntentId: {}", orderId, userId, paymentIntentId);
-        
+
         return orderRepository.findById(orderId)
-            .switchIfEmpty(Mono.defer(() -> {
-                log.warn("Order not found with id: {}", orderId);
-                return Mono.error(new IllegalArgumentException("Order not found with id: " + orderId));
-            }))
+            .switchIfEmpty(ServiceExceptionUtils.orderNotFound(orderId))
             .flatMap(order -> {
                 // Authorization check: user must be buyer
                 if (!order.getBuyerId().equals(userId)) {
                     log.warn("User {} is not authorized to confirm payment for order {}", userId, orderId);
-                    return Mono.error(new IllegalArgumentException("Unauthorized: Only the buyer can confirm payment"));
+                    return ServiceExceptionUtils.unauthorizedOrderUpdate();
                 }
-                
+
                 // Verify payment intent ID matches
                 if (order.getStripePaymentIntentId() == null || !order.getStripePaymentIntentId().equals(paymentIntentId)) {
-                    log.warn("Payment intent ID mismatch for order {} - expected: {}, got: {}", 
+                    log.warn("Payment intent ID mismatch for order {} - expected: {}, got: {}",
                         orderId, order.getStripePaymentIntentId(), paymentIntentId);
-                    return Mono.error(new IllegalArgumentException("Payment intent ID mismatch"));
+                    return ServiceExceptionUtils.paymentIntentMismatch();
                 }
                 
                 return orderRepository.confirmPayment(orderId, paymentIntentId)

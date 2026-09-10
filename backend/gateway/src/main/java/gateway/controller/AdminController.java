@@ -28,7 +28,9 @@ import com.auction.proto.admin.user.GetUpgradeRequestsRequest;
 import com.auction.proto.admin.user.ProfitStatisticsRequest;
 import com.auction.proto.admin.user.RegistrationStatisticsRequest;
 import com.auction.proto.admin.user.UserStatisticsRequest;
+import com.auction.dto.ApiResponse;
 import com.auction.utils.JsonUtils;
+import com.auction.utils.ValidationUtils;
 
 import gateway.grpc.AdminProductGrpcClient;
 import gateway.grpc.AdminUserGrpcClient;
@@ -47,8 +49,12 @@ import jakarta.validation.constraints.Max;
 @Tag(name = "Admin", description = "Admin user endpoints - requires authentication")
 @SecurityRequirement(name = "bearerAuth")
 public class AdminController {
-    
+
     private static final Logger log = LoggerFactory.getLogger(AdminController.class);
+    private static final String INVALID_ROLE_FILTER = "Invalid roleFilter. Must be: bidder, seller, or admin";
+    private static final String INVALID_PERIOD = "Invalid period. Must be: daily, monthly, or yearly";
+    private static final String INVALID_STATUS_FILTER = "Invalid statusFilter. Must be: pending, approved, or rejected";
+
     private final AdminProductGrpcClient adminProductGrpcClient;
     private final AdminUserGrpcClient adminUserGrpcClient;
 
@@ -69,28 +75,31 @@ public class AdminController {
 
     @GetMapping("/statistics/users")
     @Operation(summary = "Get user statistics", description = "Get overall user statistics including total users, bidders, sellers, and ratings. Requires admin authentication.")
-    public ResponseEntity<UserStatisticsResponseDto> getUserStatistics(
+    public ResponseEntity<ApiResponse<UserStatisticsResponseDto>> getUserStatistics(
             @Parameter(description = "Role filter (bidder, seller, admin)")
             @RequestParam(required = false, defaultValue = "") String roleFilter) {
-        
-        log.info("Get user statistics request - roleFilter: {}", roleFilter);
+
+        int adminId = getUserId();
+        log.info("Get user statistics request [adminId={}] - roleFilter: {}", adminId, roleFilter);
 
         // Validate roleFilter if provided
         if (!roleFilter.isEmpty() && !roleFilter.matches("^(bidder|seller|admin)$")) {
-            log.error("Invalid roleFilter value: {}", roleFilter);
-            return ResponseEntity.badRequest().body(null);
+            log.warn("Invalid roleFilter value: {} [adminId={}]", roleFilter, adminId);
+            return ResponseEntity.badRequest().body(ApiResponse.badRequest(INVALID_ROLE_FILTER));
         }
 
-        UserStatisticsRequest grpcRequest = UserStatisticsRequest.newBuilder()
-                .setRoleFilter(roleFilter)
-                .build();
-
         try {
+            UserStatisticsRequest grpcRequest = UserStatisticsRequest.newBuilder()
+                    .setRoleFilter(roleFilter)
+                    .build();
+
             var response = adminUserGrpcClient.getUserStatistics(grpcRequest).block();
             if (response == null) {
-                throw new RuntimeException("gRPC response is null");
+                log.error("gRPC response is null [adminId={}]", adminId);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.internalServerError("Failed to fetch statistics"));
             }
-            
+
             UserStatisticsResponseDto result = new UserStatisticsResponseDto(
                 response.getTotalUsers(),
                 response.getTotalBidders(),
@@ -103,94 +112,102 @@ public class AdminController {
                 response.getNegativeReviews()
             );
 
-            log.info("Get user statistics successful");
-            return ResponseEntity.ok(result);
+            log.info("Get user statistics successful [adminId={}, totalUsers={}]", adminId, response.getTotalUsers());
+            return ResponseEntity.ok(ApiResponse.ok(result));
         } catch (Exception e) {
-            log.error("Get user statistics error: {}", e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            log.error("Get user statistics error [adminId={}]: {}", adminId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.internalServerError("Failed to fetch statistics: " + e.getMessage()));
         }
     }
 
     @GetMapping("/statistics/registrations")
     @Operation(summary = "Get registration statistics", description = "Get user registration statistics by period (daily, monthly, yearly). Requires admin authentication.")
-    public ResponseEntity<RegistrationStatisticsResponseDto> getRegistrationStatistics(
+    public ResponseEntity<ApiResponse<RegistrationStatisticsResponseDto>> getRegistrationStatistics(
             @Parameter(description = "Period type (daily, monthly, yearly)", required = true)
             @RequestParam String period,
             @Parameter(description = "Number of periods to return")
             @RequestParam(defaultValue = "30") @Positive(message = "Limit must be greater than 0") int limit) {
-        
-        log.info("Get registration statistics request - period: {}, limit: {}", period, limit);
+
+        int adminId = getUserId();
+        log.info("Get registration statistics request [adminId={}] - period: {}, limit: {}", adminId, period, limit);
 
         // Validate period
         if (!period.matches("^(daily|monthly|yearly)$")) {
-            log.error("Invalid period value: {}. Must be: daily, monthly, or yearly", period);
-            return ResponseEntity.badRequest().body(null);
+            log.warn("Invalid period value: {} [adminId={}]", period, adminId);
+            return ResponseEntity.badRequest().body(ApiResponse.badRequest(INVALID_PERIOD));
         }
 
-        RegistrationStatisticsRequest grpcRequest = RegistrationStatisticsRequest.newBuilder()
-                .setPeriod(period)
-                .setLimit(limit)
-                .build();
-
         try {
+            RegistrationStatisticsRequest grpcRequest = RegistrationStatisticsRequest.newBuilder()
+                    .setPeriod(period)
+                    .setLimit(limit)
+                    .build();
+
             var response = adminUserGrpcClient.getRegistrationStatistics(grpcRequest).block();
             if (response == null) {
-                throw new RuntimeException("gRPC response is null");
+                log.error("gRPC response is null [adminId={}]", adminId);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.internalServerError("Failed to fetch statistics"));
             }
-            
+
             List<RegistrationStatsItemDto> daily = response.getDailyList().stream()
                 .map(d -> new RegistrationStatsItemDto(d.getDate(), d.getCount()))
                 .toList();
-            
+
             List<RegistrationStatsItemDto> monthly = response.getMonthlyList().stream()
                 .map(m -> new RegistrationStatsItemDto(m.getMonth(), m.getCount()))
                 .toList();
-            
+
             List<RegistrationStatsItemDto> yearly = response.getYearlyList().stream()
                 .map(y -> new RegistrationStatsItemDto(y.getYear(), y.getCount()))
                 .toList();
-            
+
             RegistrationStatisticsResponseDto result = new RegistrationStatisticsResponseDto(daily, monthly, yearly);
 
-            log.info("Get registration statistics successful");
-            return ResponseEntity.ok(result);
+            log.info("Get registration statistics successful [adminId={}, period={}]", adminId, period);
+            return ResponseEntity.ok(ApiResponse.ok(result));
         } catch (Exception e) {
-            log.error("Get registration statistics error: {}", e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            log.error("Get registration statistics error [adminId={}]: {}", adminId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.internalServerError("Failed to fetch statistics: " + e.getMessage()));
         }
     }
 
     @GetMapping("/statistics/profit")
     @Operation(summary = "Get profit statistics", description = "Get profit statistics by month or year (30% of successful transactions). Requires admin authentication.")
-    public ResponseEntity<ProfitStatisticsResponseDto> getProfitStatistics(
+    public ResponseEntity<ApiResponse<ProfitStatisticsResponseDto>> getProfitStatistics(
             @Parameter(description = "Month in format YYYY-MM")
             @RequestParam(required = false, defaultValue = "") String month,
             @Parameter(description = "Year in format YYYY")
             @RequestParam(required = false, defaultValue = "") String year) {
-        
-        log.info("Get profit statistics request - month: {}, year: {}", month, year);
+
+        int adminId = getUserId();
+        log.info("Get profit statistics request [adminId={}] - month: {}, year: {}", adminId, month, year);
 
         // Validate month format if provided
         if (!month.isEmpty() && !month.matches("^\\d{4}-\\d{2}$")) {
-            log.error("Invalid month format: {}. Must be YYYY-MM", month);
-            return ResponseEntity.badRequest().body(null);
+            log.warn("Invalid month format: {} [adminId={}]", month, adminId);
+            return ResponseEntity.badRequest().body(ApiResponse.badRequest("Month must be in format YYYY-MM"));
         }
 
         // Validate year format if provided
         if (!year.isEmpty() && !year.matches("^\\d{4}$")) {
-            log.error("Invalid year format: {}. Must be YYYY", year);
-            return ResponseEntity.badRequest().body(null);
+            log.warn("Invalid year format: {} [adminId={}]", year, adminId);
+            return ResponseEntity.badRequest().body(ApiResponse.badRequest("Year must be in format YYYY"));
         }
 
-        ProfitStatisticsRequest grpcRequest = ProfitStatisticsRequest.newBuilder()
-                .setMonth(month)
-                .setYear(year)
-                .build();
-
         try {
+            ProfitStatisticsRequest grpcRequest = ProfitStatisticsRequest.newBuilder()
+                    .setMonth(month)
+                    .setYear(year)
+                    .build();
+
             var response = adminUserGrpcClient.getProfitStatistics(grpcRequest).block();
             if (response == null) {
-                throw new RuntimeException("gRPC response is null");
+                log.error("gRPC response is null [adminId={}]", adminId);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.internalServerError("Failed to fetch statistics"));
             }
 
             ProfitDataDto monthlyProfit = null;
@@ -207,11 +224,12 @@ public class AdminController {
 
             ProfitStatisticsResponseDto result = new ProfitStatisticsResponseDto(monthlyProfit, yearlyProfit);
 
-            log.info("Get profit statistics successful: {}", JsonUtils.toJson(result));
-            return ResponseEntity.ok(result);
+            log.info("Get profit statistics successful [adminId={}]: {}", adminId, JsonUtils.toJson(result));
+            return ResponseEntity.ok(ApiResponse.ok(result));
         } catch (Exception e) {
-            log.error("Get profit statistics error: {}", e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            log.error("Get profit statistics error [adminId={}]: {}", adminId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.internalServerError("Failed to fetch statistics: " + e.getMessage()));
         }
     }
 
@@ -221,7 +239,7 @@ public class AdminController {
 
     @GetMapping("/users")
     @Operation(summary = "Get all users", description = "Get all users with pagination and search. Requires admin authentication.")
-    public ResponseEntity<UsersResponseDto> getAllUsers(
+    public ResponseEntity<ApiResponse<UsersResponseDto>> getAllUsers(
             @Parameter(description = "Search query (name, email, or phone)")
             @RequestParam(required = false, defaultValue = "") String searchQuery,
             @Parameter(description = "Role filter (bidder, seller, admin)")
@@ -230,28 +248,32 @@ public class AdminController {
             @RequestParam(defaultValue = "1") @Positive(message = "Page must be greater than 0") int page,
             @Parameter(description = "Number of items per page")
             @RequestParam(defaultValue = "20") @Positive(message = "PageSize must be greater than 0") @Max(value = 100, message = "PageSize must not exceed 100") int pageSize) {
-        
-        log.info("Get all users - searchQuery: {}, roleFilter: {}, page: {}, pageSize: {}", 
-                searchQuery, roleFilter, page, pageSize);
+
+        int adminId = getUserId();
+        log.info("Get all users [adminId={}] - searchQuery: {}, roleFilter: {}, page: {}, pageSize: {}",
+                adminId, searchQuery, roleFilter, page, pageSize);
 
         // Validate roleFilter if provided
         if (!roleFilter.isEmpty() && !roleFilter.matches("^(bidder|seller|admin)$")) {
-            return ResponseEntity.badRequest().body(null);
+            log.warn("Invalid roleFilter: {} [adminId={}]", roleFilter, adminId);
+            return ResponseEntity.badRequest().body(ApiResponse.badRequest(INVALID_ROLE_FILTER));
         }
 
-        GetAllUsersRequest grpcRequest = GetAllUsersRequest.newBuilder()
-                .setSearchQuery(searchQuery)
-                .setRoleFilter(roleFilter)
-                .setPage(page)
-                .setPageSize(pageSize)
-                .build();
-
         try {
+            GetAllUsersRequest grpcRequest = GetAllUsersRequest.newBuilder()
+                    .setSearchQuery(searchQuery)
+                    .setRoleFilter(roleFilter)
+                    .setPage(page)
+                    .setPageSize(pageSize)
+                    .build();
+
             var response = adminUserGrpcClient.getAllUsers(grpcRequest).block();
             if (response == null) {
-                throw new RuntimeException("gRPC response is null");
+                log.error("gRPC response is null [adminId={}]", adminId);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.internalServerError("Failed to fetch users"));
             }
-            
+
             List<UserItemDto> users = response.getUsersList().stream()
                 .map(user -> new UserItemDto(
                     user.getId(),
@@ -267,7 +289,7 @@ public class AdminController {
                     user.getUpdatedAt()
                 ))
                 .toList();
-            
+
             UsersResponseDto result = new UsersResponseDto(
                 users,
                 response.getTotalCount(),
@@ -275,44 +297,48 @@ public class AdminController {
                 response.getTotalPages()
             );
 
-            log.info("Get all users successful - count: {}", users.size());
-            return ResponseEntity.ok(result);
+            log.info("Get all users successful [adminId={}, count={}, totalCount={}]", adminId, users.size(), response.getTotalCount());
+            return ResponseEntity.ok(ApiResponse.ok(result));
         } catch (Exception e) {
-            log.error("Get all users error: {}", e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            log.error("Get all users error [adminId={}]: {}", adminId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.internalServerError("Failed to fetch users: " + e.getMessage()));
         }
     }
 
     @GetMapping("/upgrade-requests")
     @Operation(summary = "Get upgrade requests", description = "Get all upgrade requests (bidder -> seller) with pagination. Requires admin authentication.")
-    public ResponseEntity<UpgradeRequestsResponseDto> getUpgradeRequests(
+    public ResponseEntity<ApiResponse<UpgradeRequestsResponseDto>> getUpgradeRequests(
             @Parameter(description = "Status filter (pending, approved, rejected)")
             @RequestParam(required = false, defaultValue = "") String statusFilter,
             @Parameter(description = "Page number (1-based)")
             @RequestParam(defaultValue = "1") @Positive(message = "Page must be greater than 0") int page,
             @Parameter(description = "Number of items per page")
             @RequestParam(defaultValue = "20") @Positive(message = "PageSize must be greater than 0") @Max(value = 100, message = "PageSize must not exceed 100") int pageSize) {
-        
-        log.info("Get upgrade requests - statusFilter: {}, page: {}, pageSize: {}", statusFilter, page, pageSize);
+
+        int adminId = getUserId();
+        log.info("Get upgrade requests [adminId={}] - statusFilter: {}, page: {}, pageSize: {}", adminId, statusFilter, page, pageSize);
 
         // Validate statusFilter if provided
         if (!statusFilter.isEmpty() && !statusFilter.matches("^(pending|approved|rejected)$")) {
-            log.error("Invalid statusFilter value: {}", statusFilter);
-            return ResponseEntity.badRequest().body(null);
+            log.warn("Invalid statusFilter value: {} [adminId={}]", statusFilter, adminId);
+            return ResponseEntity.badRequest().body(ApiResponse.badRequest(INVALID_STATUS_FILTER));
         }
 
-        GetUpgradeRequestsRequest grpcRequest = GetUpgradeRequestsRequest.newBuilder()
-                .setStatusFilter(statusFilter)
-                .setPage(page)
-                .setPageSize(pageSize)
-                .build();
-
         try {
+            GetUpgradeRequestsRequest grpcRequest = GetUpgradeRequestsRequest.newBuilder()
+                    .setStatusFilter(statusFilter)
+                    .setPage(page)
+                    .setPageSize(pageSize)
+                    .build();
+
             var response = adminUserGrpcClient.getUpgradeRequests(grpcRequest).block();
             if (response == null) {
-                throw new RuntimeException("gRPC response is null");
+                log.error("gRPC response is null [adminId={}]", adminId);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.internalServerError("Failed to fetch upgrade requests"));
             }
-            
+
             List<UpgradeRequestItemDto> requests = response.getUpgradeRequestsList().stream()
                 .map(req -> new UpgradeRequestItemDto(
                     req.getId(),
@@ -327,7 +353,7 @@ public class AdminController {
                     req.getReason()
                 ))
                 .toList();
-            
+
             UpgradeRequestsResponseDto result = new UpgradeRequestsResponseDto(
                 requests,
                 response.getTotalCount(),
@@ -335,49 +361,62 @@ public class AdminController {
                 response.getTotalPages()
             );
 
-            log.info("Get upgrade requests successful - count: {}", requests.size());
-            return ResponseEntity.ok(result);
+            log.info("Get upgrade requests successful [adminId={}, count={}, totalCount={}]", adminId, requests.size(), response.getTotalCount());
+            return ResponseEntity.ok(ApiResponse.ok(result));
         } catch (Exception e) {
-            log.error("Get upgrade requests error: {}", e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            log.error("Get upgrade requests error [adminId={}]: {}", adminId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.internalServerError("Failed to fetch upgrade requests: " + e.getMessage()));
         }
     }
 
     @PostMapping("/upgrade-requests/{requestId}")
     @Operation(summary = "Approve or reject upgrade request", description = "Approve or reject a user upgrade request. Requires admin authentication.")
-    public ResponseEntity<StandardResponseDto> processUpgradeRequest(
+    public ResponseEntity<ApiResponse<StandardResponseDto>> processUpgradeRequest(
             @Parameter(description = "Request ID", required = true)
             @PathVariable @Positive(message = "Request ID must be greater than 0") int requestId,
             @Valid @RequestBody ProcessUpgradeRequestDto requestDto) {
-        
-        int adminId = getUserId();
-        log.info("Process upgrade request - requestId: {}, adminId: {}, action: {}", 
-                requestId, adminId, requestDto.action());
 
-        ApproveUpgradeRequestRequest grpcRequest = ApproveUpgradeRequestRequest.newBuilder()
-                .setRequestId(requestId)
-                .setAdminId(adminId)
-                .setAction(requestDto.action())
-                .setReason(requestDto.reason() != null ? requestDto.reason() : "")
-                .build();
+        int adminId = getUserId();
+        log.info("Process upgrade request [adminId={}] - requestId: {}, action: {}",
+                adminId, requestId, requestDto.action());
+
+        // Validate action
+        if (!requestDto.action().matches("^(approve|reject)$")) {
+            log.warn("Invalid action: {} [adminId={}]", requestDto.action(), adminId);
+            return ResponseEntity.badRequest().body(ApiResponse.badRequest("Action must be 'approve' or 'reject'"));
+        }
 
         try {
+            ApproveUpgradeRequestRequest grpcRequest = ApproveUpgradeRequestRequest.newBuilder()
+                    .setRequestId(requestId)
+                    .setAdminId(adminId)
+                    .setAction(requestDto.action())
+                    .setReason(requestDto.reason() != null ? requestDto.reason() : "")
+                    .build();
+
             var response = adminUserGrpcClient.approveUpgradeRequest(grpcRequest).block();
             if (response == null) {
-                throw new RuntimeException("gRPC response is null");
+                log.error("gRPC response is null [adminId={}]", adminId);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.internalServerError("Failed to process upgrade request"));
             }
-            
+
             StandardResponseDto result = new StandardResponseDto(response.getSuccess(), response.getMessage());
 
-            log.info("Process upgrade request response - success: {}", response.getSuccess());
-            
-            return response.getSuccess() 
-                ? ResponseEntity.ok(result)
-                : ResponseEntity.badRequest().body(result);
+            if (response.getSuccess()) {
+                log.info("Process upgrade request successful [adminId={}, requestId={}, action={}]",
+                        adminId, requestId, requestDto.action());
+                return ResponseEntity.ok(ApiResponse.ok(result));
+            } else {
+                log.warn("Process upgrade request failed [adminId={}, requestId={}, message={}]",
+                        adminId, requestId, response.getMessage());
+                return ResponseEntity.badRequest().body(ApiResponse.badRequest(response.getMessage()));
+            }
         } catch (Exception e) {
-            log.error("Process upgrade request error: {}", e.getMessage(), e);
+            log.error("Process upgrade request error [adminId={}, requestId={}]: {}", adminId, requestId, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new StandardResponseDto(false, "Failed to process upgrade request: " + e.getMessage()));
+                .body(ApiResponse.internalServerError("Failed to process upgrade request: " + e.getMessage()));
         }
     }
 
@@ -387,119 +426,131 @@ public class AdminController {
 
     @PostMapping("/categories")
     @Operation(summary = "Create category", description = "Create a new product category. Requires admin authentication.")
-    public ResponseEntity<CreateCategoryResponseDto> createCategory(
+    public ResponseEntity<ApiResponse<CreateCategoryResponseDto>> createCategory(
             @Valid @RequestBody CreateCategoryRequestDto requestDto) {
-        
-        log.info("Create category request - name: {}, parentId: {}", requestDto.name(), requestDto.parentId());
+
+        int adminId = getUserId();
+        log.info("Create category request [adminId={}] - name: {}, parentId: {}", adminId, requestDto.name(), requestDto.parentId());
 
         // Validate parentId if provided
         if (requestDto.parentId() != null && requestDto.parentId() < 0) {
-            log.error("Invalid parentId value: {}. Must be >= 0", requestDto.parentId());
-            return ResponseEntity.badRequest().body(
-                new CreateCategoryResponseDto(false, "Parent ID must be greater than or equal to 0", null)
-            );
+            log.warn("Invalid parentId: {} [adminId={}]", requestDto.parentId(), adminId);
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.badRequest("Parent ID must be >= 0"));
         }
 
-        CreateCategoryRequest grpcRequest = CreateCategoryRequest.newBuilder()
-                .setName(requestDto.name())
-                .setParentId(requestDto.parentId() != null ? requestDto.parentId() : 0)
-                .build();
-
         try {
+            CreateCategoryRequest grpcRequest = CreateCategoryRequest.newBuilder()
+                    .setName(requestDto.name())
+                    .setParentId(requestDto.parentId() != null ? requestDto.parentId() : 0)
+                    .build();
+
             var response = adminProductGrpcClient.createCategory(grpcRequest).block();
             if (response == null) {
-                throw new RuntimeException("gRPC response is null");
+                log.error("gRPC response is null [adminId={}]", adminId);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.internalServerError("Failed to create category"));
             }
-            
+
             CreateCategoryResponseDto result = new CreateCategoryResponseDto(
                 response.getSuccess(),
                 response.getMessage(),
                 response.getSuccess() ? response.getCategoryId() : null
             );
 
-            log.info("Create category response - success: {}, categoryId: {}", 
-                    response.getSuccess(), response.getCategoryId());
-            
-            return response.getSuccess() 
-                ? ResponseEntity.ok(result)
-                : ResponseEntity.badRequest().body(result);
+            if (response.getSuccess()) {
+                log.info("Create category successful [adminId={}, categoryId={}]", adminId, response.getCategoryId());
+                return ResponseEntity.ok(ApiResponse.ok(result));
+            } else {
+                log.warn("Create category failed [adminId={}, message={}]", adminId, response.getMessage());
+                return ResponseEntity.badRequest().body(ApiResponse.badRequest(response.getMessage()));
+            }
         } catch (Exception e) {
-            log.error("Create category error: {}", e.getMessage(), e);
+            log.error("Create category error [adminId={}]: {}", adminId, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new CreateCategoryResponseDto(false, "Failed to create category: " + e.getMessage(), null));
+                .body(ApiResponse.internalServerError("Failed to create category: " + e.getMessage()));
         }
     }
 
     @PutMapping("/categories/{categoryId}")
     @Operation(summary = "Update category", description = "Update an existing product category. Requires admin authentication.")
-    public ResponseEntity<StandardResponseDto> updateCategory(
+    public ResponseEntity<ApiResponse<StandardResponseDto>> updateCategory(
             @Parameter(description = "Category ID", required = true)
             @PathVariable @Positive(message = "Category ID must be greater than 0") int categoryId,
             @Valid @RequestBody UpdateCategoryRequestDto requestDto) {
-        
-        log.info("Update category request - categoryId: {}, name: {}, parentId: {}", 
-                categoryId, requestDto.name(), requestDto.parentId());
 
-        UpdateCategoryRequest grpcRequest = UpdateCategoryRequest.newBuilder()
-                .setCategoryId(categoryId)
-                .setName(requestDto.name())
-                .setParentId(requestDto.parentId() != null ? requestDto.parentId() : 0)
-                .build();
+        int adminId = getUserId();
+        log.info("Update category request [adminId={}] - categoryId: {}, name: {}, parentId: {}",
+                adminId, categoryId, requestDto.name(), requestDto.parentId());
 
         try {
+            UpdateCategoryRequest grpcRequest = UpdateCategoryRequest.newBuilder()
+                    .setCategoryId(categoryId)
+                    .setName(requestDto.name())
+                    .setParentId(requestDto.parentId() != null ? requestDto.parentId() : 0)
+                    .build();
+
             var response = adminProductGrpcClient.updateCategory(grpcRequest).block();
             if (response == null) {
-                throw new RuntimeException("gRPC response is null");
+                log.error("gRPC response is null [adminId={}]", adminId);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.internalServerError("Failed to update category"));
             }
-            
+
             StandardResponseDto result = new StandardResponseDto(response.getSuccess(), response.getMessage());
 
-            log.info("Update category response - success: {}", response.getSuccess());
-            
-            return response.getSuccess() 
-                ? ResponseEntity.ok(result)
-                : ResponseEntity.badRequest().body(result);
+            if (response.getSuccess()) {
+                log.info("Update category successful [adminId={}, categoryId={}]", adminId, categoryId);
+                return ResponseEntity.ok(ApiResponse.ok(result));
+            } else {
+                log.warn("Update category failed [adminId={}, categoryId={}, message={}]", adminId, categoryId, response.getMessage());
+                return ResponseEntity.badRequest().body(ApiResponse.badRequest(response.getMessage()));
+            }
         } catch (Exception e) {
-            log.error("Update category error: {}", e.getMessage(), e);
+            log.error("Update category error [adminId={}, categoryId={}]: {}", adminId, categoryId, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new StandardResponseDto(false, "Failed to update category: " + e.getMessage()));
+                .body(ApiResponse.internalServerError("Failed to update category: " + e.getMessage()));
         }
     }
 
     @DeleteMapping("/categories/{categoryId}")
     @Operation(summary = "Delete category", description = "Delete a product category. Cannot delete if category has products. Requires admin authentication.")
-    public ResponseEntity<DeleteCategoryResponseDto> deleteCategory(
+    public ResponseEntity<ApiResponse<DeleteCategoryResponseDto>> deleteCategory(
             @Parameter(description = "Category ID", required = true)
             @PathVariable @Positive(message = "Category ID must be greater than 0") int categoryId) {
-        
-        log.info("Delete category request - categoryId: {}", categoryId);
 
-        DeleteCategoryRequest grpcRequest = DeleteCategoryRequest.newBuilder()
-                .setCategoryId(categoryId)
-                .build();
+        int adminId = getUserId();
+        log.info("Delete category request [adminId={}] - categoryId: {}", adminId, categoryId);
 
         try {
+            DeleteCategoryRequest grpcRequest = DeleteCategoryRequest.newBuilder()
+                    .setCategoryId(categoryId)
+                    .build();
+
             var response = adminProductGrpcClient.deleteCategory(grpcRequest).block();
             if (response == null) {
-                throw new RuntimeException("gRPC response is null");
+                log.error("gRPC response is null [adminId={}]", adminId);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.internalServerError("Failed to delete category"));
             }
-            
+
             DeleteCategoryResponseDto result = new DeleteCategoryResponseDto(
                 response.getSuccess(),
                 response.getMessage(),
                 response.getHasProducts()
             );
 
-            log.info("Delete category response - success: {}, hasProducts: {}", 
-                    response.getSuccess(), response.getHasProducts());
-            
-            return response.getSuccess() 
-                ? ResponseEntity.ok(result)
-                : ResponseEntity.badRequest().body(result);
+            if (response.getSuccess()) {
+                log.info("Delete category successful [adminId={}, categoryId={}]", adminId, categoryId);
+                return ResponseEntity.ok(ApiResponse.ok(result));
+            } else {
+                log.warn("Delete category failed [adminId={}, categoryId={}, message={}]", adminId, categoryId, response.getMessage());
+                return ResponseEntity.badRequest().body(ApiResponse.badRequest(response.getMessage()));
+            }
         } catch (Exception e) {
-            log.error("Delete category error: {}", e.getMessage(), e);
+            log.error("Delete category error [adminId={}, categoryId={}]: {}", adminId, categoryId, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new DeleteCategoryResponseDto(false, "Failed to delete category: " + e.getMessage(), false));
+                .body(ApiResponse.internalServerError("Failed to delete category: " + e.getMessage()));
         }
     }
 
@@ -509,43 +560,47 @@ public class AdminController {
 
     @DeleteMapping("/products/{productId}")
     @Operation(summary = "Remove product", description = "Remove/ban a product from the platform. Requires admin authentication.")
-    public ResponseEntity<RemoveProductResponseDto> removeProduct(
+    public ResponseEntity<ApiResponse<RemoveProductResponseDto>> removeProduct(
             @Parameter(description = "Product ID", required = true)
             @PathVariable @Positive(message = "Product ID must be greater than 0") int productId,
             @Valid @RequestBody RemoveProductRequestDto requestDto) {
-        
-        int adminId = getUserId();
-        log.info("Remove product request - productId: {}, adminId: {}, reason: {}", 
-                productId, adminId, requestDto.reason());
 
-        RemoveProductRequest grpcRequest = RemoveProductRequest.newBuilder()
-                .setProductId(productId)
-                .setAdminId(adminId)
-                .setReason(requestDto.reason())
-                .build();
+        int adminId = getUserId();
+        log.info("Remove product request [adminId={}] - productId: {}, reason: {}",
+                adminId, productId, requestDto.reason());
 
         try {
+            RemoveProductRequest grpcRequest = RemoveProductRequest.newBuilder()
+                    .setProductId(productId)
+                    .setAdminId(adminId)
+                    .setReason(requestDto.reason())
+                    .build();
+
             var response = adminProductGrpcClient.removeProduct(grpcRequest).block();
             if (response == null) {
-                throw new RuntimeException("gRPC response is null");
+                log.error("gRPC response is null [adminId={}]", adminId);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.internalServerError("Failed to remove product"));
             }
-            
+
             RemoveProductResponseDto result = new RemoveProductResponseDto(
                 response.getSuccess(),
                 response.getMessage(),
                 response.getSuccess() ? response.getPreviousStatus() : null
             );
 
-            log.info("Remove product response - success: {}, previousStatus: {}", 
-                    response.getSuccess(), response.getPreviousStatus());
-            
-            return response.getSuccess() 
-                ? ResponseEntity.ok(result)
-                : ResponseEntity.badRequest().body(result);
+            if (response.getSuccess()) {
+                log.info("Remove product successful [adminId={}, productId={}, previousStatus={}]",
+                        adminId, productId, response.getPreviousStatus());
+                return ResponseEntity.ok(ApiResponse.ok(result));
+            } else {
+                log.warn("Remove product failed [adminId={}, productId={}, message={}]", adminId, productId, response.getMessage());
+                return ResponseEntity.badRequest().body(ApiResponse.badRequest(response.getMessage()));
+            }
         } catch (Exception e) {
-            log.error("Remove product error: {}", e.getMessage(), e);
+            log.error("Remove product error [adminId={}, productId={}]: {}", adminId, productId, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new RemoveProductResponseDto(false, "Failed to remove product: " + e.getMessage(), null));
+                .body(ApiResponse.internalServerError("Failed to remove product: " + e.getMessage()));
         }
     }
 

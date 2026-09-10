@@ -11,6 +11,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Service;
 
+import com.auction.constants.ServiceConstants;
+
 /**
  * Service for managing auction scheduling
  * Handles auction end scheduling, cancellation, and rescheduling
@@ -18,6 +20,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class AuctionService {
     private static final Logger log = LoggerFactory.getLogger(AuctionService.class);
+    private static final String CONTEXT_PRODUCT_ID = "productId";
+    private static final String CONTEXT_END_TIME = "endTime";
 
     private final TaskScheduler taskScheduler;
     private final Map<Long, ScheduledFuture<?>> jobs = new ConcurrentHashMap<>();
@@ -33,10 +37,10 @@ public class AuctionService {
      * @param task the task to execute when auction ends
      */
     public void scheduleEndAuction(Long productId, Instant endTime, Runnable task) {
-        log.info("Scheduling auction end for product {} at {}", productId, endTime);
+        log.info("Scheduling auction end for product={} at={}", productId, endTime);
         cancel(productId); // Cancel existing job to avoid duplicates
         if (endTime.isBefore(Instant.now())) {
-            log.warn("End time already passed, no executing immediately");
+            log.warn("End time already passed, not executing immediately for productId={}", productId);
             return;
         }
 
