@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import com.auction.entities.msg.RabbitMessage;
 import com.auction.rabbitmq.services.ReactiveRabbitConsumer;
+import com.auction.constants.ServiceConstants;
 
 import jakarta.annotation.PostConstruct;
 import reactor.core.publisher.Mono;
@@ -57,68 +58,105 @@ public class RabbitMQConsumerService {
         log.info("=== RabbitMQ Consumer Started Successfully ===");
     }
     /**
-     * Xử lý RabbitMessage từ queue
-     * Phân loại theo EventType và xử lý tương ứng
+     * Handle RabbitMessage from queue - Routes by EventType
      */
     public Mono<Void> handleRabbitMessage(RabbitMessage message) {
-        log.info("Processing RabbitMessage: eventId={}, eventType={}, userId={}", 
+        log.info("Processing RabbitMessage: eventId={}, eventType={}, userId={}",
             message.getEventId(), message.getEventType(), message.getUserId());
 
         if (message.getPayload() == null || message.getPayload().isEmpty()) {
-            log.error("Invalid payload in message: eventId={}, eventType={}", 
+            log.error("Invalid payload in message: eventId={}, eventType={}",
                 message.getEventId(), message.getEventType());
-            return Mono.error(new IllegalArgumentException("Payload cannot be null or empty"));
+            return Mono.error(new IllegalArgumentException(ServiceConstants.ERROR_INVALID_PAYLOAD));
         }
 
         return (switch (message.getEventType()) {
-            case TASK_SEND_MAIL_OTP -> handleOtpEvent(message);
-            case TASK_SEND_MAIL_RESET_PASSWORD -> handleResetPasswordEvent(message);
-            case TASK_SEND_MAIL_SUCCESS_BID -> handleBidSuccessEvent(message);
-            case TASK_SEND_MAIL_OUTBID -> handleBidOutbidEvent(message);
-            case TASK_SEND_MAIL_ACCOUNT_VIOLATION -> handleAccountViolationEvent(message);
-            case TASK_SEND_MAIL_PRODUCT_BANNED_USER -> handleProductBannedUserEvent(message);
-            case TASK_SEND_MAIL_ENDED_AUCTION -> handleAuctionEndedEvent(message);
-            case TASK_SEND_MAIL_CHANGE_DESCRIPTION -> handleDescriptionChangeEvent(message);
-            case TASK_SEND_NOTIFICATION, TASK_DELETE_NOTIFICATION, TASK_READ_NOTIFICATION -> Mono.empty().then();
+            case TASK_SEND_MAIL_OTP -> {
+                log.debug("Routing to OTP event handler: eventId={}", message.getEventId());
+                yield handleOtpEvent(message);
+            }
+            case TASK_SEND_MAIL_RESET_PASSWORD -> {
+                log.debug("Routing to Reset Password event handler: eventId={}", message.getEventId());
+                yield handleResetPasswordEvent(message);
+            }
+            case TASK_SEND_MAIL_SUCCESS_BID -> {
+                log.debug("Routing to Bid Success event handler: eventId={}", message.getEventId());
+                yield handleBidSuccessEvent(message);
+            }
+            case TASK_SEND_MAIL_OUTBID -> {
+                log.debug("Routing to Bid Outbid event handler: eventId={}", message.getEventId());
+                yield handleBidOutbidEvent(message);
+            }
+            case TASK_SEND_MAIL_ACCOUNT_VIOLATION -> {
+                log.debug("Routing to Account Violation event handler: eventId={}", message.getEventId());
+                yield handleAccountViolationEvent(message);
+            }
+            case TASK_SEND_MAIL_PRODUCT_BANNED_USER -> {
+                log.debug("Routing to Product Banned User event handler: eventId={}", message.getEventId());
+                yield handleProductBannedUserEvent(message);
+            }
+            case TASK_SEND_MAIL_ENDED_AUCTION -> {
+                log.debug("Routing to Auction Ended event handler: eventId={}", message.getEventId());
+                yield handleAuctionEndedEvent(message);
+            }
+            case TASK_SEND_MAIL_CHANGE_DESCRIPTION -> {
+                log.debug("Routing to Description Change event handler: eventId={}", message.getEventId());
+                yield handleDescriptionChangeEvent(message);
+            }
+            case TASK_SEND_NOTIFICATION, TASK_DELETE_NOTIFICATION, TASK_READ_NOTIFICATION -> {
+                log.debug("Skipping notification event: eventId={}, eventType={}",
+                    message.getEventId(), message.getEventType());
+                yield Mono.empty().then();
+            }
         })
-        .doOnError(e -> log.error("Error processing RabbitMessage: eventId={}, error={}", 
-            message.getEventId(), e.getMessage(), e))
-        .onErrorResume(e -> Mono.empty()); // Continue processing even if error
+        .doOnSuccess(v -> log.debug("RabbitMessage processed successfully: eventId={}", message.getEventId()))
+        .doOnError(e -> log.error("Error processing RabbitMessage: eventId={}, eventType={}, error={}",
+            message.getEventId(), message.getEventType(), e.getMessage(), e))
+        .onErrorResume(e -> {
+            log.warn("Continuing despite error processing message: eventId={}", message.getEventId());
+            return Mono.empty();
+        });
     }
 
     /**
-     * Xử lý event OTP verification
+     * Handle OTP verification event
      */
     private Mono<Void> handleOtpEvent(RabbitMessage message) {
         try {
             Map<String, String> payload = message.getPayload();
-            
+
             String email = payload.get("email");
             String userName = payload.get("userName");
             String otp = payload.get("otp");
             String expiryMinutesStr = payload.get("expiryMinutes");
 
             if (email == null || userName == null || otp == null || expiryMinutesStr == null) {
-                log.error("Missing required fields in OTP event: eventId={}", message.getEventId());
-                return Mono.error(new IllegalArgumentException("Missing required fields: email, userName, otp, expiryMinutes"));
+                log.error("Missing required fields in OTP event: eventId={}, email={}, userName={}, otp={}, expiryMinutes={}",
+                    message.getEventId(), email == null, userName == null, otp == null, expiryMinutesStr == null);
+                return Mono.error(new IllegalArgumentException(
+                    String.format(ServiceConstants.ERROR_MISSING_REQUIRED_FIELDS, "OTP")
+                ));
             }
 
             Integer userId = Integer.parseInt(message.getUserId());
             int expiryMinutes = Integer.parseInt(expiryMinutesStr);
 
-            log.debug("Sending OTP email: email={}, userName={}, userId={}", email, userName, userId);
-            
+            log.debug("Sending OTP email: email={}, userId={}, expiryMinutes={}",
+                email, userId, expiryMinutes);
+
             return emailService.sendOtpVerificationEmailWithNotification(
                     email, userId, userName, otp, expiryMinutes
             )
-            .doOnSuccess(v -> log.info("OTP email sent successfully: eventId={}, userId={}", 
-                message.getEventId(), userId));
+            .doOnSuccess(v -> log.info("OTP email sent successfully: eventId={}, userId={}, email={}",
+                message.getEventId(), userId, email))
+            .doOnError(e -> log.error("Error sending OTP email: eventId={}, userId={}, email={}, error={}",
+                message.getEventId(), userId, email, e.getMessage(), e));
         } catch (NumberFormatException e) {
-            log.error("Invalid number format in OTP event: eventId={}, error={}", 
-                message.getEventId(), e.getMessage());
-            return Mono.error(new IllegalArgumentException("Invalid userId or expiryMinutes format", e));
+            log.error("Invalid number format in OTP event: eventId={}, userId={}, error={}",
+                message.getEventId(), message.getUserId(), e.getMessage());
+            return Mono.error(new IllegalArgumentException(ServiceConstants.ERROR_INVALID_NUMBER_FORMAT, e));
         } catch (Exception e) {
-            log.error("Unexpected error in OTP event handler: eventId={}, error={}", 
+            log.error("Unexpected error in OTP event handler: eventId={}, error={}",
                 message.getEventId(), e.getMessage(), e);
             return Mono.error(e);
         }

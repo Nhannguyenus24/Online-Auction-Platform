@@ -1,6 +1,7 @@
 package notification.service;
 
 import com.auction.entities.database.Notification;
+import com.auction.constants.ServiceConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import notification.repository.NotificationRepository;
 
@@ -24,25 +25,37 @@ public class NotificationService {
     }
 
     /**
-     * Lưu notification với JSON payload
+     * Save notification with JSON payload
      */
     public Mono<Void> saveNotificationWithJson(Integer userId, String type, Map<String, Object> payloadMap) {
-        return Mono.fromCallable(() -> objectMapper.writeValueAsString(payloadMap))
-                .flatMap(payload -> {
-                    Notification notification = Notification.builder()
-                            .userId(userId)
-                            .type(type)
-                            .payload(payload)
-                            .isRead(false)
-                            .createdAt(LocalDateTime.now())
-                            .build();
-                    
-                    return notificationRepository.save(notification)
-                            .doOnSuccess(saved -> 
-                                log.info("Notification with JSON saved: userId={}, type={}, id={}", userId, type, saved.getId()))
-                            .doOnError(e -> 
-                                log.error("Failed to save notification: userId={}, type={}, error={}", userId, type, e.getMessage(), e))
-                            .then();
-                });
+        log.debug("Saving notification for userId={}, type={}", userId, type);
+
+        return Mono.fromCallable(() -> {
+            log.debug("Serializing notification payload for userId={}, payloadKeys={}", userId, payloadMap.keySet());
+            return objectMapper.writeValueAsString(payloadMap);
+        })
+        .flatMap(payload -> {
+            Notification notification = Notification.builder()
+                    .userId(userId)
+                    .type(type)
+                    .payload(payload)
+                    .isRead(false)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+
+            log.debug("Persisting notification to database: userId={}, type={}, payloadLength={}",
+                userId, type, payload.length());
+
+            return notificationRepository.save(notification)
+                    .doOnSuccess(saved ->
+                        log.info("Notification saved successfully: userId={}, type={}, id={}, createdAt={}",
+                            userId, type, saved.getId(), saved.getCreatedAt()))
+                    .doOnError(e ->
+                        log.error("Failed to save notification to database: userId={}, type={}, error={}",
+                            userId, type, e.getMessage(), e))
+                    .then();
+        })
+        .doOnError(e -> log.error("Error during notification save process: userId={}, type={}, error={}",
+            userId, type, e.getMessage(), e));
     }
 }

@@ -115,6 +115,14 @@ public final class ServiceConstants {
     public static final int RETRY_DELAY_MS = 1000;
 
     // ============================================================================
+    // NOTIFICATION ERROR MESSAGES
+    // ============================================================================
+    public static final String ERROR_INVALID_PAYLOAD = "Payload cannot be null or empty";
+    public static final String ERROR_MISSING_REQUIRED_FIELDS = "Missing required fields in %s event";
+    public static final String ERROR_INVALID_NUMBER_FORMAT = "Invalid number format in payload";
+    public static final String ERROR_UNEXPECTED_ERROR = "Unexpected error processing message";
+
+    // ============================================================================
     // PRICE LIMITS
     // ============================================================================
     public static final double MAX_PRICE = 1_000_000_000; // 1 billion
