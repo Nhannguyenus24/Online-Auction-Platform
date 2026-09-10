@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 
@@ -77,7 +78,7 @@ public class AuthController {
 
     @PostMapping("/register")
     @Operation(summary = "Register new user", description = "Register a new user account. Returns OTP for email verification.")
-    public Mono<ResponseEntity<Map<String, Object>>> register(@RequestBody com.auction.entities.dto.RegisterRequest request) {
+    public Mono<ResponseEntity<Map<String, Object>>> register(@Valid @RequestBody com.auction.entities.dto.RegisterRequest request) {
         log.info("Register request for email: {}", request.getEmail());
         
         // Validate email

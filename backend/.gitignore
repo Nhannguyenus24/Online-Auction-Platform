@@ -32,3 +32,30 @@ build/
 ### VS Code ###
 .vscode/
 mvnw.cmd
+
+### Environment & Secrets ###
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+*.p12
+*.pfx
+secrets/
+
+### Docker ###
+docker-compose.override.yml
+
+### Logs ###
+*.log
+logs/
+
+### Database ###
+*.db
+*.sqlite
+*.sqlite3
+
+### Temporary files ###
+tmp/
+temp/
+*.tmp

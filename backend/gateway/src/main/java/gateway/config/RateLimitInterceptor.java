@@ -86,21 +86,60 @@ public class RateLimitInterceptor implements HandlerInterceptor {
 
     /**
      * Extracts the client's IP address from the request.
-     * Checks X-Forwarded-For header first (for proxied requests).
+     * Only trusts X-Forwarded-For header if request comes from a known proxy (127.0.0.1, 0:0:0:0:0:0:0:1).
+     * This prevents IP spoofing attacks.
      */
     private String getClientIp(HttpServletRequest request) {
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
-            // X-Forwarded-For can contain multiple IPs, take the first one
-            return xForwardedFor.split(",")[0].trim();
+        String remoteAddr = request.getRemoteAddr();
+
+        // Only trust X-Forwarded-For if request comes from a known proxy
+        if (isTrustedProxy(remoteAddr)) {
+            String xForwardedFor = request.getHeader("X-Forwarded-For");
+            if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
+                // X-Forwarded-For can contain multiple IPs, take the LAST one (actual client)
+                String[] ips = xForwardedFor.split(",");
+                String clientIp = ips[ips.length - 1].trim();
+                if (isValidIpAddress(clientIp)) {
+                    log.debug("Using X-Forwarded-For IP: {} for rate limiting", clientIp);
+                    return clientIp;
+                }
+            }
+
+            String xRealIp = request.getHeader("X-Real-IP");
+            if (xRealIp != null && !xRealIp.isEmpty() && isValidIpAddress(xRealIp)) {
+                log.debug("Using X-Real-IP: {} for rate limiting", xRealIp);
+                return xRealIp;
+            }
         }
 
-        String xRealIp = request.getHeader("X-Real-IP");
-        if (xRealIp != null && !xRealIp.isEmpty()) {
-            return xRealIp;
-        }
+        return remoteAddr;
+    }
 
-        return request.getRemoteAddr();
+    /**
+     * Validates that the given string is a valid IP address
+     */
+    private boolean isValidIpAddress(String ip) {
+        // Simple validation: check if it matches basic IPv4 or IPv6 patterns
+        // IPv4: xxx.xxx.xxx.xxx (each xxx is 0-255)
+        String ipv4Pattern = "^([0-9]{1,3}\\.){3}[0-9]{1,3}$";
+        // IPv6: basic pattern
+        String ipv6Pattern = "^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}$";
+
+        return ip != null && (ip.matches(ipv4Pattern) || ip.matches(ipv6Pattern));
+    }
+
+    /**
+     * Check if the request comes from a trusted proxy (local network only)
+     * Only trust localhost and internal network addresses
+     */
+    private boolean isTrustedProxy(String remoteAddr) {
+        // Only trust localhost, 127.x.x.x, ::1 (IPv6 localhost), and 10.x.x.x (internal)
+        return remoteAddr.equals("127.0.0.1") ||
+               remoteAddr.startsWith("127.") ||
+               remoteAddr.equals("::1") ||
+               remoteAddr.startsWith("10.") ||
+               remoteAddr.startsWith("192.168.") ||
+               remoteAddr.startsWith("172.16.");
     }
 
     /**

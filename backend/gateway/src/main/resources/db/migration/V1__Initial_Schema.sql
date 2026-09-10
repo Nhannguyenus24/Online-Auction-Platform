@@ -1,0 +1,4 @@
+-- Database migration script
+-- This is handled by individual microservices
+-- Gateway service does not directly manage database migrations
+-- Each microservice (user, products, notification) manages its own schema
