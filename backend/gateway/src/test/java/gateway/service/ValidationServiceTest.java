@@ -99,7 +99,7 @@ class ValidationServiceTest {
     void testInputSanitization() {
         assertEquals("User", ValidationUtils.sanitizeInput("  User  "));
         assertEquals("test", ValidationUtils.sanitizeInput("test<script>alert('xss')</script>"));
-        assertEquals("emailexample.com", ValidationUtils.sanitizeInput("email@example.com"));
+        assertEquals("email@example.com", ValidationUtils.sanitizeInput("email@example.com"));
         assertNull(ValidationUtils.sanitizeInput(null));
     }
 }

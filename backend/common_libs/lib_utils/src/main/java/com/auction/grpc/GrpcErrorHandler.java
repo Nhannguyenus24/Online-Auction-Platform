@@ -3,6 +3,7 @@ package com.auction.grpc;
 import com.auction.exception.*;
 import io.grpc.Status;
 import io.grpc.StatusException;
+import io.grpc.StatusRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -10,7 +11,7 @@ import org.slf4j.LoggerFactory;
  * Utility class for handling exceptions and mapping them to appropriate gRPC status codes.
  *
  * Provides methods to:
- * - Convert exceptions to gRPC StatusException
+ * - Convert exceptions to gRPC StatusRuntimeException
  * - Map application exceptions to gRPC Status
  * - Handle error logging with context
  * - Create proper error responses with meaningful messages
@@ -23,16 +24,16 @@ public class GrpcErrorHandler {
     }
 
     /**
-     * Converts an exception to a gRPC StatusException.
+     * Converts an exception to a gRPC StatusRuntimeException.
      *
      * Handles both application exceptions and unexpected runtime exceptions.
      * Logs appropriate error levels based on severity.
      *
      * @param exception The exception to convert
      * @param context   Additional context for logging (method name, operation)
-     * @return StatusException with appropriate gRPC Status
+     * @return StatusRuntimeException with appropriate gRPC Status
      */
-    public static StatusException handleException(Throwable exception, String context) {
+    public static StatusRuntimeException handleException(Throwable exception, String context) {
         if (exception instanceof GrpcException) {
             return handleGrpcException((GrpcException) exception, context);
         } else if (exception instanceof ValidationException) {
@@ -51,7 +52,7 @@ public class GrpcErrorHandler {
     /**
      * Handles GrpcException - extracts status and details for logging.
      */
-    private static StatusException handleGrpcException(GrpcException exception, String context) {
+    private static StatusRuntimeException handleGrpcException(GrpcException exception, String context) {
         log.debug("gRPC exception in {}: {} [{}] - {}",
             context, exception.getErrorCode(), exception.getGrpcStatus(), exception.getMessage());
 
@@ -62,13 +63,13 @@ public class GrpcErrorHandler {
             status = status.withCause(new Throwable(exception.getDetails()));
         }
 
-        return status.asException();
+        return status.asRuntimeException();
     }
 
     /**
      * Handles ValidationException - indicates client error in request.
      */
-    private static StatusException handleValidationException(ValidationException exception, String context) {
+    private static StatusRuntimeException handleValidationException(ValidationException exception, String context) {
         String field = exception.getFieldName();
         String message = field != null
             ? String.format("Validation failed for field '%s': %s", field, exception.getMessage())
@@ -78,35 +79,35 @@ public class GrpcErrorHandler {
 
         return exception.getGrpcStatus()
             .withDescription(message)
-            .asException();
+            .asRuntimeException();
     }
 
     /**
      * Handles AuthenticationException - indicates authentication/authorization failure.
      */
-    private static StatusException handleAuthenticationException(AuthenticationException exception, String context) {
+    private static StatusRuntimeException handleAuthenticationException(AuthenticationException exception, String context) {
         log.warn("Authentication failure in {}: {}", context, exception.getMessage());
 
         return exception.getGrpcStatus()
             .withDescription(exception.getMessage())
-            .asException();
+            .asRuntimeException();
     }
 
     /**
      * Handles ResourceNotFoundException - resource not found.
      */
-    private static StatusException handleResourceNotFoundException(ResourceNotFoundException exception, String context) {
+    private static StatusRuntimeException handleResourceNotFoundException(ResourceNotFoundException exception, String context) {
         log.debug("Resource not found in {}: {}", context, exception.getMessage());
 
         return exception.getGrpcStatus()
             .withDescription(exception.getMessage())
-            .asException();
+            .asRuntimeException();
     }
 
     /**
      * Handles ServiceException - service operation failure.
      */
-    private static StatusException handleServiceException(ServiceException exception, String context) {
+    private static StatusRuntimeException handleServiceException(ServiceException exception, String context) {
         if (exception.getErrorType() == ServiceException.ServiceErrorType.INTERNAL_ERROR) {
             log.error("Service error in {}: {}", context, exception.getMessage(), exception.getCause());
         } else {
@@ -120,19 +121,19 @@ public class GrpcErrorHandler {
             status = status.withCause(exception.getCause());
         }
 
-        return status.asException();
+        return status.asRuntimeException();
     }
 
     /**
      * Handles unexpected exceptions - logs as error and returns INTERNAL status.
      */
-    private static StatusException handleUnexpectedException(Throwable exception, String context) {
+    private static StatusRuntimeException handleUnexpectedException(Throwable exception, String context) {
         log.error("Unexpected error in {}: {}", context, exception.getMessage(), exception);
 
         return Status.INTERNAL
             .withDescription("Internal server error: " + exception.getMessage())
             .withCause(exception)
-            .asException();
+            .asRuntimeException();
     }
 
     /**

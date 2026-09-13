@@ -1,5 +1,6 @@
 package com.auction.validator;
 
+import com.auction.constants.AppConstants;
 import com.auction.constants.ValidationConstants;
 import com.auction.dto.ValidationResult;
 import com.auction.exception.ValidationException;
@@ -456,6 +457,68 @@ public class RequestValidator {
     public static String validateOTPAndGetError(String otp) {
         ValidationResult result = validateOTP(otp);
         return result.isValid() ? null : result.getErrorMessage();
+    }
+
+    /**
+     * Checks that a value is present and not only whitespace.
+     *
+     * @param value the value to check
+     * @return true when the value is present and not blank
+     */
+    public static boolean isNotBlank(String value) {
+        return value != null && !value.trim().isEmpty();
+    }
+
+    /**
+     * Checks an optional phone number. A blank value is accepted because the
+     * field is optional; a supplied value must match the expected format.
+     *
+     * @param phoneNumber the phone number to check
+     * @return true when the phone number is absent or valid
+     */
+    public static boolean isValidPhoneNumber(String phoneNumber) {
+        return !isNotBlank(phoneNumber) || validatePhoneNumber(phoneNumber).isValid();
+    }
+
+    /**
+     * Checks that a path variable holds a positive numeric user id.
+     *
+     * @param userId the user id to check
+     * @return true when the user id is a positive integer
+     */
+    public static boolean isValidUserId(String userId) {
+        if (!isNotBlank(userId)) {
+            return false;
+        }
+        try {
+            return Integer.parseInt(userId.trim()) > 0;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Checks 1-based pagination parameters against the configured page size bounds.
+     *
+     * @param page the 1-based page number
+     * @param pageSize the number of items per page
+     * @return true when both parameters are within range
+     */
+    public static boolean isValidPagination(int page, int pageSize) {
+        return page >= 1
+            && pageSize >= AppConstants.MIN_PAGE_SIZE
+            && pageSize <= AppConstants.MAX_PAGE_SIZE;
+    }
+
+    /**
+     * Checks that a new password actually differs from the current one.
+     *
+     * @param oldPassword the current password
+     * @param newPassword the replacement password
+     * @return true when the two passwords differ
+     */
+    public static boolean arePasswordsDifferent(String oldPassword, String newPassword) {
+        return oldPassword == null ? newPassword != null : !oldPassword.equals(newPassword);
     }
 
     /**

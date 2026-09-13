@@ -54,7 +54,8 @@ public class ValidationUtils {
             return null;
         }
         return input.trim()
-                .replaceAll("<[^>]*>", "") // Remove HTML tags
+                .replaceAll("(?is)<(script|style)[^>]*>.*?</\\1>", "") // Remove scriptable blocks with their content
+                .replaceAll("<[^>]*>", "") // Remove remaining HTML tags
                 .replaceAll("[^\\w\\s@.\\-]", ""); // Remove special characters except common ones
     }
 }
