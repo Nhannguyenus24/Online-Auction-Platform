@@ -161,15 +161,12 @@ public class WebSecurityConfig {
                     // Admin endpoints - ADMIN role only
                     .requestMatchers(ConfigConstants.Security.ADMIN_PATH)
                         .hasRole(ConfigConstants.Security.ROLE_ADMIN)
-                        .and()
                     // Seller endpoints - ADMIN or SELLER roles
                     .requestMatchers(ConfigConstants.Security.SELLER_PATH)
                         .hasAnyRole(ConfigConstants.Security.ROLE_ADMIN, ConfigConstants.Security.ROLE_SELLER)
-                        .and()
                     // Bidder endpoints - ADMIN, SELLER, or BIDDER roles
                     .requestMatchers(ConfigConstants.Security.BIDDER_PATH)
                         .hasAnyRole(ConfigConstants.Security.ROLE_ADMIN, ConfigConstants.Security.ROLE_SELLER, ConfigConstants.Security.ROLE_BIDDER)
-                        .and()
 
                     // All other requests require authentication
                     .anyRequest().authenticated();

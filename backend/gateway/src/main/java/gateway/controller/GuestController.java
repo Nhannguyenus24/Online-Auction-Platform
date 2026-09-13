@@ -58,7 +58,7 @@ public class GuestController {
                     .map(response -> {
                         if (!response.getSuccess()) {
                             log.warn("Get categories returned false");
-                            return ResponseEntity.badRequest().body(ApiResponse.badRequest(response.getMessage()));
+                            return ResponseEntity.badRequest().body(ApiResponse.<Map<String, Object>>badRequest(response.getMessage()));
                         }
 
                         List<Map<String, Object>> categories = new ArrayList<>();
@@ -89,17 +89,17 @@ public class GuestController {
                         result.put("categories", categories);
 
                         log.info("Get categories successful - count: {}", categories.size());
-                        return ResponseEntity.ok(ApiResponse.ok(result));
+                        return ResponseEntity.ok(ApiResponse.<Map<String, Object>>ok(result));
                     })
                     .onErrorResume(e -> {
                         log.error("Get categories error: {}", e.getMessage(), e);
                         return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                            .body(ApiResponse.internalServerError("Failed to fetch categories: " + e.getMessage())));
+                            .body(ApiResponse.<Map<String, Object>>internalServerError("Failed to fetch categories: " + e.getMessage())));
                     });
         } catch (Exception e) {
             log.error("Error processing categories request: {}", e.getMessage(), e);
             return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.internalServerError("Error: " + e.getMessage())));
+                .body(ApiResponse.<Map<String, Object>>internalServerError("Error: " + e.getMessage())));
         }
     }
 
@@ -120,24 +120,24 @@ public class GuestController {
                     .map(response -> {
                         if (!response.getSuccess()) {
                             log.warn("Get top ending products returned false");
-                            return ResponseEntity.badRequest().body(ApiResponse.badRequest(response.getMessage()));
+                            return ResponseEntity.badRequest().body(ApiResponse.<Map<String, Object>>badRequest(response.getMessage()));
                         }
 
                         Map<String, Object> result = new HashMap<>();
                         result.put("products", mapProductsList(response));
 
                         log.info("Get top ending products successful, count: {}", response.getProductsCount());
-                        return ResponseEntity.ok(ApiResponse.ok(result));
+                        return ResponseEntity.ok(ApiResponse.<Map<String, Object>>ok(result));
                     })
                     .onErrorResume(e -> {
                         log.error("Get top ending products error: {}", e.getMessage(), e);
                         return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                            .body(ApiResponse.internalServerError("Failed to get top ending products: " + e.getMessage())));
+                            .body(ApiResponse.<Map<String, Object>>internalServerError("Failed to get top ending products: " + e.getMessage())));
                     });
         } catch (Exception e) {
             log.error("Error processing top ending products request: {}", e.getMessage(), e);
             return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.internalServerError("Error: " + e.getMessage())));
+                .body(ApiResponse.<Map<String, Object>>internalServerError("Error: " + e.getMessage())));
         }
     }
 
@@ -158,24 +158,24 @@ public class GuestController {
                     .map(response -> {
                         if (!response.getSuccess()) {
                             log.warn("Get top bid count products returned false");
-                            return ResponseEntity.badRequest().body(ApiResponse.badRequest(response.getMessage()));
+                            return ResponseEntity.badRequest().body(ApiResponse.<Map<String, Object>>badRequest(response.getMessage()));
                         }
 
                         Map<String, Object> result = new HashMap<>();
                         result.put("products", mapProductsList(response));
 
                         log.info("Get top bid count products successful, count: {}", response.getProductsCount());
-                        return ResponseEntity.ok(ApiResponse.ok(result));
+                        return ResponseEntity.ok(ApiResponse.<Map<String, Object>>ok(result));
                     })
                     .onErrorResume(e -> {
                         log.error("Get top bid count products error: {}", e.getMessage(), e);
                         return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                            .body(ApiResponse.internalServerError("Failed to get top bid count products: " + e.getMessage())));
+                            .body(ApiResponse.<Map<String, Object>>internalServerError("Failed to get top bid count products: " + e.getMessage())));
                     });
         } catch (Exception e) {
             log.error("Error processing top bid count products request: {}", e.getMessage(), e);
             return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.internalServerError("Error: " + e.getMessage())));
+                .body(ApiResponse.<Map<String, Object>>internalServerError("Error: " + e.getMessage())));
         }
     }
 
@@ -196,24 +196,24 @@ public class GuestController {
                     .map(response -> {
                         if (!response.getSuccess()) {
                             log.warn("Get top price products returned false");
-                            return ResponseEntity.badRequest().body(ApiResponse.badRequest(response.getMessage()));
+                            return ResponseEntity.badRequest().body(ApiResponse.<Map<String, Object>>badRequest(response.getMessage()));
                         }
 
                         Map<String, Object> result = new HashMap<>();
                         result.put("products", mapProductsList(response));
 
                         log.info("Get top price products successful, count: {}", response.getProductsCount());
-                        return ResponseEntity.ok(ApiResponse.ok(result));
+                        return ResponseEntity.ok(ApiResponse.<Map<String, Object>>ok(result));
                     })
                     .onErrorResume(e -> {
                         log.error("Get top price products error: {}", e.getMessage(), e);
                         return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                            .body(ApiResponse.internalServerError("Failed to get top price products: " + e.getMessage())));
+                            .body(ApiResponse.<Map<String, Object>>internalServerError("Failed to get top price products: " + e.getMessage())));
                     });
         } catch (Exception e) {
             log.error("Error processing top price products request: {}", e.getMessage(), e);
             return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.internalServerError("Error: " + e.getMessage())));
+                .body(ApiResponse.<Map<String, Object>>internalServerError("Error: " + e.getMessage())));
         }
     }
 
@@ -279,7 +279,7 @@ public class GuestController {
                 .map(response -> {
                     if (!response.getSuccess()) {
                         log.warn("List products by category returned false");
-                        return ResponseEntity.badRequest().body(ApiResponse.badRequest(response.getMessage()));
+                        return ResponseEntity.badRequest().body(ApiResponse.<Map<String, Object>>badRequest(response.getMessage()));
                     }
 
                     // Map products
@@ -312,12 +312,12 @@ public class GuestController {
                     }
 
                     log.info("List products by category successful - categoryId: {}, count: {}", categoryId, products.size());
-                    return ResponseEntity.ok(ApiResponse.ok(result));
+                    return ResponseEntity.ok(ApiResponse.<Map<String, Object>>ok(result));
                 })
                 .onErrorResume(e -> {
                     log.error("List products by category error - categoryId: {}: {}", categoryId, e.getMessage(), e);
                     return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                        .body(ApiResponse.internalServerError("Failed to list products: " + e.getMessage())));
+                        .body(ApiResponse.<Map<String, Object>>internalServerError("Failed to list products: " + e.getMessage())));
                 });
     }
 
@@ -377,7 +377,7 @@ public class GuestController {
                 .map(response -> {
                     if (!response.getSuccess()) {
                         log.warn("Search products by name returned false");
-                        return ResponseEntity.badRequest().body(ApiResponse.badRequest(response.getMessage()));
+                        return ResponseEntity.badRequest().body(ApiResponse.<Map<String, Object>>badRequest(response.getMessage()));
                     }
 
                     List<Map<String, Object>> products = new ArrayList<>();
@@ -396,12 +396,12 @@ public class GuestController {
                     result.put("pageInfo", pageInfo);
 
                     log.info("Search products by name successful - keyword: {}, count: {}", searchKeyword, products.size());
-                    return ResponseEntity.ok(ApiResponse.ok(result));
+                    return ResponseEntity.ok(ApiResponse.<Map<String, Object>>ok(result));
                 })
                 .onErrorResume(e -> {
                     log.error("Search products by name error: {}", e.getMessage(), e);
                     return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                        .body(ApiResponse.internalServerError("Failed to search products: " + e.getMessage())));
+                        .body(ApiResponse.<Map<String, Object>>internalServerError("Failed to search products: " + e.getMessage())));
                 });
     }
 

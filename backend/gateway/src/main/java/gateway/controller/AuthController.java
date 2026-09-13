@@ -71,26 +71,26 @@ public class AuthController {
             String emailError = RequestValidator.validateEmailAndGetError(request.getEmail());
             if (emailError != null) {
                 log.warn("Email validation failed for: {} - {}", request.getEmail(), emailError);
-                return ResponseBuilder.monoBadRequest(emailError);
+                return ResponseBuilder.<AuthResponseDto>monoBadRequest(emailError);
             }
 
             // Validate password
             String passwordError = RequestValidator.validatePasswordAndGetError(request.getPassword());
             if (passwordError != null) {
                 log.warn("Password validation failed for: {}", request.getEmail());
-                return ResponseBuilder.monoBadRequest(passwordError);
+                return ResponseBuilder.<AuthResponseDto>monoBadRequest(passwordError);
             }
 
             // Validate fullName
             if (!RequestValidator.isNotBlank(request.getFullName())) {
                 log.warn("Full name is blank for: {}", request.getEmail());
-                return ResponseBuilder.monoBadRequest(ValidationConstants.ERROR_FIELD_REQUIRED);
+                return ResponseBuilder.<AuthResponseDto>monoBadRequest(ValidationConstants.ERROR_FIELD_REQUIRED);
             }
 
             // Validate phoneNumber if provided
             if (!RequestValidator.isValidPhoneNumber(request.getPhoneNumber())) {
                 log.warn("Phone number validation failed for: {}", request.getEmail());
-                return ResponseBuilder.monoBadRequest(ValidationConstants.ERROR_INVALID_PHONE);
+                return ResponseBuilder.<AuthResponseDto>monoBadRequest(ValidationConstants.ERROR_INVALID_PHONE);
             }
 
             RegisterRequest grpcRequest = RegisterRequest.newBuilder()
@@ -111,22 +111,20 @@ public class AuthController {
 
                         if (response.getSuccess()) {
                             log.info("Registration successful for email: {}", request.getEmail());
-                            return ResponseEntity.ok(ResponseBuilder.ok(result));
+                            return ResponseBuilder.<AuthResponseDto>ok(result);
                         } else {
                             log.warn("Registration failed for email: {} - {}", request.getEmail(), response.getMessage());
-                            ApiResponse<AuthResponseDto> errorResponse = ResponseBuilder.badRequest(response.getMessage());
-                            return ResponseEntity.badRequest().body(errorResponse);
+                            return ResponseBuilder.<AuthResponseDto>badRequest(response.getMessage());
                         }
                     })
                     .onErrorResume(e -> {
                         log.error("Register error for email: {}", request.getEmail(), e);
-                        ApiResponse<AuthResponseDto> errorResponse = ResponseBuilder.internalServerError(
+                        return ResponseBuilder.<AuthResponseDto>monoInternalServerError(
                             "Registration failed: " + e.getMessage());
-                        return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse));
                     });
         } catch (Exception e) {
             log.error("Unexpected error during register: {}", e.getMessage(), e);
-            return ResponseBuilder.monoInternalServerError("An unexpected error occurred during registration");
+            return ResponseBuilder.<AuthResponseDto>monoInternalServerError("An unexpected error occurred during registration");
         }
     }
 
@@ -142,13 +140,13 @@ public class AuthController {
             String emailError = RequestValidator.validateEmailAndGetError(request.getEmail());
             if (emailError != null) {
                 log.warn("Email validation failed for: {} - {}", request.getEmail(), emailError);
-                return ResponseBuilder.monoBadRequest(emailError);
+                return ResponseBuilder.<AuthResponseDto>monoBadRequest(emailError);
             }
 
             // Validate password
             if (!RequestValidator.isNotBlank(request.getPassword())) {
                 log.warn("Password is blank for login attempt: {}", request.getEmail());
-                return ResponseBuilder.monoBadRequest(ValidationConstants.ERROR_FIELD_REQUIRED);
+                return ResponseBuilder.<AuthResponseDto>monoBadRequest(ValidationConstants.ERROR_FIELD_REQUIRED);
             }
 
             LoginRequest grpcRequest = LoginRequest.newBuilder()
@@ -160,8 +158,7 @@ public class AuthController {
                     .map(loginResponse -> {
                         if (!loginResponse.getSuccess()) {
                             log.warn("Login failed for email: {} - {}", request.getEmail(), loginResponse.getMessage());
-                            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                                    .body(ResponseBuilder.unauthorized(loginResponse.getMessage()));
+                            return ResponseBuilder.<AuthResponseDto>unauthorized(loginResponse.getMessage());
                         }
 
                         // Set refresh token in httpOnly cookie
@@ -178,15 +175,15 @@ public class AuthController {
                         ));
 
                         log.info("Login successful for user: {}", request.getEmail());
-                        return ResponseEntity.ok(ResponseBuilder.ok("Login successful", result));
+                        return ResponseBuilder.<AuthResponseDto>ok("Login successful", result);
                     })
                     .onErrorResume(e -> {
                         log.error("Login error for email: {}", request.getEmail(), e);
-                        return ResponseBuilder.monoUnauthorized("Login failed: " + e.getMessage());
+                        return ResponseBuilder.<AuthResponseDto>monoUnauthorized("Login failed: " + e.getMessage());
                     });
         } catch (Exception e) {
             log.error("Unexpected error during login: {}", e.getMessage(), e);
-            return ResponseBuilder.monoInternalServerError("An unexpected error occurred during login");
+            return ResponseBuilder.<AuthResponseDto>monoInternalServerError("An unexpected error occurred during login");
         }
     }
 
@@ -202,7 +199,7 @@ public class AuthController {
 
             if (!RequestValidator.isValidToken(refreshToken)) {
                 log.warn("Refresh token not found or invalid");
-                return ResponseBuilder.monoUnauthorized(ValidationConstants.ERROR_FIELD_REQUIRED);
+                return ResponseBuilder.<AuthResponseDto>monoUnauthorized(ValidationConstants.ERROR_FIELD_REQUIRED);
             }
 
             log.info("Refresh token request received");
@@ -215,18 +212,18 @@ public class AuthController {
                     .map(refreshResponse -> {
                         AuthResponseDto result = new AuthResponseDto();
                         result.setAccessToken(refreshResponse.getAccessToken());
-                        result.setExpiresIn(refreshResponse.getAccessTokenExpiresIn());
+                        result.setExpiresIn((int) refreshResponse.getAccessTokenExpiresIn());
 
                         log.info("Token refreshed successfully");
-                        return ResponseEntity.ok(ResponseBuilder.ok("Token refreshed successfully", result));
+                        return ResponseBuilder.<AuthResponseDto>ok("Token refreshed successfully", result);
                     })
                     .onErrorResume(e -> {
                         log.error("Refresh token error: {}", e.getMessage(), e);
-                        return ResponseBuilder.monoUnauthorized("Token refresh failed: " + e.getMessage());
+                        return ResponseBuilder.<AuthResponseDto>monoUnauthorized("Token refresh failed: " + e.getMessage());
                     });
         } catch (Exception e) {
             log.error("Unexpected error during token refresh: {}", e.getMessage(), e);
-            return ResponseBuilder.monoInternalServerError("An unexpected error occurred during token refresh");
+            return ResponseBuilder.<AuthResponseDto>monoInternalServerError("An unexpected error occurred during token refresh");
         }
     }
 
@@ -243,10 +240,10 @@ public class AuthController {
             clearRefreshTokenCookie(response);
 
             log.info("Logout successful");
-            return ResponseBuilder.monoOk("Logged out successfully", null);
+            return ResponseBuilder.<Void>monoOk("Logged out successfully", null);
         } catch (Exception e) {
             log.error("Unexpected error during logout: {}", e.getMessage(), e);
-            return ResponseBuilder.monoInternalServerError("An unexpected error occurred during logout");
+            return ResponseBuilder.<Void>monoInternalServerError("An unexpected error occurred during logout");
         }
     }
 
@@ -260,7 +257,7 @@ public class AuthController {
             String emailError = RequestValidator.validateEmailAndGetError(request.getEmail());
             if (emailError != null) {
                 log.warn("Email validation failed for: {} - {}", request.getEmail(), emailError);
-                return ResponseBuilder.monoBadRequest(emailError);
+                return ResponseBuilder.<Void>monoBadRequest(emailError);
             }
 
             ReproduceOTPRequest grpcRequest = ReproduceOTPRequest.newBuilder()
@@ -271,19 +268,19 @@ public class AuthController {
                     .map(grpcResponse -> {
                         if (grpcResponse.getSuccess()) {
                             log.info("OTP reproduce successful for email: {}", request.getEmail());
-                            return ResponseEntity.ok(ResponseBuilder.ok(grpcResponse.getMessage(), null));
+                            return ResponseBuilder.<Void>ok(grpcResponse.getMessage(), null);
                         } else {
                             log.warn("OTP reproduce failed for email: {} - {}", request.getEmail(), grpcResponse.getMessage());
-                            return ResponseEntity.badRequest().body(ResponseBuilder.badRequest(grpcResponse.getMessage()));
+                            return ResponseBuilder.<Void>badRequest(grpcResponse.getMessage());
                         }
                     })
                     .onErrorResume(e -> {
                         log.error("OTP reproduce error for email: {}", request.getEmail(), e);
-                        return ResponseBuilder.monoBadRequest("OTP reproduce failed: " + e.getMessage());
+                        return ResponseBuilder.<Void>monoBadRequest("OTP reproduce failed: " + e.getMessage());
                     });
         } catch (Exception e) {
             log.error("Unexpected error during OTP reproduce: {}", e.getMessage(), e);
-            return ResponseBuilder.monoInternalServerError("An unexpected error occurred during OTP reproduction");
+            return ResponseBuilder.<Void>monoInternalServerError("An unexpected error occurred during OTP reproduction");
         }
     }
 
@@ -298,14 +295,14 @@ public class AuthController {
             String emailError = RequestValidator.validateEmailAndGetError(request.getEmail());
             if (emailError != null) {
                 log.warn("Email validation failed for: {} - {}", request.getEmail(), emailError);
-                return ResponseBuilder.monoBadRequest(emailError);
+                return ResponseBuilder.<Void>monoBadRequest(emailError);
             }
 
             // Validate OTP
             String otpError = RequestValidator.validateOTPAndGetError(request.getOtp());
             if (otpError != null) {
                 log.warn("OTP validation failed for: {} - {}", request.getEmail(), otpError);
-                return ResponseBuilder.monoBadRequest(otpError);
+                return ResponseBuilder.<Void>monoBadRequest(otpError);
             }
 
             VerifyOTPRequest grpcRequest = VerifyOTPRequest.newBuilder()
@@ -317,19 +314,19 @@ public class AuthController {
                     .map(verifyResponse -> {
                         if (verifyResponse.getSuccess()) {
                             log.info("OTP verification successful for email: {}", request.getEmail());
-                            return ResponseEntity.ok(ResponseBuilder.ok(verifyResponse.getMessage(), null));
+                            return ResponseBuilder.<Void>ok(verifyResponse.getMessage(), null);
                         } else {
                             log.warn("OTP verification failed for email: {} - {}", request.getEmail(), verifyResponse.getMessage());
-                            return ResponseEntity.badRequest().body(ResponseBuilder.badRequest(verifyResponse.getMessage()));
+                            return ResponseBuilder.<Void>badRequest(verifyResponse.getMessage());
                         }
                     })
                     .onErrorResume(e -> {
                         log.error("OTP verification error for email: {}", request.getEmail(), e);
-                        return ResponseBuilder.monoBadRequest("OTP verification failed: " + e.getMessage());
+                        return ResponseBuilder.<Void>monoBadRequest("OTP verification failed: " + e.getMessage());
                     });
         } catch (Exception e) {
             log.error("Unexpected error during OTP verification: {}", e.getMessage(), e);
-            return ResponseBuilder.monoInternalServerError("An unexpected error occurred during OTP verification");
+            return ResponseBuilder.<Void>monoInternalServerError("An unexpected error occurred during OTP verification");
         }
     }
 
@@ -347,20 +344,20 @@ public class AuthController {
             // Validate oldPassword
             if (!RequestValidator.isNotBlank(request.getOldPassword())) {
                 log.warn("Old password is blank for user: {}", userId);
-                return ResponseBuilder.monoBadRequest(ValidationConstants.ERROR_FIELD_REQUIRED);
+                return ResponseBuilder.<Void>monoBadRequest(ValidationConstants.ERROR_FIELD_REQUIRED);
             }
 
             // Validate newPassword
             String passwordError = RequestValidator.validatePasswordAndGetError(request.getNewPassword());
             if (passwordError != null) {
                 log.warn("New password validation failed for user: {}", userId);
-                return ResponseBuilder.monoBadRequest(passwordError);
+                return ResponseBuilder.<Void>monoBadRequest(passwordError);
             }
 
             // Check that old and new password are different
             if (!RequestValidator.arePasswordsDifferent(request.getOldPassword(), request.getNewPassword())) {
                 log.warn("New password same as old password for user: {}", userId);
-                return ResponseBuilder.monoBadRequest("New password must be different from old password");
+                return ResponseBuilder.<Void>monoBadRequest("New password must be different from old password");
             }
 
             ChangePasswordRequest grpcRequest = ChangePasswordRequest.newBuilder()
@@ -373,19 +370,19 @@ public class AuthController {
                     .map(changeResponse -> {
                         if (changeResponse.getSuccess()) {
                             log.info("Password changed successfully for user: {}", userId);
-                            return ResponseEntity.ok(ResponseBuilder.ok(changeResponse.getMessage(), null));
+                            return ResponseBuilder.<Void>ok(changeResponse.getMessage(), null);
                         } else {
                             log.warn("Password change failed for user: {} - {}", userId, changeResponse.getMessage());
-                            return ResponseEntity.badRequest().body(ResponseBuilder.badRequest(changeResponse.getMessage()));
+                            return ResponseBuilder.<Void>badRequest(changeResponse.getMessage());
                         }
                     })
                     .onErrorResume(e -> {
                         log.error("Change password error for user: {}", userId, e);
-                        return ResponseBuilder.monoBadRequest("Password change failed: " + e.getMessage());
+                        return ResponseBuilder.<Void>monoBadRequest("Password change failed: " + e.getMessage());
                     });
         } catch (Exception e) {
             log.error("Unexpected error during password change: {}", e.getMessage(), e);
-            return ResponseBuilder.monoInternalServerError("An unexpected error occurred during password change");
+            return ResponseBuilder.<Void>monoInternalServerError("An unexpected error occurred during password change");
         }
     }
 
@@ -398,7 +395,7 @@ public class AuthController {
             // Validate token
             if (!RequestValidator.isValidToken(token)) {
                 log.warn("Token validation request with missing or empty token");
-                return ResponseBuilder.monoBadRequest(ValidationConstants.ERROR_FIELD_REQUIRED);
+                return ResponseBuilder.<Map<String, Object>>monoBadRequest(ValidationConstants.ERROR_FIELD_REQUIRED);
             }
 
             ValidateTokenRequest grpcRequest = ValidateTokenRequest.newBuilder()
@@ -418,18 +415,18 @@ public class AuthController {
                         }
 
                         log.info("Token validation completed, valid: {}", validateResponse.getIsValid());
-                        return ResponseEntity.ok(ResponseBuilder.ok(result));
+                        return ResponseBuilder.<Map<String, Object>>ok(result);
                     })
                     .onErrorResume(e -> {
                         log.error("Token validation error: {}", e.getMessage(), e);
                         Map<String, Object> error = new HashMap<>();
                         error.put("valid", false);
                         error.put("error", e.getMessage());
-                        return Mono.just(ResponseEntity.ok(ResponseBuilder.ok(error)));
+                        return Mono.just(ResponseBuilder.<Map<String, Object>>ok(error));
                     });
         } catch (Exception e) {
             log.error("Unexpected error during token validation: {}", e.getMessage(), e);
-            return ResponseBuilder.monoInternalServerError("An unexpected error occurred during token validation");
+            return ResponseBuilder.<Map<String, Object>>monoInternalServerError("An unexpected error occurred during token validation");
         }
     }
 
@@ -455,19 +452,19 @@ public class AuthController {
                             result.setProfile(buildProfileMap(profileResponse));
 
                             log.info("Profile retrieved successfully for user: {}", userId);
-                            return ResponseEntity.ok(ResponseBuilder.ok(profileResponse.getMessage(), result));
+                            return ResponseBuilder.<AuthResponseDto>ok(profileResponse.getMessage(), result);
                         } else {
                             log.warn("Profile not found for user: {}", userId);
-                            return ResponseEntity.badRequest().body(ResponseBuilder.badRequest(profileResponse.getMessage()));
+                            return ResponseBuilder.<AuthResponseDto>badRequest(profileResponse.getMessage());
                         }
                     })
                     .onErrorResume(e -> {
                         log.error("Get profile error for user: {}", userId, e);
-                        return ResponseBuilder.monoInternalServerError("Get profile failed: " + e.getMessage());
+                        return ResponseBuilder.<AuthResponseDto>monoInternalServerError("Get profile failed: " + e.getMessage());
                     });
         } catch (Exception e) {
             log.error("Unexpected error getting profile: {}", e.getMessage(), e);
-            return ResponseBuilder.monoInternalServerError("An unexpected error occurred while retrieving profile");
+            return ResponseBuilder.<AuthResponseDto>monoInternalServerError("An unexpected error occurred while retrieving profile");
         }
     }
 
@@ -482,13 +479,13 @@ public class AuthController {
             // Validate userId
             if (!RequestValidator.isNotBlank(userId)) {
                 log.warn("User ID is blank in getProfileById request");
-                return ResponseBuilder.monoBadRequest(ValidationConstants.ERROR_FIELD_REQUIRED);
+                return ResponseBuilder.<AuthResponseDto>monoBadRequest(ValidationConstants.ERROR_FIELD_REQUIRED);
             }
 
             // Validate userId is numeric
             if (!RequestValidator.isValidUserId(userId)) {
                 log.warn("Invalid user ID format: {}", userId);
-                return ResponseBuilder.monoBadRequest("Invalid user ID format");
+                return ResponseBuilder.<AuthResponseDto>monoBadRequest("Invalid user ID format");
             }
 
             GetProfileRequest grpcRequest = GetProfileRequest.newBuilder()
@@ -502,22 +499,21 @@ public class AuthController {
                             result.setProfile(buildProfileMapWithReviews(profileResponse));
 
                             log.info("Public profile retrieved successfully for user ID: {}", userId);
-                            return ResponseEntity.ok(ResponseBuilder.ok(profileResponse.getMessage(), result));
+                            return ResponseBuilder.<AuthResponseDto>ok(profileResponse.getMessage(), result);
                         } else {
                             String message = profileResponse.getMessage() != null && !profileResponse.getMessage().isEmpty()
                                 ? profileResponse.getMessage() : "User not found";
                             log.warn("Profile not found for user ID: {} - {}", userId, message);
-                            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                                    .body(ResponseBuilder.notFound(message));
+                            return ResponseBuilder.<AuthResponseDto>notFound(message);
                         }
                     })
                     .onErrorResume(e -> {
                         log.error("Get public profile error for user ID: {}", userId, e);
-                        return ResponseBuilder.monoInternalServerError("Get profile failed: " + e.getMessage());
+                        return ResponseBuilder.<AuthResponseDto>monoInternalServerError("Get profile failed: " + e.getMessage());
                     });
         } catch (Exception e) {
             log.error("Unexpected error getting public profile for user ID: {}", userId, e);
-            return ResponseBuilder.monoInternalServerError("An unexpected error occurred while retrieving profile");
+            return ResponseBuilder.<AuthResponseDto>monoInternalServerError("An unexpected error occurred while retrieving profile");
         }
     }
 
@@ -534,7 +530,7 @@ public class AuthController {
             // Validate userId
             if (!RequestValidator.isNotBlank(userId)) {
                 log.warn("User ID is blank in getUserRatingsById request");
-                return ResponseBuilder.monoBadRequest(ValidationConstants.ERROR_FIELD_REQUIRED);
+                return ResponseBuilder.<Map<String, Object>>monoBadRequest(ValidationConstants.ERROR_FIELD_REQUIRED);
             }
 
             // Validate userId is numeric
@@ -543,13 +539,13 @@ public class AuthController {
                 userIdInt = Integer.parseInt(userId);
             } catch (NumberFormatException e) {
                 log.warn("Invalid user ID format: {}", userId);
-                return ResponseBuilder.monoBadRequest("Invalid user ID format");
+                return ResponseBuilder.<Map<String, Object>>monoBadRequest("Invalid user ID format");
             }
 
             // Validate pagination
             if (!RequestValidator.isValidPagination(page, pageSize)) {
                 log.warn("Invalid pagination parameters for user ID: {} - page: {}, pageSize: {}", userId, page, pageSize);
-                return ResponseBuilder.monoBadRequest("Invalid page or pageSize");
+                return ResponseBuilder.<Map<String, Object>>monoBadRequest("Invalid page or pageSize");
             }
 
             GetUserRatingsRequest grpcRequest = GetUserRatingsRequest.newBuilder()
@@ -582,15 +578,15 @@ public class AuthController {
                         result.put("ratings", ratings);
 
                         log.info("Public user ratings retrieved successfully for user ID: {}, total: {}", userId, ratingsResponse.getTotalRatings());
-                        return ResponseEntity.ok(ResponseBuilder.ok(result));
+                        return ResponseBuilder.<Map<String, Object>>ok(result);
                     })
                     .onErrorResume(e -> {
                         log.error("Get public user ratings error for user ID: {}", userId, e);
-                        return ResponseBuilder.monoInternalServerError("Get ratings failed: " + e.getMessage());
+                        return ResponseBuilder.<Map<String, Object>>monoInternalServerError("Get ratings failed: " + e.getMessage());
                     });
         } catch (Exception e) {
             log.error("Unexpected error getting user ratings for user ID: {}", userId, e);
-            return ResponseBuilder.monoInternalServerError("An unexpected error occurred while retrieving ratings");
+            return ResponseBuilder.<Map<String, Object>>monoInternalServerError("An unexpected error occurred while retrieving ratings");
         }
     }
 
@@ -609,19 +605,19 @@ public class AuthController {
             // Validate fullName if provided
             if (request.getFullName() != null && !RequestValidator.isNotBlank(request.getFullName())) {
                 log.warn("Full name is blank for user: {}", userId);
-                return ResponseBuilder.monoBadRequest(ValidationConstants.ERROR_FIELD_REQUIRED);
+                return ResponseBuilder.<AuthResponseDto>monoBadRequest(ValidationConstants.ERROR_FIELD_REQUIRED);
             }
 
             // Validate phoneNumber if provided
             if (!RequestValidator.isValidPhoneNumber(request.getPhoneNumber())) {
                 log.warn("Phone number validation failed for user: {}", userId);
-                return ResponseBuilder.monoBadRequest(ValidationConstants.ERROR_INVALID_PHONE);
+                return ResponseBuilder.<AuthResponseDto>monoBadRequest(ValidationConstants.ERROR_INVALID_PHONE);
             }
 
             // Validate address if provided
             if (request.getAddress() != null && !RequestValidator.isNotBlank(request.getAddress())) {
                 log.warn("Address is blank for user: {}", userId);
-                return ResponseBuilder.monoBadRequest(ValidationConstants.ERROR_FIELD_REQUIRED);
+                return ResponseBuilder.<AuthResponseDto>monoBadRequest(ValidationConstants.ERROR_FIELD_REQUIRED);
             }
 
             UpdateProfileRequest grpcRequest = UpdateProfileRequest.newBuilder()
@@ -639,19 +635,19 @@ public class AuthController {
                             result.setProfile(buildProfileMap(profile));
 
                             log.info("Profile updated successfully for user: {}", userId);
-                            return ResponseEntity.ok(ResponseBuilder.ok(updateResponse.getMessage(), result));
+                            return ResponseBuilder.<AuthResponseDto>ok(updateResponse.getMessage(), result);
                         } else {
                             log.warn("Profile update failed for user: {} - {}", userId, updateResponse.getMessage());
-                            return ResponseEntity.badRequest().body(ResponseBuilder.badRequest(updateResponse.getMessage()));
+                            return ResponseBuilder.<AuthResponseDto>badRequest(updateResponse.getMessage());
                         }
                     })
                     .onErrorResume(e -> {
                         log.error("Update profile error for user: {}", userId, e);
-                        return ResponseBuilder.monoInternalServerError("Update profile failed: " + e.getMessage());
+                        return ResponseBuilder.<AuthResponseDto>monoInternalServerError("Update profile failed: " + e.getMessage());
                     });
         } catch (Exception e) {
             log.error("Unexpected error updating profile: {}", e.getMessage(), e);
-            return ResponseBuilder.monoInternalServerError("An unexpected error occurred while updating profile");
+            return ResponseBuilder.<AuthResponseDto>monoInternalServerError("An unexpected error occurred while updating profile");
         }
     }
 
@@ -667,7 +663,7 @@ public class AuthController {
             // Validate googleIdToken
             if (!RequestValidator.isValidToken(request.getGoogleIdToken())) {
                 log.warn("Google ID token is required or invalid");
-                return ResponseBuilder.monoBadRequest(ValidationConstants.ERROR_FIELD_REQUIRED);
+                return ResponseBuilder.<AuthResponseDto>monoBadRequest(ValidationConstants.ERROR_FIELD_REQUIRED);
             }
 
             // Verify Google ID token and get profile information
@@ -699,20 +695,20 @@ public class AuthController {
                                     ));
 
                                     log.info("Google login successful for user: {}", googleProfile.getEmail());
-                                    return ResponseEntity.ok(ResponseBuilder.ok("Google login successful", result));
+                                    return ResponseBuilder.<AuthResponseDto>ok("Google login successful", result);
                                 })
                                 .onErrorResume(e -> {
                                     log.error("gRPC login error for Google auth: {}", e.getMessage(), e);
-                                    return ResponseBuilder.monoUnauthorized("Login failed: " + e.getMessage());
+                                    return ResponseBuilder.<AuthResponseDto>monoUnauthorized("Login failed: " + e.getMessage());
                                 });
                     })
                     .onErrorResume(e -> {
                         log.error("Google OAuth verification failed: {}", e.getMessage(), e);
-                        return ResponseBuilder.monoUnauthorized("Google authentication failed: " + e.getMessage());
+                        return ResponseBuilder.<AuthResponseDto>monoUnauthorized("Google authentication failed: " + e.getMessage());
                     });
         } catch (Exception e) {
             log.error("Unexpected error during Google login: {}", e.getMessage(), e);
-            return ResponseBuilder.monoInternalServerError("An unexpected error occurred during Google login");
+            return ResponseBuilder.<AuthResponseDto>monoInternalServerError("An unexpected error occurred during Google login");
         }
     }
 
@@ -728,7 +724,7 @@ public class AuthController {
             String emailError = RequestValidator.validateEmailAndGetError(request.getEmail());
             if (emailError != null) {
                 log.warn("Email validation failed for: {} - {}", request.getEmail(), emailError);
-                return ResponseBuilder.monoBadRequest(emailError);
+                return ResponseBuilder.<Void>monoBadRequest(emailError);
             }
 
             ForgotPasswordRequest grpcRequest = ForgotPasswordRequest.newBuilder()
@@ -739,19 +735,19 @@ public class AuthController {
                     .map(grpcResponse -> {
                         if (grpcResponse.getSuccess()) {
                             log.info("Forgot password OTP sent successfully for: {}", request.getEmail());
-                            return ResponseEntity.ok(ResponseBuilder.ok(grpcResponse.getMessage(), null));
+                            return ResponseBuilder.<Void>ok(grpcResponse.getMessage(), null);
                         } else {
                             log.warn("Forgot password failed for email: {} - {}", request.getEmail(), grpcResponse.getMessage());
-                            return ResponseEntity.badRequest().body(ResponseBuilder.badRequest(grpcResponse.getMessage()));
+                            return ResponseBuilder.<Void>badRequest(grpcResponse.getMessage());
                         }
                     })
                     .onErrorResume(e -> {
                         log.error("Forgot password error for email: {}", request.getEmail(), e);
-                        return ResponseBuilder.monoBadRequest("Forgot password failed: " + e.getMessage());
+                        return ResponseBuilder.<Void>monoBadRequest("Forgot password failed: " + e.getMessage());
                     });
         } catch (Exception e) {
             log.error("Unexpected error during forgot password: {}", e.getMessage(), e);
-            return ResponseBuilder.monoInternalServerError("An unexpected error occurred during password reset request");
+            return ResponseBuilder.<Void>monoInternalServerError("An unexpected error occurred during password reset request");
         }
     }
 
@@ -767,21 +763,21 @@ public class AuthController {
             String emailError = RequestValidator.validateEmailAndGetError(request.getEmail());
             if (emailError != null) {
                 log.warn("Email validation failed for: {} - {}", request.getEmail(), emailError);
-                return ResponseBuilder.monoBadRequest(emailError);
+                return ResponseBuilder.<Void>monoBadRequest(emailError);
             }
 
             // Validate OTP
             String otpError = RequestValidator.validateOTPAndGetError(request.getOtp());
             if (otpError != null) {
                 log.warn("OTP validation failed for: {} - {}", request.getEmail(), otpError);
-                return ResponseBuilder.monoBadRequest(otpError);
+                return ResponseBuilder.<Void>monoBadRequest(otpError);
             }
 
             // Validate newPassword
             String passwordError = RequestValidator.validatePasswordAndGetError(request.getNewPassword());
             if (passwordError != null) {
                 log.warn("New password validation failed for: {}", request.getEmail());
-                return ResponseBuilder.monoBadRequest(passwordError);
+                return ResponseBuilder.<Void>monoBadRequest(passwordError);
             }
 
             ResetPasswordRequest grpcRequest = ResetPasswordRequest.newBuilder()
@@ -794,19 +790,19 @@ public class AuthController {
                     .map(grpcResponse -> {
                         if (grpcResponse.getSuccess()) {
                             log.info("Password reset successfully for: {}", request.getEmail());
-                            return ResponseEntity.ok(ResponseBuilder.ok(grpcResponse.getMessage(), null));
+                            return ResponseBuilder.<Void>ok(grpcResponse.getMessage(), null);
                         } else {
                             log.warn("Password reset failed for email: {} - {}", request.getEmail(), grpcResponse.getMessage());
-                            return ResponseEntity.badRequest().body(ResponseBuilder.badRequest(grpcResponse.getMessage()));
+                            return ResponseBuilder.<Void>badRequest(grpcResponse.getMessage());
                         }
                     })
                     .onErrorResume(e -> {
                         log.error("Reset password error for email: {}", request.getEmail(), e);
-                        return ResponseBuilder.monoBadRequest("Reset password failed: " + e.getMessage());
+                        return ResponseBuilder.<Void>monoBadRequest("Reset password failed: " + e.getMessage());
                     });
         } catch (Exception e) {
             log.error("Unexpected error during password reset: {}", e.getMessage(), e);
-            return ResponseBuilder.monoInternalServerError("An unexpected error occurred during password reset");
+            return ResponseBuilder.<Void>monoInternalServerError("An unexpected error occurred during password reset");
         }
     }
 

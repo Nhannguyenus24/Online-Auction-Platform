@@ -63,7 +63,7 @@ public class AdminProductGrpcClient {
                     .usePlaintext()
                     .keepAliveTime(GrpcConstants.KEEP_ALIVE_TIME_SECONDS, TimeUnit.SECONDS)
                     .keepAliveTimeout(GrpcConstants.KEEP_ALIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-                    .maxIdleTime(GrpcConstants.CHANNEL_IDLE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                    .idleTimeout(GrpcConstants.CHANNEL_IDLE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                     .build();
 
             adminProductServiceStub = ReactorAdminProductServiceGrpc.newReactorStub(channel);
