@@ -107,9 +107,11 @@ mvn -B -ntp -pl <module> test                            # run its tests
 
 `@SpringBootTest` context tests need real infrastructure, so the job starts
 MySQL 8.0, Redis 7.2 and RabbitMQ 3.13 service containers with the same
-credentials as [`docker-compose.yml`](../docker-compose.yml), and loads
-[`docs/mysqldb.sql`](../docs/mysqldb.sql) before the tests run. Surefire reports
-are uploaded as artifacts and summarised in the job summary.
+credentials as [`docker-compose.yml`](../docker-compose.yml), loads
+[`docs/mysqldb.sql`](../docs/mysqldb.sql) and declares the `dev` queue the
+notification consumer subscribes to on startup. Surefire reports are uploaded
+as artifacts and summarised in the job summary. `-Dsurefire.timeout=600` caps a
+hung test at ten minutes instead of letting it burn the job timeout.
 
 The frontend job runs `npm ci --legacy-peer-deps`, `npm run lint` and
 `npm run build`. `--legacy-peer-deps` is required because `react-helmet-async`

@@ -1,5 +1,6 @@
 package notification.service;
 
+import java.time.Duration;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -13,6 +14,7 @@ import com.auction.constants.ServiceConstants;
 
 import jakarta.annotation.PostConstruct;
 import reactor.core.publisher.Mono;
+import reactor.util.retry.Retry;
 
 /**
  * RabbitMQ Message Consumer Service
@@ -21,6 +23,8 @@ import reactor.core.publisher.Mono;
 @Service
 public class RabbitMQConsumerService {
     private static final Logger log = LoggerFactory.getLogger(RabbitMQConsumerService.class);
+    private static final Duration RETRY_MIN_BACKOFF = Duration.ofSeconds(5);
+    private static final Duration RETRY_MAX_BACKOFF = Duration.ofMinutes(1);
     private final ReactiveRabbitConsumer rabbitConsumer;
     private final EmailService emailService;
     
@@ -48,7 +52,12 @@ public class RabbitMQConsumerService {
             .doOnNext(v -> log.debug("Message processed successfully"))
             .doOnError(e -> log.error("Error in RabbitMQ consumer: {}", e.getMessage(), e))
             .doOnComplete(() -> log.warn("RabbitMQ consumer completed (should not happen)"))
-            .retry()
+            // A bare retry() resubscribes immediately, so a missing queue or an
+            // unreachable broker spins on the calling thread. Back off instead.
+            .retryWhen(Retry.backoff(Long.MAX_VALUE, RETRY_MIN_BACKOFF)
+                .maxBackoff(RETRY_MAX_BACKOFF)
+                .doBeforeRetry(signal -> log.warn("Retrying RabbitMQ consumer after {} failure(s)",
+                    signal.totalRetries() + 1)))
             .subscribe(
                 null,
                 error -> log.error("Fatal error in RabbitMQ consumer subscription: {}", error.getMessage(), error),

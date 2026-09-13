@@ -208,6 +208,7 @@ jobs:
           RABBITMQ_DEFAULT_PASS: admin123
         ports:
           - 5672:5672
+          - 15672:15672
         options: >-
           --health-cmd="rabbitmq-diagnostics -q ping"
           --health-interval=10s
@@ -244,11 +245,22 @@ jobs:
             sh -c 'mysql -h 127.0.0.1 -P 3306 -uroot -proot123 mydb < /sql/mysqldb.sql'
           echo "Schema loaded into mydb"
 
+      - name: Declare the notification queue
+        run: |
+          set -euo pipefail
+          # The consumer subscribes on startup, so the queue has to exist before
+          # a context test boots or the subscription fails.
+          curl -sS -u admin:admin123 -X PUT \
+            -H 'content-type: application/json' \
+            -d '{"durable": true}' \
+            http://localhost:15672/api/queues/%2F/dev
+          echo "Declared queue 'dev'"
+
       - name: Compile ${{ matrix.module }} and its dependencies
         run: mvn $MVN_FLAGS -pl '${{ matrix.module }}' -am -DskipTests clean install
 
       - name: Run tests for ${{ matrix.module }}
-        run: mvn $MVN_FLAGS -pl '${{ matrix.module }}' test
+        run: mvn $MVN_FLAGS -pl '${{ matrix.module }}' test -Dsurefire.timeout=600
 
       - name: Summarise test results
         if: always()
