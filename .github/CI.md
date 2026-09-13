@@ -8,9 +8,10 @@ Phase 1 answers four questions before any code is merged:
 | 1 | `commit-lint` | Do the commit messages follow the convention? | [`validate-commit-msg.sh`](scripts/validate-commit-msg.sh) |
 | 2 | `up-to-date` | Is the branch built on the latest base and conflict free? | [`check-up-to-date.sh`](scripts/check-up-to-date.sh) |
 | 3 | `detect-changes` | Which components does the change touch? | [`detect-changes.sh`](scripts/detect-changes.sh) |
-| 4 | `backend` | Does the affected backend code compile and do its tests pass? | maven |
-| 5 | `frontend` | Does the SPA lint and build? | npm |
-| 6 | `ci-status` | Aggregated result — use this as the required status check. | — |
+| 4 | `common-libs` | Do the shared libraries pass their unit tests? | maven |
+| 5 | `backend` | Does the affected backend code compile and do its tests pass? | maven |
+| 6 | `frontend` | Does the SPA lint and build? | npm |
+| 7 | `ci-status` | Aggregated result — use this as the required status check. | — |
 
 Every script is plain bash and can be run locally, exactly as CI runs it.
 
@@ -86,7 +87,7 @@ that must be rebuilt, so a frontend-only change never waits for a backend build.
 | Changed path | Effect |
 | --- | --- |
 | `backend/<service>/**` | build and test that service only |
-| `backend/common_libs/**` | shared code — build and test **all** services |
+| `backend/common_libs/**` | shared code — test the libraries and build **all** services |
 | `backend/pom.xml`, `backend/Dockerfile` | build and test **all** services |
 | `.github/workflows/**`, `.github/scripts/**` | full backend build, to validate the pipeline itself |
 | `frontend/**` | lint and build the SPA |
@@ -97,6 +98,17 @@ that must be rebuilt, so a frontend-only change never waits for a backend build.
 ```
 
 ## 4. Compile and test
+
+The shared libraries under `backend/common_libs` are unit tested on their own,
+without any infrastructure:
+
+```bash
+mvn -B -ntp -f common_libs/pom.xml test
+```
+
+That job runs whenever `common_libs` is touched, or whenever something forces a
+full build. It is separate from the backend matrix because the matrix runs
+`-pl <service> test`, which never reaches the library modules.
 
 The backend job runs once per affected module, in parallel:
 

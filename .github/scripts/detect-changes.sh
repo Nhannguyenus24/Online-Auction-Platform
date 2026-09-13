@@ -13,6 +13,7 @@
 #   backend          true when any backend module must be built
 #   frontend         true when the frontend must be built
 #   modules          JSON array of maven modules to build, e.g. ["gateway","user"]
+#   common_libs      true when the shared libraries must be built and tested
 #   components       comma separated list of components touched
 #   build_all        true when a shared change forces every backend module
 #
@@ -101,6 +102,13 @@ backend=false
 frontend=false
 case " $COMPONENTS " in *" frontend "*) frontend=true ;; esac
 
+# The shared libraries are also rebuilt whenever something forces a full build.
+common_libs=false
+case " $COMPONENTS " in *" common_libs "*) common_libs=true ;; esac
+if [ "$BUILD_ALL" = true ]; then
+  common_libs=true
+fi
+
 component_list=$(printf '%s\n' $COMPONENTS | sort -u | paste -sd',' -)
 [ -z "$component_list" ] && component_list='none'
 
@@ -108,6 +116,7 @@ echo "Diff range      : ${BASE}..${HEAD}"
 echo "Changed files   : ${file_count}"
 echo "Components      : ${component_list}"
 echo "Backend modules : ${modules_json}"
+echo "Common libs     : ${common_libs}"
 echo "Frontend        : ${frontend}"
 echo "Full backend    : ${BUILD_ALL}"
 echo
@@ -119,6 +128,7 @@ if [ -n "${GITHUB_OUTPUT:-}" ]; then
     echo "changed_files=${file_count}"
     echo "backend=${backend}"
     echo "frontend=${frontend}"
+    echo "common_libs=${common_libs}"
     echo "modules=${modules_json}"
     echo "components=${component_list}"
     echo "build_all=${BUILD_ALL}"
@@ -134,6 +144,7 @@ if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
     echo "| Changed files | ${file_count} |"
     echo "| Components | \`${component_list}\` |"
     echo "| Backend modules | \`${modules_json}\` |"
+    echo "| Common libraries | ${common_libs} |"
     echo "| Frontend build | ${frontend} |"
   } >> "$GITHUB_STEP_SUMMARY"
 fi

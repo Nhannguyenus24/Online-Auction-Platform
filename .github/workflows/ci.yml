@@ -3,9 +3,10 @@
 #   1. commit-lint     - commit messages follow docs/COMMIT_RULES.md
 #   2. up-to-date      - the branch is built on the latest base and merges cleanly
 #   3. detect-changes  - work out which components the change touches
-#   4. backend         - compile + test only the affected maven modules
-#   5. frontend        - lint + build the SPA when it is affected
-#   6. ci-status       - single required check that aggregates the above
+#   4. common-libs     - unit tests for the shared libraries
+#   5. backend         - compile + test only the affected maven modules
+#   6. frontend        - lint + build the SPA when it is affected
+#   7. ci-status       - single required check that aggregates the above
 name: CI
 
 on:
@@ -124,6 +125,7 @@ jobs:
     outputs:
       backend: ${{ steps.detect.outputs.backend }}
       frontend: ${{ steps.detect.outputs.frontend }}
+      common_libs: ${{ steps.detect.outputs.common_libs }}
       modules: ${{ steps.detect.outputs.modules }}
       components: ${{ steps.detect.outputs.components }}
       build_all: ${{ steps.detect.outputs.build_all }}
@@ -161,10 +163,69 @@ jobs:
         run: .github/scripts/detect-changes.sh '${{ steps.range.outputs.base }}' HEAD
 
   # ---------------------------------------------------------------------------
-  # 4. Backend: compile and test every affected maven module
+  # 4. Shared libraries: pure unit tests, no infrastructure needed
+  # ---------------------------------------------------------------------------
+  common-libs:
+    name: 4 · Common libraries
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: detect-changes
+    if: needs.detect-changes.outputs.common_libs == 'true'
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          cache: maven
+
+      - name: Compile and test the shared libraries
+        run: mvn $MVN_FLAGS -f common_libs/pom.xml test -Dsurefire.timeout=600
+
+      - name: Summarise test results
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import glob, os, xml.etree.ElementTree as ET
+
+          rows, totals = [], [0, 0, 0, 0]
+          for path in sorted(glob.glob("common_libs/*/target/surefire-reports/TEST-*.xml")):
+              suite = ET.parse(path).getroot()
+              counts = [int(suite.get(k, 0)) for k in ("tests", "failures", "errors", "skipped")]
+              totals = [a + b for a, b in zip(totals, counts)]
+              rows.append((suite.get("name", os.path.basename(path)), counts))
+
+          lines = ["### Common libraries", ""]
+          if not rows:
+              lines.append("No test reports produced.")
+          else:
+              lines += ["| Test class | Tests | Failures | Errors | Skipped |", "| --- | ---: | ---: | ---: | ---: |"]
+              lines += [f"| {name} | " + " | ".join(str(c) for c in counts) + " |" for name, counts in rows]
+              lines.append("| **Total** | " + " | ".join(f"**{t}**" for t in totals) + " |")
+
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as fh:
+              fh.write("\n".join(lines) + "\n\n")
+          PY
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports-common-libs
+          path: backend/common_libs/*/target/surefire-reports/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------
+  # 5. Backend: compile and test every affected maven module
   # ---------------------------------------------------------------------------
   backend:
-    name: 4 · Backend (${{ matrix.module }})
+    name: 5 · Backend (${{ matrix.module }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: detect-changes
@@ -298,10 +359,10 @@ jobs:
           if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------
-  # 5. Frontend: lint and build
+  # 6. Frontend: lint and build
   # ---------------------------------------------------------------------------
   frontend:
-    name: 5 · Frontend
+    name: 6 · Frontend
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: detect-changes
@@ -338,13 +399,13 @@ jobs:
         run: npm run build
 
   # ---------------------------------------------------------------------------
-  # 6. Aggregate result - set this one as the required status check
+  # 7. Aggregate result - set this one as the required status check
   # ---------------------------------------------------------------------------
   ci-status:
     name: CI status
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [commit-lint, up-to-date, detect-changes, backend, frontend]
+    needs: [commit-lint, up-to-date, detect-changes, common-libs, backend, frontend]
     if: always()
     steps:
       - name: Report
@@ -354,6 +415,7 @@ jobs:
             [commit-lint]='${{ needs.commit-lint.result }}'
             [up-to-date]='${{ needs.up-to-date.result }}'
             [detect-changes]='${{ needs.detect-changes.result }}'
+            [common-libs]='${{ needs.common-libs.result }}'
             [backend]='${{ needs.backend.result }}'
             [frontend]='${{ needs.frontend.result }}'
           )
@@ -364,7 +426,7 @@ jobs:
             echo "| Stage | Result |"
             echo "| --- | --- |"
           } >> "$GITHUB_STEP_SUMMARY"
-          for job in commit-lint up-to-date detect-changes backend frontend; do
+          for job in commit-lint up-to-date detect-changes common-libs backend frontend; do
             result=${results[$job]}
             case $result in
               success)          icon='✅' ;;
