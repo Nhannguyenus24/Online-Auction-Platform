@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import reactor.core.publisher.Mono;
 
 /**
  * Fluent builder for constructing API responses with proper HTTP status codes and messages.
@@ -206,6 +207,75 @@ public class ResponseBuilder<T> {
     public static <T> ResponseEntity<ApiResponse<T>> serviceUnavailable(String message) {
         ApiResponse<T> response = new ApiResponse<>(false, 503, message);
         return new ResponseEntity<>(response, HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
+    // ==================== Reactive Response Methods ====================
+
+    /**
+     * Builds a successful response (HTTP 200 OK) wrapped in a Mono.
+     *
+     * @param message the success message
+     * @param data the response data
+     * @param <T> the type of the response data
+     * @return Mono emitting a ResponseEntity with 200 status
+     */
+    public static <T> Mono<ResponseEntity<ApiResponse<T>>> monoOk(String message, T data) {
+        return Mono.just(ok(message, data));
+    }
+
+    /**
+     * Builds a bad request response (HTTP 400 BAD_REQUEST) wrapped in a Mono.
+     *
+     * @param message the error message
+     * @param <T> the type of the response
+     * @return Mono emitting a ResponseEntity with 400 status
+     */
+    public static <T> Mono<ResponseEntity<ApiResponse<T>>> monoBadRequest(String message) {
+        return Mono.just(badRequest(message));
+    }
+
+    /**
+     * Builds an unauthorized response (HTTP 401 UNAUTHORIZED) wrapped in a Mono.
+     *
+     * @param message the error message
+     * @param <T> the type of the response
+     * @return Mono emitting a ResponseEntity with 401 status
+     */
+    public static <T> Mono<ResponseEntity<ApiResponse<T>>> monoUnauthorized(String message) {
+        return Mono.just(unauthorized(message));
+    }
+
+    /**
+     * Builds a forbidden response (HTTP 403 FORBIDDEN) wrapped in a Mono.
+     *
+     * @param message the error message
+     * @param <T> the type of the response
+     * @return Mono emitting a ResponseEntity with 403 status
+     */
+    public static <T> Mono<ResponseEntity<ApiResponse<T>>> monoForbidden(String message) {
+        return Mono.just(forbidden(message));
+    }
+
+    /**
+     * Builds a not found response (HTTP 404 NOT_FOUND) wrapped in a Mono.
+     *
+     * @param message the error message
+     * @param <T> the type of the response
+     * @return Mono emitting a ResponseEntity with 404 status
+     */
+    public static <T> Mono<ResponseEntity<ApiResponse<T>>> monoNotFound(String message) {
+        return Mono.just(notFound(message));
+    }
+
+    /**
+     * Builds an internal server error response (HTTP 500) wrapped in a Mono.
+     *
+     * @param message the error message
+     * @param <T> the type of the response
+     * @return Mono emitting a ResponseEntity with 500 status
+     */
+    public static <T> Mono<ResponseEntity<ApiResponse<T>>> monoInternalServerError(String message) {
+        return Mono.just(internalServerError(message));
     }
 
     // ==================== Builder Methods ====================

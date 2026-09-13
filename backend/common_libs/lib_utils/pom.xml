@@ -29,6 +29,7 @@
         <!-- Dependency versions -->
         <jackson.version>2.18.2</jackson.version>
         <junit.version>5.11.3</junit.version>
+        <grpc.version>1.76.0</grpc.version>
     </properties>
 
     <dependencies>
@@ -95,6 +96,13 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
             <scope>provided</scope>
+        </dependency>
+
+        <!-- gRPC API (Status / StatusException used by the shared exceptions) -->
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-api</artifactId>
+            <version>${grpc.version}</version>
         </dependency>
 
         <!-- Project Reactor (for reactive utilities) -->

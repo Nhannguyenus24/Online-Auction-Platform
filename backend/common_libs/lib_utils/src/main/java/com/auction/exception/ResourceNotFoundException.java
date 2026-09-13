@@ -23,7 +23,7 @@ public class ResourceNotFoundException extends GrpcException {
      */
     public ResourceNotFoundException(String resourceType, String resourceId) {
         super(Status.NOT_FOUND, "RESOURCE_NOT_FOUND",
-            String.format("%s with ID '%s' not found", resourceType, resourceId), null);
+            String.format("%s with ID '%s' not found", resourceType, resourceId), (String) null);
         this.resourceType = resourceType;
         this.resourceId = resourceId;
     }
@@ -34,7 +34,7 @@ public class ResourceNotFoundException extends GrpcException {
      * @param message The error message
      */
     public ResourceNotFoundException(String message) {
-        super(Status.NOT_FOUND, "RESOURCE_NOT_FOUND", message, null);
+        super(Status.NOT_FOUND, "RESOURCE_NOT_FOUND", message, (String) null);
         this.resourceType = null;
         this.resourceId = null;
     }

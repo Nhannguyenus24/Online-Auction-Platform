@@ -47,7 +47,7 @@ public class ServiceException extends GrpcException {
      * @param message   Description of the error
      */
     public ServiceException(ServiceErrorType errorType, String message) {
-        super(errorType.getStatus(), errorType.getCode(), message, null);
+        super(errorType.getStatus(), errorType.getCode(), message, (String) null);
         this.errorType = errorType;
     }
 

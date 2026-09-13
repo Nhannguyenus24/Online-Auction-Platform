@@ -22,7 +22,7 @@ public class ValidationException extends GrpcException {
      * @param fieldName The field that failed validation
      */
     public ValidationException(String message, String fieldName) {
-        super(Status.INVALID_ARGUMENT, "VALIDATION_ERROR", message, null);
+        super(Status.INVALID_ARGUMENT, "VALIDATION_ERROR", message, (String) null);
         this.fieldName = fieldName;
     }
 

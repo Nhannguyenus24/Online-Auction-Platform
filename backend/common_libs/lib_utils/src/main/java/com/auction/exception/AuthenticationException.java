@@ -19,7 +19,7 @@ public class AuthenticationException extends GrpcException {
      * @param message Description of the authentication error
      */
     public AuthenticationException(String message) {
-        super(Status.UNAUTHENTICATED, "AUTHENTICATION_FAILED", message, null);
+        super(Status.UNAUTHENTICATED, "AUTHENTICATION_FAILED", message, (String) null);
     }
 
     /**
@@ -39,7 +39,7 @@ public class AuthenticationException extends GrpcException {
      * @return AuthenticationException with PERMISSION_DENIED status
      */
     public static AuthenticationException permissionDenied(String message) {
-        GrpcException ex = new GrpcException(Status.PERMISSION_DENIED, "PERMISSION_DENIED", message, null);
+        GrpcException ex = new GrpcException(Status.PERMISSION_DENIED, "PERMISSION_DENIED", message, (String) null);
         throw ex;
     }
 }

@@ -268,7 +268,7 @@ public final class ServiceExceptionUtils {
     /**
      * Create an IllegalArgumentException for empty message content
      */
-    public static IllegalArgumentException emptyMessageContent() {
+    public static IllegalArgumentException emptyMessageContentException() {
         return new IllegalArgumentException(ServiceConstants.ERROR_EMPTY_MESSAGE_CONTENT);
     }
 

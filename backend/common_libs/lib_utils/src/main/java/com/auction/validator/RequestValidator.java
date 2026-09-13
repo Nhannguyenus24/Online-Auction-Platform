@@ -422,4 +422,50 @@ public class RequestValidator {
     private RequestValidator() {
         throw new AssertionError("RequestValidator is a utility class and should not be instantiated");
     }
+
+    // ==================== Error Message Helpers ====================
+
+    /**
+     * Validates an email and returns the error message instead of a ValidationResult.
+     *
+     * @param email the email to validate
+     * @return the validation error message, or null when the email is valid
+     */
+    public static String validateEmailAndGetError(String email) {
+        ValidationResult result = validateEmail(email);
+        return result.isValid() ? null : result.getErrorMessage();
+    }
+
+    /**
+     * Validates a password and returns the error message instead of a ValidationResult.
+     *
+     * @param password the password to validate
+     * @return the validation error message, or null when the password is valid
+     */
+    public static String validatePasswordAndGetError(String password) {
+        ValidationResult result = validatePassword(password);
+        return result.isValid() ? null : result.getErrorMessage();
+    }
+
+    /**
+     * Validates an OTP and returns the error message instead of a ValidationResult.
+     *
+     * @param otp the OTP to validate
+     * @return the validation error message, or null when the OTP is valid
+     */
+    public static String validateOTPAndGetError(String otp) {
+        ValidationResult result = validateOTP(otp);
+        return result.isValid() ? null : result.getErrorMessage();
+    }
+
+    /**
+     * Checks that a token was supplied. This is a presence check only: verifying
+     * the signature or issuer is the responsibility of the service that consumes it.
+     *
+     * @param token the token to check
+     * @return true when the token is present and not blank
+     */
+    public static boolean isValidToken(String token) {
+        return token != null && !token.trim().isEmpty();
+    }
 }

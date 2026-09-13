@@ -51,7 +51,7 @@ public class GrpcException extends RuntimeException {
      * @param message    Human-readable error message
      */
     public GrpcException(Status grpcStatus, String message) {
-        this(grpcStatus, grpcStatus.getCode().name(), message, null);
+        this(grpcStatus, grpcStatus.getCode().name(), message, (String) null);
     }
 
     public Status getGrpcStatus() {
