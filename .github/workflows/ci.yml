@@ -58,6 +58,9 @@ jobs:
             base_ref='${{ github.event.pull_request.base.ref }}'
             git fetch --no-tags --depth=100 origin "$base_ref"
             range="origin/${base_ref}..HEAD"
+          elif [ "${{ github.event_name }}" = 'workflow_dispatch' ]; then
+            # A manual run has no pushed range; check the tip commit.
+            range='HEAD~1..HEAD'
           else
             before='${{ github.event.before }}'
             if [ -z "$before" ] || [ "$before" = '0000000000000000000000000000000000000000' ] \
@@ -133,6 +136,9 @@ jobs:
             base_ref='${{ github.event.pull_request.base.ref }}'
             git fetch --no-tags origin "$base_ref"
             base=$(git merge-base "origin/${base_ref}" HEAD)
+          elif [ "${{ github.event_name }}" = 'workflow_dispatch' ]; then
+            # A manual run has no pushed range; look at the tip commit.
+            base=$(git rev-parse HEAD~1)
           else
             before='${{ github.event.before }}'
             if [ -z "$before" ] || [ "$before" = '0000000000000000000000000000000000000000' ] \

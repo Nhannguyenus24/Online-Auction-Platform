@@ -47,6 +47,10 @@ Which commits are checked: on a pull request every commit in
 (`github.event.before..HEAD`), falling back to the merge base with `main` for
 new branches.
 
+The very first push after the pipeline lands also carries whatever history
+was not pushed yet, so older commits get checked once. That is a one-off:
+each later push only sees the commits it actually adds.
+
 Run it yourself:
 
 ```bash
