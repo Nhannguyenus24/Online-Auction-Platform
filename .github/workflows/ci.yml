@@ -1,0 +1,359 @@
+# Phase 1 CI: validate every change pushed to the repository.
+#
+#   1. commit-lint     - commit messages follow docs/COMMIT_RULES.md
+#   2. up-to-date      - the branch is built on the latest base and merges cleanly
+#   3. detect-changes  - work out which components the change touches
+#   4. backend         - compile + test only the affected maven modules
+#   5. frontend        - lint + build the SPA when it is affected
+#   6. ci-status       - single required check that aggregates the above
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+      - 'feat/**'
+      - 'fix/**'
+      - 'hotfix/**'
+      - 'refactor/**'
+      - 'release/**'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+# A new push to the same branch cancels the previous, still running pipeline.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  JAVA_VERSION: '21'
+  JAVA_DISTRIBUTION: temurin
+  NODE_VERSION: '22'
+  MVN_FLAGS: '-B -ntp -Dstyle.color=always'
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. Commit message convention
+  # ---------------------------------------------------------------------------
+  commit-lint:
+    name: 1 · Commit messages
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve the range of commits to validate
+        id: range
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = 'pull_request' ]; then
+            base_ref='${{ github.event.pull_request.base.ref }}'
+            git fetch --no-tags --depth=100 origin "$base_ref"
+            range="origin/${base_ref}..HEAD"
+          else
+            before='${{ github.event.before }}'
+            if [ -z "$before" ] || [ "$before" = '0000000000000000000000000000000000000000' ] \
+               || ! git cat-file -e "${before}^{commit}" 2>/dev/null; then
+              # New branch (or a force push we cannot diff against): fall back to
+              # everything this branch adds on top of the default branch.
+              default='${{ github.event.repository.default_branch }}'
+              git fetch --no-tags --depth=100 origin "$default" || true
+              if base=$(git merge-base "origin/${default}" HEAD 2>/dev/null); then
+                range="${base}..HEAD"
+              else
+                range='HEAD~1..HEAD'
+              fi
+            else
+              range="${before}..HEAD"
+            fi
+          fi
+          echo "range=${range}" >> "$GITHUB_OUTPUT"
+          echo "Validating commits in ${range}"
+
+      - name: Validate commit messages
+        run: .github/scripts/validate-commit-msg.sh --range '${{ steps.range.outputs.range }}'
+
+  # ---------------------------------------------------------------------------
+  # 2. Branch freshness: the code must be based on the latest base branch
+  # ---------------------------------------------------------------------------
+  up-to-date:
+    name: 2 · Branch is up to date
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Nothing to compare when pushing straight to the default branch.
+    if: github.event_name == 'pull_request' || github.ref_name != github.event.repository.default_branch
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # Compare against the real branch head, not the synthetic merge commit.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Check the branch contains the latest base
+        run: |
+          set -euo pipefail
+          base_ref='${{ github.event.pull_request.base.ref || github.event.repository.default_branch }}'
+          git fetch --no-tags origin "$base_ref"
+          .github/scripts/check-up-to-date.sh "origin/${base_ref}" HEAD
+
+  # ---------------------------------------------------------------------------
+  # 3. Which components does this change touch?
+  # ---------------------------------------------------------------------------
+  detect-changes:
+    name: 3 · Affected components
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [commit-lint, up-to-date]
+    # up-to-date is skipped on pushes to main; only block on an actual failure.
+    if: always() && needs.commit-lint.result == 'success' && needs.up-to-date.result != 'failure'
+    outputs:
+      backend: ${{ steps.detect.outputs.backend }}
+      frontend: ${{ steps.detect.outputs.frontend }}
+      modules: ${{ steps.detect.outputs.modules }}
+      components: ${{ steps.detect.outputs.components }}
+      build_all: ${{ steps.detect.outputs.build_all }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve the diff range
+        id: range
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = 'pull_request' ]; then
+            base_ref='${{ github.event.pull_request.base.ref }}'
+            git fetch --no-tags origin "$base_ref"
+            base=$(git merge-base "origin/${base_ref}" HEAD)
+          else
+            before='${{ github.event.before }}'
+            if [ -z "$before" ] || [ "$before" = '0000000000000000000000000000000000000000' ] \
+               || ! git cat-file -e "${before}^{commit}" 2>/dev/null; then
+              default='${{ github.event.repository.default_branch }}'
+              git fetch --no-tags origin "$default" || true
+              base=$(git merge-base "origin/${default}" HEAD 2>/dev/null || git rev-parse HEAD~1)
+            else
+              base="$before"
+            fi
+          fi
+          echo "base=${base}" >> "$GITHUB_OUTPUT"
+
+      - name: Detect affected components
+        id: detect
+        run: .github/scripts/detect-changes.sh '${{ steps.range.outputs.base }}' HEAD
+
+  # ---------------------------------------------------------------------------
+  # 4. Backend: compile and test every affected maven module
+  # ---------------------------------------------------------------------------
+  backend:
+    name: 4 · Backend (${{ matrix.module }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: detect-changes
+    if: needs.detect-changes.outputs.backend == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJson(needs.detect-changes.outputs.modules) }}
+    defaults:
+      run:
+        working-directory: backend
+
+    # Spring context tests boot against real infrastructure, mirroring
+    # docker-compose.yml so the defaults in application.properties just work.
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root123
+          MYSQL_DATABASE: mydb
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot123"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+      redis:
+        image: redis:7.2-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+      rabbitmq:
+        image: rabbitmq:3.13-management-alpine
+        env:
+          RABBITMQ_DEFAULT_USER: admin
+          RABBITMQ_DEFAULT_PASS: admin123
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd="rabbitmq-diagnostics -q ping"
+          --health-interval=10s
+          --health-timeout=10s
+          --health-retries=12
+
+    env:
+      JWT_SECRET: ci-secret-key-minimum-32-characters-long-value
+      MYSQL_URL: r2dbc:mysql://localhost:3306/mydb
+      MYSQL_USER: root
+      MYSQL_PASSWORD: root123
+      REDIS_HOST: localhost
+      REDIS_PORT: '6379'
+      RABBITMQ_HOST: localhost
+      RABBITMQ_PORT: '5672'
+      RABBITMQ_USER: admin
+      RABBITMQ_PASSWORD: admin123
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          cache: maven
+
+      - name: Load the database schema
+        working-directory: .
+        run: |
+          set -euo pipefail
+          docker run --rm --network host -v "$PWD/docs:/sql:ro" mysql:8.0 \
+            sh -c 'mysql -h 127.0.0.1 -P 3306 -uroot -proot123 mydb < /sql/mysqldb.sql'
+          echo "Schema loaded into mydb"
+
+      - name: Compile ${{ matrix.module }} and its dependencies
+        run: mvn $MVN_FLAGS -pl '${{ matrix.module }}' -am -DskipTests clean install
+
+      - name: Run tests for ${{ matrix.module }}
+        run: mvn $MVN_FLAGS -pl '${{ matrix.module }}' test
+
+      - name: Summarise test results
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import glob, os, xml.etree.ElementTree as ET
+
+          module = "${{ matrix.module }}"
+          rows, totals = [], [0, 0, 0, 0]
+          for path in sorted(glob.glob(f"{module}/target/surefire-reports/TEST-*.xml")):
+              suite = ET.parse(path).getroot()
+              counts = [int(suite.get(k, 0)) for k in ("tests", "failures", "errors", "skipped")]
+              totals = [a + b for a, b in zip(totals, counts)]
+              rows.append((suite.get("name", os.path.basename(path)), counts))
+
+          lines = [f"### Backend · {module}", ""]
+          if not rows:
+              lines.append("No test reports produced.")
+          else:
+              lines += ["| Test class | Tests | Failures | Errors | Skipped |", "| --- | ---: | ---: | ---: | ---: |"]
+              lines += [f"| {name} | " + " | ".join(str(c) for c in counts) + " |" for name, counts in rows]
+              lines.append("| **Total** | " + " | ".join(f"**{t}**" for t in totals) + " |")
+
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as fh:
+              fh.write("\n".join(lines) + "\n\n")
+          PY
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports-${{ matrix.module }}
+          path: backend/${{ matrix.module }}/target/surefire-reports/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------
+  # 5. Frontend: lint and build
+  # ---------------------------------------------------------------------------
+  frontend:
+    name: 5 · Frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: detect-changes
+    if: needs.detect-changes.outputs.frontend == 'true'
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        # react-helmet-async still declares a React 18 peer range, so a strict
+        # resolution cannot install the React 19 tree this app uses.
+        run: npm ci --legacy-peer-deps
+
+      - name: Lint
+        # Advisory in phase 1: the existing sources carry pre-existing eslint
+        # errors. Drop continue-on-error once they are cleared to make it a gate.
+        continue-on-error: true
+        run: |
+          npm run lint || {
+            echo "::warning title=ESLint::npm run lint reported problems (not blocking in phase 1)"
+            exit 1
+          }
+
+      - name: Build
+        run: npm run build
+
+  # ---------------------------------------------------------------------------
+  # 6. Aggregate result - set this one as the required status check
+  # ---------------------------------------------------------------------------
+  ci-status:
+    name: CI status
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [commit-lint, up-to-date, detect-changes, backend, frontend]
+    if: always()
+    steps:
+      - name: Report
+        run: |
+          set -uo pipefail
+          declare -A results=(
+            [commit-lint]='${{ needs.commit-lint.result }}'
+            [up-to-date]='${{ needs.up-to-date.result }}'
+            [detect-changes]='${{ needs.detect-changes.result }}'
+            [backend]='${{ needs.backend.result }}'
+            [frontend]='${{ needs.frontend.result }}'
+          )
+          failed=0
+          {
+            echo "### CI result"
+            echo
+            echo "| Stage | Result |"
+            echo "| --- | --- |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          for job in commit-lint up-to-date detect-changes backend frontend; do
+            result=${results[$job]}
+            case $result in
+              success)          icon='✅' ;;
+              skipped|'')       icon='⏭️'; result=${result:-skipped} ;;
+              *)                icon='❌'; failed=1 ;;
+            esac
+            echo "${icon} ${job}: ${result}"
+            echo "| ${job} | ${icon} ${result} |" >> "$GITHUB_STEP_SUMMARY"
+          done
+          if [ "$failed" -eq 1 ]; then
+            echo "::error title=CI failed::One or more stages failed"
+            exit 1
+          fi
+          echo "All required stages passed."
