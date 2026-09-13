@@ -91,8 +91,6 @@ jobs:
     name: 2 · Branch is up to date
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    # Nothing to compare when pushing straight to the default branch.
-    if: github.event_name == 'pull_request' || github.ref_name != github.event.repository.default_branch
     steps:
       - uses: actions/checkout@v4
         with:
@@ -103,6 +101,14 @@ jobs:
       - name: Check the branch contains the latest base
         run: |
           set -euo pipefail
+          default='${{ github.event.repository.default_branch }}'
+          # A push to the default branch has no base to be behind of. This is
+          # handled here rather than with a job-level `if` so the job still
+          # reports success: a skipped job would skip everything after it.
+          if [ '${{ github.event_name }}' != 'pull_request' ] && [ '${{ github.ref_name }}' = "$default" ]; then
+            echo "Pushing directly to ${default}; there is no base branch to compare against."
+            exit 0
+          fi
           base_ref='${{ github.event.pull_request.base.ref || github.event.repository.default_branch }}'
           git fetch --no-tags origin "$base_ref"
           .github/scripts/check-up-to-date.sh "origin/${base_ref}" HEAD
@@ -115,8 +121,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs: [commit-lint, up-to-date]
-    # up-to-date is skipped on pushes to main; only block on an actual failure.
-    if: always() && needs.commit-lint.result == 'success' && needs.up-to-date.result != 'failure'
     outputs:
       backend: ${{ steps.detect.outputs.backend }}
       frontend: ${{ steps.detect.outputs.frontend }}

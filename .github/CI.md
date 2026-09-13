@@ -124,7 +124,12 @@ it into a real gate.
 
 Require the **`CI status`** check on `main`. It is the only check that always
 runs, and it fails if any stage failed while tolerating the stages that were
-legitimately skipped.
+legitimately skipped (`backend` and `frontend` are skipped when nothing they
+cover changed).
+
+Note that the freshness stage reports success rather than skipping on a push to
+`main`: a skipped job makes GitHub skip everything downstream of it, which would
+silently cancel the build.
 
 ## Next phases
 
