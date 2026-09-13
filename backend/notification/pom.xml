@@ -31,6 +31,12 @@
 		<spring-grpc.version>0.12.0</spring-grpc.version>
 	</properties>
 	<dependencies>
+		<!-- Shared utilities library -->
+		<dependency>
+			<groupId>com.auction</groupId>
+			<artifactId>lib-utils</artifactId>
+			<version>1.0.0</version>
+		</dependency>
 		<!-- Shared entities library -->
 		<dependency>
 			<groupId>com.auction</groupId>
