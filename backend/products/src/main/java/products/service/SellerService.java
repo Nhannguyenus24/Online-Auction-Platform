@@ -633,7 +633,7 @@ public class SellerService {
             .build();
         
         log.info("Sending ban notification to RabbitMQ: userId={}, productId={}, queue={}", 
-            bidderId, product.getId(), NOTIFICATION_QUEUE);
+            bidderId, product.getId(), ServiceConstants.NOTIFICATION_QUEUE);
         
         return rabbitProducer.sendToQueue(ServiceConstants.NOTIFICATION_QUEUE, message)
             .doOnSuccess(v -> log.info("Ban notification sent successfully: userId={}, productId={}", bidderId, product.getId()))

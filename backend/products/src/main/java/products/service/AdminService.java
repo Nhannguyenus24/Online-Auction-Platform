@@ -45,7 +45,7 @@ public class AdminService {
         return categoryRepository.findByName(name)
             .flatMap(existingCategory -> {
                 log.warn("Category name already exists: {}", name);
-                return ServiceExceptionUtils.categoryNameExists();
+                return ServiceExceptionUtils.<CreateCategoryResult>categoryNameExists();
             })
             .switchIfEmpty(
                 Mono.defer(() -> {
@@ -80,7 +80,7 @@ public class AdminService {
                     .filter(existing -> !existing.getId().equals(categoryId))
                     .flatMap(existing -> {
                         log.warn("Category name already exists: {}", name);
-                        return ServiceExceptionUtils.categoryNameExists();
+                        return ServiceExceptionUtils.<UpdateCategoryResult>categoryNameExists();
                     })
                     .switchIfEmpty(
                         Mono.defer(() -> {
