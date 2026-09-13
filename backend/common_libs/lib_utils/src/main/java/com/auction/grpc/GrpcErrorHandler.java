@@ -34,16 +34,18 @@ public class GrpcErrorHandler {
      * @return StatusRuntimeException with appropriate gRPC Status
      */
     public static StatusRuntimeException handleException(Throwable exception, String context) {
-        if (exception instanceof GrpcException) {
-            return handleGrpcException((GrpcException) exception, context);
-        } else if (exception instanceof ValidationException) {
-            return handleValidationException((ValidationException) exception, context);
-        } else if (exception instanceof AuthenticationException) {
-            return handleAuthenticationException((AuthenticationException) exception, context);
-        } else if (exception instanceof ResourceNotFoundException) {
-            return handleResourceNotFoundException((ResourceNotFoundException) exception, context);
-        } else if (exception instanceof ServiceException) {
-            return handleServiceException((ServiceException) exception, context);
+        // Every branch below extends GrpcException, so the specific types have to
+        // be matched before the base type or their handlers are unreachable.
+        if (exception instanceof ValidationException validationException) {
+            return handleValidationException(validationException, context);
+        } else if (exception instanceof AuthenticationException authenticationException) {
+            return handleAuthenticationException(authenticationException, context);
+        } else if (exception instanceof ResourceNotFoundException resourceNotFoundException) {
+            return handleResourceNotFoundException(resourceNotFoundException, context);
+        } else if (exception instanceof ServiceException serviceException) {
+            return handleServiceException(serviceException, context);
+        } else if (exception instanceof GrpcException grpcException) {
+            return handleGrpcException(grpcException, context);
         } else {
             return handleUnexpectedException(exception, context);
         }
